@@ -33,7 +33,7 @@ export async function migratePage(importedPageId, templateId, selectorMap = { 'm
     });
 
     const page = await prisma.pages.create({
-      data: { template_id: templateId, content_id: content.id, title: title, slug: pageSlug, status: 'draft' }
+      data: { template_id: templateId, content_id: content.id, title: title, status: 'draft' }
     });
 
     await prisma.imported_pages.update({ where: { id: importedPageId }, data: { status: 'migrated' } });
