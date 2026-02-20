@@ -107,7 +107,7 @@ async function syncFromFeed(siteId, feedUrl, dbName) {
 
       await prisma.imported_sites.update({
         where: { id: siteId },
-        data: { page_count: count, status: 'completed' }
+        data: { page_count: count }
       });
       return true;
     }
@@ -125,13 +125,15 @@ export async function crawlSite(siteId, rootUrl) {
       const siteRecord = await prisma.imported_sites.findUnique({ where: { id: siteId } });
       const config = siteRecord?.config ? (typeof siteRecord.config === 'string' ? JSON.parse(siteRecord.config) : siteRecord.config) : {};
       
-      // Use configured feed URL if available
+      // Use configured feed URL if available (products only)
       if (config.feedUrl) {
         const success = await syncFromFeed(siteId, config.feedUrl, dbName);
-        if (success) return;
+        if (success) {
+          info(dbName, 'FEED_SYNC_DONE', 'Feed sync complete, continuing crawl for pages/blogs');
+        }
       }
 
-      // Fall back to traditional crawling with improved limits
+      // Always do a traditional crawl to pick up pages, blogs, etc.
       info(dbName, 'CRAWL_START', `Starting traditional crawl with max pages: ${config.maxPages || 1000}`);
       await traditionalCrawl(siteId, rootUrl, config, dbName);
     } catch (err) {
@@ -147,9 +149,18 @@ export async function crawlSite(siteId, rootUrl) {
 async function traditionalCrawl(siteId, rootUrl, config, dbName) {
   const visited = new Set();
   const queue = [normalizeUrl(rootUrl)];
-  let pageCount = 0;
-  const maxPages = config.maxPages || 1000; // Increased default limit
+  const maxPages = config.maxPages || 1000;
   const rootDomain = new URL(rootUrl).hostname;
+
+  // Pre-populate visited set with URLs already imported (e.g. from feed sync)
+  const existingPages = await prisma.imported_pages.findMany({
+    where: { site_id: siteId },
+    select: { url: true }
+  });
+  let pageCount = existingPages.length;
+  for (const p of existingPages) {
+    visited.add(normalizeUrl(p.url));
+  }
 
   await prisma.imported_sites.update({ where: { id: siteId }, data: { status: 'crawling' } });
 

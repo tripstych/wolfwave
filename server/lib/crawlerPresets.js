@@ -5,9 +5,9 @@
 export const CRAWLER_PRESETS = {
   shopify: {
     name: 'Shopify',
-    maxPages: 1000, // Increased limit for better coverage
+    maxPages: 1000,
     feedUrl: '/products.json',
-    priorityPatterns: ['/products/', '/collections/'],
+    priorityPatterns: ['/products/', '/collections/', '/pages/', '/blogs/'],
     excludePatterns: ['/tagged/', '/search', 'sort_by=', 'view=', 'variant='],
     rules: [
       { selector: 'form[action="/cart/add"]', action: 'setType', value: 'product' },
