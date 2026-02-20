@@ -30,7 +30,7 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <img src="/images/logo.png" alt="WolfWave CMS" className="mx-auto mb-4" style={{ width: 64, height: 64 }} />
+          <img src="/images/logo.png" alt="WolfWave CMS" className="mx-auto mb-4 w-16 h-16" />
           <h1 className="text-2xl font-bold text-gray-900">WolfWave CMS</h1>
           <p className="text-gray-600 mt-1">Sign in to your account</p>
         </div>

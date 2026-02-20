@@ -7,8 +7,8 @@ export default function TenantList() {
   const [error, setError] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [newTenant, setNewTenant] = useState({ 
-    name: '', 
+  const [newTenant, setNewTenant] = useState({
+    name: '',
     subdomain: '',
     email: 'admin@example.com',
     password: ''
@@ -53,8 +53,8 @@ export default function TenantList() {
         const data = await response.json();
         throw new Error(data.error || 'Failed to create tenant');
       }
-      setNewTenant({ 
-        name: '', 
+      setNewTenant({
+        name: '',
         subdomain: '',
         email: 'admin@example.com',
         password: ''
@@ -120,9 +120,8 @@ export default function TenantList() {
         <button
           className="btn btn-primary"
           onClick={() => setShowCreate(!showCreate)}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
         >
-          <Plus className="w-5 h-5" />
+          <Plus className="w-5 h-5 mr-2" />
           New Tenant
         </button>
       </div>
@@ -157,21 +156,20 @@ export default function TenantList() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Subdomain</label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <div className="flex items-center gap-2">
                 <input
                   type="text"
                   value={newTenant.subdomain}
                   onChange={(e) => { setSubdomainEdited(true); setNewTenant({ ...newTenant, subdomain: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') }); }}
                   placeholder="my-store"
-                  className="input"
-                  style={{ flex: 1 }}
+                  className="input flex-1"
                   required
                 />
                 <span className="text-sm text-gray-500">.yourdomain.com</span>
               </div>
               <p className="text-xs text-gray-400 mt-1">Database: webwolf_{newTenant.subdomain || '...'}</p>
             </div>
-            
+
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Admin Email</label>
@@ -195,7 +193,7 @@ export default function TenantList() {
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <div className="flex gap-2">
               <button type="submit" className="btn btn-primary" disabled={creating}>
                 {creating ? 'Provisioning...' : 'Create Tenant'}
               </button>
@@ -220,54 +218,49 @@ export default function TenantList() {
         </div>
       ) : (
         <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead style={{ backgroundColor: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
+          <table className="w-full border-collapse">
+            <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th style={{ padding: '0.75rem 1.5rem', textAlign: 'left', fontSize: '0.875rem', fontWeight: 600, color: '#111827' }}>Name</th>
-                <th style={{ padding: '0.75rem 1.5rem', textAlign: 'left', fontSize: '0.875rem', fontWeight: 600, color: '#111827' }}>Subdomain</th>
-                <th style={{ padding: '0.75rem 1.5rem', textAlign: 'left', fontSize: '0.875rem', fontWeight: 600, color: '#111827' }}>Database</th>
-                <th style={{ padding: '0.75rem 1.5rem', textAlign: 'left', fontSize: '0.875rem', fontWeight: 600, color: '#111827' }}>Status</th>
-                <th style={{ padding: '0.75rem 1.5rem', textAlign: 'left', fontSize: '0.875rem', fontWeight: 600, color: '#111827' }}>Created</th>
-                <th style={{ padding: '0.75rem 1.5rem', textAlign: 'center', fontSize: '0.875rem', fontWeight: 600, color: '#111827' }}>Actions</th>
+                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Name</th>
+                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Subdomain</th>
+                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Database</th>
+                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Status</th>
+                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Created</th>
+                <th className="px-6 py-3 text-center text-sm font-semibold text-gray-900">Actions</th>
               </tr>
             </thead>
             <tbody>
               {tenants.map((tenant) => (
-                <tr key={tenant.id} style={{ borderBottom: '1px solid #e5e7eb' }} className="hover:bg-gray-50">
-                  <td style={{ padding: '0.75rem 1.5rem', fontWeight: 500 }}>{tenant.name}</td>
-                  <td style={{ padding: '0.75rem 1.5rem' }}>
-                    <span style={{ fontFamily: 'monospace', fontSize: '0.875rem', color: '#4b5563' }}>
+                <tr key={tenant.id} className="border-b border-gray-200 hover:bg-gray-50">
+                  <td className="px-6 py-3 font-medium">{tenant.name}</td>
+                  <td className="px-6 py-3">
+                    <span className="font-mono text-sm text-gray-600">
                       {tenant.subdomain}
                     </span>
                   </td>
-                  <td style={{ padding: '0.75rem 1.5rem' }}>
-                    <span style={{ fontFamily: 'monospace', fontSize: '0.8rem', color: '#6b7280' }}>
+                  <td className="px-6 py-3">
+                    <span className="font-mono text-xs text-gray-500">
                       {tenant.database_name}
                     </span>
                   </td>
-                  <td style={{ padding: '0.75rem 1.5rem' }}>
-                    <span style={{
-                      display: 'inline-block',
-                      padding: '0.125rem 0.625rem',
-                      borderRadius: '9999px',
-                      fontSize: '0.75rem',
-                      fontWeight: 500,
-                      backgroundColor: tenant.status === 'active' ? '#d1fae5' : '#fef3c7',
-                      color: tenant.status === 'active' ? '#065f46' : '#92400e'
-                    }}>
+                  <td className="px-6 py-3">
+                    <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      tenant.status === 'active'
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-amber-100 text-amber-800'
+                    }`}>
                       {tenant.status}
                     </span>
                   </td>
-                  <td style={{ padding: '0.75rem 1.5rem', fontSize: '0.875rem', color: '#6b7280' }}>
+                  <td className="px-6 py-3 text-sm text-gray-500">
                     {new Date(tenant.created_at).toLocaleDateString()}
                   </td>
-                  <td style={{ padding: '0.75rem 1.5rem', textAlign: 'center' }}>
-                    <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem' }}>
+                  <td className="px-6 py-3 text-center">
+                    <div className="flex justify-center gap-2">
                       <button
                         onClick={() => handleStatusToggle(tenant)}
-                        className="btn btn-ghost"
+                        className="btn btn-ghost px-2 py-1"
                         title={tenant.status === 'active' ? 'Suspend' : 'Activate'}
-                        style={{ padding: '0.25rem 0.5rem' }}
                       >
                         {tenant.status === 'active'
                           ? <Pause className="w-4 h-4" />
@@ -275,18 +268,16 @@ export default function TenantList() {
                         }
                       </button>
                       {deleteConfirm === tenant.id ? (
-                        <div style={{ display: 'flex', gap: '0.25rem' }}>
+                        <div className="flex gap-1">
                           <button
                             onClick={() => handleDelete(tenant.id)}
-                            className="btn btn-danger"
-                            style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+                            className="btn btn-danger px-2 py-1 text-xs"
                           >
                             Confirm
                           </button>
                           <button
                             onClick={() => setDeleteConfirm(null)}
-                            className="btn btn-ghost"
-                            style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+                            className="btn btn-ghost px-2 py-1 text-xs"
                           >
                             Cancel
                           </button>
@@ -294,9 +285,8 @@ export default function TenantList() {
                       ) : (
                         <button
                           onClick={() => setDeleteConfirm(tenant.id)}
-                          className="btn btn-ghost"
+                          className="btn btn-ghost px-2 py-1 text-red-500"
                           title="Delete tenant"
-                          style={{ padding: '0.25rem 0.5rem', color: '#ef4444' }}
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>

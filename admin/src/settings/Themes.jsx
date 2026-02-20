@@ -82,65 +82,48 @@ export default function Themes() {
           <p className="text-gray-600">No themes found. Add theme directories to the /themes folder.</p>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-6">
           {themes.map((theme) => (
             <div
               key={theme.slug}
-              className="bg-white border rounded-lg overflow-hidden"
-              style={{
-                borderColor: theme.slug === activeTheme ? '#2563eb' : '#e5e7eb',
-                borderWidth: theme.slug === activeTheme ? '2px' : '1px'
-              }}
+              className={`bg-white rounded-lg overflow-hidden ${
+                theme.slug === activeTheme
+                  ? 'border-2 border-blue-600'
+                  : 'border border-gray-200'
+              }`}
             >
-              <div style={{
-                height: '120px',
-                background: 'linear-gradient(135deg, #f0f4ff 0%, #e0e7ff 100%)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <Palette style={{ width: '48px', height: '48px', color: '#6366f1', opacity: 0.5 }} />
+              <div className="h-[120px] bg-gradient-to-br from-indigo-50 to-indigo-100 flex items-center justify-center">
+                <Palette className="w-12 h-12 text-indigo-500 opacity-50" />
               </div>
 
-              <div style={{ padding: '1.25rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
-                  <h3 style={{ fontSize: '1.125rem', fontWeight: 600, color: '#111827' }}>
+              <div className="p-5">
+                <div className="flex justify-between items-start mb-2">
+                  <h3 className="text-lg font-semibold text-gray-900">
                     {theme.name}
                   </h3>
                   {theme.slug === activeTheme && (
-                    <span style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.25rem',
-                      padding: '0.125rem 0.5rem',
-                      borderRadius: '9999px',
-                      fontSize: '0.75rem',
-                      fontWeight: 500,
-                      backgroundColor: '#d1fae5',
-                      color: '#065f46'
-                    }}>
-                      <Check style={{ width: '12px', height: '12px' }} />
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      <Check className="w-3 h-3" />
                       Active
                     </span>
                   )}
                 </div>
 
-                <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.75rem' }}>
+                <p className="text-sm text-gray-500 mb-3">
                   {theme.description || 'No description'}
                 </p>
 
-                <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginBottom: '1rem' }}>
+                <div className="text-xs text-gray-400 mb-4">
                   <span>v{theme.version}</span>
                   {theme.inherits && (
                     <span> &middot; extends <strong>{theme.inherits}</strong></span>
                   )}
                 </div>
 
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <div className="flex gap-2">
                   {theme.slug !== activeTheme && (
                     <button
-                      className="btn btn-primary"
-                      style={{ flex: 1, padding: '0.5rem 1rem', fontSize: '0.875rem' }}
+                      className="btn btn-primary flex-1 py-2 text-sm"
                       onClick={() => handleActivate(theme.slug)}
                       disabled={activating === theme.slug}
                     >
@@ -149,8 +132,7 @@ export default function Themes() {
                   )}
                   <Link
                     to={`/themes/${theme.slug}/editor`}
-                    className="btn btn-secondary"
-                    style={{ flex: 1, padding: '0.5rem 1rem', fontSize: '0.875rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+                    className="btn btn-secondary flex-1 py-2 text-sm flex items-center justify-center gap-2"
                   >
                     <Code className="w-4 h-4" />
                     Edit Code

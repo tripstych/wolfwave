@@ -191,19 +191,11 @@ export default function CustomerDetail() {
             {customer.subscriptions.map((sub) => (
               <div
                 key={sub.id}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '0.75rem 1rem',
-                  backgroundColor: '#f9fafb',
-                  borderRadius: '6px',
-                  border: '1px solid #e5e7eb'
-                }}
+                className="flex justify-between items-center px-4 py-3 bg-gray-50 rounded-md border border-gray-200"
               >
                 <div>
-                  <div style={{ fontWeight: 500 }}>{sub.plan_name}</div>
-                  <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                  <div className="font-medium">{sub.plan_name}</div>
+                  <div className="text-sm text-gray-500">
                     {formatCurrency(sub.plan_price)}/{sub.plan_interval === 'yearly' ? 'yr' : sub.plan_interval === 'weekly' ? 'wk' : 'mo'}
                     {sub.current_period_end && (
                       <span> &middot; Renews {new Date(sub.current_period_end).toLocaleDateString()}</span>

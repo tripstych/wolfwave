@@ -107,68 +107,37 @@ export default function ContentGroupsWidget({ contentId, onGroupsChange }) {
 
   if (!contentId) {
     return (
-      <div style={{
-        backgroundColor: '#f9fafb',
-        border: '1px solid #e5e7eb',
-        borderRadius: '8px',
-        padding: '1.5rem',
-        textAlign: 'center',
-        color: '#6b7280'
-      }}>
+      <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 text-center text-gray-500">
         Save content first to add it to groups
       </div>
     );
   }
 
   return (
-    <div style={{
-      backgroundColor: 'white',
-      border: '1px solid #e5e7eb',
-      borderRadius: '8px',
-      padding: '1.5rem'
-    }}>
-      <h3 style={{ marginTop: 0, marginBottom: '1rem', fontSize: '1.125rem', fontWeight: 500 }}>
+    <div className="card p-6">
+      <h3 className="mt-0 mb-4 text-lg font-medium">
         Groups
       </h3>
 
       {/* Current Groups */}
-      <div style={{ marginBottom: '1.5rem' }}>
+      <div className="mb-6">
         {groups.length === 0 ? (
-          <p style={{ color: '#9ca3af', fontStyle: 'italic', margin: 0 }}>
+          <p className="text-gray-400 italic m-0">
             Not in any groups yet
           </p>
         ) : (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <div className="flex flex-wrap gap-2">
             {groups.map(group => (
               <div
                 key={group.id}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  backgroundColor: '#eff6ff',
-                  border: '1px solid #bfdbfe',
-                  borderRadius: '9999px',
-                  paddingLeft: '0.75rem',
-                  paddingRight: '0.5rem',
-                  paddingTop: '0.25rem',
-                  paddingBottom: '0.25rem'
-                }}
+                className="inline-flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-full pl-3 pr-2 py-1"
               >
-                <span style={{ fontSize: '0.875rem', color: '#1e40af' }}>
+                <span className="text-sm text-blue-800">
                   {group.name}
                 </span>
                 <button
                   onClick={() => removeGroupFromContent(group.id)}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    padding: '0',
-                    color: '#1e40af',
-                    display: 'flex',
-                    alignItems: 'center'
-                  }}
+                  className="text-blue-800 hover:text-blue-900 p-0 flex items-center"
                   title="Remove from group"
                 >
                   <X className="w-3 h-3" />
@@ -180,59 +149,28 @@ export default function ContentGroupsWidget({ contentId, onGroupsChange }) {
       </div>
 
       {/* Add Group Dropdown */}
-      <div style={{ position: 'relative' }}>
+      <div className="relative">
         <button
           onClick={() => setShowDropdown(!showDropdown)}
-          style={{
-            width: '100%',
-            padding: '0.75rem',
-            border: '1px solid #d1d5db',
-            borderRadius: '4px',
-            backgroundColor: 'white',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            fontSize: '0.875rem'
-          }}
+          className="w-full px-3 py-2 border border-gray-300 rounded bg-white cursor-pointer flex items-center gap-2 text-sm hover:bg-gray-50"
         >
           <Plus className="w-4 h-4" />
           {unassignedGroups.length > 0 ? 'Add to group' : 'All groups assigned'}
         </button>
 
         {showDropdown && unassignedGroups.length > 0 && (
-          <div
-            style={{
-              position: 'absolute',
-              top: '100%',
-              left: 0,
-              right: 0,
-              backgroundColor: 'white',
-              border: '1px solid #d1d5db',
-              borderRadius: '4px',
-              marginTop: '0.25rem',
-              zIndex: 10,
-              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
-            }}
-          >
+          <div className="absolute top-full left-0 right-0 bg-white border border-gray-300 rounded mt-1 z-10 shadow-md">
             <input
               type="text"
               placeholder="Search groups..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '0.5rem',
-                border: 'none',
-                borderBottom: '1px solid #e5e7eb',
-                borderRadius: '4px 4px 0 0',
-                fontSize: '0.875rem'
-              }}
+              className="w-full px-2 py-2 border-0 border-b border-gray-200 rounded-t text-sm focus:outline-none"
             />
 
-            <div style={{ maxHeight: '250px', overflowY: 'auto' }}>
+            <div className="max-h-[250px] overflow-y-auto">
               {filteredGroups.length === 0 ? (
-                <div style={{ padding: '0.75rem', color: '#9ca3af', textAlign: 'center' }}>
+                <div className="p-3 text-gray-400 text-center">
                   No groups found
                 </div>
               ) : (
@@ -240,19 +178,7 @@ export default function ContentGroupsWidget({ contentId, onGroupsChange }) {
                   <button
                     key={group.id}
                     onClick={() => addGroupToContent(group.id)}
-                    style={{
-                      width: '100%',
-                      padding: '0.75rem',
-                      border: 'none',
-                      backgroundColor: 'transparent',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      borderBottom: '1px solid #f3f4f6',
-                      fontSize: '0.875rem',
-                      transition: 'background-color 0.15s'
-                    }}
-                    onMouseEnter={(e) => e.target.style.backgroundColor = '#f9fafb'}
-                    onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+                    className="w-full px-3 py-2 border-0 bg-transparent text-left cursor-pointer border-b border-gray-100 text-sm hover:bg-gray-50"
                   >
                     {group.name}
                   </button>
@@ -266,14 +192,7 @@ export default function ContentGroupsWidget({ contentId, onGroupsChange }) {
       {showDropdown && (
         <div
           onClick={() => setShowDropdown(false)}
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            zIndex: 9
-          }}
+          className="fixed inset-0 z-[9]"
         />
       )}
     </div>

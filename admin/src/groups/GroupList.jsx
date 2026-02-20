@@ -74,28 +74,11 @@ export default function GroupList() {
 
     return (
       <div key={group.id} style={{ marginLeft: `${level * 20}px` }}>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            padding: '0.75rem',
-            backgroundColor: '#f9fafb',
-            borderRadius: '4px',
-            marginBottom: '0.25rem',
-            border: '1px solid #e5e7eb'
-          }}
-        >
+        <div className="flex items-center gap-2 p-3 bg-gray-50 rounded border border-gray-200 mb-1">
           {hasChildren ? (
             <button
               onClick={() => toggleExpanded(group.id)}
-              style={{
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                padding: '0',
-                display: 'flex'
-              }}
+              className="p-0 flex hover:text-gray-700"
             >
               {isExpanded ? (
                 <ChevronDown className="w-4 h-4" />
@@ -104,19 +87,19 @@ export default function GroupList() {
               )}
             </button>
           ) : (
-            <div style={{ width: '16px' }} />
+            <div className="w-4" />
           )}
 
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 500 }}>{group.name}</div>
+          <div className="flex-1">
+            <div className="font-medium">{group.name}</div>
             {group.content && group.content.length > 0 && (
-              <div style={{ fontSize: '0.875rem', color: '#666' }}>
+              <div className="text-sm text-gray-500">
                 {group.content.length} item{group.content.length !== 1 ? 's' : ''}
               </div>
             )}
           </div>
 
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <div className="flex gap-2">
             <button
               onClick={() => navigate(`/groups/${group.id}`)}
               className="btn btn-sm btn-secondary"
@@ -125,8 +108,7 @@ export default function GroupList() {
             </button>
             <button
               onClick={() => deleteGroup(group.id)}
-              className="btn btn-sm btn-ghost"
-              style={{ color: '#ef4444' }}
+              className="btn btn-sm btn-ghost text-red-500"
             >
               <Trash2 className="w-4 h-4" />
             </button>
@@ -168,27 +150,14 @@ export default function GroupList() {
 
       {/* Error */}
       {error && (
-        <div style={{
-          padding: '1rem',
-          backgroundColor: '#fee2e2',
-          border: '1px solid #fecaca',
-          borderRadius: '4px',
-          color: '#991b1b'
-        }}>
+        <div className="p-4 bg-red-50 border border-red-200 rounded text-red-800">
           {error}
         </div>
       )}
 
       {/* Groups List */}
       {groups.length === 0 ? (
-        <div style={{
-          padding: '2rem',
-          backgroundColor: '#f9fafb',
-          borderRadius: '8px',
-          border: '1px solid #e5e7eb',
-          textAlign: 'center',
-          color: '#6b7280'
-        }}>
+        <div className="p-8 bg-gray-50 rounded-lg border border-gray-200 text-center text-gray-500">
           No groups yet. Create one to get started.
         </div>
       ) : (

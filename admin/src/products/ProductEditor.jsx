@@ -88,7 +88,7 @@ export default function ProductEditor() {
         sku: data.sku || prev.sku,
         og_image: data.images[0] || prev.og_image
       }));
-      
+
       toast.success('Product data imported! Review and save.');
     } catch (err) {
       toast.error('Failed to import from URL: ' + err.message);
@@ -212,14 +212,14 @@ export default function ProductEditor() {
     const seen = new Set();
 
     // These are handled by specific UI components (Title, Slug, Image sections)
-    // We only skip them in the generic "Product Details" list, 
+    // We only skip them in the generic "Product Details" list,
     // but the synchronization logic will still apply.
     const globallyHandled = new Set([
-      'title', 
-      'slug', 
-      'og_image', 
-      'meta_title', 
-      'meta_description', 
+      'title',
+      'slug',
+      'og_image',
+      'meta_title',
+      'meta_description',
       'canonical_url',
       'inventory_quantity',
       'inventory_tracking',
@@ -238,7 +238,7 @@ export default function ProductEditor() {
     // 2. Process template regions
     regions.forEach(r => {
       if (globallyHandled.has(r.name)) return;
-      
+
       const existing = merged.find(f => f.name.toLowerCase() === r.name.toLowerCase());
       if (existing) {
         // Overlap! Mark it as template region too
@@ -299,9 +299,9 @@ export default function ProductEditor() {
     console.log(`[ProductEditor] UnifiedChange: ${fieldName} =`, value);
     setProduct(prev => {
       // Check if this is a product field
-      const isProductField = productDefaultFields.some(f => f.name === fieldName) || 
+      const isProductField = productDefaultFields.some(f => f.name === fieldName) ||
                             ['title', 'slug', 'og_image', 'meta_title', 'meta_description', 'canonical_url'].includes(fieldName);
-      
+
       // Check if this is a template region
       const isTemplateRegion = regions.some(r => r.name === fieldName);
 
@@ -310,7 +310,7 @@ export default function ProductEditor() {
       if (isTemplateRegion) {
         updates.content = { ...prev.content, [fieldName]: value };
       }
-      
+
       const newState = { ...prev, ...updates };
       console.log('[ProductEditor] New State Slug:', newState.slug);
       return newState;
@@ -440,9 +440,9 @@ export default function ProductEditor() {
     // Check if this is a template region OR product field
     const isTemplateRegion = field.isTemplateRegion;
     const isProductField = field.isProductField;
-    
-    const value = isProductField 
-      ? product[field.name] 
+
+    const value = isProductField
+      ? product[field.name]
       : (product.content[field.name] || '');
 
     const handleChange = (newValue) => {
@@ -463,25 +463,18 @@ export default function ProductEditor() {
           <textarea
             value={value}
             onChange={(e) => handleChange(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '0.75rem',
-              border: '1px solid #ddd',
-              borderRadius: '4px',
-              minHeight: '100px',
-              fontFamily: 'inherit'
-            }}
+            className="input min-h-[100px]"
             placeholder={field.placeholder}
           />
         );
 
       case 'image':
         return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          <div className="flex flex-col gap-2">
             {value && (
-              <img src={value} alt="" style={{ maxWidth: '200px', borderRadius: '4px', border: '1px solid #ddd' }} />
+              <img src={value} alt="" className="max-w-[200px] rounded border border-gray-300" />
             )}
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <div className="flex gap-2">
               <button
                 type="button"
                 onClick={() => openMediaPicker(`content.${field.name}`)}
@@ -494,8 +487,7 @@ export default function ProductEditor() {
                 <button
                   type="button"
                   onClick={() => handleChange('')}
-                  className="btn btn-ghost"
-                  style={{ color: '#ef4444' }}
+                  className="btn btn-ghost text-red-500"
                 >
                   Remove
                 </button>
@@ -518,12 +510,7 @@ export default function ProductEditor() {
           <select
             value={value || ''}
             onChange={(e) => handleChange(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '0.75rem',
-              border: '1px solid #ddd',
-              borderRadius: '4px'
-            }}
+            className="input"
           >
             <option value="">Select...</option>
             {field.options?.map(opt => (
@@ -539,13 +526,7 @@ export default function ProductEditor() {
             step="0.01"
             value={value || ''}
             onChange={(e) => handleChange(e.target.value ? parseFloat(e.target.value) : null)}
-            style={{
-              width: '100%',
-              padding: '0.75rem',
-              border: '1px solid #ddd',
-              borderRadius: '4px',
-              fontFamily: 'inherit'
-            }}
+            className="input"
           />
         );
 
@@ -556,13 +537,7 @@ export default function ProductEditor() {
             type="text"
             value={value}
             onChange={(e) => handleChange(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '0.75rem',
-              border: '1px solid #ddd',
-              borderRadius: '4px',
-              fontFamily: 'inherit'
-            }}
+            className="input"
             placeholder={field.placeholder}
           />
         );
@@ -579,7 +554,7 @@ export default function ProductEditor() {
   if (templates.length === 0 && isNew) {
     return (
       <div className="content-container">
-        <div style={{ padding: '1rem', backgroundColor: '#fef3c7', border: '1px solid #fcd34d', borderRadius: '4px', color: '#92400e', marginBottom: '1rem' }}>
+        <div className="p-4 bg-amber-50 border border-amber-300 rounded text-amber-800 mb-4">
           No product templates found. Please sync templates first.
         </div>
         <button onClick={loadTemplates} className="btn btn-secondary">
@@ -591,16 +566,9 @@ export default function ProductEditor() {
 
   return (
     <div className="content-container">
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '2rem',
-        paddingBottom: '1rem',
-        borderBottom: '1px solid #e5e7eb'
-      }}>
+      <div className="flex justify-between items-center mb-8 pb-4 border-b border-gray-200 sticky top-16 bg-white z-20 -mx-6 px-6 pt-4">
         <h1>{isNew ? 'New Product' : 'Edit Product'}</h1>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <div className="flex gap-2">
           <button
             className="btn btn-secondary"
             onClick={handleImport}
@@ -612,12 +580,11 @@ export default function ProductEditor() {
           </button>
           {!isNew && product.slug && (
             <a
-              
+
               href={getSiteUrl(product.slug)}
               target="_blank"
               rel="noopener noreferrer"
-              className="btn btn-secondary"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+              className="btn btn-secondary inline-flex items-center gap-2"
             >
               <ExternalLink className="w-4 h-4" />
               View on site
@@ -639,7 +606,7 @@ export default function ProductEditor() {
         </div>
       </div>
 
-      {error && <div style={{ padding: '1rem', backgroundColor: '#fee2e2', border: '1px solid #fecaca', borderRadius: '4px', color: '#991b1b', marginBottom: '1rem' }}>{error}</div>}
+      {error && <div className="p-4 bg-red-50 border border-red-200 rounded text-red-800 mb-4">{error}</div>}
 
       {/* Title and Slug Section */}
       <TitleSlugSection
@@ -653,18 +620,17 @@ export default function ProductEditor() {
       />
 
       {/* Product Image */}
-      <div style={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '1.5rem', marginBottom: '1.5rem' }}>
-        <h2 style={{ marginTop: 0, marginBottom: '1rem', fontSize: '1.125rem' }}>Product Image</h2>
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
+      <div className="card p-6 mb-6">
+        <h2 className="mt-0 mb-4 text-lg">Product Image</h2>
+        <div className="flex items-start gap-4">
           {product.og_image && (
-            <img src={product.og_image} alt="" style={{ width: 120, height: 120, objectFit: 'cover', borderRadius: '6px', border: '1px solid #e5e7eb' }} />
+            <img src={product.og_image} alt="" className="w-[120px] h-[120px] object-cover rounded-md border border-gray-200" />
           )}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          <div className="flex flex-col gap-2">
             <button
               type="button"
               onClick={() => openMediaPicker('og_image')}
-              className="btn btn-secondary"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+              className="btn btn-secondary inline-flex items-center gap-2"
             >
               <ImageIcon className="w-4 h-4" />
               {product.og_image ? 'Change Image' : 'Select Image'}
@@ -673,13 +639,12 @@ export default function ProductEditor() {
               <button
                 type="button"
                 onClick={() => handleUnifiedChange('og_image', '')}
-                className="btn btn-ghost"
-                style={{ color: '#ef4444', fontSize: '0.875rem' }}
+                className="btn btn-ghost text-red-500 text-sm"
               >
                 Remove
               </button>
             )}
-            <p style={{ margin: 0, fontSize: '0.8rem', color: '#6b7280' }}>
+            <p className="m-0 text-xs text-gray-500">
               Default image for this product. Variants without their own image will use this.
             </p>
           </div>
@@ -687,12 +652,12 @@ export default function ProductEditor() {
       </div>
 
       {/* Inventory Management */}
-      <div style={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '1.5rem', marginBottom: '1.5rem' }}>
-        <h2 style={{ marginTop: 0, marginBottom: '1.5rem', fontSize: '1.125rem' }}>Inventory Management</h2>
-        
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+      <div className="card p-6 mb-6">
+        <h2 className="mt-0 mb-6 text-lg">Inventory Management</h2>
+
+        <div className="grid grid-cols-2 gap-6">
           <div>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>SKU *</label>
+            <label className="label">SKU *</label>
             <input
               type="text"
               value={product.sku}
@@ -704,7 +669,7 @@ export default function ProductEditor() {
           </div>
 
           <div>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>
+            <label className="label">
               {product.variants?.length > 0 ? 'Total Inventory (Managed by Variants)' : 'Inventory Quantity'}
             </label>
             <input
@@ -718,41 +683,36 @@ export default function ProductEditor() {
           </div>
         </div>
 
-        <div style={{ marginTop: '1.5rem', display: 'flex', gap: '2rem' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+        <div className="mt-6 flex gap-8">
+          <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="checkbox"
               checked={product.inventory_tracking}
               onChange={(e) => handleUnifiedChange('inventory_tracking', e.target.checked)}
             />
-            <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>Track Inventory</span>
+            <span className="text-sm font-medium">Track Inventory</span>
           </label>
 
-          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+          <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="checkbox"
               checked={product.allow_backorder}
               onChange={(e) => handleUnifiedChange('allow_backorder', e.target.checked)}
             />
-            <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>Allow Backorder</span>
+            <span className="text-sm font-medium">Allow Backorder</span>
           </label>
         </div>
       </div>
 
-      <div style={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '1.5rem', marginBottom: '1.5rem' }}>
-        <h2 style={{ marginTop: 0, marginBottom: '1.5rem', fontSize: '1.125rem' }}>Template Selection</h2>
+      <div className="card p-6 mb-6">
+        <h2 className="mt-0 mb-6 text-lg">Template Selection</h2>
 
-        <div style={{ marginBottom: '1.5rem' }}>
-          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Product Template *</label>
+        <div className="mb-6">
+          <label className="label">Product Template *</label>
           <select
             value={product.template_id || ''}
             onChange={(e) => handleTemplateChange(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '0.75rem',
-              border: '1px solid #ddd',
-              borderRadius: '4px'
-            }}
+            className="input"
           >
             <option value="">Select template</option>
             {templates.map((t) => (
@@ -765,24 +725,24 @@ export default function ProductEditor() {
       </div>
 
       {product.template_id && (
-        <div style={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '1.5rem', marginBottom: '1.5rem' }}>
-          <h2 style={{ marginTop: 0, marginBottom: '1.5rem', fontSize: '1.125rem' }}>Product Details</h2>
+        <div className="card p-6 mb-6">
+          <h2 className="mt-0 mb-6 text-lg">Product Details</h2>
 
           {getMergedFields().map((field) => (
-            <div key={field.name} style={{ marginBottom: '1.5rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: field.type === 'checkbox' ? '0.5rem' : '0.5rem' }}>
+            <div key={field.name} className="mb-6">
+              <div className="flex items-center gap-2 mb-2">
                 {field.type === 'checkbox' ? (
                   <>
                     {renderField(field)}
-                    <label style={{ fontWeight: 500, margin: 0 }}>
+                    <label className="font-medium m-0">
                       {field.label}
-                      {field.required && <span style={{ color: '#ef4444' }}> *</span>}
+                      {field.required && <span className="text-red-500"> *</span>}
                     </label>
                   </>
                 ) : (
-                  <label style={{ display: 'block', fontWeight: 500, color: '#333' }}>
+                  <label className="block font-medium text-gray-700">
                     {field.label}
-                    {field.required && <span style={{ color: '#ef4444' }}> *</span>}
+                    {field.required && <span className="text-red-500"> *</span>}
                   </label>
                 )}
               </div>
@@ -794,61 +754,56 @@ export default function ProductEditor() {
 
       {/* Options & Variants Section */}
       {product.template_id && (
-        <div style={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '1.5rem', marginBottom: '1.5rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-            <h2 style={{ margin: 0, fontSize: '1.125rem' }}>Options & Variants</h2>
+        <div className="card p-6 mb-6">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="m-0 text-lg">Options & Variants</h2>
             {options.length < 3 && (
               <button
                 type="button"
                 onClick={addOption}
-                className="btn btn-secondary"
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}
+                className="btn btn-secondary text-sm"
               >
-                <Plus className="w-4 h-4" /> Add Option
+                <Plus className="w-4 h-4 mr-2" /> Add Option
               </button>
             )}
           </div>
 
           {options.length === 0 && (
-            <p style={{ color: '#6b7280', margin: 0 }}>
+            <p className="text-gray-500 m-0">
               No options defined. Add options like Color or Size to create product variants.
             </p>
           )}
 
           {options.map((option, optIndex) => (
-            <div key={optIndex} style={{ border: '1px solid #e5e7eb', borderRadius: '6px', padding: '1rem', marginBottom: '1rem' }}>
-              <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', marginBottom: '0.75rem' }}>
+            <div key={optIndex} className="border border-gray-200 rounded-md p-4 mb-4">
+              <div className="flex gap-3 items-center mb-3">
                 <input
                   type="text"
                   value={option.name}
                   onChange={(e) => updateOptionName(optIndex, e.target.value)}
                   placeholder="Option name (e.g. Color, Size)"
-                  style={{ flex: 1, padding: '0.5rem 0.75rem', border: '1px solid #ddd', borderRadius: '4px', fontWeight: 500 }}
+                  className="input flex-1 font-medium"
                 />
                 <button
                   type="button"
                   onClick={() => removeOption(optIndex)}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '0.25rem' }}
+                  className="p-1 text-red-500 hover:text-red-700"
                   title="Remove option"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.5rem' }}>
+              <div className="flex flex-wrap gap-2 mb-2">
                 {option.values.map((val, valIndex) => (
                   <span
                     key={valIndex}
-                    style={{
-                      display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
-                      background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: '4px',
-                      padding: '0.25rem 0.5rem', fontSize: '0.875rem'
-                    }}
+                    className="inline-flex items-center gap-1 bg-gray-100 border border-gray-200 rounded px-2 py-1 text-sm"
                   >
                     {val}
                     <button
                       type="button"
                       onClick={() => removeOptionValue(optIndex, valIndex)}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: 0, lineHeight: 1 }}
+                      className="text-gray-400 hover:text-gray-600 p-0 leading-none"
                     >
                       <X className="w-3 h-3" />
                     </button>
@@ -865,77 +820,77 @@ export default function ProductEditor() {
                     e.target.value = '';
                   }
                 }}
-                style={{ width: '100%', padding: '0.5rem 0.75rem', border: '1px solid #ddd', borderRadius: '4px', fontSize: '0.875rem' }}
+                className="input text-sm"
               />
             </div>
           ))}
 
           {/* Variant Table */}
           {product.variants && product.variants.length > 0 && (
-            <div style={{ marginTop: '1.5rem' }}>
-              <h3 style={{ fontSize: '1rem', marginBottom: '1rem' }}>
+            <div className="mt-6">
+              <h3 className="text-base mb-4">
                 Variants ({product.variants.length})
               </h3>
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-sm">
                   <thead>
-                    <tr style={{ borderBottom: '2px solid #e5e7eb' }}>
-                      <th style={{ textAlign: 'left', padding: '0.5rem', fontWeight: 600 }}>Variant</th>
-                      <th style={{ textAlign: 'left', padding: '0.5rem', fontWeight: 600 }}>SKU</th>
-                      <th style={{ textAlign: 'left', padding: '0.5rem', fontWeight: 600 }}>Price</th>
-                      <th style={{ textAlign: 'left', padding: '0.5rem', fontWeight: 600 }}>Inventory</th>
-                      <th style={{ textAlign: 'left', padding: '0.5rem', fontWeight: 600 }}>Image</th>
+                    <tr className="border-b-2 border-gray-200">
+                      <th className="text-left p-2 font-semibold">Variant</th>
+                      <th className="text-left p-2 font-semibold">SKU</th>
+                      <th className="text-left p-2 font-semibold">Price</th>
+                      <th className="text-left p-2 font-semibold">Inventory</th>
+                      <th className="text-left p-2 font-semibold">Image</th>
                     </tr>
                   </thead>
                   <tbody>
                     {product.variants.map((variant, vIndex) => (
-                      <tr key={vIndex} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                        <td style={{ padding: '0.5rem', fontWeight: 500 }}>{variant.title}</td>
-                        <td style={{ padding: '0.5rem' }}>
+                      <tr key={vIndex} className="border-b border-gray-100">
+                        <td className="p-2 font-medium">{variant.title}</td>
+                        <td className="p-2">
                           <input
                             type="text"
                             value={variant.sku || ''}
                             onChange={(e) => handleVariantChange(vIndex, 'sku', e.target.value)}
                             placeholder={product.sku ? `${product.sku}-${vIndex + 1}` : ''}
-                            style={{ width: '100%', padding: '0.35rem 0.5rem', border: '1px solid #ddd', borderRadius: '4px', fontSize: '0.875rem' }}
+                            className="input py-1 text-sm"
                           />
                         </td>
-                        <td style={{ padding: '0.5rem' }}>
+                        <td className="p-2">
                           <input
                             type="number"
                             step="0.01"
                             value={variant.price ?? ''}
                             onChange={(e) => handleVariantChange(vIndex, 'price', e.target.value ? parseFloat(e.target.value) : null)}
                             placeholder={product.price?.toString() || '0'}
-                            style={{ width: '100px', padding: '0.35rem 0.5rem', border: '1px solid #ddd', borderRadius: '4px', fontSize: '0.875rem' }}
+                            className="input w-[100px] py-1 text-sm"
                           />
                         </td>
-                        <td style={{ padding: '0.5rem' }}>
+                        <td className="p-2">
                           <input
                             type="number"
                             value={variant.inventory_quantity ?? 0}
                             onChange={(e) => handleVariantChange(vIndex, 'inventory_quantity', parseInt(e.target.value) || 0)}
-                            style={{ width: '80px', padding: '0.35rem 0.5rem', border: '1px solid #ddd', borderRadius: '4px', fontSize: '0.875rem' }}
+                            className="input w-[80px] py-1 text-sm"
                           />
                         </td>
-                        <td style={{ padding: '0.5rem' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <td className="p-2">
+                          <div className="flex items-center gap-2">
                             {variant.image && (
-                              <img src={variant.image} alt="" style={{ width: 32, height: 32, objectFit: 'cover', borderRadius: '4px', border: '1px solid #ddd' }} />
+                              <img src={variant.image} alt="" className="w-8 h-8 object-cover rounded border border-gray-300" />
                             )}
                             <button
                               type="button"
                               onClick={() => openMediaPicker(`variant.${vIndex}`)}
-                              style={{ background: 'none', border: '1px solid #ddd', borderRadius: '4px', cursor: 'pointer', padding: '0.25rem', display: 'flex', alignItems: 'center' }}
+                              className="border border-gray-300 rounded p-1 flex items-center hover:bg-gray-50"
                               title="Select image"
                             >
-                              <ImageIcon className="w-4 h-4" style={{ color: '#6b7280' }} />
+                              <ImageIcon className="w-4 h-4 text-gray-500" />
                             </button>
                             {variant.image && (
                               <button
                                 type="button"
                                 onClick={() => handleVariantChange(vIndex, 'image', null)}
-                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: 0 }}
+                                className="text-gray-400 hover:text-gray-600 p-0"
                                 title="Remove image"
                               >
                                 <X className="w-3 h-3" />
@@ -955,7 +910,7 @@ export default function ProductEditor() {
 
       {/* Groups Widget */}
       {product.content_id && (
-        <div style={{ marginTop: '2rem' }}>
+        <div className="mt-8">
           <ContentGroupsWidget contentId={product.content_id} />
         </div>
       )}

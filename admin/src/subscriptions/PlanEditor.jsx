@@ -157,17 +157,11 @@ export default function PlanEditor() {
   return (
     <div className="space-y-6 max-w-4xl">
       {/* Header */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingBottom: '1rem',
-        borderBottom: '1px solid #e5e7eb'
-      }}>
+      <div className="flex justify-between items-center pb-4 border-b border-gray-200 sticky top-16 bg-white z-20 -mx-6 px-6 pt-4">
         <h1 className="text-2xl font-bold text-gray-900">
           {isNew ? 'New Plan' : plan.name}
         </h1>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <div className="flex gap-2">
           <button
             className="btn btn-secondary"
             onClick={() => navigate('/subscriptions')}
@@ -187,28 +181,20 @@ export default function PlanEditor() {
       </div>
 
       {error && (
-        <div style={{
-          padding: '1rem',
-          backgroundColor: '#fee2e2',
-          border: '1px solid #fecaca',
-          borderRadius: '4px',
-          color: '#991b1b'
-        }}>
+        <div className="p-4 bg-red-50 border border-red-200 rounded text-red-800">
           {error}
         </div>
       )}
 
       {/* Stripe Status */}
       {!isNew && (
-        <div style={{
-          padding: '0.75rem 1rem',
-          backgroundColor: plan.stripe_price_id ? '#ecfdf5' : '#fffbeb',
-          border: `1px solid ${plan.stripe_price_id ? '#a7f3d0' : '#fde68a'}`,
-          borderRadius: '4px',
-          fontSize: '0.875rem'
-        }}>
+        <div className={`px-4 py-3 rounded text-sm border ${
+          plan.stripe_price_id
+            ? 'bg-green-50 border-green-200'
+            : 'bg-amber-50 border-amber-200'
+        }`}>
           {plan.stripe_price_id ? (
-            <span>Synced to Stripe — Product: <code style={{ fontSize: '0.8rem' }}>{plan.stripe_product_id}</code> | Price: <code style={{ fontSize: '0.8rem' }}>{plan.stripe_price_id}</code></span>
+            <span>Synced to Stripe — Product: <code className="text-xs">{plan.stripe_product_id}</code> | Price: <code className="text-xs">{plan.stripe_price_id}</code></span>
           ) : (
             <span>Not synced to Stripe. Configure your Stripe secret key in Settings to enable auto-sync.</span>
           )}
@@ -217,9 +203,9 @@ export default function PlanEditor() {
 
       {/* Plan Details */}
       <div className="card p-6 space-y-4">
-        <h2 style={{ fontSize: '1.125rem', fontWeight: 500, marginTop: 0 }}>Plan Details</h2>
+        <h2 className="text-lg font-medium mt-0">Plan Details</h2>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+        <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="label">Plan Name *</label>
             <input
@@ -253,22 +239,22 @@ export default function PlanEditor() {
           />
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <div className="flex items-center gap-2">
           <input
             type="checkbox"
             checked={plan.is_active}
             onChange={(e) => setPlan({ ...plan, is_active: e.target.checked })}
             id="is_active"
           />
-          <label htmlFor="is_active" style={{ fontSize: '0.875rem', fontWeight: 500 }}>Active</label>
+          <label htmlFor="is_active" className="text-sm font-medium">Active</label>
         </div>
       </div>
 
       {/* Pricing */}
       <div className="card p-6 space-y-4">
-        <h2 style={{ fontSize: '1.125rem', fontWeight: 500, marginTop: 0 }}>Pricing</h2>
+        <h2 className="text-lg font-medium mt-0">Pricing</h2>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+        <div className="grid grid-cols-3 gap-4">
           <div>
             <label className="label">Price (USD) *</label>
             <input
@@ -303,14 +289,14 @@ export default function PlanEditor() {
               min="1"
               placeholder="1"
             />
-            <p style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem' }}>
+            <p className="text-xs text-gray-500 mt-1">
               e.g., 2 + monthly = every 2 months
             </p>
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-          <div style={{ maxWidth: '200px' }}>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="max-w-[200px]">
             <label className="label">Free Trial Days</label>
             <input
               type="number"
@@ -322,7 +308,7 @@ export default function PlanEditor() {
             />
           </div>
 
-          <div style={{ maxWidth: '200px' }}>
+          <div className="max-w-[200px]">
             <label className="label">Product Discount (%)</label>
             <input
               type="number"
@@ -334,7 +320,7 @@ export default function PlanEditor() {
               step="0.1"
               placeholder="0"
             />
-            <p style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem' }}>
+            <p className="text-xs text-gray-500 mt-1">
               Automatic discount for active subscribers
             </p>
           </div>
@@ -342,14 +328,14 @@ export default function PlanEditor() {
 
         <div>
           <label className="label">Target Product Slugs</label>
-          <SlugAutocomplete 
+          <SlugAutocomplete
             value={plan.target_slugs}
             onChange={(slugs) => setPlan({ ...plan, target_slugs: slugs })}
             placeholder="Search for products or enter wildcards..."
           />
         </div>
 
-        <div style={{ maxWidth: '200px' }}>
+        <div className="max-w-[200px]">
           <label className="label">Sort Position</label>
           <input
             type="number"
@@ -364,37 +350,22 @@ export default function PlanEditor() {
 
       {/* Features */}
       <div className="card p-6 space-y-4">
-        <h2 style={{ fontSize: '1.125rem', fontWeight: 500, marginTop: 0 }}>Features</h2>
-        <p style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '-0.5rem' }}>
+        <h2 className="text-lg font-medium mt-0">Features</h2>
+        <p className="text-sm text-gray-500 -mt-2">
           List the features included in this plan. These are displayed on the pricing page.
         </p>
 
         {plan.features.length > 0 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          <div className="flex flex-col gap-2">
             {plan.features.map((feature, index) => (
               <div
                 key={index}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  padding: '0.5rem 0.75rem',
-                  backgroundColor: '#f9fafb',
-                  borderRadius: '4px',
-                  border: '1px solid #e5e7eb'
-                }}
+                className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded border border-gray-200"
               >
-                <span style={{ flex: 1, fontSize: '0.875rem' }}>{feature}</span>
+                <span className="flex-1 text-sm">{feature}</span>
                 <button
                   onClick={() => removeFeature(index)}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    color: '#9ca3af',
-                    padding: '0.25rem',
-                    display: 'flex'
-                  }}
+                  className="text-gray-400 hover:text-gray-600 p-1 flex"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -403,15 +374,14 @@ export default function PlanEditor() {
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <div className="flex gap-2">
           <input
             type="text"
             value={newFeature}
             onChange={(e) => setNewFeature(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addFeature())}
-            className="input"
+            className="input flex-1"
             placeholder="e.g., Unlimited downloads"
-            style={{ flex: 1 }}
           />
           <button
             onClick={addFeature}

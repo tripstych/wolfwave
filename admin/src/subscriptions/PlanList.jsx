@@ -71,101 +71,65 @@ export default function PlanList() {
       </div>
 
       {error && (
-        <div style={{
-          padding: '1rem',
-          backgroundColor: '#fee2e2',
-          border: '1px solid #fecaca',
-          borderRadius: '4px',
-          color: '#991b1b'
-        }}>
+        <div className="p-4 bg-red-50 border border-red-200 rounded text-red-800">
           {error}
         </div>
       )}
 
       {plans.length === 0 ? (
-        <div style={{
-          padding: '2rem',
-          backgroundColor: '#f9fafb',
-          borderRadius: '8px',
-          border: '1px solid #e5e7eb',
-          textAlign: 'center',
-          color: '#6b7280'
-        }}>
+        <div className="p-8 bg-gray-50 rounded-lg border border-gray-200 text-center text-gray-500">
           No subscription plans yet. Create one to get started.
         </div>
       ) : (
         <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <table className="w-full border-collapse">
             <thead>
-              <tr style={{ backgroundColor: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
-                <th style={{ padding: '0.75rem 1rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase' }}>Plan</th>
-                <th style={{ padding: '0.75rem 1rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase' }}>Price</th>
-                <th style={{ padding: '0.75rem 1rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase' }}>Subscribers</th>
-                <th style={{ padding: '0.75rem 1rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase' }}>Stripe</th>
-                <th style={{ padding: '0.75rem 1rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase' }}>Status</th>
-                <th style={{ padding: '0.75rem 1rem', textAlign: 'right', fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase' }}>Actions</th>
+              <tr className="bg-gray-50 border-b border-gray-200">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Plan</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Price</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Subscribers</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Stripe</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Actions</th>
               </tr>
             </thead>
             <tbody>
               {plans.map((plan) => (
                 <tr
                   key={plan.id}
-                  style={{ borderBottom: '1px solid #e5e7eb', cursor: 'pointer' }}
+                  className="border-b border-gray-200 cursor-pointer hover:bg-gray-50"
                   onClick={() => navigate(`/subscriptions/${plan.id}`)}
                 >
-                  <td style={{ padding: '0.75rem 1rem' }}>
-                    <div style={{ fontWeight: 500 }}>{plan.name}</div>
-                    <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>{plan.slug}</div>
+                  <td className="px-4 py-3">
+                    <div className="font-medium">{plan.name}</div>
+                    <div className="text-sm text-gray-500">{plan.slug}</div>
                   </td>
-                  <td style={{ padding: '0.75rem 1rem', fontWeight: 500 }}>
+                  <td className="px-4 py-3 font-medium">
                     {formatPrice(plan.price, plan.interval)}
                   </td>
-                  <td style={{ padding: '0.75rem 1rem' }}>
-                    <span style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      padding: '0.125rem 0.5rem',
-                      backgroundColor: '#f3f4f6',
-                      borderRadius: '9999px',
-                      fontSize: '0.875rem'
-                    }}>
+                  <td className="px-4 py-3">
+                    <span className="inline-flex items-center px-2 py-0.5 bg-gray-100 rounded-full text-sm">
                       {plan._count?.customer_subscriptions || 0}
                     </span>
                   </td>
-                  <td style={{ padding: '0.75rem 1rem' }}>
+                  <td className="px-4 py-3">
                     {plan.stripe_price_id ? (
-                      <span style={{ color: '#059669', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <span className="text-green-600 flex items-center gap-1">
                         <Check className="w-4 h-4" /> Synced
                       </span>
                     ) : (
-                      <span style={{ color: '#d97706' }}>Not synced</span>
+                      <span className="text-amber-600">Not synced</span>
                     )}
                   </td>
-                  <td style={{ padding: '0.75rem 1rem' }}>
+                  <td className="px-4 py-3">
                     {plan.is_active ? (
-                      <span style={{
-                        display: 'inline-flex',
-                        padding: '0.125rem 0.5rem',
-                        backgroundColor: '#d1fae5',
-                        color: '#065f46',
-                        borderRadius: '9999px',
-                        fontSize: '0.75rem',
-                        fontWeight: 500
-                      }}>Active</span>
+                      <span className="inline-flex px-2 py-0.5 bg-green-100 text-green-800 rounded-full text-xs font-medium">Active</span>
                     ) : (
-                      <span style={{
-                        display: 'inline-flex',
-                        padding: '0.125rem 0.5rem',
-                        backgroundColor: '#f3f4f6',
-                        color: '#6b7280',
-                        borderRadius: '9999px',
-                        fontSize: '0.75rem',
-                        fontWeight: 500
-                      }}>Inactive</span>
+                      <span className="inline-flex px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full text-xs font-medium">Inactive</span>
                     )}
                   </td>
-                  <td style={{ padding: '0.75rem 1rem', textAlign: 'right' }} onClick={(e) => e.stopPropagation()}>
-                    <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                  <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex gap-2 justify-end">
                       <button
                         onClick={() => navigate(`/subscriptions/${plan.id}`)}
                         className="btn btn-sm btn-secondary"
@@ -175,8 +139,7 @@ export default function PlanList() {
                       {plan.is_active && (
                         <button
                           onClick={() => deletePlan(plan.id)}
-                          className="btn btn-sm btn-ghost"
-                          style={{ color: '#ef4444' }}
+                          className="btn btn-sm btn-ghost text-red-500"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>

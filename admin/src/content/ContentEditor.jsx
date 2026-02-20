@@ -135,7 +135,7 @@ export default function ContentEditor() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between sticky top-16 bg-gray-50 z-20 -mx-6 px-6 py-4 border-b border-gray-200">
         <div className="flex items-center gap-4">
           <button onClick={() => navigate(`/${contentTypeName}`)} className="btn btn-ghost">
             <ArrowLeft className="w-4 h-4" />

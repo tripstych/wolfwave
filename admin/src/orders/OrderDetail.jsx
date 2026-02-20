@@ -176,7 +176,7 @@ export default function OrderDetail() {
                 <div>
                   <strong>Tracking Number:</strong> {order.tracking_number}
                   {order.shipped_at && (
-                    <p style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: '#666' }}>
+                    <p className="mt-2 text-sm text-gray-500">
                       Shipped on {formatDate(order.shipped_at)}
                     </p>
                   )}

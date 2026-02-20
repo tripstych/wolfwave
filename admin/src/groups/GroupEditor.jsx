@@ -173,17 +173,11 @@ export default function GroupEditor() {
   return (
     <div className="space-y-6 max-w-4xl">
       {/* Header */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingBottom: '1rem',
-        borderBottom: '1px solid #e5e7eb'
-      }}>
+      <div className="flex justify-between items-center pb-4 border-b border-gray-200 sticky top-16 bg-white z-20 -mx-6 px-6 pt-4">
         <h1 className="text-2xl font-bold text-gray-900">
           {isNew ? 'New Group' : group.name}
         </h1>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <div className="flex gap-2">
           <button
             className="btn btn-secondary"
             onClick={() => navigate('/groups')}
@@ -204,20 +198,14 @@ export default function GroupEditor() {
 
       {/* Error */}
       {error && (
-        <div style={{
-          padding: '1rem',
-          backgroundColor: '#fee2e2',
-          border: '1px solid #fecaca',
-          borderRadius: '4px',
-          color: '#991b1b'
-        }}>
+        <div className="p-4 bg-red-50 border border-red-200 rounded text-red-800">
           {error}
         </div>
       )}
 
       {/* Group Details */}
       <div className="card p-6 space-y-4">
-        <h2 style={{ fontSize: '1.125rem', fontWeight: 500, marginTop: 0 }}>Group Details</h2>
+        <h2 className="text-lg font-medium mt-0">Group Details</h2>
 
         <div>
           <label className="label">Group Name *</label>
@@ -246,7 +234,7 @@ export default function GroupEditor() {
                 </option>
               ))}
           </select>
-          <p style={{ fontSize: '0.875rem', color: '#666', marginTop: '0.25rem' }}>
+          <p className="text-sm text-gray-500 mt-1">
             Make this group a child of another group to create a hierarchy
           </p>
         </div>
@@ -257,11 +245,11 @@ export default function GroupEditor() {
         <div className="space-y-4">
           {/* Add Content */}
           <div className="card p-6">
-            <h2 style={{ fontSize: '1.125rem', fontWeight: 500, marginTop: 0, marginBottom: '1rem' }}>
+            <h2 className="text-lg font-medium mt-0 mb-4">
               Add Content
             </h2>
 
-            <div style={{ marginBottom: '1rem' }}>
+            <div className="mb-4">
               <input
                 type="text"
                 placeholder="Search content to add..."
@@ -272,25 +260,19 @@ export default function GroupEditor() {
             </div>
 
             {availableContent.length === 0 ? (
-              <p style={{ color: '#6b7280', fontStyle: 'italic' }}>
+              <p className="text-gray-500 italic">
                 {searchContent ? 'No matching content found' : 'All content is already in this group'}
               </p>
             ) : (
-              <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+              <div className="max-h-[300px] overflow-y-auto">
                 {availableContent.map(content => (
                   <div
                     key={content.id}
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      padding: '0.75rem',
-                      borderBottom: '1px solid #e5e7eb'
-                    }}
+                    className="flex justify-between items-center p-3 border-b border-gray-200"
                   >
                     <div>
-                      <div style={{ fontWeight: 500 }}>{content.title || 'Untitled'}</div>
-                      <div style={{ fontSize: '0.875rem', color: '#666' }}>
+                      <div className="font-medium">{content.title || 'Untitled'}</div>
+                      <div className="text-sm text-gray-500">
                         {content.slug}
                       </div>
                     </div>
@@ -308,12 +290,12 @@ export default function GroupEditor() {
 
           {/* Current Content */}
           <div className="card p-6">
-            <h2 style={{ fontSize: '1.125rem', fontWeight: 500, marginTop: 0, marginBottom: '1rem' }}>
+            <h2 className="text-lg font-medium mt-0 mb-4">
               Group Content ({groupContent.length})
             </h2>
 
             {groupContent.length === 0 ? (
-              <p style={{ color: '#6b7280', fontStyle: 'italic' }}>
+              <p className="text-gray-500 italic">
                 No content in this group yet. Add some above.
               </p>
             ) : (
@@ -321,27 +303,17 @@ export default function GroupEditor() {
                 {groupContent.map(content => (
                   <div
                     key={content.id}
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      padding: '0.75rem',
-                      backgroundColor: '#f9fafb',
-                      borderRadius: '4px',
-                      marginBottom: '0.5rem',
-                      border: '1px solid #e5e7eb'
-                    }}
+                    className="flex justify-between items-center p-3 bg-gray-50 rounded border border-gray-200 mb-2"
                   >
                     <div>
-                      <div style={{ fontWeight: 500 }}>{content.title || 'Untitled'}</div>
-                      <div style={{ fontSize: '0.875rem', color: '#666' }}>
+                      <div className="font-medium">{content.title || 'Untitled'}</div>
+                      <div className="text-sm text-gray-500">
                         {content.slug}
                       </div>
                     </div>
                     <button
                       onClick={() => removeContentFromGroup(content.id)}
-                      className="btn btn-sm btn-ghost"
-                      style={{ color: '#ef4444' }}
+                      className="btn btn-sm btn-ghost text-red-500"
                     >
                       <X className="w-4 h-4" />
                     </button>

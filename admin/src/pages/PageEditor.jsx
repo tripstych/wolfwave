@@ -515,7 +515,7 @@ export default function PageEditor() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between sticky top-16 bg-gray-50 z-20 -mx-6 px-6 py-4 border-b border-gray-200">
         <div className="flex items-center gap-4">
           <button onClick={() => navigate('/pages')} className="btn btn-ghost">
             <ArrowLeft className="w-4 h-4" />
@@ -727,7 +727,7 @@ export default function PageEditor() {
 
       {/* Groups Widget */}
       {page.content_id && (
-        <div style={{ marginTop: '2rem' }}>
+        <div className="mt-8">
           <ContentGroupsWidget contentId={page.content_id} />
         </div>
       )}
