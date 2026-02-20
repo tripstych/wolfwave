@@ -10,8 +10,8 @@ export async function migrateProduct(importedPageId, templateId) {
     const importedPage = await prisma.imported_pages.findUnique({ where: { id: importedPageId } });
     if (!importedPage) throw new Error('Not found');
     const meta = typeof importedPage.metadata === 'string' ? JSON.parse(importedPage.metadata) : importedPage.metadata;
-    if (!meta || (meta.type !== 'product' && !meta.price)) {
-      console.log(`[PRODUCT_MIGRATE] Skipping ${importedPage.url} - Not identified as product and no price found.`);
+    if (!meta || meta.type !== 'product') {
+      console.log(`[PRODUCT_MIGRATE] Skipping ${importedPage.url} - Not identified as product.`);
       throw new Error('Not a product');
     }
 
@@ -58,8 +58,7 @@ export async function bulkMigrateProducts(siteId, templateId) {
 
   const productPages = pages.filter(p => {
     const meta = typeof p.metadata === 'string' ? JSON.parse(p.metadata) : p.metadata;
-    // Inclusive check: identified as product OR has a price (strong indicator)
-    return meta && (meta.type === 'product' || meta.price);
+    return meta && meta.type === 'product';
   });
 
   console.log(`[PRODUCT_MIGRATE] Site ${siteId}: Found ${productPages.length} products to migrate out of ${pages.length} total pages.`);

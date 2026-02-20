@@ -116,7 +116,7 @@ export default function SiteImporter() {
     for (const p of allPages) {
       try {
         const meta = typeof p.metadata === 'string' ? JSON.parse(p.metadata) : p.metadata;
-        if (meta && (meta.type === 'product' || meta.price)) {
+        if (meta && meta.type === 'product') {
           products.push(p);
         } else {
           pages.push(p);
