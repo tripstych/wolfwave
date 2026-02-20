@@ -16,7 +16,8 @@ export async function migrateProduct(importedPageId, templateId) {
     }
 
     const title = meta.title || importedPage.title || 'Product';
-    const sku = meta.sku || `SKU-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+    const skuBase = slugify(title, { lower: false, strict: true }).toUpperCase().replace(/-/g, '-');
+    const sku = meta.sku || `${skuBase}-001`;
     const price = parseFloat(meta.price) || 0.00;
     
     // Generate clean slug with system prefix
