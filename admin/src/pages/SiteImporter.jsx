@@ -14,6 +14,7 @@ import {
   ChevronRight,
   Maximize2,
   Package,
+  FileText,
   X,
   RotateCcw,
   Trash2,
@@ -38,6 +39,7 @@ export default function SiteImporter() {
   const [selectedSite, setSelectedSite] = useState(null);
   const [groups, setGroups] = useState([]);
   const [discoveredProducts, setDiscoveredProducts] = useState([]);
+  const [discoveredPages, setDiscoveredPages] = useState([]);
   const [view, setView] = useState('templates');
   const [generatingTemplate, setGeneratingTemplate] = useState(false);
   const [migrating, setMigrating] = useState(false);
@@ -108,13 +110,21 @@ export default function SiteImporter() {
   const refreshGroupsAndProducts = async (site) => {
     const groupsData = await api.get(`/import/sites/${site.id}/groups`);
     setGroups(groupsData || []);
-    const products = (site.imported_pages || []).filter(p => {
+    const allPages = site.imported_pages || [];
+    const products = [];
+    const pages = [];
+    for (const p of allPages) {
       try {
         const meta = typeof p.metadata === 'string' ? JSON.parse(p.metadata) : p.metadata;
-        return meta && (meta.type === 'product' || meta.price);
-      } catch { return false; }
-    });
+        if (meta && (meta.type === 'product' || meta.price)) {
+          products.push(p);
+        } else {
+          pages.push(p);
+        }
+      } catch { pages.push(p); }
+    }
     setDiscoveredProducts(products);
+    setDiscoveredPages(pages);
   };
 
   const handleStartCrawl = async (e) => {
@@ -227,6 +237,20 @@ export default function SiteImporter() {
       if (!std) return alert('Standard template not found');
       const selector = prompt('CSS Selector for ALL pages:', 'main');
       if (selector === null) return;
+      setMigrating(true);
+      await api.post(`/import/sites/${selectedSite.id}/bulk-migrate-all`, { template_id: std.id, selector_map: { main: selector } });
+      navigate('/pages');
+    } catch (err) { alert(err.message); }
+    finally { setMigrating(false); }
+  };
+
+  const handleBulkPageMigrate = async () => {
+    try {
+      const std = templates.find(t => t.filename.includes('pages/standard'));
+      if (!std) return alert('Standard template not found');
+      const selector = prompt('CSS Selector for page content:', 'main');
+      if (selector === null) return;
+      if (!confirm(`Ready to migrate ${discoveredPages.length} pages using template "${std.name}"?`)) return;
       setMigrating(true);
       await api.post(`/import/sites/${selectedSite.id}/bulk-migrate-all`, { template_id: std.id, selector_map: { main: selector } });
       navigate('/pages');
@@ -427,11 +451,12 @@ export default function SiteImporter() {
                   <button onClick={handleBulkMigrateAll} className="btn btn-secondary btn-sm">Migrate All</button>
                   <div className="flex bg-gray-100 p-1 rounded-lg">
                     <button onClick={() => setView('templates')} className={`px-3 py-1.5 text-sm rounded-md ${view === 'templates' ? 'bg-white shadow-sm' : 'text-gray-500'}`}>Templates</button>
+                    <button onClick={() => setView('pages')} className={`px-3 py-1.5 text-sm rounded-md ${view === 'pages' ? 'bg-white shadow-sm' : 'text-gray-500'}`}>Pages ({discoveredPages.length})</button>
                     <button onClick={() => setView('products')} className={`px-3 py-1.5 text-sm rounded-md ${view === 'products' ? 'bg-white shadow-sm' : 'text-gray-500'}`}>Products ({discoveredProducts.length})</button>
                   </div>
                 </div>
               </div>
-              {view === 'templates' ? (
+              {view === 'templates' && (
                 <div className="grid grid-cols-1 gap-4">
                   {groups.map((g, i) => (
                     <div key={i} className="card p-4">
@@ -449,11 +474,50 @@ export default function SiteImporter() {
                     </div>
                   ))}
                 </div>
-              ) : (
+              )}
+              {view === 'pages' && (
+                <div className="card overflow-hidden">
+                  <div className="p-4 border-b flex justify-between items-center">
+                    <h3 className="font-bold">Discovered Pages</h3>
+                    <button onClick={handleBulkPageMigrate} disabled={migrating || discoveredPages.length === 0} className="btn btn-primary btn-sm">
+                      {migrating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileText className="w-4 h-4 mr-2" />} Migrate All
+                    </button>
+                  </div>
+                  {discoveredPages.length === 0 ? (
+                    <div className="p-8 text-center text-gray-400 text-sm">No pages discovered yet. Pages will appear here once the crawl finds non-product URLs.</div>
+                  ) : (
+                    <table className="w-full text-sm">
+                      <tbody className="divide-y">
+                        {discoveredPages.map((p, i) => {
+                          const path = (() => { try { return new URL(p.url).pathname; } catch { return p.url; } })();
+                          return (
+                            <tr key={i} className={p.status === 'migrated' ? 'opacity-50' : ''}>
+                              <td className="px-4 py-3">
+                                <div className="font-medium">{p.title || 'Untitled'}</div>
+                                <div className="text-xs text-gray-400">{path}</div>
+                              </td>
+                              <td className="px-4 py-3 text-right">
+                                {p.status === 'migrated' ? (
+                                  <span className="text-xs text-green-600 font-medium">Migrated</span>
+                                ) : (
+                                  <span className="text-xs text-gray-400">{p.status}</span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              )}
+              {view === 'products' && (
                 <div className="card overflow-hidden">
                   <div className="p-4 border-b flex justify-between items-center">
                     <h3 className="font-bold">Discovered Products</h3>
-                    <button onClick={handleBulkProductMigrate} className="btn btn-primary btn-sm"><Package className="w-4 h-4 mr-2" /> Migrate All</button>
+                    <button onClick={handleBulkProductMigrate} disabled={migrating || discoveredProducts.length === 0} className="btn btn-primary btn-sm">
+                      {migrating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Package className="w-4 h-4 mr-2" />} Migrate All
+                    </button>
                   </div>
                   <table className="w-full text-sm">
                     <tbody className="divide-y">
