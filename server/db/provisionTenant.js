@@ -57,7 +57,7 @@ export async function provisionTenant(subdomain, adminEmail, adminPassword) {
 
   try {
     console.log(`Pushing Prisma schema to ${dbName}...`);
-    execSync(`npx prisma db push --skip-generate`, {
+    execSync(`node_modules/.bin/prisma db push --skip-generate`, {
       env,
       cwd: projectRoot,
       stdio: 'inherit'

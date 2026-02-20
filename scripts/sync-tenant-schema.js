@@ -27,7 +27,7 @@ Processing ${dbName}...`);
       const url = `mysql://${process.env.DB_USER || 'root'}:${process.env.DB_PASSWORD || ''}@${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || 3306}/${dbName}`;
       
       try {
-        execSync(`npx prisma db push --skip-generate`, {
+        execSync(`node_modules/.bin/prisma db push --skip-generate`, {
           env: { ...process.env, DATABASE_URL: url },
           stdio: 'inherit'
         });
