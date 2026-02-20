@@ -182,7 +182,7 @@ async function traditionalCrawl(siteId, rootUrl, config, dbName) {
 
       const $ = cheerio.load(html);
       const structuralHash = calculateStructuralHash(html);
-      const meta = extractMetadata($, config.rules || []);
+      const meta = extractMetadata($, config.rules || [], normalizedUrl);
 
       await prisma.imported_pages.create({
         data: { site_id: siteId, url: normalizedUrl, title: (meta.title || 'Untitled').substring(0, 255), raw_html: html, structural_hash: structuralHash, metadata: meta, status: 'completed' }

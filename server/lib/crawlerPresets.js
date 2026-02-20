@@ -11,6 +11,8 @@ export const CRAWLER_PRESETS = {
     excludePatterns: ['/tagged/', '/search', 'sort_by=', 'view=', 'variant='],
     rules: [
       { selector: 'form[action="/cart/add"]', action: 'setType', value: 'product' },
+      { urlPattern: '/pages/', action: 'setType', value: 'page' },
+      { urlPattern: '/blogs/', action: 'setType', value: 'page' },
       { selector: '.product-single__title, .product__title', action: 'setField', value: 'title' },
       { selector: '.product-single__description, .product__description', action: 'setField', value: 'description' },
       { selector: '[data-product-sku]', action: 'setField', value: 'sku' }

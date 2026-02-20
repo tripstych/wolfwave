@@ -5,7 +5,7 @@ import * as cheerio from 'cheerio';
  * Extract metadata from a Cheerio object
  * Accepts optional rules for custom extraction logic.
  */
-export function extractMetadata($, rules = []) {
+export function extractMetadata($, rules = [], url = '') {
   const result = {
     title: '',
     description: '',
@@ -76,24 +76,41 @@ export function extractMetadata($, rules = []) {
   // 4. INTELLIGENT RULES ENGINE (Overrides)
   if (Array.isArray(rules)) {
     rules.forEach(rule => {
-      const { selector, action, value } = rule;
-      if (!selector || !action) return;
-      const $match = $(selector);
-      if ($match.length > 0) {
-        switch (action) {
-          case 'setType': result.type = value; break;
-          case 'setField':
-            if (['price', 'sku', 'title', 'description'].includes(value)) {
+      const { selector, urlPattern, action, value } = rule;
+      if (!action) return;
+
+      // Check URL pattern match (if specified)
+      let urlMatched = false;
+      if (urlPattern) {
+        try { urlMatched = new RegExp(urlPattern).test(url); } catch { return; }
+        if (!urlMatched) return; // URL pattern specified but didn't match, skip rule
+      }
+
+      // Check CSS selector match (if specified)
+      let $match = null;
+      if (selector) {
+        $match = $(selector);
+        if ($match.length === 0) return; // CSS selector specified but didn't match, skip rule
+      }
+
+      // If neither selector nor urlPattern, skip
+      if (!selector && !urlPattern) return;
+
+      switch (action) {
+        case 'setType': result.type = value; break;
+        case 'setField':
+          if (['price', 'sku', 'title', 'description'].includes(value)) {
+            if ($match && $match.length > 0) {
               result[value] = $match.first().text().trim();
             }
-            break;
-          case 'setConst':
-            const [field, constVal] = value.split(':');
-            if (field && constVal && result.hasOwnProperty(field)) {
-              result[field] = constVal;
-            }
-            break;
-        }
+          }
+          break;
+        case 'setConst':
+          const [field, constVal] = value.split(':');
+          if (field && constVal && result.hasOwnProperty(field)) {
+            result[field] = constVal;
+          }
+          break;
       }
     });
   }

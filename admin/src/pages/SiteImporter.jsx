@@ -172,7 +172,7 @@ export default function SiteImporter() {
   const addRule = () => {
     setConfig({
       ...config,
-      rules: [...config.rules, { selector: '', action: 'setType', value: 'product' }]
+      rules: [...config.rules, { selector: '', urlPattern: '', action: 'setType', value: 'product' }]
     });
   };
 
@@ -352,16 +352,25 @@ export default function SiteImporter() {
                       {config.rules.map((rule, idx) => (
                         <div key={idx} className="flex gap-1 items-start bg-white p-2 rounded border border-gray-200 shadow-sm relative">
                           <div className="flex-1 space-y-1">
-                            <input 
-                              type="text" 
-                              value={rule.selector} 
-                              onChange={e => updateRule(idx, 'selector', e.target.value)}
-                              placeholder="CSS Selector"
-                              className="input py-0.5 px-1 text-[10px] w-full"
-                            />
                             <div className="flex gap-1">
-                              <select 
-                                value={rule.action} 
+                              <input
+                                type="text"
+                                value={rule.urlPattern || ''}
+                                onChange={e => updateRule(idx, 'urlPattern', e.target.value)}
+                                placeholder="URL Pattern (regex)"
+                                className="input py-0.5 px-1 text-[10px] flex-1"
+                              />
+                              <input
+                                type="text"
+                                value={rule.selector || ''}
+                                onChange={e => updateRule(idx, 'selector', e.target.value)}
+                                placeholder="CSS Selector"
+                                className="input py-0.5 px-1 text-[10px] flex-1"
+                              />
+                            </div>
+                            <div className="flex gap-1">
+                              <select
+                                value={rule.action}
                                 onChange={e => updateRule(idx, 'action', e.target.value)}
                                 className="input py-0.5 px-1 text-[10px] flex-1"
                               >
@@ -369,9 +378,9 @@ export default function SiteImporter() {
                                 <option value="setField">Extract text to Field</option>
                                 <option value="setConst">Set Const (field:val)</option>
                               </select>
-                              <input 
-                                type="text" 
-                                value={rule.value} 
+                              <input
+                                type="text"
+                                value={rule.value}
                                 onChange={e => updateRule(idx, 'value', e.target.value)}
                                 placeholder="Value"
                                 className="input py-0.5 px-1 text-[10px] flex-1"
