@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE `content` ADD COLUMN `search_index` LONGTEXT NULL;
+
+-- AlterTable
+ALTER TABLE `digital_downloads` ALTER COLUMN `expires_at` DROP DEFAULT;

@@ -1,0 +1,72 @@
+{% extends "layouts/base.njk" %}
+
+{% block content %}
+<div class="search-page container mx-auto px-4 py-12">
+  <div class="max-w-3xl mx-auto">
+    <h1 class="text-3xl font-bold text-gray-900 mb-8">Search Site</h1>
+    
+    <form action="/search" method="GET" class="mb-12">
+      <div class="flex gap-2">
+        <input 
+          type="text" 
+          name="q" 
+          value="{{ q }}" 
+          placeholder="What are you looking for?" 
+          class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none shadow-sm"
+          autoFocus
+        />
+        <button type="submit" class="btn btn-primary px-8 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors shadow-sm font-bold">
+          Search
+        </button>
+      </div>
+    </form>
+
+    {% if q %}
+      <div class="results-header mb-6 pb-4 border-b border-gray-100 flex justify-between items-center">
+        <h2 class="text-lg text-gray-600">
+          Showing results for <span class="text-gray-900 font-bold">"{{ q }}"</span>
+        </h2>
+        <span class="text-sm text-gray-500">{{ results.length }} items found</span>
+      </div>
+
+      {% if results.length > 0 %}
+        <div class="space-y-8">
+          {% for item in results %}
+            {% set contentData = item.data | json %}
+            <article class="search-result group">
+              <div class="flex gap-4">
+                {% if contentData.og_image %}
+                  <div class="w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden bg-gray-100 hidden sm:block">
+                    <img src="{{ contentData.og_image }}" alt="" class="w-full h-full object-cover" />
+                  </div>
+                {% endif %}
+                <div>
+                  <span class="text-[10px] uppercase tracking-widest font-bold text-primary-600 mb-1 block">{{ item.module }}</span>
+                  <h3 class="text-xl font-bold text-gray-900 group-hover:text-primary-600 transition-colors">
+                    <a href="{{ item.slug }}">{{ item.title or 'Untitled' }}</a>
+                  </h3>
+                  <p class="text-sm text-gray-500 mt-1 mb-2">{{ item.slug }}</p>
+                  <a href="{{ item.slug }}" class="text-sm font-medium text-primary-600 hover:text-primary-700 flex items-center gap-1">
+                    View Page <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                  </a>
+                </div>
+              </div>
+            </article>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="text-center py-12 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+          <svg class="mx-auto mb-4 opacity-20" width="64" height="64" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 9.172a4 4 0 012.828 0M12 14v4m0 0v4m0-4h4m-4 0H8m12 0a8 8 0 11-16 0 8 8 0 0116 0z"></path></svg>
+          <p class="text-gray-500 mb-2">No matches found for your search.</p>
+          <p class="text-sm text-gray-400">Try using different keywords or checking your spelling.</p>
+        </div>
+      {% endif %}
+    {% else %}
+      <div class="text-center py-12 text-gray-400">
+        <svg class="mx-auto mb-4 opacity-20" width="64" height="64" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+        <p>Enter a search term above to browse the site.</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,140 @@
+import { Router } from 'express';
+import { requireAuth, requireAdmin } from '../middleware/auth.js';
+import { generateThemeFromIndustry, generateImage, generateText, generateContentForFields } from '../services/aiService.js';
+import fs from 'fs/promises';
+import path from 'path';
+import { getThemesDir } from '../services/themeResolver.js';
+import { syncTemplatesToDb } from '../services/templateParser.js';
+import prisma from '../lib/prisma.js';
+
+const router = Router();
+
+/**
+ * POST /api/ai/generate-theme
+ * Payload: { industry: "Coffee Shop" }
+ */
+router.post('/generate-theme', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { industry } = req.body;
+    if (!industry) return res.status(400).json({ error: 'Industry is required' });
+
+    console.log(`[AI-DEBUG] 🚀 Received request to generate theme for industry: "${industry}"`);
+
+    // 1. SMART CACHE CHECK
+    // Convert "Modern Coffee Shop" -> "modern-coffee-shop"
+    const targetSlug = industry.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    
+    // Check if this theme already exists on disk
+    const existingThemeDir = path.join(getThemesDir(), targetSlug);
+    try {
+      await fs.access(existingThemeDir);
+      console.log(`[AI-DEBUG] 💎 CACHE HIT! Theme "${targetSlug}" already exists.`);
+      console.log(`[AI-DEBUG] 💰 Cost saved: ~$0.08 (GPT-4o + DALL-E 3)`);
+      
+      // Ensure it's synced to DB just in case
+      await syncTemplatesToDb(prisma, targetSlug);
+      
+      return res.json({ 
+        success: true, 
+        slug: targetSlug, 
+        message: 'Theme found in library (Instant Load)',
+        cached: true
+      });
+    } catch (e) {
+      console.log(`[AI-DEBUG] 💨 Cache miss. Proceeding to generation...`);
+    }
+
+    console.log(`[AI-DEBUG] ⏳ Calling AI Service...`);
+    
+    const { slug, files } = await generateThemeFromIndustry(industry);
+    console.log(`[AI-DEBUG] ✅ AI Service returned data for slug: "${slug}"`);
+    console.log(`[AI-DEBUG] 📦 Generated ${Object.keys(files).length} files.`);
+
+    // Write files to disk
+    const themeDir = path.join(getThemesDir(), slug);
+    console.log(`[AI-DEBUG] 📂 Target directory: ${themeDir}`);
+    
+    // Create directories
+    await fs.mkdir(path.join(themeDir, 'pages'), { recursive: true });
+    await fs.mkdir(path.join(themeDir, 'assets/css'), { recursive: true });
+    console.log(`[AI-DEBUG] 📁 Directories created.`);
+
+    // Write files
+    for (const [relativePath, content] of Object.entries(files)) {
+      const filePath = path.join(themeDir, relativePath);
+      await fs.writeFile(filePath, content);
+      console.log(`[AI-DEBUG] 📝 Wrote file: ${relativePath} (${content.length} bytes)`);
+    }
+
+    console.log(`[AI-DEBUG] 🔄 Syncing templates to database...`);
+    // Sync templates to DB so it's immediately usable
+    const syncResult = await syncTemplatesToDb(prisma, slug);
+    console.log(`[AI-DEBUG] ✅ Database sync complete. ${syncResult.length} templates registered.`);
+
+    res.json({ success: true, slug, message: 'Theme generated successfully' });
+
+  } catch (error) {
+    console.error('[AI-DEBUG] ❌ Generation Failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/ai/generate-image
+ * Payload: { prompt: "A futuristic city" }
+ */
+router.post('/generate-image', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { prompt } = req.body;
+    if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
+
+    const imagePath = await generateImage(prompt);
+    res.json({ success: true, path: imagePath });
+
+  } catch (error) {
+    console.error('Image Generation Failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/ai/generate-content
+ * Payload: { templateId: 1, prompt: "Luxury Bakery", currentData: {} }
+ */
+router.post('/generate-content', requireAuth, async (req, res) => {
+  try {
+    const { templateId, prompt } = req.body;
+    
+    if (!templateId) return res.status(400).json({ error: 'Template ID is required' });
+    if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
+
+    // 1. Get Template Fields
+    const template = await prisma.templates.findUnique({
+      where: { id: parseInt(templateId) }
+    });
+
+    if (!template) return res.status(404).json({ error: 'Template not found' });
+
+    let fields = [];
+    try {
+      fields = typeof template.regions === 'string' 
+        ? JSON.parse(template.regions) 
+        : template.regions;
+    } catch (e) {
+      return res.status(500).json({ error: 'Invalid template schema' });
+    }
+
+    console.log(`[AI-DEBUG] 📝 Generating content for template "${template.name}" with context: "${prompt}"`);
+
+    // 2. Call AI Service
+    const content = await generateContentForFields(fields, prompt);
+
+    res.json({ success: true, data: content });
+
+  } catch (error) {
+    console.error('[AI-DEBUG] ❌ Content Generation Failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+export default router;

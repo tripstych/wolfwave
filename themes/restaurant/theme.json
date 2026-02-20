@@ -1,0 +1,7 @@
+{
+  "name": "Bistro",
+  "slug": "restaurant",
+  "inherits": "default",
+  "version": "1.0.0",
+  "description": "Elegant restaurant theme with menu and reservation features"
+}

@@ -1,0 +1,11 @@
+{
+  "name": "Default",
+  "slug": "default",
+  "version": "1.0.0",
+  "description": "The default WolfWave theme",
+  "inherits": null,
+  "assets": {
+    "css": ["assets/css/variables.css", "assets/css/theme.css"],
+    "js": []
+  }
+}

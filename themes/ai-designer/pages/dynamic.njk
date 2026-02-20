@@ -1,0 +1,102 @@
+{% extends "layouts/base.njk" %}
+
+{% block styles %}
+.dynamic-section { padding: 4rem 0; }
+.bg-light { background-color: #f8f9fa; }
+.bg-dark { background-color: #212529; color: white; }
+.text-center { text-align: center; }
+.container { max-width: 1140px; margin: 0 auto; padding: 0 1rem; }
+
+/* Grid for features */
+.grid { display: grid; gap: 2rem; }
+.grid-3 { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+
+/* Hero */
+.hero-minimal { padding: 8rem 0; text-align: center; }
+.hero-minimal h1 { font-size: 3.5rem; margin-bottom: 1rem; }
+.hero-minimal p { font-size: 1.25rem; opacity: 0.8; }
+
+/* Buttons */
+.btn { display: inline-block; padding: 0.75rem 1.5rem; border-radius: 4px; text-decoration: none; font-weight: bold; margin-top: 1rem; }
+.btn-primary { background: #007bff; color: white; }
+{% endblock %}
+
+{% block content %}
+<div data-cms-region="sections" 
+     data-cms-type="repeater" 
+     data-cms-label="Page Sections"
+     data-cms-fields='[
+       {"name": "type", "type": "text", "label": "Section Type (hero, features, text, cta)"},
+       {"name": "title", "type": "text", "label": "Title"},
+       {"name": "content", "type": "richtext", "label": "Content/Body"},
+       {"name": "bg_color", "type": "text", "label": "Background (light, dark, white)"},
+       {"name": "items", "type": "repeater", "label": "Sub-items (for features)", "fields": [
+         {"name": "title", "type": "text", "label": "Item Title"},
+         {"name": "desc", "type": "textarea", "label": "Item Description"},
+         {"name": "icon", "type": "text", "label": "Icon (e.g. 🚀)"}
+       ]}
+     ]'>
+  
+  {% for section in content.sections %}
+    
+    {# HERO SECTION #}
+    {% if section.type == 'hero' %}
+      <section class="hero-minimal bg-{{ section.bg_color | default('white') }}">
+        <div class="container">
+          <h1>{{ section.title }}</h1>
+          <div>{{ section.content | safe }}</div>
+        </div>
+      </section>
+
+    {# FEATURES SECTION #}
+    {% elif section.type == 'features' %}
+      <section class="dynamic-section bg-{{ section.bg_color | default('white') }}">
+        <div class="container">
+          <h2 class="text-center">{{ section.title }}</h2>
+          <div class="grid grid-3">
+            {% for item in section.items %}
+              <div class="card p-4">
+                <div style="font-size: 2rem;">{{ item.icon }}</div>
+                <h3>{{ item.title }}</h3>
+                <p>{{ item.desc }}</p>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      </section>
+
+    {# TEXT/CONTENT SECTION #}
+    {% elif section.type == 'text' %}
+      <section class="dynamic-section bg-{{ section.bg_color | default('white') }}">
+        <div class="container">
+          {% if section.title %}<h2>{{ section.title }}</h2>{% endif %}
+          <div>{{ section.content | safe }}</div>
+        </div>
+      </section>
+
+    {# CTA SECTION #}
+    {% elif section.type == 'cta' %}
+      <section class="dynamic-section bg-{{ section.bg_color | default('dark') }} text-center">
+        <div class="container">
+          <h2>{{ section.title }}</h2>
+          <div>{{ section.content | safe }}</div>
+          <a href="#" class="btn btn-primary">Action</a>
+        </div>
+      </section>
+
+    {% else %}
+      <section class="dynamic-section border-dashed">
+        <div class="container text-center">
+          <p>Unknown section type: <strong>{{ section.type }}</strong></p>
+        </div>
+      </section>
+    {% endif %}
+
+  {% else %}
+    {# Placeholder when no sections exist #}
+    <div class="container text-center py-20 border-2 border-dashed border-gray-300 rounded-lg">
+      <p class="text-gray-500">AI-Designer Ready. Add sections to build your page.</p>
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}

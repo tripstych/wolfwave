@@ -1,0 +1,7 @@
+{
+  "name": "AI Designer",
+  "slug": "ai-designer",
+  "inherits": "default",
+  "version": "1.0.0",
+  "description": "A dynamic, block-based theme designed for AI-generated layouts."
+}

@@ -1,0 +1,7 @@
+{
+  "name": "Creative Agency",
+  "slug": "agency",
+  "inherits": "default",
+  "version": "1.0.0",
+  "description": "Modern agency theme for creative businesses"
+}

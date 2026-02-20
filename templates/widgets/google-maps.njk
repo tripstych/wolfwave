@@ -1,0 +1,37 @@
+<div class="google-maps-block" style="width: 100%; height: 450px; background: #eee; position: relative; overflow: hidden; border-radius: 0.75rem;">
+  {% set apiKey = site.google_maps_api_key %}
+  {% set address = content.map_address | default(site.site_address) %}
+  {% set zoom = content.map_zoom | default(15) %}
+
+  {% if apiKey and address %}
+    <iframe
+      width="100%"
+      height="100%"
+      style="border:0"
+      loading="lazy"
+      allowfullscreen
+      referrerpolicy="no-referrer-when-downgrade"
+      src="https://www.google.com/maps/embed/v1/place?key={{ apiKey }}&q={{ address | urlencode }}&zoom={{ zoom }}">
+    </iframe>
+    
+    {# CMS markers for editing #}
+    <div style="display:none">
+      <div data-cms-region="map_address" data-cms-type="text" data-cms-label="Map Address" data-cms-placeholder="e.g. 123 Main St, New York, NY"></div>
+      <div data-cms-region="map_zoom" data-cms-type="text" data-cms-label="Zoom Level (1-20)" data-cms-placeholder="15"></div>
+    </div>
+  {% else %}
+    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 2rem; text-align: center; color: #666;">
+      <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 1rem; opacity: 0.5;">
+        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+        <circle cx="12" cy="10" r="3"></circle>
+      </svg>
+      {% if not apiKey %}
+        <p><strong>Google Maps API Key missing</strong></p>
+        <p style="font-size: 0.875rem;">Please set your API key in Settings > General</p>
+      {% elif not address %}
+        <p><strong>No address specified</strong></p>
+        <p style="font-size: 0.875rem;">Please set a Site Address in Settings or a Map Address in this block</p>
+      {% endif %}
+    </div>
+  {% endif %}
+</div>

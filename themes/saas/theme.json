@@ -1,0 +1,7 @@
+{
+  "name": "SaaS Landing",
+  "slug": "saas",
+  "inherits": "default",
+  "version": "1.0.0",
+  "description": "High-conversion landing page for software products"
+}

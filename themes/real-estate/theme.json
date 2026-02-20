@@ -1,0 +1,7 @@
+{
+  "name": "Prime Properties",
+  "slug": "real-estate",
+  "inherits": "default",
+  "version": "1.0.0",
+  "description": "Showcase properties and agent profiles"
+}

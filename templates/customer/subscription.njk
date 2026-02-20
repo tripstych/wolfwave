@@ -1,0 +1,482 @@
+{% extends "layouts/base.njk" %}
+
+{% block content %}
+<div class="subscription-container">
+  <div class="subscription-header">
+    <h1>My Subscription</h1>
+    <a href="/customer/account" class="btn btn-secondary">Back to Account</a>
+  </div>
+
+  {% if success %}
+    <div class="alert alert-success">Your subscription is now active. Welcome!</div>
+  {% endif %}
+
+  {% if customer.subscription %}
+    <div class="subscription-card">
+      <div class="sub-status-badge sub-status-{{ customer.subscription.status }}">
+        {{ customer.subscription.status | capitalize }}
+      </div>
+
+      <div class="sub-details">
+        <div class="sub-plan-name">{{ customer.subscription.plan.name }}</div>
+        <div class="sub-plan-price">
+          ${{ customer.subscription.plan.price }}/{{ customer.subscription.plan.interval | replace("ly", "") }}
+        </div>
+      </div>
+
+      {% if customer.subscription.current_period_end %}
+        <div class="sub-info-row">
+          <span class="sub-label">
+            {% if customer.subscription.cancel_at_period_end %}
+              Access until
+            {% else %}
+              Next billing date
+            {% endif %}
+          </span>
+          <span class="sub-value" id="period-end">
+            {{ customer.subscription.current_period_end }}
+          </span>
+        </div>
+      {% endif %}
+
+      {% if customer.subscription.cancel_at_period_end %}
+        <div class="alert alert-warning" style="margin-top: 1rem;">
+          Your subscription is set to cancel at the end of the current period. You will retain access until then.
+        </div>
+      {% endif %}
+
+      {% if customer.subscription.status == 'paused' %}
+        <div class="alert alert-info" style="margin-top: 1rem;">
+          Your subscription is paused. Resume it to regain access.
+        </div>
+      {% endif %}
+
+      {% if customer.subscription.plan.features and customer.subscription.plan.features.length %}
+        <div class="sub-features">
+          <h3>Your Plan Includes</h3>
+          <ul>
+            {% for feature in customer.subscription.plan.features %}
+              <li>{{ feature }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+
+      <div class="sub-actions">
+        {% if customer.subscription.status == 'active' or customer.subscription.status == 'trialing' %}
+          {% if customer.subscription.cancel_at_period_end %}
+            <button id="resume-btn" class="btn btn-primary">Resume Subscription</button>
+          {% else %}
+            <button id="cancel-btn" class="btn btn-danger">Cancel Subscription</button>
+            <button id="pause-btn" class="btn btn-secondary">Pause Subscription</button>
+          {% endif %}
+        {% endif %}
+
+        {% if customer.subscription.status == 'paused' %}
+          <button id="unpause-btn" class="btn btn-primary">Resume Subscription</button>
+        {% endif %}
+
+        <button id="payment-btn" class="btn btn-secondary">Update Payment Method</button>
+      </div>
+
+      {# Change plan section #}
+      {% if plans.length > 1 %}
+        <div class="change-plan-section">
+          <h3>Change Plan</h3>
+          <div class="plan-options">
+            {% for plan in plans %}
+              {% if plan.slug != customer.subscription.plan.slug %}
+                <div class="plan-option">
+                  <div>
+                    <strong>{{ plan.name }}</strong>
+                    <span class="plan-option-price">${{ plan.price }}/{{ plan.interval | replace("ly", "") }}</span>
+                  </div>
+                  <button class="btn btn-secondary change-plan-btn" data-plan-id="{{ plan.id }}">
+                    Switch
+                  </button>
+                </div>
+              {% endif %}
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+    </div>
+  {% else %}
+    <div class="no-subscription">
+      <h2>No Active Subscription</h2>
+      <p>You don't have an active subscription.</p>
+      <a href="/subscribe" class="btn btn-primary">View Plans</a>
+    </div>
+  {% endif %}
+</div>
+
+<script>
+  // Format dates
+  document.querySelectorAll('#period-end').forEach(el => {
+    const date = new Date(el.textContent.trim());
+    if (!isNaN(date)) {
+      el.textContent = date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    }
+  });
+
+  async function subscriptionAction(endpoint, confirmMsg) {
+    if (confirmMsg && !confirm(confirmMsg)) return;
+    try {
+      const res = await fetch(`/api/customer-subscriptions/${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
+      });
+      const data = await res.json();
+      if (res.ok) {
+        window.location.reload();
+      } else {
+        alert(data.error || 'Something went wrong');
+      }
+    } catch (err) {
+      alert('Network error. Please try again.');
+    }
+  }
+
+  const cancelBtn = document.getElementById('cancel-btn');
+  if (cancelBtn) {
+    cancelBtn.addEventListener('click', () => {
+      subscriptionAction('cancel', 'Cancel your subscription? You will retain access until the end of your billing period.');
+    });
+  }
+
+  const resumeBtn = document.getElementById('resume-btn');
+  if (resumeBtn) {
+    resumeBtn.addEventListener('click', () => subscriptionAction('resume'));
+  }
+
+  const pauseBtn = document.getElementById('pause-btn');
+  if (pauseBtn) {
+    pauseBtn.addEventListener('click', () => {
+      subscriptionAction('pause', 'Pause your subscription? You can resume anytime.');
+    });
+  }
+
+  const unpauseBtn = document.getElementById('unpause-btn');
+  if (unpauseBtn) {
+    unpauseBtn.addEventListener('click', () => subscriptionAction('unpause'));
+  }
+
+  const paymentBtn = document.getElementById('payment-btn');
+  if (paymentBtn) {
+    paymentBtn.addEventListener('click', async () => {
+      paymentBtn.disabled = true;
+      paymentBtn.textContent = 'Loading...';
+      try {
+        const res = await fetch('/api/customer-subscriptions/update-payment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include'
+        });
+        const data = await res.json();
+        if (data.portal_url) {
+          window.location.href = data.portal_url;
+        } else {
+          alert(data.error || 'Failed to open billing portal');
+          paymentBtn.disabled = false;
+          paymentBtn.textContent = 'Update Payment Method';
+        }
+      } catch (err) {
+        alert('Network error');
+        paymentBtn.disabled = false;
+        paymentBtn.textContent = 'Update Payment Method';
+      }
+    });
+  }
+
+  document.querySelectorAll('.change-plan-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Switch to this plan? Your billing will be prorated.')) return;
+      btn.disabled = true;
+      btn.textContent = 'Switching...';
+      try {
+        const res = await fetch('/api/customer-subscriptions/change-plan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ plan_id: parseInt(btn.dataset.planId) })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          window.location.reload();
+        } else {
+          alert(data.error || 'Failed to change plan');
+          btn.disabled = false;
+          btn.textContent = 'Switch';
+        }
+      } catch (err) {
+        alert('Network error');
+        btn.disabled = false;
+        btn.textContent = 'Switch';
+      }
+    });
+  });
+</script>
+
+<style>
+  .subscription-container {
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 2rem;
+  }
+
+  .subscription-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+  }
+
+  .subscription-header h1 {
+    margin: 0;
+    font-size: 2rem;
+  }
+
+  .alert {
+    padding: 1rem;
+    border-radius: 6px;
+    margin-bottom: 1.5rem;
+    font-size: 0.95rem;
+  }
+
+  .alert-success {
+    background: #ecfdf5;
+    border: 1px solid #a7f3d0;
+    color: #065f46;
+  }
+
+  .alert-warning {
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    color: #92400e;
+  }
+
+  .alert-info {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    color: #1e40af;
+  }
+
+  .subscription-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 2rem;
+  }
+
+  .sub-status-badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 1rem;
+  }
+
+  .sub-status-active, .sub-status-trialing {
+    background: #ecfdf5;
+    color: #065f46;
+  }
+
+  .sub-status-past_due {
+    background: #fef2f2;
+    color: #991b1b;
+  }
+
+  .sub-status-paused {
+    background: #fffbeb;
+    color: #92400e;
+  }
+
+  .sub-status-canceled {
+    background: #f3f4f6;
+    color: #6b7280;
+  }
+
+  .sub-details {
+    margin-bottom: 1.5rem;
+  }
+
+  .sub-plan-name {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1f2937;
+  }
+
+  .sub-plan-price {
+    font-size: 1.1rem;
+    color: #6b7280;
+    margin-top: 0.25rem;
+  }
+
+  .sub-info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.75rem 0;
+    border-top: 1px solid #f3f4f6;
+  }
+
+  .sub-label {
+    color: #6b7280;
+    font-size: 0.9rem;
+  }
+
+  .sub-value {
+    font-weight: 500;
+    color: #1f2937;
+  }
+
+  .sub-features {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #e5e7eb;
+  }
+
+  .sub-features h3 {
+    font-size: 1rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .sub-features ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .sub-features li {
+    padding: 0.375rem 0;
+    font-size: 0.9rem;
+    color: #374151;
+  }
+
+  .sub-features li::before {
+    content: "\2713";
+    color: #10b981;
+    margin-right: 0.5rem;
+    font-weight: bold;
+  }
+
+  .sub-actions {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #e5e7eb;
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .change-plan-section {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #e5e7eb;
+  }
+
+  .change-plan-section h3 {
+    font-size: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .plan-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .plan-option {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+  }
+
+  .plan-option-price {
+    color: #6b7280;
+    font-size: 0.9rem;
+    margin-left: 0.5rem;
+  }
+
+  .no-subscription {
+    text-align: center;
+    padding: 3rem;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+  }
+
+  .no-subscription h2 {
+    margin-bottom: 0.5rem;
+  }
+
+  .no-subscription p {
+    color: #6b7280;
+    margin-bottom: 1.5rem;
+  }
+
+  .btn {
+    padding: 0.625rem 1.25rem;
+    border: none;
+    border-radius: 6px;
+    font-weight: 500;
+    cursor: pointer;
+    font-size: 0.9rem;
+    text-decoration: none;
+    display: inline-block;
+    text-align: center;
+  }
+
+  .btn-primary {
+    background: #3b82f6;
+    color: white;
+  }
+
+  .btn-primary:hover {
+    background: #2563eb;
+  }
+
+  .btn-secondary {
+    background: #f3f4f6;
+    color: #374151;
+    border: 1px solid #d1d5db;
+  }
+
+  .btn-secondary:hover {
+    background: #e5e7eb;
+  }
+
+  .btn-danger {
+    background: #fef2f2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+  }
+
+  .btn-danger:hover {
+    background: #fee2e2;
+  }
+
+  @media (max-width: 640px) {
+    .subscription-container {
+      padding: 1rem;
+    }
+    .subscription-header {
+      flex-direction: column;
+      gap: 1rem;
+      align-items: flex-start;
+    }
+    .sub-actions {
+      flex-direction: column;
+    }
+    .sub-actions .btn {
+      width: 100%;
+    }
+  }
+</style>
+{% endblock %}

@@ -1,0 +1,81 @@
+{% extends "layouts/base.njk" %}
+
+{% block styles %}
+  {# Include the nanobanana styles manually or let theme.json handle it #}
+  {# We'll use the theme asset loader but add a fallback here #}
+  <style>
+    /* Specific styles for this page if needed */
+    .nano-content {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+<div class="nano-content">
+  {# Hero #}
+  <div class="nano-hero">
+    <h1 data-cms-region="hero_title" data-cms-type="text" data-cms-label="Hero Title">
+      {{ content.hero_title | default('Go Nano!') }}
+    </h1>
+    <p data-cms-region="hero_subtitle" data-cms-type="textarea" data-cms-label="Hero Subtitle">
+      {{ content.hero_subtitle | default('A fun, colorful, and playful theme for your next project.') }}
+    </p>
+    <a href="{{ content.cta_link | default('#') }}" class="btn-nano" 
+       data-cms-region="cta_text" data-cms-type="text" data-cms-label="CTA Button Text">
+      {{ content.cta_text | default('Get Started!') }}
+    </a>
+  </div>
+
+  {# Features Grid #}
+  <section class="nano-section">
+    <h2 data-cms-region="features_title" data-cms-type="text" data-cms-label="Features Section Title">
+      {{ content.features_title | default('Why Choose Nano?') }}
+    </h2>
+    
+    <div class="nano-card-grid"
+         data-cms-region="features"
+         data-cms-type="repeater"
+         data-cms-label="Features"
+         data-cms-fields='[
+           {"name":"title", "type":"text", "label":"Feature Title"},
+           {"name":"description", "type":"textarea", "label":"Description"},
+           {"name":"icon", "type":"image", "label":"Icon Image"}
+         ]'>
+      {% for feature in content.features %}
+        <div class="nano-card">
+          {% if feature.icon %}
+            <img src="{{ feature.icon }}" alt="{{ feature.title }}" style="width: 64px; height: 64px;">
+          {% else %}
+             <img src="/images/placeholders/150x150.svg" alt="Placeholder" style="width: 64px; height: 64px;">
+          {% endif %}
+          <h3>{{ feature.title }}</h3>
+          <p>{{ feature.description }}</p>
+        </div>
+      {% else %}
+        <div class="nano-card">
+          <img src="/images/placeholders/150x150.svg" alt="Smile">
+          <h3>Super Fun</h3>
+          <p>This theme is built to make you smile!</p>
+        </div>
+        <div class="nano-card">
+          <img src="/images/placeholders/150x150.svg" alt="Rocket">
+          <h3>Fast Loading</h3>
+          <p>Optimized for speed and performance.</p>
+        </div>
+        <div class="nano-card">
+           <img src="/images/placeholders/150x150.svg" alt="Brush">
+          <h3>Creative Design</h3>
+          <p>Stand out from the boring corporate crowd.</p>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  {# Theme scripts are loaded by base.njk, but we can add specific ones here if needed #}
+  <script src="/themes/nanobanana/assets/js/nanobanana.js"></script>
+{% endblock %}

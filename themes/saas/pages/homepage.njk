@@ -1,0 +1,190 @@
+{% extends "layouts/base.njk" %}
+
+{% block styles %}
+.saas-hero {
+  padding: 6rem 1rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  text-align: center;
+}
+.saas-hero h1 {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+.hero-image {
+  max-width: 800px;
+  margin: 2rem auto;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+}
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 3rem;
+  padding: 5rem 1rem;
+}
+.feature-item {
+  text-align: center;
+}
+.pricing-section {
+  background: #f8f9fa;
+  padding: 5rem 1rem;
+}
+.pricing-grid {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+.pricing-card {
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+  width: 300px;
+  text-align: center;
+}
+.faq-section {
+  padding: 5rem 1rem;
+  max-width: 800px;
+  margin: 0 auto;
+}
+.faq-item {
+  border-bottom: 1px solid #eee;
+  padding: 1rem 0;
+}
+.faq-question {
+  font-weight: bold;
+  cursor: pointer;
+}
+{% endblock %}
+
+{% block content %}
+{# Hero #}
+<section class="saas-hero">
+  <div class="container">
+    <h1 data-cms-region="hero_title" data-cms-type="text" data-cms-label="Main Headline">
+      {{ content.hero_title | default('Supercharge Your Workflow') }}
+    </h1>
+    <p class="lead" data-cms-region="hero_subtitle" data-cms-type="textarea" data-cms-label="Subheadline">
+      {{ content.hero_subtitle | default('The all-in-one platform for modern teams.') }}
+    </p>
+    <div class="hero-actions">
+      <a href="/signup" class="btn btn-primary btn-lg">Get Started Free</a>
+      <a href="#features" class="btn btn-outline-light btn-lg">Learn More</a>
+    </div>
+    <img src="{{ content.hero_image | default('/images/placeholders/800x450.svg') }}" 
+         alt="Product Screenshot" 
+         class="hero-image"
+         data-cms-region="hero_image" 
+         data-cms-type="image" 
+         data-cms-label="App Screenshot">
+  </div>
+</section>
+
+{# Features #}
+<section id="features" class="container">
+  <div class="features-grid"
+       data-cms-region="features"
+       data-cms-type="repeater"
+       data-cms-label="Features List"
+       data-cms-fields='[
+         {"name":"title", "type":"text", "label":"Feature Title"},
+         {"name":"desc", "type":"textarea", "label":"Description"},
+         {"name":"icon", "type":"text", "label":"Icon Class (e.g. fas fa-bolt)"}
+       ]'>
+    {% for feature in content.features %}
+      <div class="feature-item">
+        <i class="{{ feature.icon }}" style="font-size: 2.5rem; color: #764ba2;"></i>
+        <h3>{{ feature.title }}</h3>
+        <p>{{ feature.desc }}</p>
+      </div>
+    {% else %}
+      <div class="feature-item">
+        <h3>Fast Analytics</h3>
+        <p>Real-time data insights.</p>
+      </div>
+      <div class="feature-item">
+        <h3>Team Collaboration</h3>
+        <p>Work together seamlessly.</p>
+      </div>
+      <div class="feature-item">
+        <h3>Secure Cloud</h3>
+        <p>Enterprise-grade security.</p>
+      </div>
+    {% endfor %}
+  </div>
+</section>
+
+{# Pricing #}
+<section class="pricing-section">
+  <h2 class="text-center">Simple Pricing</h2>
+  <div class="pricing-grid"
+       data-cms-region="pricing_plans"
+       data-cms-type="repeater"
+       data-cms-label="Pricing Plans"
+       data-cms-fields='[
+         {"name":"name", "type":"text", "label":"Plan Name"},
+         {"name":"price", "type":"text", "label":"Price"},
+         {"name":"features", "type":"textarea", "label":"Features (comma separated)"}
+       ]'>
+    {% for plan in content.pricing_plans %}
+      <div class="pricing-card">
+        <h3>{{ plan.name }}</h3>
+        <div class="price">{{ plan.price }}</div>
+        <ul class="list-unstyled">
+          {% for feature in plan.features.split(',') %}
+            <li>{{ feature }}</li>
+          {% endfor %}
+        </ul>
+        <a href="/signup?plan={{ plan.name }}" class="btn btn-primary mt-3">Choose {{ plan.name }}</a>
+      </div>
+    {% else %}
+      <div class="pricing-card">
+        <h3>Starter</h3>
+        <div class="price">$0/mo</div>
+        <ul class="list-unstyled">
+          <li>1 User</li>
+          <li>Basic Support</li>
+        </ul>
+        <a href="#" class="btn btn-primary mt-3">Free</a>
+      </div>
+      <div class="pricing-card">
+        <h3>Pro</h3>
+        <div class="price">$29/mo</div>
+        <ul class="list-unstyled">
+          <li>Unlimited Users</li>
+          <li>Priority Support</li>
+          <li>Advanced Analytics</li>
+        </ul>
+        <a href="#" class="btn btn-primary mt-3">Buy Pro</a>
+      </div>
+    {% endfor %}
+  </div>
+</section>
+
+{# FAQ #}
+<section class="faq-section">
+  <h2 class="text-center">Frequently Asked Questions</h2>
+  <div data-cms-region="faqs"
+       data-cms-type="repeater"
+       data-cms-label="FAQ Items"
+       data-cms-fields='[
+         {"name":"question", "type":"text", "label":"Question"},
+         {"name":"answer", "type":"textarea", "label":"Answer"}
+       ]'>
+    {% for faq in content.faqs %}
+      <div class="faq-item">
+        <div class="faq-question">{{ faq.question }}</div>
+        <div class="faq-answer">{{ faq.answer }}</div>
+      </div>
+    {% else %}
+      <div class="faq-item">
+        <div class="faq-question">Can I cancel anytime?</div>
+        <div class="faq-answer">Yes, absolutely.</div>
+      </div>
+    {% endfor %}
+  </div>
+</section>
+
+{% endblock %}

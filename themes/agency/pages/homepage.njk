@@ -1,0 +1,139 @@
+{% extends "layouts/base.njk" %}
+
+{% block styles %}
+.agency-hero {
+  text-align: center;
+  padding: 5rem 1rem;
+  background-color: #f8f9fa;
+}
+.agency-services {
+  padding: 4rem 1rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 2rem;
+}
+.agency-service-card {
+  padding: 2rem;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  text-align: center;
+}
+.agency-portfolio {
+  padding: 4rem 1rem;
+  background: #111;
+  color: #fff;
+}
+.portfolio-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+  margin-top: 2rem;
+}
+.portfolio-item img {
+  width: 100%;
+  height: auto;
+  border-radius: 4px;
+}
+.agency-cta {
+  text-align: center;
+  padding: 5rem 1rem;
+  background: #333;
+  color: white;
+}
+{% endblock %}
+
+{% block content %}
+{# Hero Section #}
+<section class="agency-hero">
+  <div class="container">
+    <h1 data-cms-region="hero_title" data-cms-type="text" data-cms-label="Hero Headline">
+      {{ content.hero_title | default('We Build Digital Experiences') }}
+    </h1>
+    <p data-cms-region="hero_subtitle" data-cms-type="textarea" data-cms-label="Hero Subtitle">
+      {{ content.hero_subtitle | default('Award-winning agency specializing in branding, design, and development.') }}
+    </p>
+    <a href="{{ content.hero_cta_link | default('/contact') }}" class="btn btn-primary" 
+       data-cms-region="hero_cta_text" data-cms-type="text" data-cms-label="CTA Button Text">
+      {{ content.hero_cta_text | default('Start a Project') }}
+    </a>
+  </div>
+</section>
+
+{# Services Section #}
+<section class="container">
+  <h2 class="text-center">Our Services</h2>
+  <div class="agency-services" 
+       data-cms-region="services" 
+       data-cms-type="repeater" 
+       data-cms-label="Services List"
+       data-cms-fields='[
+         {"name":"title", "type":"text", "label":"Service Name"},
+         {"name":"description", "type":"textarea", "label":"Description"},
+         {"name":"icon", "type":"text", "label":"Icon Class (e.g. fas fa-code)"}
+       ]'>
+    {% for service in content.services %}
+      <div class="agency-service-card">
+        <i class="{{ service.icon }}" style="font-size: 2rem; margin-bottom: 1rem;"></i>
+        <h3>{{ service.title }}</h3>
+        <p>{{ service.description }}</p>
+      </div>
+    {% else %}
+      {# Placeholder content for new templates #}
+      <div class="agency-service-card">
+        <h3>Branding</h3>
+        <p>Visual identity and strategy.</p>
+      </div>
+      <div class="agency-service-card">
+        <h3>Web Design</h3>
+        <p>Beautiful, responsive websites.</p>
+      </div>
+      <div class="agency-service-card">
+        <h3>Marketing</h3>
+        <p>SEO and social media campaigns.</p>
+      </div>
+    {% endfor %}
+  </div>
+</section>
+
+{# Portfolio Section #}
+<section class="agency-portfolio">
+  <div class="container">
+    <h2>Recent Work</h2>
+    <div class="portfolio-grid"
+         data-cms-region="portfolio"
+         data-cms-type="repeater"
+         data-cms-label="Portfolio Items"
+         data-cms-fields='[
+           {"name":"image", "type":"image", "label":"Project Image"},
+           {"name":"client", "type":"text", "label":"Client Name"},
+           {"name":"category", "type":"text", "label":"Category"}
+         ]'>
+      {% for project in content.portfolio %}
+        <div class="portfolio-item">
+          <img src="{{ project.image }}" alt="{{ project.client }}">
+          <h3>{{ project.client }}</h3>
+          <p>{{ project.category }}</p>
+        </div>
+      {% else %}
+        <div class="portfolio-item">
+          <img src="/images/placeholders/400x300.svg" alt="Placeholder">
+          <h3>Client A</h3>
+          <p>Rebranding</p>
+        </div>
+        <div class="portfolio-item">
+          <img src="/images/placeholders/400x300.svg" alt="Placeholder">
+          <h3>Client B</h3>
+          <p>Web Development</p>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+{# Footer CTA #}
+<section class="agency-cta">
+  <h2 data-cms-region="footer_cta_title" data-cms-type="text">Ready to work with us?</h2>
+  <a href="/contact" class="btn btn-secondary">Get in Touch</a>
+</section>
+
+{% endblock %}

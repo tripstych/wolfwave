@@ -1,0 +1,610 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model addresses {
+  id          Int            @id @default(autoincrement())
+  customer_id Int
+  type        addresses_type
+  first_name  String         @db.VarChar(100)
+  last_name   String         @db.VarChar(100)
+  company     String?        @db.VarChar(255)
+  address1    String         @db.VarChar(255)
+  address2    String?        @db.VarChar(255)
+  city        String         @db.VarChar(100)
+  province    String?        @db.VarChar(100)
+  postal_code String         @db.VarChar(20)
+  country     String         @db.VarChar(2)
+  phone       String?        @db.VarChar(20)
+  is_default  Boolean?       @default(false)
+  created_at  DateTime       @default(now()) @db.Timestamp(0)
+  customers   customers      @relation(fields: [customer_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "addresses_ibfk_1")
+
+  @@index([customer_id], map: "idx_customer_id")
+}
+
+model blocks {
+  id                             Int       @id @default(autoincrement())
+  template_id                    Int
+  content_id                     Int?
+  name                           String    @db.VarChar(255)
+  slug                           String    @unique(map: "slug") @db.VarChar(255)
+  description                    String?   @db.Text
+  content_type                   String?   @default("blocks") @db.VarChar(50)
+  created_by                     Int?
+  updated_by                     Int?
+  created_at                     DateTime  @default(now()) @db.Timestamp(0)
+  updated_at                     DateTime  @default(now()) @db.Timestamp(0)
+  templates                      templates @relation(fields: [template_id], references: [id], onUpdate: Restrict, map: "blocks_ibfk_1")
+  content                        content?  @relation(fields: [content_id], references: [id], onUpdate: Restrict, map: "blocks_ibfk_2")
+  users_blocks_created_byTousers users?    @relation("blocks_created_byTousers", fields: [created_by], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "blocks_ibfk_3")
+  users_blocks_updated_byTousers users?    @relation("blocks_updated_byTousers", fields: [updated_by], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "blocks_ibfk_4")
+
+  @@index([content_id], map: "content_id")
+  @@index([created_by], map: "created_by")
+  @@index([content_type], map: "idx_content_type")
+  @@index([template_id], map: "template_id")
+  @@index([updated_by], map: "updated_by")
+}
+
+model content {
+  id             Int              @id @default(autoincrement())
+  module         String           @db.VarChar(50)
+  data           String?          @db.LongText
+  search_index   String?          @db.LongText
+  created_at     DateTime         @default(now()) @db.Timestamp(0)
+  updated_at     DateTime         @default(now()) @db.Timestamp(0)
+  title          String?          @db.VarChar(255)
+  slug           String?          @unique(map: "slug") @db.VarChar(255)
+  blocks         blocks[]
+  content_groups content_groups[]
+  pages          pages[]
+  products       products[]
+
+  @@index([module], map: "idx_type")
+}
+
+model content_groups {
+  id         Int      @id @default(autoincrement())
+  group_id   Int
+  content_id Int
+  created_at DateTime @default(now()) @db.Timestamp(0)
+  groups     groups   @relation(fields: [group_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "content_groups_ibfk_1")
+  content    content  @relation(fields: [content_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "content_groups_ibfk_2")
+
+  @@unique([group_id, content_id], map: "unique_group_content")
+  @@index([content_id], map: "idx_content_id")
+  @@index([group_id], map: "idx_group_id")
+}
+
+model content_type_extensions {
+  id                Int           @id @default(autoincrement())
+  content_type_name String        @db.VarChar(50)
+  extension_name    String        @db.VarChar(50)
+  config            Json?
+  enabled           Boolean?      @default(true)
+  created_at        DateTime      @default(now()) @db.Timestamp(0)
+  updated_at        DateTime      @default(now()) @db.Timestamp(0)
+  content_types     content_types @relation(fields: [content_type_name], references: [name], onDelete: Cascade, onUpdate: Restrict, map: "content_type_extensions_ibfk_1")
+
+  @@unique([content_type_name, extension_name], map: "unique_type_extension")
+}
+
+model content_types {
+  id                      Int                       @id @default(autoincrement())
+  name                    String                    @unique(map: "name") @db.VarChar(50)
+  label                   String                    @db.VarChar(100)
+  plural_label            String                    @db.VarChar(100)
+  icon                    String?                   @default("FileText") @db.VarChar(50)
+  color                   String?                   @default("gray") @db.VarChar(20)
+  menu_order              Int?                      @default(999)
+  show_in_menu            Boolean?                  @default(true)
+  has_status              Boolean?                  @default(true)
+  has_seo                 Boolean?                  @default(true)
+  is_system               Boolean?                  @default(false)
+  created_at              DateTime                  @default(now()) @db.Timestamp(0)
+  updated_at              DateTime                  @default(now()) @db.Timestamp(0)
+  content_type_extensions content_type_extensions[]
+}
+
+model customers {
+  id                     Int                      @id @default(autoincrement())
+  user_id                Int?
+  email                  String                   @unique(map: "email") @db.VarChar(255)
+  first_name             String?                  @db.VarChar(100)
+  last_name              String?                  @db.VarChar(100)
+  phone                  String?                  @db.VarChar(20)
+  created_at             DateTime                 @default(now()) @db.Timestamp(0)
+  updated_at             DateTime                 @default(now()) @db.Timestamp(0)
+  password               String?                  @db.VarChar(255)
+  email_verified         Boolean?                 @default(false)
+  verification_token     String?                  @db.VarChar(255)
+  password_reset_token   String?                  @db.VarChar(255)
+  password_reset_expires DateTime?                @db.Timestamp(0)
+  oauth_provider         String?                  @db.VarChar(50)
+  oauth_id               String?                  @db.VarChar(255)
+  stripe_customer_id     String?                  @db.VarChar(255)
+  addresses              addresses[]
+  digital_downloads      digital_downloads[]
+  users                  users?                   @relation(fields: [user_id], references: [id], onUpdate: Restrict, map: "customers_ibfk_1")
+  orders                 orders[]
+  customer_subscriptions customer_subscriptions[]
+
+  @@index([email], map: "idx_email")
+  @@index([user_id], map: "user_id")
+}
+
+model digital_downloads {
+  id             Int       @id @default(autoincrement())
+  order_id       Int
+  product_id     Int
+  customer_id    Int
+  download_url   String    @db.VarChar(500)
+  download_count Int?      @default(0)
+  download_limit Int
+  expires_at     DateTime  @db.Timestamp(0)
+  created_at     DateTime  @default(now()) @db.Timestamp(0)
+  orders         orders    @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  products       products  @relation(fields: [product_id], references: [id], onDelete: Cascade)
+  customers      customers @relation(fields: [customer_id], references: [id], onDelete: Cascade)
+
+  @@index([order_id], map: "idx_dd_order_id")
+  @@index([product_id], map: "idx_dd_product_id")
+  @@index([customer_id], map: "idx_dd_customer_id")
+}
+
+model groups {
+  id             Int              @id @default(autoincrement())
+  parent_id      Int?
+  name           String           @db.VarChar(255)
+  created_at     DateTime         @default(now()) @db.Timestamp(0)
+  updated_at     DateTime         @default(now()) @db.Timestamp(0)
+  content_groups content_groups[]
+  groups         groups?          @relation("groupsTogroups", fields: [parent_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "groups_ibfk_1")
+  other_groups   groups[]         @relation("groupsTogroups")
+
+  @@index([parent_id], map: "idx_parent_id")
+}
+
+model media {
+  id            Int      @id @default(autoincrement())
+  filename      String   @db.VarChar(255)
+  original_name String   @db.VarChar(255)
+  mime_type     String   @db.VarChar(100)
+  size          Int
+  path          String   @db.VarChar(500)
+  alt_text      String?  @db.VarChar(255)
+  title         String?  @db.VarChar(255)
+  uploaded_by   Int?
+  created_at    DateTime @default(now()) @db.Timestamp(0)
+  users         users?   @relation(fields: [uploaded_by], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "media_ibfk_1")
+
+  @@index([uploaded_by], map: "uploaded_by")
+}
+
+model menu_items {
+  id               Int                @id @default(autoincrement())
+  menu_id          Int
+  parent_id        Int?
+  title            String             @db.VarChar(255)
+  url              String?            @db.VarChar(500)
+  page_id          Int?
+  target           menu_items_target? @default(self)
+  position         Int?               @default(0)
+  display_rules    Json?
+  created_at       DateTime           @default(now()) @db.Timestamp(0)
+  updated_at       DateTime           @default(now()) @db.Timestamp(0)
+  menus            menus              @relation(fields: [menu_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "menu_items_ibfk_1")
+  menu_items       menu_items?        @relation("menu_itemsTomenu_items", fields: [parent_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "menu_items_ibfk_2")
+  other_menu_items menu_items[]       @relation("menu_itemsTomenu_items")
+  pages            pages?             @relation(fields: [page_id], references: [id], onUpdate: Restrict, map: "menu_items_ibfk_3")
+
+  @@index([menu_id], map: "menu_id")
+  @@index([page_id], map: "page_id")
+  @@index([parent_id], map: "parent_id")
+}
+
+model menus {
+  id            Int          @id @default(autoincrement())
+  name          String       @db.VarChar(255)
+  slug          String       @unique(map: "slug") @db.VarChar(255)
+  description   String?      @db.Text
+  display_rules Json?
+  created_at    DateTime     @default(now()) @db.Timestamp(0)
+  updated_at    DateTime     @default(now()) @db.Timestamp(0)
+  menu_items    menu_items[]
+}
+
+model coupons {
+  id              Int           @id @default(autoincrement())
+  code            String        @unique(map: "code") @db.VarChar(50)
+  discount_type   String        @db.VarChar(20) // percentage, fixed
+  discount_value  Decimal       @db.Decimal(10, 2)
+  min_purchase    Decimal?      @default(0.00) @db.Decimal(10, 2)
+  starts_at       DateTime?     @db.Timestamp(0)
+  expires_at      DateTime?     @db.Timestamp(0)
+  max_uses        Int?
+  used_count      Int?          @default(0)
+  is_active       Boolean       @default(true)
+  target_slugs    Json?
+  created_at      DateTime      @default(now()) @db.Timestamp(0)
+  updated_at      DateTime      @default(now()) @db.Timestamp(0)
+  orders          orders[]
+}
+
+model order_items {
+  id               Int               @id @default(autoincrement())
+  order_id         Int
+  product_id       Int
+  variant_id       Int?
+  product_title    String            @db.VarChar(255)
+  variant_title    String?           @db.VarChar(255)
+  sku              String            @db.VarChar(100)
+  price            Decimal           @db.Decimal(10, 2)
+  quantity         Int
+  subtotal         Decimal           @db.Decimal(10, 2)
+  created_at       DateTime          @default(now()) @db.Timestamp(0)
+  orders           orders            @relation(fields: [order_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "order_items_ibfk_1")
+  products         products          @relation(fields: [product_id], references: [id], onUpdate: Restrict, map: "order_items_ibfk_2")
+  product_variants product_variants? @relation(fields: [variant_id], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "order_items_ibfk_3")
+
+  @@index([order_id], map: "idx_order_id")
+  @@index([product_id], map: "product_id")
+  @@index([variant_id], map: "variant_id")
+}
+
+model orders {
+  id                Int                    @id @default(autoincrement())
+  order_number      String                 @unique(map: "order_number") @db.VarChar(50)
+  customer_id       Int
+  coupon_id         Int?
+  status            orders_status?         @default(pending)
+  payment_status    orders_payment_status? @default(pending)
+  subtotal          Decimal                @db.Decimal(10, 2)
+  tax               Decimal?               @default(0.00) @db.Decimal(10, 2)
+  shipping          Decimal?               @default(0.00) @db.Decimal(10, 2)
+  discount          Decimal?               @default(0.00) @db.Decimal(10, 2)
+  total             Decimal                @db.Decimal(10, 2)
+  email             String                 @db.VarChar(255)
+  billing_address   Json
+  shipping_address  Json
+  payment_method    orders_payment_method
+  payment_intent_id String?                @db.VarChar(255)
+  paypal_order_id   String?                @db.VarChar(255)
+  shipping_method   String?                @db.VarChar(100)
+  tracking_number   String?                @db.VarChar(255)
+  shipped_at        DateTime?              @db.Timestamp(0)
+  customer_note     String?                @db.Text
+  internal_note     String?                @db.Text
+  created_at        DateTime               @default(now()) @db.Timestamp(0)
+  updated_at        DateTime               @default(now()) @db.Timestamp(0)
+  order_items       order_items[]
+  digital_downloads digital_downloads[]
+  customers         customers              @relation(fields: [customer_id], references: [id], onUpdate: Restrict, map: "orders_ibfk_1")
+  coupons           coupons?               @relation(fields: [coupon_id], references: [id], onUpdate: Restrict, map: "orders_ibfk_2")
+
+  @@index([customer_id], map: "idx_customer_id")
+  @@index([order_number], map: "idx_order_number")
+  @@index([payment_status], map: "idx_payment_status")
+  @@index([status], map: "idx_status")
+  @@index([coupon_id], map: "idx_coupon_id")
+}
+
+model pages {
+  id                            Int           @id @default(autoincrement())
+  template_id                   Int
+  content_id                    Int?
+  title                         String        @db.VarChar(255)
+  content_type                  String?       @default("pages") @db.VarChar(50)
+  status                        pages_status? @default(draft)
+  published_at                  DateTime?     @db.Timestamp(0)
+  meta_title                    String?       @db.VarChar(255)
+  meta_description              String?       @db.Text
+  og_title                      String?       @db.VarChar(255)
+  og_description                String?       @db.Text
+  og_image                      String?       @db.VarChar(500)
+  canonical_url                 String?       @db.VarChar(500)
+  robots                        String?       @default("index, follow") @db.VarChar(100)
+  schema_markup                 Json?
+  subscription_only             Boolean?      @default(false)
+  created_by                    Int?
+  updated_by                    Int?
+  created_at                    DateTime      @default(now()) @db.Timestamp(0)
+  updated_at                    DateTime      @default(now()) @db.Timestamp(0)
+  menu_items                    menu_items[]
+  templates                     templates     @relation(fields: [template_id], references: [id], onUpdate: Restrict, map: "pages_ibfk_1")
+  content                       content?      @relation(fields: [content_id], references: [id], onUpdate: Restrict, map: "pages_ibfk_2")
+  users_pages_created_byTousers users?        @relation("pages_created_byTousers", fields: [created_by], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "pages_ibfk_3")
+  users_pages_updated_byTousers users?        @relation("pages_updated_byTousers", fields: [updated_by], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "pages_ibfk_4")
+
+  @@index([content_id], map: "content_id")
+  @@index([created_by], map: "created_by")
+  @@index([content_type], map: "idx_content_type")
+  @@index([template_id], map: "template_id")
+  @@index([updated_by], map: "updated_by")
+}
+
+model product_variants {
+  id                 Int           @id @default(autoincrement())
+  product_id         Int
+  title              String        @db.VarChar(255)
+  sku                String?       @unique(map: "sku") @db.VarChar(100)
+  price              Decimal?      @db.Decimal(10, 2)
+  compare_at_price   Decimal?      @db.Decimal(10, 2)
+  inventory_quantity Int?          @default(0)
+  option1_name       String?       @db.VarChar(50)
+  option1_value      String?       @db.VarChar(100)
+  option2_name       String?       @db.VarChar(50)
+  option2_value      String?       @db.VarChar(100)
+  option3_name       String?       @db.VarChar(50)
+  option3_value      String?       @db.VarChar(100)
+  image              String?       @db.VarChar(500)
+  position           Int?          @default(0)
+  created_at         DateTime      @default(now()) @db.Timestamp(0)
+  updated_at         DateTime      @default(now()) @db.Timestamp(0)
+  order_items        order_items[]
+  products           products      @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "product_variants_ibfk_1")
+
+  @@index([product_id], map: "idx_product_id")
+}
+
+model products {
+  id                   Int                   @id @default(autoincrement())
+  content_id           Int?
+  template_id          Int
+  title                String?               @db.VarChar(255)
+  sku                  String                @unique(map: "sku") @db.VarChar(100)
+  price                Decimal               @db.Decimal(10, 2)
+  compare_at_price     Decimal?              @db.Decimal(10, 2)
+  cost                 Decimal?              @db.Decimal(10, 2)
+  inventory_quantity   Int?                  @default(0)
+  inventory_tracking   Boolean?              @default(true)
+  allow_backorder      Boolean?              @default(false)
+  weight               Decimal?              @db.Decimal(10, 3)
+  weight_unit          products_weight_unit? @default(lb)
+  requires_shipping    Boolean?              @default(true)
+  taxable              Boolean?              @default(true)
+  subscription_only    Boolean?              @default(false)
+  is_digital           Boolean?              @default(false)
+  download_url         String?               @db.VarChar(500)
+  download_limit       Int?                  @default(5)
+  download_expiry_days Int?                  @default(30)
+  status               products_status?      @default(draft)
+  created_at           DateTime              @default(now()) @db.Timestamp(0)
+  updated_at           DateTime              @default(now()) @db.Timestamp(0)
+  order_items          order_items[]
+  product_variants     product_variants[]
+  digital_downloads    digital_downloads[]
+  content              content?              @relation(fields: [content_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "products_ibfk_2")
+
+  @@index([content_id], map: "content_id")
+  @@index([sku], map: "idx_sku")
+  @@index([status], map: "idx_status")
+}
+
+model redirects {
+  id          Int      @id @default(autoincrement())
+  source_path String   @unique(map: "source_path") @db.VarChar(500)
+  target_path String   @db.VarChar(500)
+  status_code Int?     @default(301)
+  created_at  DateTime @default(now()) @db.Timestamp(0)
+}
+
+model email_templates {
+  id         Int      @id @default(autoincrement())
+  slug       String   @unique(map: "slug_et") @db.VarChar(100)
+  name       String   @db.VarChar(255)
+  subject    String   @db.VarChar(255)
+  html_body  String   @db.LongText
+  created_at DateTime @default(now()) @db.Timestamp(0)
+  updated_at DateTime @default(now()) @db.Timestamp(0)
+}
+
+model tenants {
+  id            Int             @id @default(autoincrement())
+  name          String          @unique(map: "name_t") @db.VarChar(100)
+  subdomain     String          @unique(map: "subdomain_t") @db.VarChar(100)
+  database_name String          @unique(map: "database_name_t") @db.VarChar(200)
+  status        tenants_status? @default(active)
+  created_at    DateTime        @default(now()) @db.Timestamp(0)
+  updated_at    DateTime        @default(now()) @db.Timestamp(0)
+
+  @@index([subdomain], map: "idx_subdomain")
+  @@index([status], map: "idx_tenant_status")
+}
+
+model settings {
+  id            Int      @id @default(autoincrement())
+  setting_key   String   @unique(map: "setting_key") @db.VarChar(255)
+  setting_value String?  @db.Text
+  updated_at    DateTime @default(now()) @db.Timestamp(0)
+}
+
+model imported_sites {
+  id             Int              @id @default(autoincrement())
+  root_url       String           @db.VarChar(255)
+  status         String           @default("pending") @db.VarChar(50)
+  page_count     Int              @default(0)
+  config         Json?            // Stores crawl options (limits, filters, priorities)
+  created_at     DateTime         @default(now()) @db.Timestamp(0)
+  updated_at     DateTime         @default(now()) @db.Timestamp(0)
+  imported_pages imported_pages[]
+}
+
+model imported_pages {
+  id              Int            @id @default(autoincrement())
+  site_id         Int
+  url             String         @db.VarChar(255)
+  title           String?        @db.VarChar(255)
+  raw_html        String?        @db.LongText
+  structural_hash String?        @db.VarChar(64)
+  metadata        Json?
+  status          String         @default("pending") @db.VarChar(50)
+  created_at      DateTime       @default(now()) @db.Timestamp(0)
+  site            imported_sites @relation(fields: [site_id], references: [id], onDelete: Cascade)
+
+  @@index([site_id], map: "idx_site_id")
+  @@index([structural_hash], map: "idx_structural_hash")
+}
+
+model templates {
+  id              Int      @id @default(autoincrement())
+  name            String   @db.VarChar(255)
+  filename        String   @unique(map: "filename") @db.VarChar(255)
+  description     String?  @db.Text
+  regions         Json?
+  blueprint       Json?
+  default_content Json?
+  options         Json?
+  content_type    String?  @db.VarChar(50)
+  created_at      DateTime @default(now()) @db.Timestamp(0)
+  updated_at      DateTime @default(now()) @db.Timestamp(0)
+  blocks          blocks[]
+  pages           pages[]
+
+  @@index([content_type], map: "idx_content_type")
+}
+
+model users {
+  id                              Int         @id @default(autoincrement())
+  email                           String      @unique(map: "email") @db.VarChar(255)
+  password                        String      @db.VarChar(255)
+  name                            String?     @db.VarChar(255)
+  role                            users_role? @default(editor)
+  created_at                      DateTime    @default(now()) @db.Timestamp(0)
+  updated_at                      DateTime    @default(now()) @db.Timestamp(0)
+  blocks_blocks_created_byTousers blocks[]    @relation("blocks_created_byTousers")
+  blocks_blocks_updated_byTousers blocks[]    @relation("blocks_updated_byTousers")
+  customers                       customers[]
+  media                           media[]
+  pages_pages_created_byTousers   pages[]     @relation("pages_created_byTousers")
+  pages_pages_updated_byTousers   pages[]     @relation("pages_updated_byTousers")
+}
+
+model subscription_plans {
+  id                     Int                      @id @default(autoincrement())
+  name                   String                   @db.VarChar(255)
+  slug                   String                   @unique(map: "slug_sp") @db.VarChar(255)
+  description            String?                  @db.Text
+  stripe_product_id      String?                  @db.VarChar(255)
+  stripe_price_id        String?                  @db.VarChar(255)
+  price                  Decimal                  @db.Decimal(10, 2)
+  interval               subscription_interval    @default(monthly)
+  interval_count         Int                      @default(1)
+  trial_days             Int                      @default(0)
+  features               Json?
+  product_discount       Decimal?                 @default(0.00) @db.Decimal(5, 2)
+  target_slugs           Json?
+  is_active              Boolean                  @default(true)
+  position               Int                      @default(0)
+  created_at             DateTime                 @default(now()) @db.Timestamp(0)
+  updated_at             DateTime                 @default(now()) @db.Timestamp(0)
+  customer_subscriptions customer_subscriptions[]
+
+  @@index([is_active], map: "idx_active")
+}
+
+model customer_subscriptions {
+  id                     Int                          @id @default(autoincrement())
+  customer_id            Int
+  plan_id                Int
+  stripe_subscription_id String?                      @db.VarChar(255)
+  stripe_customer_id     String?                      @db.VarChar(255)
+  status                 customer_subscription_status @default(active)
+  current_period_start   DateTime?                    @db.Timestamp(0)
+  current_period_end     DateTime?                    @db.Timestamp(0)
+  cancel_at_period_end   Boolean                      @default(false)
+  canceled_at            DateTime?                    @db.Timestamp(0)
+  paused_at              DateTime?                    @db.Timestamp(0)
+  created_at             DateTime                     @default(now()) @db.Timestamp(0)
+  updated_at             DateTime                     @default(now()) @db.Timestamp(0)
+  customers              customers                    @relation(fields: [customer_id], references: [id], onDelete: Cascade)
+  subscription_plans     subscription_plans           @relation(fields: [plan_id], references: [id])
+
+  @@index([customer_id], map: "idx_cs_customer_id")
+  @@index([status], map: "idx_cs_status")
+  @@index([stripe_subscription_id], map: "idx_stripe_sub")
+}
+
+enum subscription_interval {
+  weekly
+  monthly
+  yearly
+}
+
+enum customer_subscription_status {
+  active
+  trialing
+  past_due
+  canceled
+  paused
+  unpaid
+}
+
+enum addresses_type {
+  billing
+  shipping
+}
+
+enum orders_status {
+  pending
+  processing
+  shipped
+  completed
+  cancelled
+  refunded
+}
+
+enum orders_payment_status {
+  pending
+  paid
+  failed
+  refunded
+}
+
+enum users_role {
+  admin
+  editor
+  viewer
+}
+
+enum menu_items_target {
+  self  @map("_self")
+  blank @map("_blank")
+}
+
+enum pages_status {
+  draft
+  published
+  archived
+}
+
+enum products_weight_unit {
+  kg
+  lb
+  oz
+  g
+}
+
+enum orders_payment_method {
+  stripe
+  paypal
+  cod
+}
+
+enum products_status {
+  active
+  draft
+  archived
+}
+
+enum tenants_status {
+  active
+  suspended
+  deleted
+}

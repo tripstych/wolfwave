@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  {# SEO Meta Tags #}
+  <title>{{ seo.title }} | {{ site.site_name }}</title>
+  <meta name="description" content="{{ seo.description }}">
+  <meta name="robots" content="{{ seo.robots }}">
+  <link rel="canonical" href="{{ seo.canonical }}">
+
+  {# Open Graph #}
+  <meta property="og:type" content="{{ seo.og.type }}">
+  <meta property="og:title" content="{{ seo.og.title }}">
+  <meta property="og:description" content="{{ seo.og.description }}">
+  <meta property="og:url" content="{{ seo.og.url }}">
+  {% if seo.og.image %}
+  <meta property="og:image" content="{{ seo.og.image }}">
+  {% endif %}
+  <meta property="og:site_name" content="{{ site.site_name }}">
+
+  {# Twitter Card #}
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{{ seo.og.title }}">
+  <meta name="twitter:description" content="{{ seo.og.description }}">
+  {% if seo.og.image %}
+  <meta name="twitter:image" content="{{ seo.og.image }}">
+  {% endif %}
+
+  {# Schema.org JSON-LD #}
+  {% if seo.schema %}
+  <script type="application/ld+json">
+    {{ seo.schema | dump | safe }}
+  </script>
+  {% endif %}
+
+  {# Google Analytics #}
+  {% if site.google_analytics_id %}
+  <script async src="https://www.googletagmanager.com/gtag/js?id={{ site.google_analytics_id }}"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', '{{ site.google_analytics_id }}');
+  </script>
+  {% endif %}
+
+  {# Fonts #}
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  {% if template.options.google_font_body or template.options.google_font_heading %}
+    <link href="https://fonts.googleapis.com/css2?family={{ (template.options.google_font_body or 'Inter') | replace(' ', '+') }}:wght@400;500;600;700&{% if template.options.google_font_heading and template.options.google_font_heading != template.options.google_font_body %}family={{ template.options.google_font_heading | replace(' ', '+') }}:wght@400;500;600;700&{% endif %}display=swap" rel="stylesheet">
+  {% else %}
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  {% endif %}
+
+  {# Theme CSS #}
+  {% for cssFile in theme_css %}
+  <link rel="stylesheet" href="{{ cssFile }}">
+  {% endfor %}
+
+  <style>
+    :root {
+      --cms-primary-color: {{ template.options.primary_color | default('#2563eb') }};
+      --cms-primary-dark-color: {{ template.options.primary_dark_color | default('#1d4ed8') }};
+      --cms-secondary-color: {{ template.options.secondary_color | default('#64748b') }};
+      --cms-color-background: #ffffff;
+      --cms-color-surface: #f8fafc;
+      --cms-color-text: {{ template.options.body_color | default('#1e293b') }};
+      --cms-color-border: #e2e8f0;
+      --cms-font-sans: {% if template.options.google_font_body %}"{{ template.options.google_font_body }}", sans-serif{% else %}'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif{% endif %};
+      --cms-font-headings: {% if template.options.google_font_heading %}"{{ template.options.google_font_heading }}", sans-serif{% else %}var(--cms-font-sans){% endif %};
+      --cms-base-font-size: {{ template.options.body_size | default('16px') }};
+      --cms-max-width: {{ template.options.container_width | default('1200px') }};
+      
+      --h1-size: {{ template.options.h1_size | default('2.5rem') }};
+      --h1-color: {{ template.options.h1_color | default('#0f172a') }};
+      --h1-weight: {{ template.options.h1_weight | default('700') }};
+      --h2-size: {{ template.options.h2_size | default('2rem') }};
+      --h2-color: {{ template.options.h2_color | default('#0f172a') }};
+      --h2-weight: {{ template.options.h2_weight | default('700') }};
+      
+      --h3-size: {{ template.options.h3_size | default('1.5rem') }};
+      --h3-color: {{ template.options.h3_color | default('#0f172a') }};
+      --h3-weight: {{ template.options.h3_weight | default('600') }};
+      
+      --p-size: {{ template.options.p_size | default('1rem') }};
+      --p-color: {{ template.options.p_color | default('#1e293b') }};
+      --link-color: {{ template.options.link_color | default('#2563eb') }};
+    }
+
+    /* Apply styles */
+    body {
+      font-family: var(--cms-font-sans);
+      font-size: var(--cms-base-font-size);
+      color: var(--cms-color-text);
+    }
+
+    h1, h2, h3 { font-family: var(--cms-font-headings); }
+    h1 { font-size: var(--h1-size); color: var(--h1-color); font-weight: var(--h1-weight); }
+    h2 { font-size: var(--h2-size); color: var(--h2-color); font-weight: var(--h2-weight); }
+    h3 { font-size: var(--h3-size); color: var(--h3-color); font-weight: var(--h3-weight); }
+    p { font-size: var(--p-size); color: var(--p-color); }
+    a { color: var(--link-color); }
+
+    {% block styles %}{% endblock %}
+  </style>
+</head>
+<body{% if user and page %} data-page-id="{{ page.id }}" data-template-id="{{ template.id }}" data-content-type="{{ content_type | default('pages') }}"{% endif %}>
+  <header class="site-header">
+    <div class="container">
+      <a href="/" class="site-logo">{{ site.site_name }}</a>
+      <nav class="site-nav">
+        <ul>
+          {% if menus['main-nav'] and menus['main-nav'].items %}
+            {% for item in menus['main-nav'].items %}
+              <li><a href="{{ item.url }}" {% if item.target %}target="{{ item.target }}"{% endif %}>{{ item.title }}</a></li>
+            {% endfor %}
+          {% else %}
+            <li><a href="/">Home</a></li>
+            <li><a href="/pages/about">About</a></li>
+            <li><a href="/pages/contact">Contact</a></li>
+          {% endif %}
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main class="site-main">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      {# TEMPLATE_OPTIONS_DEBUG: {{ template.options | dump | safe }} #}
+      <p>&copy; <script>document.write(new Date().getFullYear());</script><noscript>2024</noscript> {{ site.site_name }}. All rights reserved.</p>
+      
+      {# Design Mode Toolbar (Admins Only) #}
+      {% if user and (user.role == 'admin' or user.role == 'editor') %}
+      <div class="admin-design-tools" style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--cms-color-border); display: flex; gap: 2rem; align-items: center; justify-content: center; flex-wrap: wrap;">
+        <span style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: #64748b;">Template Design:</span>
+        
+        <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; cursor: pointer;"
+             data-cms-option="primary_color"
+             data-cms-option-type="color"
+             data-cms-option-label="Primary Color"
+             data-cms-value="{{ template.options.primary_color | default('#2563eb') }}">
+          <div style="width: 20px; height: 20px; border-radius: 4px; background: var(--cms-primary-color); border: 1px solid rgba(0,0,0,0.1);"></div>
+          <span>Primary Color</span>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; cursor: pointer;"
+             data-cms-option="secondary_color"
+             data-cms-option-type="color"
+             data-cms-option-label="Secondary Color"
+             data-cms-value="{{ template.options.secondary_color | default('#64748b') }}">
+          <div style="width: 20px; height: 20px; border-radius: 4px; background: var(--cms-secondary-color); border: 1px solid rgba(0,0,0,0.1);"></div>
+          <span>Secondary Color</span>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </footer>
+
+  {% block scripts %}{% endblock %}
+
+{% if user %}
+  <link rel="stylesheet" href="/css/edit-in-place.css">
+  <script src="/js/edit-in-place.js"></script>
+{% endif %}
+</body>
+</html>

@@ -1,0 +1,89 @@
+:root {
+  --nano-yellow: #ffe66d;
+  --nano-pink: #ff6b6b;
+  --nano-dark: #2d3436;
+  --nano-font: 'Comic Sans MS', 'Chalkboard SE', 'Marker Felt', sans-serif;
+}
+
+body {
+  font-family: var(--nano-font);
+  background-color: var(--nano-yellow);
+  color: var(--nano-dark);
+}
+
+.nano-hero {
+  padding: 6rem 1rem;
+  text-align: center;
+  background: white;
+  border: 4px solid var(--nano-dark);
+  border-radius: 20px;
+  margin: 2rem auto;
+  max-width: 900px;
+  box-shadow: 10px 10px 0 var(--nano-pink);
+  transform: rotate(-1deg);
+  transition: transform 0.3s;
+}
+
+.nano-hero:hover {
+  transform: rotate(1deg) scale(1.02);
+}
+
+.nano-hero h1 {
+  font-size: 4rem;
+  text-transform: uppercase;
+  margin-bottom: 1rem;
+  color: var(--nano-pink);
+  text-shadow: 2px 2px 0 var(--nano-dark);
+}
+
+.nano-section {
+  padding: 4rem 1rem;
+  text-align: center;
+}
+
+.nano-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 2rem;
+  margin-top: 2rem;
+}
+
+.nano-card {
+  background: white;
+  border: 3px solid var(--nano-dark);
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 6px 6px 0 var(--nano-dark);
+  transition: transform 0.2s;
+}
+
+.nano-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 8px 8px 0 var(--nano-dark);
+}
+
+.nano-card img {
+  border-radius: 8px;
+  border: 2px solid var(--nano-dark);
+  margin-bottom: 1rem;
+}
+
+.btn-nano {
+  background: var(--nano-pink);
+  color: white;
+  padding: 1rem 2rem;
+  font-size: 1.5rem;
+  border: 3px solid var(--nano-dark);
+  border-radius: 50px;
+  text-decoration: none;
+  display: inline-block;
+  margin-top: 1rem;
+  box-shadow: 4px 4px 0 var(--nano-dark);
+  font-weight: bold;
+}
+
+.btn-nano:hover {
+  background: #ff5252;
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0 var(--nano-dark);
+}
