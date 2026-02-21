@@ -135,10 +135,8 @@ export default function Layout({ children }) {
       >
         <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200">
           <Link to="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">W</span>
-            </div>
-            <span className="font-semibold text-gray-900">WolfWave CMS</span>
+            <img src="/images/logo.png" alt="WolfWave CMS" className="w-8 h-8 object-contain" />
+            <span className="font-semibold text-gray-900 text-lg">WolfWave</span>
           </Link>
           <button
             className="lg:hidden p-1 text-gray-500 hover:text-gray-700"
