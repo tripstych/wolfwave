@@ -27,7 +27,7 @@ export function extractMetadata($, rules = [], url = '') {
       const schemas = Array.isArray(json) ? json : [json];
       schemas.forEach(schema => {
         const type = schema['@type'];
-        if (type === 'Product' || type === 'ItemPage') {
+        if (type === 'Product') {
           result.type = 'product';
           if (schema.name) result.title = schema.name;
           if (schema.description) result.description = schema.description;
@@ -79,10 +79,13 @@ export function extractMetadata($, rules = [], url = '') {
       const { selector, urlPattern, action, value } = rule;
       if (!action) return;
 
-      // Check URL pattern match (if specified)
+      // Check URL pattern match (if specified) — tests against pathname
       let urlMatched = false;
       if (urlPattern) {
-        try { urlMatched = new RegExp(urlPattern).test(url); } catch { return; }
+        try {
+          const testPath = url ? new URL(url).pathname : '';
+          urlMatched = new RegExp(urlPattern).test(testPath);
+        } catch { return; }
         if (!urlMatched) return; // URL pattern specified but didn't match, skip rule
       }
 

@@ -155,16 +155,17 @@ export async function crawlSite(siteId, rootUrl) {
       const config = siteRecord?.config ? (typeof siteRecord.config === 'string' ? JSON.parse(siteRecord.config) : siteRecord.config) : {};
       
       // Use configured feed URL if available (products only)
+      let feedSynced = false;
       if (config.feedUrl) {
-        const success = await syncFromFeed(siteId, config.feedUrl, dbName);
-        if (success) {
+        feedSynced = await syncFromFeed(siteId, config.feedUrl, dbName);
+        if (feedSynced) {
           info(dbName, 'FEED_SYNC_DONE', 'Feed sync complete, continuing crawl for pages/blogs');
         }
       }
 
       // Always do a traditional crawl to pick up pages, blogs, etc.
       info(dbName, 'CRAWL_START', `Starting traditional crawl with max pages: ${config.maxPages || 1000}`);
-      await traditionalCrawl(siteId, rootUrl, config, dbName);
+      await traditionalCrawl(siteId, rootUrl, config, dbName, feedSynced);
     } catch (err) {
       logError(dbName, err, 'CRAWL_SITE_CRITICAL');
       await prisma.imported_sites.update({ where: { id: siteId }, data: { status: 'failed' } }).catch(() => {});
@@ -175,7 +176,7 @@ export async function crawlSite(siteId, rootUrl) {
 /**
  * Traditional crawling fallback
  */
-async function traditionalCrawl(siteId, rootUrl, config, dbName) {
+async function traditionalCrawl(siteId, rootUrl, config, dbName, feedSynced = false) {
   const visited = new Set();
   const queue = [normalizeUrl(rootUrl)];
   const maxPages = config.maxPages || 1000;
@@ -204,6 +205,14 @@ async function traditionalCrawl(siteId, rootUrl, config, dbName) {
     if (currentSite?.status === 'cancelled') return;
 
     visited.add(normalizedUrl);
+
+    // Feed sync already imported products with full variant data — skip product URLs
+    if (feedSynced) {
+      const urlPath = new URL(normalizedUrl).pathname.toLowerCase();
+      if (urlPath.match(/^\/products\/[^/]+/) || urlPath.match(/^\/collections\/[^/]+\/products\//)) {
+        continue;
+      }
+    }
 
     try {
       info(dbName, 'CRAWL_PAGE', `Fetching ${normalizedUrl} (${pageCount + 1}/${maxPages})`);

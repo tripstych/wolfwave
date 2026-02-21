@@ -10,9 +10,14 @@ export const CRAWLER_PRESETS = {
     priorityPatterns: ['/products/', '/collections/', '/pages/', '/blogs/'],
     excludePatterns: ['/tagged/', '/search', 'sort_by=', 'view=', 'variant='],
     rules: [
-      { selector: 'form[action="/cart/add"]', action: 'setType', value: 'product' },
+      // Pages & blogs
       { urlPattern: '/pages/', action: 'setType', value: 'page' },
       { urlPattern: '/blogs/', action: 'setType', value: 'page' },
+      // Collection/index pages are NOT products (even if they have product JSON-LD)
+      { urlPattern: '^/collections(/|$)', action: 'setType', value: 'page' },
+      { urlPattern: '^/products$', action: 'setType', value: 'page' },
+      // Only actual product detail pages
+      { selector: 'form[action="/cart/add"]', urlPattern: '^/products/[^/]+$', action: 'setType', value: 'product' },
       { selector: '.product-single__title, .product__title', action: 'setField', value: 'title' },
       { selector: '.product-single__description, .product__description', action: 'setField', value: 'description' },
       { selector: '[data-product-sku]', action: 'setField', value: 'sku' }
