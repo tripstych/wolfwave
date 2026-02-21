@@ -49,6 +49,10 @@ export default function SiteImporter() {
   const [selectedProducts, setSelectedProducts] = useState(new Set());
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
   const [selectorMap, setSelectorMap] = useState({});
+  const [showPicker, setShowPicker] = useState(false);
+  const [pickerUrl, setPickerUrl] = useState('');
+  
+  const navigate = useNavigate();
 
   // 1. Initial Load
   useEffect(() => {
