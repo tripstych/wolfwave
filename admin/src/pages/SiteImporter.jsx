@@ -272,6 +272,13 @@ export default function SiteImporter() {
   const handleStartCrawl = async (e) => {
     e.preventDefault();
     if (!url) return;
+
+    let targetUrl = url.trim();
+    if (!/^https?:\/\//i.test(targetUrl)) {
+      targetUrl = 'https://' + targetUrl;
+      setUrl(targetUrl); // Update UI to show the corrected URL
+    }
+
     try {
       setLoading(true);
       
@@ -279,7 +286,7 @@ export default function SiteImporter() {
       // Format relative feed URLs
       let finalFeedUrl = config.feedUrl;
       if (finalFeedUrl && finalFeedUrl.startsWith('/')) {
-        finalFeedUrl = new URL(finalFeedUrl, url).toString();
+        finalFeedUrl = new URL(finalFeedUrl, targetUrl).toString();
       }
 
       const formattedConfig = {
@@ -291,8 +298,7 @@ export default function SiteImporter() {
         autoDetect: config.autoDetect
       };
 
-      await api.post('/import/crawl', { url, config: formattedConfig });
-      // setUrl(''); // Removed to keep URL in field
+      await api.post('/import/crawl', { url: targetUrl, config: formattedConfig });
       loadSites();
     } catch (err) { alert(err.message); }
     finally { setLoading(false); }
@@ -505,7 +511,18 @@ export default function SiteImporter() {
           <div className="card p-4">
             <h2 className="font-semibold mb-4">New Crawl</h2>
             <form onSubmit={handleStartCrawl} className="space-y-3">
-              <input type="url" value={url} onChange={e => setUrl(e.target.value)} className="input" placeholder="https://..." required />
+              <input 
+                type="text" 
+                value={url} 
+                onChange={e => setUrl(e.target.value)} 
+                onBlur={e => {
+                  let v = e.target.value.trim();
+                  if (v && !/^https?:\/\//i.test(v)) setUrl('https://' + v);
+                }}
+                className="input" 
+                placeholder="https://..." 
+                required 
+              />
               
               <div className="flex items-center justify-between">
                 <button 
