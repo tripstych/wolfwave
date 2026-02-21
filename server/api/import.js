@@ -54,6 +54,32 @@ router.get('/presets', requireAuth, (req, res) => {
   res.json(CRAWLER_PRESETS);
 });
 
+router.post('/extract', requireAuth, requireEditor, async (req, res) => {
+  try {
+    const { url, selector_map } = req.body;
+    if (!url || !selector_map) return res.status(400).json({ error: 'URL and selector map required' });
+
+    const { data: html } = await axios.get(url, {
+      headers: { 'User-Agent': 'WebWolf-Extractor/1.0' },
+      timeout: 10000
+    });
+
+    const $ = cheerio.load(html);
+    const results = {};
+
+    for (const [field, selector] of Object.entries(selector_map)) {
+      const $el = $(selector);
+      if ($el.length > 0) {
+        // For 'title', usually just text
+        if (field === 'title') results[field] = $el.first().text().trim();
+        else results[field] = $el.html().trim();
+      }
+    }
+
+    res.json({ success: true, data: results });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 router.post('/url', requireAuth, requireEditor, async (req, res) => {
   try {
     const { url } = req.body;
