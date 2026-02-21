@@ -37,11 +37,14 @@
           <div class="form-group">
             <div class="input-group">
               <input type="text" id="site-subdomain" placeholder="subdomain" required class="form-input">
-              <span class="input-suffix">.wolfwave.com</span>
+              <span id="domain-suffix" class="input-suffix">.loading...</span>
             </div>
           </div>
           <button type="submit" id="create-site-btn" class="btn btn-primary">Launch Site</button>
         </form>
+        <p class="form-hint" style="margin-top: 0.75rem;">
+          <strong>Note:</strong> Your login credentials for the new site's admin panel will be the same as your current account.
+        </p>
         <div id="create-site-error" class="error-message hidden"></div>
       </div>
     </div>
@@ -320,6 +323,11 @@
       
       const sites = await response.json();
       
+      // Determine base domain (e.g., localhost:3000 or wolfwave.com)
+      const host = window.location.host;
+      const isLocal = host.includes('localhost');
+      const baseDomain = isLocal ? 'localhost:3000' : host;
+
       if (sites.length === 0) {
         sitesList.innerHTML = '<p class="no-sites">You haven\'t created any sites yet.</p>';
       } else {
@@ -327,11 +335,11 @@
           <div class="site-card">
             <div class="site-info">
               <span class="site-name">${site.name}</span>
-              <span class="site-url">${site.subdomain}.wolfwave.com</span>
+              <span class="site-url">${site.subdomain}.${baseDomain}</span>
             </div>
             <div class="site-actions">
-              <a href="http://${site.subdomain}.localhost:3000" target="_blank" class="btn btn-sm btn-secondary">Visit Site</a>
-              <a href="http://${site.subdomain}.localhost:3000/admin" target="_blank" class="btn btn-sm btn-primary">Admin</a>
+              <a href="http://${site.subdomain}.${baseDomain}" target="_blank" class="btn btn-sm btn-secondary">Visit Site</a>
+              <a href="http://${site.subdomain}.${baseDomain}/admin" target="_blank" class="btn btn-sm btn-primary">Admin</a>
             </div>
           </div>
         `).join('');
@@ -565,6 +573,13 @@
   // Load content on page load
   document.addEventListener('DOMContentLoaded', () => {
     console.log('[Account Theme] Page loaded, starting loads...');
+    
+    // Set dynamic domain suffix
+    const host = window.location.host;
+    const baseDomain = host.includes('localhost') ? 'localhost:3000' : host;
+    const suffixEl = document.getElementById('domain-suffix');
+    if (suffixEl) suffixEl.textContent = `.${baseDomain}`;
+
     loadProfile();
     loadSites();
     loadOrders();
