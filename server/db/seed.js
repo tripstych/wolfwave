@@ -7,15 +7,21 @@ async function seed() {
     // Create admin user
     const email = process.env.ADMIN_EMAIL || 'admin@example.com';
     const password = process.env.ADMIN_PASSWORD || 'admin123';
-    const hashedPassword = await bcrypt.hash(password, 10);
+    
+    console.log(`👤 Preparing to seed admin user: ${email}`);
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+    
+    // Log the first few chars of the hash to verify it's a bcrypt hash ($2a$ or $2b$)
+    console.log(`🔑 Generated hash starting with: ${hashedPassword.substring(0, 10)}...`);
 
     await query(
       `INSERT INTO users (email, password, name, role) 
        VALUES (?, ?, ?, ?) 
-       ON DUPLICATE KEY UPDATE password = VALUES(password)`,
+       ON DUPLICATE KEY UPDATE password = VALUES(password), role = 'admin'`,
       [email, hashedPassword, 'Admin', 'admin']
     );
-    console.log(`✅ Admin user created: ${email}`);
+    console.log(`✅ Admin user seeded: ${email}`);
 
     // Create default homepage template
     const homepageRegions = JSON.stringify([

@@ -115,7 +115,9 @@ export async function provisionTenant(subdomain, adminEmail, adminPassword) {
       const finalPassword = adminPassword || 'admin123';
       
       console.log(`Seeding initial admin user ${finalEmail}...`);
-      const hashedPassword = await bcrypt.hash(finalPassword, 10);
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(finalPassword, salt);
+      
       await tenantConn.query(
         `INSERT INTO users (email, password, name, role) VALUES (?, ?, ?, ?)`,
         [finalEmail, hashedPassword, 'Admin', 'admin']

@@ -48,7 +48,10 @@ async function seedDemo() {
     console.log('👤 Creating admin user...');
     const adminEmail = 'admin@example.com';
     const adminPassword = 'admin123';
-    const hashedPassword = await bcrypt.hash(adminPassword, 10);
+    
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(adminPassword, salt);
+    console.log(`🔑 Generated hash starting with: ${hashedPassword.substring(0, 10)}...`);
 
     const adminResult = await query(
       `INSERT INTO users (email, password, name, role) VALUES (?, ?, ?, ?)`,
