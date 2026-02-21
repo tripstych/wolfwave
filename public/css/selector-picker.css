@@ -6,6 +6,13 @@
     transition: all 0.1s ease;
 }
 
+.wolfwave-picker-selected {
+    outline: 3px solid #10b981 !important;
+    background-color: rgba(16, 185, 129, 0.2) !important;
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.4) !important;
+    z-index: 2147483646 !important;
+}
+
 #wolfwave-picker-ui {
     position: fixed;
     bottom: 20px;
