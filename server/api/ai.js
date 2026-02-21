@@ -104,35 +104,50 @@ router.post('/generate-image', requireAuth, requireAdmin, async (req, res) => {
 router.post('/generate-content', requireAuth, async (req, res) => {
   try {
     const { templateId, prompt } = req.body;
+    console.log(`[AI-DEBUG] 📥 generate-content request:`, { templateId, prompt });
     
     if (!templateId) return res.status(400).json({ error: 'Template ID is required' });
     if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
 
     // 1. Get Template Fields
+    console.log(`[AI-DEBUG] 🔍 Looking up template ID: ${templateId}`);
     const template = await prisma.templates.findUnique({
       where: { id: parseInt(templateId) }
     });
 
-    if (!template) return res.status(404).json({ error: 'Template not found' });
+    if (!template) {
+      console.error(`[AI-DEBUG] ❌ Template not found: ${templateId}`);
+      return res.status(404).json({ error: 'Template not found' });
+    }
+
+    console.log(`[AI-DEBUG] ✨ Found template: "${template.name}"`);
 
     let fields = [];
     try {
       fields = typeof template.regions === 'string' 
         ? JSON.parse(template.regions) 
         : template.regions;
+      console.log(`[AI-DEBUG] 📋 Parsed ${fields?.length || 0} fields from template.`);
     } catch (e) {
+      console.error(`[AI-DEBUG] ❌ Failed to parse template regions:`, e.message);
       return res.status(500).json({ error: 'Invalid template schema' });
     }
 
-    console.log(`[AI-DEBUG] 📝 Generating content for template "${template.name}" with context: "${prompt}"`);
+    if (!fields || fields.length === 0) {
+      console.warn(`[AI-DEBUG] ⚠️ No fields found in template regions.`);
+    }
+
+    console.log(`[AI-DEBUG] ⏳ Calling AI Service for fields:`, fields.map(f => f.name));
 
     // 2. Call AI Service
     const content = await generateContentForFields(fields, prompt);
+    console.log(`[AI-DEBUG] ✅ AI Service returned content:`, Object.keys(content || {}));
 
     res.json({ success: true, data: content });
 
   } catch (error) {
     console.error('[AI-DEBUG] ❌ Content Generation Failed:', error);
+    console.error('[AI-DEBUG] 💥 Error Stack:', error.stack);
     res.status(500).json({ error: error.message });
   }
 });
