@@ -139,10 +139,13 @@ async function generateRobotsTxt() {
 
 async function generateSitemapXml(siteUrl) {
   try {
-    const pages = await query(
-      'SELECT slug, updated_at FROM pages WHERE status = ? ORDER BY updated_at DESC',
-      ['published']
-    );
+    const pages = await query(`
+      SELECT c.slug, p.updated_at 
+      FROM pages p 
+      JOIN content c ON p.content_id = c.id
+      WHERE p.status = ? 
+      ORDER BY p.updated_at DESC
+    `, ['published']);
     if (!pages || !pages.length) {
       throw new Error('No published pages found');
     }
@@ -194,9 +197,10 @@ async function main() {
   const menus = await getAllMenus();
 
   const pages = await query(`
-    SELECT p.*, t.filename as template_filename
+    SELECT p.*, t.filename as template_filename, c.slug
     FROM pages p
     LEFT JOIN templates t ON p.template_id = t.id
+    JOIN content c ON p.content_id = c.id
     WHERE p.status = 'published'
   `);
   if (!pages || !pages.length) {
