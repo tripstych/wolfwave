@@ -93,7 +93,7 @@ async function getSiteSettings() {
   } catch (err) {
     console.error(`Error getting site settings: ${err.message}`);
     return {
-      site_name: 'WebWolf CMS',
+      site_name: 'WolfWave CMS',
       site_url: process.env.SITE_URL || 'http://localhost:3000'
     };
   }

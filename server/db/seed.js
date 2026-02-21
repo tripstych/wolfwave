@@ -93,10 +93,10 @@ async function seed() {
 
     // Insert default settings
     const defaultSettings = [
-      ['site_name', 'WebWolf CMS'],
+      ['site_name', 'WolfWave CMS'],
       ['site_tagline', 'SEO-Centric Content Management'],
       ['site_url', 'http://localhost:3000'],
-      ['default_meta_title', 'WebWolf CMS'],
+      ['default_meta_title', 'WolfWave CMS'],
       ['default_meta_description', 'A powerful SEO-centric content management system'],
       ['google_analytics_id', ''],
       ['robots_txt', 'User-agent: *\nAllow: /'],
@@ -230,11 +230,11 @@ async function seed() {
     const templates = await query('SELECT id FROM templates WHERE filename = ?', ['pages/homepage.njk']);
     if (templates && templates.length > 0 && templates[0]) {
       const homeContent = {
-        hero_title: 'Welcome to WebWolf CMS',
+        hero_title: 'Welcome to WolfWave CMS',
         hero_subtitle: 'Build SEO-optimized websites with ease',
         hero_cta_text: 'Get Started',
         hero_cta_link: '/pages/about',
-        intro_content: '<p>WebWolf CMS is a powerful, SEO-centric content management system built with React, Express, and Nunjucks.</p>',
+        intro_content: '<p>WolfWave CMS is a powerful, SEO-centric content management system built with React, Express, and Nunjucks.</p>',
         features: [
           { title: 'SEO First', description: 'Built with search engine optimization at its core', icon: 'search' },
           { title: 'Fast Rendering', description: 'Server-side rendered pages for optimal performance', icon: 'zap' },
@@ -267,7 +267,7 @@ async function seed() {
         `INSERT INTO pages (template_id, content_id, title, slug, status, meta_title, meta_description, created_by)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE content_id = VALUES(content_id)`,
-        [templates[0].id, contentId, 'Home', '/pages/home', 'published', 'Welcome to WebWolf CMS', 'A powerful SEO-centric content management system', 1]
+        [templates[0].id, contentId, 'Home', '/pages/home', 'published', 'Welcome to WolfWave CMS', 'A powerful SEO-centric content management system', 1]
       );
 
       // Get the page ID (either inserted or existing)

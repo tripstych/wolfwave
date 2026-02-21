@@ -1,5 +1,5 @@
 {
-  "name": "webwolf-cms",
+  "name": "wolfwave-cms",
   "version": "1.0.0",
   "description": "SEO-centric CMS with React admin and Nunjucks templates",
   "type": "module",
@@ -16,7 +16,7 @@
     "db:seed": "node server/db/seed.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "start": "pm2 start server/index.js --name webwolf --update-env && pm2 logs webwolf",
+    "start": "pm2 start server/index.js --name wolfwave --update-env && pm2 logs wolfwave",
     "postinstall": "npm install --prefix admin"
   },
   "dependencies": {

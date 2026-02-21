@@ -14,7 +14,7 @@ export async function getSiteSettings() {
     return obj;
   } catch (err) {
     return {
-      site_name: 'WebWolf CMS',
+      site_name: 'WolfWave CMS',
       site_url: 'http://localhost:3000'
     };
   }

@@ -131,7 +131,7 @@ app.use(errorLog);
 // Initialize database and start server
 initDb().then(() => {
   app.listen(PORT, () => {
-    info('system', 'STARTUP', `WebWolf CMS running on http://localhost:${PORT}`);
+    info('system', 'STARTUP', `WolfWave CMS running on http://localhost:${PORT}`);
     info('system', 'STARTUP', `Admin UI: http://localhost:5173 (dev) or http://localhost:${PORT}/admin (prod)`);
   });
 }).catch(err => {
