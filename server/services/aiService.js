@@ -11,17 +11,18 @@ const PUBLIC_DIR = path.join(__dirname, '../../public');
 // Configuration
 const OPENAI_API_URL = process.env.OPENAI_API_URL || 'https://api.openai.com/v1';
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 
 /**
  * Generate text content using an LLM
  */
-export async function generateText(systemPrompt, userPrompt, model = 'gpt-4o', req = null) {
-  // SIMULATION MODE
-  if (!OPENAI_API_KEY || OPENAI_API_KEY === 'demo') {
-    console.log(`[AI-DEBUG] 💡 Running in SIMULATION MODE (No API Key).`);
-    await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate thinking
+export async function generateText(systemPrompt, userPrompt, model = null, req = null) {
+  // 1. SIMULATION MODE
+  if (!OPENAI_API_KEY && !ANTHROPIC_API_KEY) {
+    console.log(`[AI-DEBUG] 💡 Running in SIMULATION MODE (No API Keys).`);
+    await new Promise(resolve => setTimeout(resolve, 1500));
     
-    // Simple heuristic to make the mock response feel "generated"
     const industry = userPrompt.replace('Create a theme for:', '').trim();
     const slug = industry.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
     
@@ -47,14 +48,54 @@ export async function generateText(systemPrompt, userPrompt, model = 'gpt-4o', r
     };
   }
 
-  console.log(`[AI-DEBUG] 🔑 API Key present: ${OPENAI_API_KEY.slice(0, 7)}...`);
-  console.log(`[AI-DEBUG] 📤 Sending text generation request to ${model}...`);
+  // 2. ANTHROPIC MODE (Prioritized if key exists)
+  if (ANTHROPIC_API_KEY) {
+    const anthropicModel = model || 'claude-3-5-sonnet-20240620';
+    console.log(`[AI-DEBUG] 🔑 Anthropic Key present. Sending request to ${anthropicModel}...`);
+
+    try {
+      const response = await axios.post(
+        ANTHROPIC_API_URL,
+        {
+          model: anthropicModel,
+          max_tokens: 4096,
+          system: systemPrompt + "\n\nCRITICAL: Return ONLY a valid JSON object. No preamble, no explanation.",
+          messages: [
+            { role: 'user', content: userPrompt }
+          ]
+        },
+        {
+          headers: {
+            'x-api-key': ANTHROPIC_API_KEY,
+            'anthropic-version': '2023-06-01',
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      console.log(`[AI-DEBUG] 📥 Received response from Anthropic.`);
+      const content = response.data.content[0].text;
+      return JSON.parse(content);
+    } catch (error) {
+      const errorData = error.response?.data;
+      logError(req || 'system', errorData || error, 'AI_TEXT_GEN_ANTHROPIC');
+      
+      if (errorData?.error?.message) {
+        throw new Error(`Anthropic AI Error: ${errorData.error.message}`);
+      }
+      throw new Error(`Failed to generate content via Anthropic: ${error.message}`);
+    }
+  }
+
+  // 3. OPENAI MODE (Fallback)
+  const openaiModel = model || 'gpt-4o';
+  console.log(`[AI-DEBUG] 🔑 OpenAI Key present. Sending request to ${openaiModel}...`);
 
   try {
     const response = await axios.post(
       `${OPENAI_API_URL}/chat/completions`,
       {
-        model: model,
+        model: openaiModel,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
@@ -75,13 +116,13 @@ export async function generateText(systemPrompt, userPrompt, model = 'gpt-4o', r
     return JSON.parse(content);
   } catch (error) {
     const errorData = error.response?.data;
-    logError(req || 'system', errorData || error, 'AI_TEXT_GEN');
+    logError(req || 'system', errorData || error, 'AI_TEXT_GEN_OPENAI');
     
     if (errorData?.error?.message) {
-      throw new Error(`AI Error: ${errorData.error.message}`);
+      throw new Error(`OpenAI Error: ${errorData.error.message}`);
     }
     if (error.message) {
-      throw new Error(`AI Service Error: ${error.message}`);
+      throw new Error(`OpenAI Service Error: ${error.message}`);
     }
     throw new Error('Failed to generate text content');
   }
@@ -145,7 +186,7 @@ export async function generateImage(prompt, size = "1024x1024") {
 /**
  * Generate content for a specific set of fields
  */
-export async function generateContentForFields(fields, userContext, model = 'gpt-4o', req = null) {
+export async function generateContentForFields(fields, userContext, model = null, req = null) {
   // SIMULATION MODE
   if (!OPENAI_API_KEY || OPENAI_API_KEY === 'demo') {
     console.log(`[AI-DEBUG] ✍️ Content Gen: Simulation Mode active.`);

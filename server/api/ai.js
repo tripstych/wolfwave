@@ -136,7 +136,7 @@ router.post('/generate-content', requireAuth, async (req, res) => {
     console.log(`[AI-DEBUG] ⏳ Calling AI Service for fields:`, fields.map(f => f.name));
 
     // 2. Call AI Service - PASS REQ FOR LOGGING
-    const content = await generateContentForFields(fields, prompt, 'gpt-4o', req);
+    const content = await generateContentForFields(fields, prompt, null, req);
     console.log(`[AI-DEBUG] ✅ AI Service returned content:`, Object.keys(content || {}));
 
     res.json({ success: true, data: content });
