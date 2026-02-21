@@ -163,7 +163,7 @@ function renderTenantPlaceholder(req, res, subdomain) {
  * in an AsyncLocalStorage context so all downstream DB calls use the correct database.
  *
  * Supports:
- * - Subdomain-based: shop1.example.com -> webwolf_shop1
+ * - Subdomain-based: shop1.example.com -> wolfwave_shop1
  * - Header override: X-Tenant-ID: shop1 (for dev/testing)
  * - Fallback: localhost / bare domain -> default DB_NAME
  */
@@ -177,15 +177,15 @@ export function tenantMiddleware(req, res, next) {
   let subdomain = null;
 
   if (headerTenant) {
-    dbName = `webwolf_${headerTenant}`;
+    dbName = `wolfwave_${headerTenant}`;
     subdomain = headerTenant;
   } else {
     subdomain = extractSubdomain(host);
     if (subdomain) {
-      dbName = `webwolf_${subdomain}`;
+      dbName = `wolfwave_${subdomain}`;
     } else {
       // No subdomain (localhost, bare domain) -> default database
-      dbName = process.env.DB_NAME || 'webwolf_default';
+      dbName = process.env.DB_NAME || 'wolfwave_default';
     }
   }
 

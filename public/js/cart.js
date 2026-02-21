@@ -15,7 +15,7 @@ class CartManager {
    */
   loadFromLocalStorage() {
     try {
-      const stored = localStorage.getItem('webwolf_cart');
+      const stored = localStorage.getItem('wolfwave_cart');
       if (!stored) {
         return { items: [], totals: { subtotal: 0, tax: 0, shipping: 0, total: 0 } };
       }
@@ -31,7 +31,7 @@ class CartManager {
    */
   saveToLocalStorage() {
     try {
-      localStorage.setItem('webwolf_cart', JSON.stringify(this.cart));
+      localStorage.setItem('wolfwave_cart', JSON.stringify(this.cart));
     } catch (err) {
       console.error('Failed to save cart to localStorage:', err);
     }

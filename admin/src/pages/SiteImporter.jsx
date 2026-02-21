@@ -54,7 +54,7 @@ export default function SiteImporter() {
 
   useEffect(() => {
     const handleMessage = (e) => {
-      if (e.data.type === 'WEBWOLF_SELECTOR_PICKED') {
+      if (e.data.type === 'WOLFWAVE_SELECTOR_PICKED') {
         const { field, selector } = e.data;
         setConfig(prev => {
           const newRules = [...prev.rules];
@@ -64,7 +64,7 @@ export default function SiteImporter() {
           return { ...prev, rules: newRules };
         });
       }
-      if (e.data.type === 'WEBWOLF_PICKER_DONE') setShowPicker(false);
+      if (e.data.type === 'WOLFWAVE_PICKER_DONE') setShowPicker(false);
     };
 
     window.addEventListener('message', handleMessage);

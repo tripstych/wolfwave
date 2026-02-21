@@ -45,9 +45,9 @@ function timestamp() {
 
 function tenantName(req) {
   if (!req) return 'system';
-  // Strip "webwolf_" prefix for cleaner directory names
+  // Strip "wolfwave_" prefix for cleaner directory names
   const db = req.tenantDb || 'system';
-  return db.replace(/^webwolf_/, '') || 'system';
+  return db.replace(/^wolfwave_/, '') || 'system';
 }
 
 function formatMsg(level, context, msg, req = null) {

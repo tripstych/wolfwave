@@ -181,7 +181,7 @@ In production, the admin UI is served from `/admin` on the Express server.
 | `DB_PORT` | MySQL port | `3306` |
 | `DB_USER` | MySQL user | `root` |
 | `DB_PASSWORD` | MySQL password | - |
-| `DB_NAME` | Database name | `webwolf_cms` |
+| `DB_NAME` | Database name | `wolfwave_cms` |
 | `JWT_SECRET` | JWT signing secret | - |
 | `SESSION_SECRET` | Session secret | - |
 

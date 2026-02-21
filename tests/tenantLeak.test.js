@@ -30,7 +30,7 @@ describe('Tenant Data Leak (Red Team Test)', () => {
   
   // Custom middleware to simulate the tenant database from a header
   app.use((req, res, next) => {
-    const tenantId = req.headers['x-tenant-id'] || 'webwolf_default';
+    const tenantId = req.headers['x-tenant-id'] || 'wolfwave_default';
     runWithTenant(tenantId, next);
   });
 
@@ -44,7 +44,7 @@ describe('Tenant Data Leak (Red Team Test)', () => {
 
     const res = await request(app)
       .get('/api/orders/123')
-      .set('x-tenant-id', 'webwolf_tenant_a');
+      .set('x-tenant-id', 'wolfwave_tenant_a');
 
     expect(res.status).toBe(404);
     expect(res.body.error).toBe('Order not found');
@@ -55,7 +55,7 @@ describe('Tenant Data Leak (Red Team Test)', () => {
 
     const res = await request(app)
       .get('/api/orders/123')
-      .set('x-tenant-id', 'webwolf_tenant_b');
+      .set('x-tenant-id', 'wolfwave_tenant_b');
 
     expect(res.status).toBe(200);
     expect(res.body.id).toBe(123);

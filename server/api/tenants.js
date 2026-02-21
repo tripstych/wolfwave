@@ -12,7 +12,7 @@ const router = Router();
  * regardless of which tenant the current request is scoped to.
  */
 function getDefaultPool() {
-  const defaultDb = process.env.DB_NAME || 'webwolf_default';
+  const defaultDb = process.env.DB_NAME || 'wolfwave_default';
   return getPoolForDb(defaultDb);
 }
 

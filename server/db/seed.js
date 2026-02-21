@@ -336,7 +336,7 @@ async function seed() {
       `INSERT INTO tenants (name, subdomain, database_name, status)
        VALUES (?, ?, ?, ?)
        ON DUPLICATE KEY UPDATE status = VALUES(status)`,
-      ['ZenBlock', 'zenblock', 'webwolf_zenblock', 'active']
+      ['ZenBlock', 'zenblock', 'wolfwave_zenblock', 'active']
     );
     console.log('✅ ZenBlock tenant seeded');
 

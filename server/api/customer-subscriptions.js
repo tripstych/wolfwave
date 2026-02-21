@@ -96,7 +96,7 @@ async function ensureStripeCustomer(customerId, stripeKey) {
   const stripeCustomer = await stripeRequest('post', '/customers', {
     email: customer.email,
     name: [customer.first_name, customer.last_name].filter(Boolean).join(' ') || undefined,
-    'metadata[webwolf_customer_id]': customer.id.toString()
+    'metadata[wolfwave_customer_id]': customer.id.toString()
   }, stripeKey);
 
   // Save stripe_customer_id
@@ -190,8 +190,8 @@ router.post('/checkout', requireCustomer, async (req, res) => {
       'line_items[0][quantity]': '1',
       'success_url': `${siteUrl}/account/subscription?success=true`,
       'cancel_url': `${siteUrl}/subscribe?canceled=true`,
-      'metadata[webwolf_customer_id]': req.customer.id.toString(),
-      'metadata[webwolf_plan_id]': plan.id.toString()
+      'metadata[wolfwave_customer_id]': req.customer.id.toString(),
+      'metadata[wolfwave_plan_id]': plan.id.toString()
     };
 
     if (plan.trial_days > 0) {

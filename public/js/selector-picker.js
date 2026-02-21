@@ -5,30 +5,30 @@
     // 1. Create UI
     function createUI() {
         ui = document.createElement('div');
-        ui.id = 'webwolf-picker-ui';
+        ui.id = 'wolfwave-picker-ui';
         ui.innerHTML = `
-            <div class="webwolf-picker-label">Visual Selector Picker</div>
-            <div id="webwolf-current-selector" style="font-size: 10px; color: #9ca3af; margin-bottom: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Hover an element...</div>
-            <button class="webwolf-picker-btn" data-field="title">Set as Title</button>
-            <button class="webwolf-picker-btn" data-field="description">Set as Description</button>
-            <button class="webwolf-picker-btn" data-field="price">Set as Price</button>
-            <button class="webwolf-picker-btn" data-field="sku">Set as SKU</button>
-            <button class="webwolf-picker-btn" data-field="images">Set as Image Area</button>
+            <div class="wolfwave-picker-label">Visual Selector Picker</div>
+            <div id="wolfwave-current-selector" style="font-size: 10px; color: #9ca3af; margin-bottom: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Hover an element...</div>
+            <button class="wolfwave-picker-btn" data-field="title">Set as Title</button>
+            <button class="wolfwave-picker-btn" data-field="description">Set as Description</button>
+            <button class="wolfwave-picker-btn" data-field="price">Set as Price</button>
+            <button class="wolfwave-picker-btn" data-field="sku">Set as SKU</button>
+            <button class="wolfwave-picker-btn" data-field="images">Set as Image Area</button>
             <hr style="margin: 8px 0; border: none; border-top: 1px solid #f3f4f6;">
-            <button id="webwolf-picker-close" style="width: 100%; padding: 4px; font-size: 10px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer;">Close & Save</button>
+            <button id="wolfwave-picker-close" style="width: 100%; padding: 4px; font-size: 10px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer;">Close & Save</button>
         `;
         document.body.appendChild(ui);
 
-        ui.querySelectorAll('.webwolf-picker-btn').forEach(btn => {
+        ui.querySelectorAll('.wolfwave-picker-btn').forEach(btn => {
             btn.onclick = (e) => {
                 e.stopPropagation();
                 if (!hoveredElement) return;
                 const field = btn.getAttribute('data-field');
                 const selector = getBestSelector(hoveredElement);
                 
-                // Send to parent window (WebWolf Admin)
+                // Send to parent window (WolfWave Admin)
                 window.parent.postMessage({
-                    type: 'WEBWOLF_SELECTOR_PICKED',
+                    type: 'WOLFWAVE_SELECTOR_PICKED',
                     field: field,
                     selector: selector
                 }, '*');
@@ -38,8 +38,8 @@
             };
         });
 
-        document.getElementById('webwolf-picker-close').onclick = () => {
-            window.parent.postMessage({ type: 'WEBWOLF_PICKER_DONE' }, '*');
+        document.getElementById('wolfwave-picker-close').onclick = () => {
+            window.parent.postMessage({ type: 'WOLFWAVE_PICKER_DONE' }, '*');
         };
     }
 
@@ -50,7 +50,7 @@
         let selector = el.tagName.toLowerCase();
         if (el.className) {
             const classes = Array.from(el.classList)
-                .filter(c => !c.startsWith('webwolf-'))
+                .filter(c => !c.startsWith('wolfwave-'))
                 .join('.');
             if (classes) selector += `.${classes}`;
         }
@@ -71,11 +71,11 @@
     document.addEventListener('mouseover', (e) => {
         if (ui && ui.contains(e.target)) return;
         
-        if (hoveredElement) hoveredElement.classList.remove('webwolf-picker-highlight');
+        if (hoveredElement) hoveredElement.classList.remove('wolfwave-picker-highlight');
         hoveredElement = e.target;
-        hoveredElement.classList.add('webwolf-picker-highlight');
+        hoveredElement.classList.add('wolfwave-picker-highlight');
         
-        const selectorDisplay = document.getElementById('webwolf-current-selector');
+        const selectorDisplay = document.getElementById('wolfwave-current-selector');
         if (selectorDisplay) selectorDisplay.innerText = getBestSelector(hoveredElement);
     }, true);
 

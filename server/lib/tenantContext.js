@@ -16,7 +16,7 @@ export function runWithTenant(dbName, callback) {
  */
 export function getCurrentDbName() {
   const store = tenantStorage.getStore();
-  return store?.dbName || process.env.DB_NAME || 'webwolf_default';
+  return store?.dbName || process.env.DB_NAME || 'wolfwave_default';
 }
 
 export default tenantStorage;

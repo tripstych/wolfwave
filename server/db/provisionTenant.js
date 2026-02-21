@@ -11,7 +11,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
  * Provision a new tenant database.
  * Creates the database and runs all migration scripts against it.
  *
- * @param {string} subdomain - The tenant subdomain (e.g., "shop1" -> database "webwolf_shop1")
+ * @param {string} subdomain - The tenant subdomain (e.g., "shop1" -> database "wolfwave_shop1")
  * @param {string} adminEmail - Initial admin email
  * @param {string} adminPassword - Initial admin password
  * @returns {string} The created database name
@@ -22,7 +22,7 @@ export async function provisionTenant(subdomain, adminEmail, adminPassword) {
     throw new Error('Tenant name must be lowercase alphanumeric with optional hyphens, cannot start/end with a hyphen');
   }
 
-  const dbName = `webwolf_${subdomain}`;
+  const dbName = `wolfwave_${subdomain}`;
 
   // Create the database
   const conn = await mysql.createConnection({

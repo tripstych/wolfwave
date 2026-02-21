@@ -105,7 +105,7 @@ if (process.env.NODE_ENV === 'production') {
 const uploadsRoot = path.join(__dirname, '../uploads');
 app.use('/uploads', (req, res, next) => {
   const dbName = req.tenantDb || '';
-  const subdomain = dbName.replace(/^webwolf_/, '') || '_default';
+  const subdomain = dbName.replace(/^wolfwave_/, '') || '_default';
   const tenantDir = path.join(uploadsRoot, subdomain);
 
   // Try tenant-specific directory first, then fall back to root uploads

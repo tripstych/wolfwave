@@ -63,7 +63,7 @@ async function ensureStripeCustomer(customerId, stripeKey) {
   const stripeCustomer = await stripeRequest('post', '/customers', {
     email: customer.email,
     name: [customer.first_name, customer.last_name].filter(Boolean).join(' ') || undefined,
-    'metadata[webwolf_customer_id]': customer.id.toString()
+    'metadata[wolfwave_customer_id]': customer.id.toString()
   }, stripeKey);
 
   await prisma.customers.update({
@@ -185,9 +185,9 @@ router.post('/checkout', async (req, res) => {
       'mode': 'payment',
       'success_url': `${siteUrl}/order-confirmation/${orderNumber.replace('#', '')}`,
       'cancel_url': `${siteUrl}/checkout?canceled=true`,
-      'metadata[webwolf_order_id]': order.id.toString(),
-      'metadata[webwolf_order_number]': orderNumber,
-      'metadata[webwolf_customer_id]': customer.id.toString()
+      'metadata[wolfwave_order_id]': order.id.toString(),
+      'metadata[wolfwave_order_number]': orderNumber,
+      'metadata[wolfwave_customer_id]': customer.id.toString()
     };
 
     // Add line items from cart

@@ -128,7 +128,7 @@ export default function TenantList() {
                 />
                 <span className="text-sm text-gray-500">.yourdomain.com</span>
               </div>
-              <p className="text-xs text-gray-400 mt-1">Database: webwolf_{newTenant.subdomain || '...'}</p>
+              <p className="text-xs text-gray-400 mt-1">Database: wolfwave_{newTenant.subdomain || '...'}</p>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
