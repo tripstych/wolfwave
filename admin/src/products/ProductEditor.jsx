@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import api, { parseRegions } from '../lib/api';
 import { slugify } from '../lib/slugify';
-import { parseRegions } from '../lib/api';
 import { getSiteUrl } from '../lib/urls';
 import TitleSlugSection from '../components/TitleSlugSection';
 import RichTextEditor from '../components/RichTextEditor';
 import MediaPicker from '../components/MediaPicker';
 import ContentGroupsWidget from '../components/ContentGroupsWidget';
-import { Save, ArrowLeft, Image as ImageIcon, ExternalLink, Plus, X, Trash2, DownloadCloud, Loader2, Lock, Shield } from 'lucide-react';
+import { Save, ArrowLeft, Image as ImageIcon, ExternalLink, Plus, X, Trash2, DownloadCloud, Loader2, Lock, Shield, Maximize2, Globe } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function ProductEditor() {
@@ -62,6 +62,98 @@ export default function ProductEditor() {
   const [options, setOptions] = useState([]);
   const [slugEdited, setSlugEdited] = useState(false);
   const [importing, setImporting] = useState(false);
+
+  // Visual Picker State
+  const [showPicker, setShowPicker] = useState(false);
+  const [pickerUrl, setPickerUrl] = useState('');
+  const [scrapeUrl, setScrapeUrl] = useState('');
+  const [selectorMap, setSelectorMap] = useState({});
+
+  // 2. Message Listener for Visual Picker
+  useEffect(() => {
+    const handleMessage = (e) => {
+      if (e.data.type === 'WOLFWAVE_SELECTOR_PICKED') {
+        const { field, selector } = e.data;
+        setSelectorMap(prev => ({ ...prev, [field]: selector }));
+      }
+      if (e.data.type === 'WOLFWAVE_PICKER_DONE') {
+        setShowPicker(false);
+        handleExtractContent();
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [selectorMap, scrapeUrl]);
+
+  const handleExtractContent = async () => {
+    if (!scrapeUrl || Object.keys(selectorMap).length === 0) return;
+    
+    setImporting(true);
+    try {
+      const res = await api.post('/import/extract', { url: scrapeUrl, selector_map: selectorMap });
+      if (res.success && res.data) {
+        const extracted = res.data;
+        
+        setProduct(prev => {
+          const newContent = { ...prev.content };
+          const updates = {};
+          
+          Object.keys(extracted).forEach(key => {
+            if (key === 'title') updates.title = extracted[key];
+            else if (key === 'price') updates.price = parseFloat(extracted[key].replace(/[^\d.]/g, '')) || prev.price;
+            else if (key === 'sku') updates.sku = extracted[key];
+            else if (key === 'description') newContent.description = extracted[key];
+            else newContent[key] = extracted[key];
+          });
+          
+          return {
+            ...prev,
+            ...updates,
+            content: newContent
+          };
+        });
+
+        toast.success('Live content extracted!');
+      }
+    } catch (err) {
+      toast.error('Extraction failed: ' + err.message);
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const openVisualPicker = () => {
+    if (!scrapeUrl) return alert('Please enter a URL to scrape');
+    let targetUrl = scrapeUrl.trim();
+    if (!/^https?:\/\//i.test(targetUrl)) targetUrl = 'https://' + targetUrl;
+    setScrapeUrl(targetUrl);
+    
+    setPickerUrl(`/api/import/proxy?url=${encodeURIComponent(targetUrl)}`);
+    setShowPicker(true);
+    setSelectorMap({});
+  };
+
+  const handlePickerLoad = () => {
+    const fields = [
+      { id: 'title', label: 'Set as Title' },
+      { id: 'description', label: 'Set as Description' },
+      { id: 'price', label: 'Set as Price' },
+      { id: 'sku', label: 'Set as SKU' },
+      ...regions.map(r => ({
+        id: r.name,
+        label: `Set as ${r.label || r.name}`
+      }))
+    ];
+    
+    const iframe = document.getElementById('wolfwave-picker-iframe');
+    if (iframe && iframe.contentWindow) {
+      iframe.contentWindow.postMessage({
+        type: 'WOLFWAVE_SET_FIELDS',
+        fields: fields
+      }, '*');
+    }
+  };
 
   // Import Handler
   const handleImport = async () => {
@@ -922,6 +1014,33 @@ export default function ProductEditor() {
         </div>
 
         <div className="space-y-6">
+          {/* Visual Scrape */}
+          <div className="card p-6 space-y-4 border-amber-200 bg-amber-50/30">
+            <div className="flex items-center gap-2 text-amber-700 font-bold text-xs uppercase tracking-wider">
+              <Globe className="w-4 h-4" />
+              Live Visual Scrape
+            </div>
+            <div className="space-y-2">
+              <input 
+                type="text" 
+                placeholder="Enter URL to pull from..." 
+                value={scrapeUrl}
+                onChange={e => setScrapeUrl(e.target.value)}
+                className="input text-sm bg-white"
+              />
+              <button 
+                type="button"
+                onClick={openVisualPicker}
+                disabled={importing}
+                className="btn btn-secondary w-full py-2 text-xs"
+              >
+                {importing ? <Loader2 className="w-3 h-3 animate-spin mr-2" /> : <Maximize2 className="w-3 h-3 mr-2" />}
+                Visual Scrape
+              </button>
+            </div>
+            <p className="text-[10px] text-amber-600/70 italic">Pick elements visually to auto-fill product data.</p>
+          </div>
+
           {/* Status & Template */}
           <div className="card p-6 space-y-4">
             <div>
@@ -1047,6 +1166,36 @@ export default function ProductEditor() {
           onSelect={handleMediaSelect}
           onClose={() => setMediaPickerOpen(false)}
         />
+      )}
+
+      {showPicker && (
+        <div className="fixed inset-0 z-[100] bg-black bg-opacity-75 flex flex-col !mt-0 !top-0">
+          <div className="bg-white p-4 flex justify-between items-center border-b">
+            <div className="flex items-center gap-4 flex-1">
+              <h2 className="font-bold shrink-0">Live Product Picker</h2>
+              <div className="text-xs text-gray-500 truncate font-mono bg-gray-100 px-2 py-1 rounded">
+                Source: {scrapeUrl}
+              </div>
+              <div className="flex gap-2">
+                {Object.entries(selectorMap).map(([field, selector]) => (
+                  <span key={field} className="px-2 py-0.5 bg-green-100 text-green-700 text-[10px] font-mono rounded border border-green-200">
+                    {field} mapped
+                  </span>
+                ))}
+              </div>
+            </div>
+            <button onClick={() => setShowPicker(false)} className="btn btn-ghost"><X className="w-5 h-5" /></button>
+          </div>
+          <div className="flex-1 bg-white">
+            <iframe 
+              id="wolfwave-picker-iframe"
+              src={pickerUrl} 
+              onLoad={handlePickerLoad}
+              className="w-full h-full border-none"
+              title="Visual Picker"
+            />
+          </div>
+        </div>
       )}
     </div>
   );
