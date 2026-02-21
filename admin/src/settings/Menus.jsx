@@ -532,7 +532,8 @@ export default function Menus() {
                     });
                     setShowNewItem(true);
                   }}
-                  className="btn btn-primary"
+                  className={`btn ${showNewItem ? 'btn-secondary opacity-50 cursor-not-allowed' : 'btn-primary'}`}
+                  disabled={showNewItem}
                 >
                   <Plus className="w-4 h-4 mr-2" />
                   Add Item
