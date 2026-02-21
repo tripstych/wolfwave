@@ -442,6 +442,12 @@
   // ── Image editing (media picker modal) ──
   function editImage(el, isOption) {
     var regionName = el.getAttribute(isOption ? 'data-cms-option' : 'data-cms-region');
+    showMediaPicker(function (url) {
+      applyImageSelection(el, regionName, url, isOption);
+    });
+  }
+
+  function showMediaPicker(onSelect) {
     var overlay = document.createElement('div');
     overlay.className = 'cms-modal-overlay';
 
@@ -519,8 +525,7 @@
               .then(function (res) {
                 var url = res.data ? res.data.url : res.url;
                 if (url) {
-                  selectedUrl = url;
-                  applyImageSelection(el, regionName, url);
+                  onSelect(url);
                   overlay.remove();
                 }
               })
@@ -561,7 +566,7 @@
 
     selectBtn.addEventListener('click', function () {
       if (selectedUrl) {
-        applyImageSelection(el, regionName, selectedUrl, isOption);
+        onSelect(selectedUrl);
         overlay.remove();
       }
     });
@@ -758,9 +763,32 @@
             ta.value = val;
             ta.setAttribute('data-field', f.name);
             fieldDiv.appendChild(ta);
-          } else {
+          } else if (f.type === 'image') {
+            var group = document.createElement('div');
+            group.style.display = 'flex';
+            group.style.gap = '8px';
+
             var inp = document.createElement('input');
             inp.type = 'text';
+            inp.value = val;
+            inp.setAttribute('data-field', f.name);
+            inp.style.flex = '1';
+
+            var btn = document.createElement('button');
+            btn.className = 'cms-btn';
+            btn.textContent = 'Browse';
+            btn.onclick = function () {
+              showMediaPicker(function (url) {
+                inp.value = url;
+              });
+            };
+
+            group.appendChild(inp);
+            group.appendChild(btn);
+            fieldDiv.appendChild(group);
+          } else {
+            var inp = document.createElement('input');
+            inp.type = f.type || 'text';
             inp.value = val;
             inp.setAttribute('data-field', f.name);
             fieldDiv.appendChild(inp);
@@ -819,6 +847,8 @@
 
     // Field definitions for the product form
     var fields = [
+      { name: 'og_image', label: 'Product Image', type: 'image' },
+      { name: 'image', label: 'Alternative Image', type: 'image' },
       { name: 'price', label: 'Price', type: 'number', step: '0.01' },
       { name: 'compare_at_price', label: 'Compare at Price', type: 'number', step: '0.01' },
       { name: 'sku', label: 'SKU', type: 'text' },
@@ -903,6 +933,30 @@
           sel.appendChild(option);
         });
         fieldDiv.appendChild(sel);
+      } else if (f.type === 'image') {
+        fieldDiv.appendChild(lbl);
+        var group = document.createElement('div');
+        group.style.display = 'flex';
+        group.style.gap = '8px';
+
+        var inp = document.createElement('input');
+        inp.type = 'text';
+        inp.value = values[f.name] != null ? values[f.name] : '';
+        inp.setAttribute('data-field', f.name);
+        inp.style.flex = '1';
+
+        var btn = document.createElement('button');
+        btn.className = 'cms-btn';
+        btn.textContent = 'Browse';
+        btn.onclick = function () {
+          showMediaPicker(function (url) {
+            inp.value = url;
+          });
+        };
+
+        group.appendChild(inp);
+        group.appendChild(btn);
+        fieldDiv.appendChild(group);
       } else {
         fieldDiv.appendChild(lbl);
         var inp = document.createElement('input');
