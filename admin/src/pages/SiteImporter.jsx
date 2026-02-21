@@ -55,10 +55,8 @@ export default function SiteImporter() {
     const handleMessage = (e) => {
       if (e.data.type === 'WEBWOLF_SELECTOR_PICKED') {
         const { field, selector } = e.data;
-        // Update current config rules
         setConfig(prev => {
           const newRules = [...prev.rules];
-          // Find if rule for this field exists
           const idx = newRules.findIndex(r => r.action === 'setField' && r.value === field);
           if (idx > -1) newRules[idx].selector = selector;
           else newRules.push({ selector, action: 'setField', value: field });
@@ -69,20 +67,22 @@ export default function SiteImporter() {
     };
 
     window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
-  }, []);
+    loadSites();
+    loadTemplates();
+    loadPresets();
+    const interval = setInterval(refreshCrawlingSites, 3000);
+
+    return () => {
+      window.removeEventListener('message', handleMessage);
+      clearInterval(interval);
+    };
+  }, [sites, selectedSite]);
 
   const openVisualPicker = (sampleUrl) => {
     if (!sampleUrl) return alert('No sample URL available');
     setPickerUrl(`${api.defaults.baseURL}/import/proxy?url=${encodeURIComponent(sampleUrl)}`);
     setShowPicker(true);
   };
-    loadSites();
-    loadTemplates();
-    loadPresets();
-    const interval = setInterval(refreshCrawlingSites, 3000);
-    return () => clearInterval(interval);
-  }, [sites, selectedSite]);
 
   const loadPresets = async () => {
     try {
