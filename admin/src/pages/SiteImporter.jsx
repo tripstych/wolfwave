@@ -646,6 +646,22 @@ export default function SiteImporter() {
           )}
         </div>
       </div>
+
+      {showPicker && (
+        <div className="fixed inset-0 z-[100] bg-black bg-opacity-75 flex flex-col">
+          <div className="bg-white p-4 flex justify-between items-center">
+            <h2 className="font-bold">Visual Selector Picker</h2>
+            <button onClick={() => setShowPicker(false)} className="btn btn-ghost"><X className="w-5 h-5" /></button>
+          </div>
+          <div className="flex-1 bg-white">
+            <iframe 
+              src={pickerUrl} 
+              className="w-full h-full border-none"
+              title="Visual Picker"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
