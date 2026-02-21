@@ -110,17 +110,27 @@ async function syncFromFeed(siteId, feedUrl, dbName) {
           })) || []
         };
 
-        await prisma.imported_pages.create({
-          data: {
-            site_id: siteId,
-            url: productUrl,
-            title: p.title.substring(0, 255),
-            raw_html: p.body_html,
-            structural_hash: 'feed-item',
-            metadata: meta,
-            status: 'completed'
-          }
+        const existing = await prisma.imported_pages.findFirst({
+          where: { site_id: siteId, url: productUrl }
         });
+        if (existing) {
+          await prisma.imported_pages.update({
+            where: { id: existing.id },
+            data: { title: p.title.substring(0, 255), raw_html: p.body_html, metadata: meta, status: 'completed' }
+          });
+        } else {
+          await prisma.imported_pages.create({
+            data: {
+              site_id: siteId,
+              url: productUrl,
+              title: p.title.substring(0, 255),
+              raw_html: p.body_html,
+              structural_hash: 'feed-item',
+              metadata: meta,
+              status: 'completed'
+            }
+          });
+        }
         count++;
       }
 
@@ -203,9 +213,19 @@ async function traditionalCrawl(siteId, rootUrl, config, dbName) {
       const structuralHash = calculateStructuralHash(html);
       const meta = extractMetadata($, config.rules || [], normalizedUrl);
 
-      await prisma.imported_pages.create({
-        data: { site_id: siteId, url: normalizedUrl, title: (meta.title || 'Untitled').substring(0, 255), raw_html: html, structural_hash: structuralHash, metadata: meta, status: 'completed' }
+      const existingPage = await prisma.imported_pages.findFirst({
+        where: { site_id: siteId, url: normalizedUrl }
       });
+      if (existingPage) {
+        await prisma.imported_pages.update({
+          where: { id: existingPage.id },
+          data: { title: (meta.title || 'Untitled').substring(0, 255), raw_html: html, structural_hash: structuralHash, metadata: meta }
+        });
+      } else {
+        await prisma.imported_pages.create({
+          data: { site_id: siteId, url: normalizedUrl, title: (meta.title || 'Untitled').substring(0, 255), raw_html: html, structural_hash: structuralHash, metadata: meta, status: 'completed' }
+        });
+      }
 
       pageCount++;
       await prisma.imported_sites.update({ where: { id: siteId }, data: { page_count: pageCount } });
