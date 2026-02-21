@@ -414,7 +414,8 @@ export default function SiteImporter() {
     // Legacy support or fallback logic
     const targetTemplateId = selectedTemplateId || templates.find(t => t.filename.includes(`imported-${selectedSite.id}`))?.id;
     if (!targetTemplateId) return alert('Select a template first');
-      
+    
+    try {
       const finalSelectorMap = Object.keys(selectorMap).length > 0 ? selectorMap : { main: 'main' };
 
       if (!confirm(`Ready to migrate group ${hash.substring(0,8)} using ${templates.find(t => t.id === parseInt(targetTemplateId))?.name}?`)) return;
