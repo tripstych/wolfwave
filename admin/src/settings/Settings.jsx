@@ -115,16 +115,19 @@ export default function Settings() {
   }
 
   return (
-    <div className="space-y-6 max-w-3xl">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
-        <button onClick={handleSave} disabled={saving} className="btn btn-primary">
-          <Save className="w-4 h-4 mr-2" />
-          {saving ? 'Saving...' : 'Save Changes'}
-        </button>
+    <div className="space-y-6">
+      <div className="sticky top-0 z-30 bg-gray-50/80 backdrop-blur-sm -mx-4 px-4 py-4 mb-6 border-b border-gray-200">
+        <div className="max-w-3xl mx-auto flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
+          <button onClick={handleSave} disabled={saving} className="btn btn-primary">
+            <Save className="w-4 h-4 mr-2" />
+            {saving ? 'Saving...' : 'Save Changes'}
+          </button>
+        </div>
       </div>
 
-      {/* Alerts */}
+      <div className="max-w-3xl mx-auto space-y-6">
+        {/* Alerts */}
       {error && (
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-700">
           <AlertCircle className="w-5 h-5 flex-shrink-0" />
