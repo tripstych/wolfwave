@@ -32,7 +32,7 @@ router.get('/:id', requireAuth, async (req, res) => {
     }
 
     // Get menu items with nested structure
-    const items = await query(`
+    const itemsData = await query(`
       SELECT mi.*, p.title as page_title, c.slug as page_slug
       FROM menu_items mi
       LEFT JOIN pages p ON mi.page_id = p.id
@@ -40,6 +40,11 @@ router.get('/:id', requireAuth, async (req, res) => {
       WHERE mi.menu_id = ?
       ORDER BY mi.position
     `, [req.params.id]);
+
+    const items = itemsData.map(item => ({
+      ...item,
+      display_rules: item.display_rules ? (typeof item.display_rules === 'string' ? JSON.parse(item.display_rules) : item.display_rules) : { auth: 'all' }
+    }));
 
     // Build nested tree structure
     const itemMap = {};
@@ -90,9 +95,11 @@ router.post('/', requireAuth, requireEditor, async (req, res) => {
     const { name, description, display_rules } = req.body;
     const slug = slugify(name, { lower: true, strict: true });
 
+    const rulesJson = display_rules ? (typeof display_rules === 'string' ? display_rules : JSON.stringify(display_rules)) : null;
+
     const result = await query(
       'INSERT INTO menus (name, slug, description, display_rules) VALUES (?, ?, ?, ?)',
-      [name, slug, description || null, display_rules ? JSON.stringify(display_rules) : null]
+      [name, slug, description || null, rulesJson]
     );
 
     const [menu] = await query('SELECT * FROM menus WHERE id = ?', [result.insertId]);
@@ -101,6 +108,7 @@ router.post('/', requireAuth, requireEditor, async (req, res) => {
     if (err.code === 'ER_DUP_ENTRY') {
       return res.status(400).json({ error: 'A menu with this name already exists' });
     }
+    console.error('[MENU_CREATE] Error:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -111,14 +119,17 @@ router.put('/:id', requireAuth, requireEditor, async (req, res) => {
     const { name, description, display_rules } = req.body;
     const slug = slugify(name, { lower: true, strict: true });
 
+    const rulesJson = display_rules ? (typeof display_rules === 'string' ? display_rules : JSON.stringify(display_rules)) : null;
+
     await query(
       'UPDATE menus SET name = ?, slug = ?, description = ?, display_rules = ? WHERE id = ?',
-      [name, slug, description || null, display_rules ? JSON.stringify(display_rules) : null, req.params.id]
+      [name, slug, description || null, rulesJson, req.params.id]
     );
 
     const [menu] = await query('SELECT * FROM menus WHERE id = ?', [req.params.id]);
     res.json(menu);
   } catch (err) {
+    console.error('[MENU_UPDATE] Error:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -145,15 +156,28 @@ router.post('/:id/items', requireAuth, requireEditor, async (req, res) => {
     );
     const position = (maxPos?.max_pos || 0) + 1;
 
+    // Ensure display_rules is a string for storage
+    const rulesJson = display_rules ? (typeof display_rules === 'string' ? display_rules : JSON.stringify(display_rules)) : null;
+
     const result = await query(
       `INSERT INTO menu_items (menu_id, parent_id, title, url, page_id, target, position, display_rules) 
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [req.params.id, parent_id || null, title, url || null, page_id || null, target || '_self', position, display_rules ? JSON.stringify(display_rules) : null]
+      [
+        req.params.id, 
+        parent_id ? parseInt(parent_id) : null, 
+        title, 
+        url || null, 
+        page_id ? parseInt(page_id) : null, 
+        target || '_self', 
+        position, 
+        rulesJson
+      ]
     );
 
     const [item] = await query('SELECT * FROM menu_items WHERE id = ?', [result.insertId]);
     res.status(201).json(item);
   } catch (err) {
+    console.error('[MENU_ITEM_CREATE] Error:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -163,14 +187,28 @@ router.put('/:menuId/items/:itemId', requireAuth, requireEditor, async (req, res
   try {
     const { title, url, page_id, parent_id, target, position, display_rules } = req.body;
 
+    // Ensure display_rules is a string for storage
+    const rulesJson = display_rules ? (typeof display_rules === 'string' ? display_rules : JSON.stringify(display_rules)) : null;
+
     await query(
       `UPDATE menu_items SET title = ?, url = ?, page_id = ?, parent_id = ?, target = ?, position = ?, display_rules = ? WHERE id = ? AND menu_id = ?`,
-      [title, url || null, page_id || null, parent_id || null, target || '_self', position || 0, display_rules ? JSON.stringify(display_rules) : null, req.params.itemId, req.params.menuId]
+      [
+        title, 
+        url || null, 
+        page_id ? parseInt(page_id) : null, 
+        parent_id ? parseInt(parent_id) : null, 
+        target || '_self', 
+        position || 0, 
+        rulesJson, 
+        req.params.itemId, 
+        req.params.menuId
+      ]
     );
 
     const [item] = await query('SELECT * FROM menu_items WHERE id = ?', [req.params.itemId]);
     res.json(item);
   } catch (err) {
+    console.error('[MENU_ITEM_UPDATE] Error:', err);
     res.status(500).json({ error: err.message });
   }
 });

@@ -294,22 +294,7 @@ export default function Menus() {
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <label className="text-[10px] uppercase font-bold text-gray-500">Authentication</label>
-                  <select
-                    value={editingItem.display_rules?.auth || 'all'}
-                    onChange={(e) => setEditingItem({ 
-                      ...editingItem, 
-                      display_rules: { ...editingItem.display_rules, auth: e.target.value } 
-                    })}
-                    className="input text-sm py-1"
-                  >
-                    <option value="all">Everyone</option>
-                    <option value="logged_in">Logged In Only</option>
-                    <option value="logged_out">Logged Out Only</option>
-                  </select>
-                </div>
+              <div className="grid grid-cols-1 gap-2">
                 <div className="space-y-1">
                   <label className="text-[10px] uppercase font-bold text-gray-500">Subscription</label>
                   <select
@@ -652,22 +637,7 @@ export default function Menus() {
                     )}
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="label">Authentication</label>
-                      <select
-                        value={newItem.display_rules?.auth || 'all'}
-                        onChange={(e) => setNewItem({ 
-                          ...newItem, 
-                          display_rules: { ...newItem.display_rules, auth: e.target.value } 
-                        })}
-                        className="input"
-                      >
-                        <option value="all">Everyone</option>
-                        <option value="logged_in">Logged In Only</option>
-                        <option value="logged_out">Logged Out Only</option>
-                      </select>
-                    </div>
+                  <div className="grid grid-cols-1 gap-4">
                     <div>
                       <label className="label">Subscription</label>
                       <select
