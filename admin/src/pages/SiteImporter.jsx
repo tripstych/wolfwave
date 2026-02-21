@@ -151,12 +151,17 @@ export default function SiteImporter() {
 
     try {
       setMigrating(true);
-      await api.post(`/import/sites/${selectedSite.id}/migrate-with-rule`, {
+      const res = await api.post(`/import/sites/${selectedSite.id}/migrate-with-rule`, {
         rule_id: rule.id,
         page_ids: selection
       });
-      alert('Migration started!');
-      navigate('/pages');
+      
+      const successCount = (res.results || []).filter(r => r.success).length;
+      const failCount = (res.results || []).filter(r => !r.success).length;
+      
+      alert(`Migration complete! \nSuccess: ${successCount}\nFailed: ${failCount}`);
+      
+      if (successCount > 0) navigate('/pages');
     } catch (err) { alert(err.message); }
     finally { setMigrating(false); }
   };
@@ -359,21 +364,56 @@ export default function SiteImporter() {
     setView('templates');
   };
 
-  const handleGenerateTemplate = async (hash) => {
+  const handleGenerateTemplate = async (hash, groupType) => {
     try {
-      const name = prompt('Template Name:', 'Imported Template');
+      const name = prompt('Enter a name for this Template & Rule:', `Imported ${hash.substring(0,8)}`);
       if (!name) return;
+      
       setGeneratingTemplate(true);
-      await api.post(`/import/sites/${selectedSite.id}/generate-template`, { structural_hash: hash, name });
-      loadTemplates();
+      const res = await api.post(`/import/sites/${selectedSite.id}/generate-template`, { structural_hash: hash, name });
+      
+      if (res.template) {
+        // Automatically create a corresponding Import Rule
+        const ruleData = {
+          name: `${name} Rule`,
+          template_id: res.template.id,
+          selector_map: { main: 'main' } // Default fallback
+        };
+        await api.post(`/import/sites/${selectedSite.id}/rules`, ruleData);
+        
+        // Select the pages in this group
+        const pages = groupType === 'product' ? discoveredProducts : discoveredPages;
+        const groupIds = pages.filter(p => p.structural_hash === hash).map(p => p.id);
+        if (groupType === 'product') setSelectedProducts(new Set(groupIds));
+        else setSelectedPages(new Set(groupIds));
+        
+        alert(`Template and Rule created! ${groupIds.length} pages selected.`);
+        loadTemplates();
+        
+        // Refresh site to get the new rule
+        const updated = await api.get(`/import/sites/${selectedSite.id}`);
+        setSelectedSite(updated);
+      }
     } catch (err) { alert(err.message); }
     finally { setGeneratingTemplate(false); }
   };
 
+  const selectGroup = (hash, groupType) => {
+    const pages = groupType === 'product' ? discoveredProducts : discoveredPages;
+    const groupIds = pages.filter(p => p.structural_hash === hash).map(p => p.id);
+    if (groupType === 'product') {
+      setSelectedProducts(new Set(groupIds));
+      setView('products');
+    } else {
+      setSelectedPages(new Set(groupIds));
+      setView('pages');
+    }
+  };
+
   const handleBulkMigrate = async (hash) => {
-    try {
-      const targetTemplateId = selectedTemplateId || templates.find(t => t.filename.includes(`imported-${selectedSite.id}`))?.id;
-      if (!targetTemplateId) return alert('Select a template first');
+    // Legacy support or fallback logic
+    const targetTemplateId = selectedTemplateId || templates.find(t => t.filename.includes(`imported-${selectedSite.id}`))?.id;
+    if (!targetTemplateId) return alert('Select a template first');
       
       const finalSelectorMap = Object.keys(selectorMap).length > 0 ? selectorMap : { main: 'main' };
 
@@ -774,8 +814,14 @@ export default function SiteImporter() {
                               <h4 className="font-semibold text-sm truncate">{g.sample_title}</h4>
                             </div>
                             <div className="flex gap-2 shrink-0">
-                              <button onClick={() => openVisualPicker(g.sample_url)} className="p-1.5 text-amber-600 hover:bg-amber-50 rounded"><Maximize2 className="w-4 h-4" /></button>
-                              <button onClick={() => handleGenerateTemplate(g.structural_hash)} className="p-1.5 text-primary-600 hover:bg-primary-50 rounded"><FileCode className="w-4 h-4" /></button>
+                              <button onClick={() => selectGroup(g.structural_hash, g.type)} className="p-1.5 text-green-600 hover:bg-green-50 rounded" title="Select All in Group"><CheckCircle2 className="w-4 h-4" /></button>
+                              <button onClick={() => {
+                                selectGroup(g.structural_hash, g.type);
+                                openVisualPicker(g.sample_url);
+                                setEditingRule({ id: Date.now().toString(), selection: [] });
+                                setEditingRuleName(`Rule for ${g.structural_hash.substring(0,8)}`);
+                              }} className="p-1.5 text-amber-600 hover:bg-amber-50 rounded" title="Define Rule for Group"><Maximize2 className="w-4 h-4" /></button>
+                              <button onClick={() => handleGenerateTemplate(g.structural_hash, g.type)} className="p-1.5 text-primary-600 hover:bg-primary-50 rounded" title="Generate Template & Rule"><FileCode className="w-4 h-4" /></button>
                             </div>
                           </div>
                         </div>

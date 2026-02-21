@@ -40,9 +40,11 @@ export async function migratePage(importedPageId, templateId, selectorMap = { 'm
       }
     }
 
-    const title = importedPage.title || $('title').text() || 'Imported Page';
+    const title = (importedPage.title || $('title').text() || '').trim() || 
+                  (() => { try { return new URL(importedPage.url).pathname; } catch { return 'Imported Page'; } })();
 
     // Check if a page with THIS EXACT TITLE already exists to avoid duplication
+    // We only merge if the content is significantly longer/better
     const existingContent = await prisma.content.findFirst({
       where: { module: 'pages', title: title }
     });
@@ -115,7 +117,9 @@ export async function bulkMigrate(siteId, structuralHash, templateId, selectorMa
 export async function bulkMigrateAll(siteId, templateId, selectorMap, pageIds = null) {
   const whereClause = { site_id: siteId };
   if (pageIds && Array.isArray(pageIds)) {
-    whereClause.id = { in: pageIds };
+    // Ensure all IDs are integers for Prisma
+    const intIds = pageIds.map(id => parseInt(id)).filter(id => !isNaN(id));
+    whereClause.id = { in: intIds };
   } else {
     whereClause.status = 'completed';
   }
