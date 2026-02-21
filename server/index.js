@@ -63,11 +63,11 @@ if (!SESSION_SECRET && process.env.NODE_ENV === 'production') {
 
 app.use((req, res, next) => {
   if (req.path.startsWith('/api/webhooks/')) return next();
-  express.json()(req, res, next);
+  express.json({ limit: '50mb' })(req, res, next);
 });
 app.use((req, res, next) => {
   if (req.path.startsWith('/api/webhooks/')) return next();
-  express.urlencoded({ extended: true })(req, res, next);
+  express.urlencoded({ limit: '50mb', extended: true })(req, res, next);
 });
 app.use(cookieParser());
 app.use(session({
