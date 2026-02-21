@@ -177,15 +177,53 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
     const [existing] = await query('SELECT * FROM subscription_plans WHERE id = ?', [planId]);
     if (!existing) return res.status(404).json({ error: 'Plan not found' });
 
-    // Note: This update logic is simplified for query-helper conversion.
-    // In a full implementation, we'd handle Stripe price immutability as before.
-    // For now, let's just update the local DB record.
+    let { stripe_product_id, stripe_price_id } = existing;
+    const stripeKey = await getStripeKey();
+
+    if (stripeKey) {
+      console.log(`[STRIPE-SYNC] 🔑 Key detected, checking sync status for "${name || existing.name}"...`);
+      try {
+        // 1. Create Product if it doesn't exist, or update if name/desc changed
+        if (!stripe_product_id) {
+          const product = await stripeRequest('post', '/products', {
+            name: name || existing.name,
+            description: description || existing.description || undefined,
+            'metadata[source]': 'wolfwave'
+          }, stripeKey);
+          stripe_product_id = product.id;
+        } else if (name !== undefined || description !== undefined) {
+          await stripeRequest('post', `/products/${stripe_product_id}`, {
+            name: name || existing.name,
+            description: description || existing.description || undefined
+          }, stripeKey);
+        }
+
+        // 2. Create new Price if amount/interval changed OR if it doesn't exist
+        const priceChanged = price !== undefined && parseFloat(price) !== parseFloat(existing.price);
+        const intervalChanged = interval !== undefined && interval !== existing.interval;
+        
+        if (!stripe_price_id || priceChanged || intervalChanged) {
+          const stripeInterval = (interval || existing.interval) === 'yearly' ? 'year' : (interval || existing.interval) === 'weekly' ? 'week' : 'month';
+          const stripePrice = await stripeRequest('post', '/prices', {
+            product: stripe_product_id,
+            unit_amount: Math.round(parseFloat(price || existing.price) * 100),
+            currency: 'usd',
+            'recurring[interval]': stripeInterval,
+            'recurring[interval_count]': interval_count || existing.interval_count || 1
+          }, stripeKey);
+          stripe_price_id = stripePrice.id;
+        }
+      } catch (stripeErr) {
+        console.error('[STRIPE-SYNC] ❌ Sync failed:', stripeErr.response?.data || stripeErr.message);
+      }
+    }
 
     const sql = `
       UPDATE subscription_plans 
       SET name = ?, slug = ?, description = ?, price = ?, \`interval\` = ?, 
           interval_count = ?, trial_days = ?, features = ?, is_active = ?, 
-          position = ?, product_discount = ?, target_slugs = ?
+          position = ?, product_discount = ?, target_slugs = ?,
+          stripe_product_id = ?, stripe_price_id = ?
       WHERE id = ?
     `;
     
@@ -202,6 +240,8 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
       position !== undefined ? parseInt(position) : existing.position,
       product_discount !== undefined ? parseFloat(product_discount) : existing.product_discount,
       target_slugs ? JSON.stringify(target_slugs) : existing.target_slugs,
+      stripe_product_id,
+      stripe_price_id,
       planId
     ];
 
