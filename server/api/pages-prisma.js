@@ -204,7 +204,7 @@ router.post('/', requireAuth, requireEditor, async (req, res) => {
       }
     });
 
-    res.status(201).json({ id: page.id, slug: page.slug });
+    res.status(201).json({ id: page.id, slug: contentRecord.slug });
   } catch (err) {
     if (err.code === 'P2002') {
       // Unique constraint violation (slug already exists)
@@ -361,7 +361,7 @@ router.post('/:id/duplicate', requireAuth, requireEditor, async (req, res) => {
     }
 
     // Create new slug
-    const newSlug = `${originalPage.slug}-${Date.now()}`;
+    const newSlug = `${originalPage.content?.slug || '/'}-${Date.now()}`;
 
     // Create new content
     const newContent = await prisma.content.create({
@@ -379,7 +379,6 @@ router.post('/:id/duplicate', requireAuth, requireEditor, async (req, res) => {
         template_id: originalPage.template_id,
         content_id: newContent.id,
         title: `${originalPage.title} (Copy)`,
-        slug: newSlug,
         content_type: originalPage.content_type,
         status: 'draft',
         meta_title: originalPage.meta_title,
@@ -395,7 +394,7 @@ router.post('/:id/duplicate', requireAuth, requireEditor, async (req, res) => {
       }
     });
 
-    res.status(201).json({ id: duplicatedPage.id, slug: duplicatedPage.slug });
+    res.status(201).json({ id: duplicatedPage.id, slug: newSlug });
   } catch (err) {
     console.error('Duplicate page error:', err);
     res.status(500).json({ error: 'Failed to duplicate page' });

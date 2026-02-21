@@ -48,8 +48,7 @@ export function patchConsole() {
     // Use direct logger call to avoid recursion
     try {
       // Call logger directly without going through patched console
-      const logger = require('./logger.js');
-      logger.info(null, context, message);
+      info(null, context, message);
     } catch (e) {
       // Fallback to original console if logger fails
       originalConsole.log('Console patch error:', e.message);
@@ -77,8 +76,7 @@ export function patchConsole() {
     
     try {
       // Call logger directly without going through patched console
-      const logger = require('./logger.js');
-      logger.error(null, err, context);
+      error(null, err, context);
     } catch (e) {
       // Fallback to original console if logger fails
       originalConsole.error('Console patch error:', e.message);
@@ -102,8 +100,7 @@ export function patchConsole() {
     
     try {
       // Call logger directly without going through patched console
-      const logger = require('./logger.js');
-      logger.warn(null, context, message);
+      warn(null, context, message);
     } catch (e) {
       // Fallback to original console if logger fails
       originalConsole.warn('Console patch error:', e.message);
@@ -128,8 +125,7 @@ export function patchConsole() {
       
       try {
         // Call logger directly without going through patched console
-        const logger = require('./logger.js');
-        logger.debug(null, context, message);
+        debug(null, context, message);
       } catch (e) {
         // Fallback to original console if logger fails
         originalConsole.debug('Console patch error:', e.message);

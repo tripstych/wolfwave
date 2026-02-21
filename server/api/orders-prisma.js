@@ -245,7 +245,7 @@ router.get('/my-orders', requireCustomer, async (req, res) => {
       take: 20,
       include: {
         order_items: {
-          include: { products: { select: { title: true, slug: true } } }
+          include: { products: { select: { title: true } } }
         }
       }
     });
