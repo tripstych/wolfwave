@@ -191,8 +191,10 @@ export async function generateImage(prompt, size = "1024x1024") {
  * Generate content for a specific set of fields
  */
 export async function generateContentForFields(fields, userContext, model = null, req = null) {
+  const isDemo = (!OPENAI_API_KEY || OPENAI_API_KEY === 'demo') && (!ANTHROPIC_API_KEY || ANTHROPIC_API_KEY === 'demo');
+
   // SIMULATION MODE
-  if (!OPENAI_API_KEY || OPENAI_API_KEY === 'demo') {
+  if (isDemo) {
     console.log(`[AI-DEBUG] ✍️ Content Gen: Simulation Mode active.`);
     await new Promise(resolve => setTimeout(resolve, 1000));
     
