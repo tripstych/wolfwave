@@ -7,6 +7,7 @@ import RichTextEditor from '../components/RichTextEditor';
 import MediaPicker from '../components/MediaPicker';
 import TitleSlugSection from '../components/TitleSlugSection';
 import ContentGroupsWidget from '../components/ContentGroupsWidget';
+import { toast } from 'sonner';
 import {
   Save,
   ArrowLeft,
@@ -22,7 +23,9 @@ import {
   Sparkles,
   Loader2,
   Lock,
-  Shield
+  Shield,
+  Download,
+  Globe
 } from 'lucide-react';
 
 export default function PageEditor() {
@@ -40,6 +43,8 @@ export default function PageEditor() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [syncing, setSyncing] = useState(false);
+  const [scraping, setScraping] = useState(false);
+  const [scrapeUrl, setScrapeUrl] = useState('');
 
   const [page, setPage] = useState({
     template_id: '',
@@ -188,6 +193,58 @@ export default function PageEditor() {
       toast.error(err.response?.data?.error || 'Image generation failed');
     } finally {
       setImageGenerating(null);
+    }
+  };
+
+  const handleScrape = async () => {
+    if (!scrapeUrl.trim()) {
+      setError('Please enter a URL to scrape');
+      return;
+    }
+
+    let targetUrl = scrapeUrl.trim();
+    if (!/^https?:\/\//i.test(targetUrl)) {
+      targetUrl = 'https://' + targetUrl;
+    }
+
+    setScraping(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const response = await api.post('/import/url', { url: targetUrl });
+      
+      if (response.success && response.data) {
+        const scraped = response.data;
+        
+        // Update page with scraped data
+        setPage(prev => ({
+          ...prev,
+          title: prev.title || scraped.title || '',
+          meta_title: prev.meta_title || scraped.title || '',
+          meta_description: prev.meta_description || scraped.description || '',
+          content: {
+            ...prev.content,
+            // Try to map scraped content to regions
+            ...Object.fromEntries(
+              regions.map(region => [
+                region.name,
+                prev.content[region.name] || scraped[region.name] || scraped.content || ''
+              ]).filter(([_, value]) => value)
+            )
+          }
+        }));
+
+        setSuccess('Content scraped successfully! Review and adjust as needed.');
+        setScrapeUrl('');
+      } else {
+        setError('Failed to scrape content from the URL');
+      }
+    } catch (err) {
+      console.error('Scrape error:', err);
+      setError(err.message || 'Failed to scrape URL');
+    } finally {
+      setScraping(false);
     }
   };
 
@@ -623,6 +680,42 @@ export default function PageEditor() {
 
         {/* Sidebar */}
         <div className="space-y-6">
+          {/* URL Scraper */}
+          <div className="card p-6 space-y-4">
+            <h2 className="font-semibold text-gray-900 flex items-center gap-2">
+              <Globe className="w-4 h-4" />
+              Import from URL
+            </h2>
+            <div className="space-y-3">
+              <div>
+                <label className="label">URL to Scrape</label>
+                <input
+                  type="text"
+                  value={scrapeUrl}
+                  onChange={(e) => setScrapeUrl(e.target.value)}
+                  placeholder="https://example.com/page"
+                  className="input"
+                  disabled={scraping}
+                />
+              </div>
+              <button
+                onClick={handleScrape}
+                disabled={scraping || !scrapeUrl.trim()}
+                className="btn btn-secondary w-full flex items-center justify-center gap-2"
+              >
+                {scraping ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4" />
+                )}
+                {scraping ? 'Scraping...' : 'Scrape Content'}
+              </button>
+              <p className="text-xs text-gray-500">
+                Scrape title, description, and content from a URL to populate this page.
+              </p>
+            </div>
+          </div>
+
           {/* Status & Template */}
           <div className="card p-6 space-y-4">
             <div>
