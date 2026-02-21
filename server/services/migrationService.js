@@ -4,6 +4,7 @@ import slugify from 'slugify';
 import { getCurrentDbName } from '../lib/tenantContext.js';
 import { info, error as logError } from '../lib/logger.js';
 import { generateSearchIndex } from '../lib/searchIndexer.js';
+import { automaticallyDetectContent } from './scraperService.js';
 
 export async function migratePage(importedPageId, templateId, selectorMap = { 'main': 'body' }) {
   const dbName = getCurrentDbName();
@@ -13,12 +14,19 @@ export async function migratePage(importedPageId, templateId, selectorMap = { 'm
 
     const $ = cheerio.load(importedPage.raw_html);
     const extractedData = {};
+    
     for (const [key, selector] of Object.entries(selectorMap)) {
-      const $el = $(selector);
-      if ($el.length > 0) extractedData[key] = $el.html().trim();
+      // If the user hasn't specified a specific class (defaulting to body or main), use auto-detect
+      if (key === 'main' && (selector === 'body' || selector === 'main' || !selector)) {
+        extractedData[key] = automaticallyDetectContent($);
+      } else {
+        const $el = $(selector);
+        if ($el.length > 0) extractedData[key] = $el.html().trim();
+      }
     }
 
-    const title = importedPage.title || $('title').text() || 'Imported Page';
+    // Fallback if still empty
+    if (!extractedData.main) extractedData.main = $('body').html();
     let cleanSlug = slugify(title, { lower: true, strict: true }) || 'imported-page-' + Date.now();
     const pageSlug = '/pages/' + cleanSlug.replace(/^\/+/, '');
 

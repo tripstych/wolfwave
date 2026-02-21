@@ -222,10 +222,9 @@ export default function SiteImporter() {
     try {
       const siteTemplates = templates.filter(t => t.filename.includes(`imported-${selectedSite.id}`));
       if (siteTemplates.length === 0) return alert('Generate a template first');
-      const selector = prompt('CSS Selector for main content:', 'main');
-      if (selector === null) return;
+      
       setMigrating(true);
-      await api.post(`/import/sites/${selectedSite.id}/bulk-migrate`, { structural_hash: hash, template_id: siteTemplates[0].id, selector_map: { main: selector } });
+      await api.post(`/import/sites/${selectedSite.id}/bulk-migrate`, { structural_hash: hash, template_id: siteTemplates[0].id, selector_map: { main: 'main' } });
       navigate('/pages');
     } catch (err) { alert(err.message); }
     finally { setMigrating(false); }
@@ -235,10 +234,9 @@ export default function SiteImporter() {
     try {
       const std = templates.find(t => t.filename.includes('pages/standard'));
       if (!std) return alert('Standard template not found');
-      const selector = prompt('CSS Selector for ALL pages:', 'main');
-      if (selector === null) return;
+      
       setMigrating(true);
-      await api.post(`/import/sites/${selectedSite.id}/bulk-migrate-all`, { template_id: std.id, selector_map: { main: selector } });
+      await api.post(`/import/sites/${selectedSite.id}/bulk-migrate-all`, { template_id: std.id, selector_map: { main: 'main' } });
       navigate('/pages');
     } catch (err) { alert(err.message); }
     finally { setMigrating(false); }
@@ -248,11 +246,10 @@ export default function SiteImporter() {
     try {
       const std = templates.find(t => t.filename.includes('pages/standard'));
       if (!std) return alert('Standard template not found');
-      const selector = prompt('CSS Selector for page content:', 'main');
-      if (selector === null) return;
+      
       if (!confirm(`Ready to migrate ${discoveredPages.length} pages using template "${std.name}"?`)) return;
       setMigrating(true);
-      await api.post(`/import/sites/${selectedSite.id}/bulk-migrate-all`, { template_id: std.id, selector_map: { main: selector } });
+      await api.post(`/import/sites/${selectedSite.id}/bulk-migrate-all`, { template_id: std.id, selector_map: { main: 'main' } });
       navigate('/pages');
     } catch (err) { alert(err.message); }
     finally { setMigrating(false); }

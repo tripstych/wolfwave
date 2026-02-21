@@ -147,6 +147,46 @@ export function extractMetadata($, rules = [], url = '') {
   return result;
 }
 
+/**
+ * Intelligently detect the main content area of a page.
+ * Looks for common container tags, IDs, and classes.
+ */
+export function automaticallyDetectContent($) {
+  // 1. Semantic Tags
+  const semantic = $('main, article, [role="main"]').first();
+  if (semantic.length > 0) return semantic.html();
+
+  // 2. Common Content IDs/Classes
+  const common = [
+    '#content', '#main', '#main-content', '.main-content', '.post-content', '.article-content',
+    '.entry-content', '.product-description', '#description'
+  ];
+  for (const selector of common) {
+    const el = $(selector).first();
+    if (el.length > 0 && el.text().trim().length > 200) {
+      return el.html();
+    }
+  }
+
+  // 3. Heuristic: Find element with highest text density (crude)
+  let best = $('body');
+  let maxLen = 0;
+  $('div, section').each((i, el) => {
+    const text = $(el).text().trim();
+    if (text.length > maxLen) {
+      // Avoid common footer/header patterns
+      const id = $(el).attr('id') || '';
+      const cls = $(el).attr('class') || '';
+      if (id.match(/footer|header|nav/i) || cls.match(/footer|header|nav/i)) return;
+      
+      maxLen = text.length;
+      best = $(el);
+    }
+  });
+
+  return best.html();
+}
+
 export async function scrapeUrl(url) {
   try {
     const { data } = await axios.get(url, { headers: { 'User-Agent': 'WebWolf-Import-Bot/1.0' } });
