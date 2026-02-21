@@ -21,6 +21,7 @@ export default function Menus() {
   const [menus, setMenus] = useState([]);
   const [selectedMenu, setSelectedMenu] = useState(null);
   const [pages, setPages] = useState([]);
+  const [subscriptionPlans, setSubscriptionPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showNewMenu, setShowNewMenu] = useState(false);
   const [showNewItem, setShowNewItem] = useState(false);
@@ -35,6 +36,8 @@ export default function Menus() {
     linkType: 'page',
     display_rules: {
       auth: 'all',
+      subscription: 'any',
+      plans: [],
       urlPattern: ''
     }
   });
@@ -57,7 +60,17 @@ export default function Menus() {
   useEffect(() => {
     loadMenus();
     loadPages();
+    loadSubscriptionPlans();
   }, []);
+
+  const loadSubscriptionPlans = async () => {
+    try {
+      const response = await api.get('/subscription-plans');
+      setSubscriptionPlans(response.data || []);
+    } catch (err) {
+      console.error('Failed to load subscription plans:', err);
+    }
+  };
 
   const loadMenus = async () => {
     try {
@@ -140,6 +153,8 @@ export default function Menus() {
         linkType: 'page',
         display_rules: {
           auth: 'all',
+          subscription: 'any',
+          plans: [],
           urlPattern: ''
         }
       });
@@ -281,7 +296,7 @@ export default function Menus() {
 
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <label className="text-[10px] uppercase font-bold text-gray-500">Visibility</label>
+                  <label className="text-[10px] uppercase font-bold text-gray-500">Authentication</label>
                   <select
                     value={editingItem.display_rules?.auth || 'all'}
                     onChange={(e) => setEditingItem({ 
@@ -296,18 +311,65 @@ export default function Menus() {
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] uppercase font-bold text-gray-500">URL Pattern (Regex)</label>
-                  <input
-                    type="text"
-                    value={editingItem.display_rules?.urlPattern || ''}
+                  <label className="text-[10px] uppercase font-bold text-gray-500">Subscription</label>
+                  <select
+                    value={editingItem.display_rules?.subscription || 'any'}
                     onChange={(e) => setEditingItem({ 
                       ...editingItem, 
-                      display_rules: { ...editingItem.display_rules, urlPattern: e.target.value } 
+                      display_rules: { 
+                        ...editingItem.display_rules, 
+                        subscription: e.target.value,
+                        plans: e.target.value === 'any' ? [] : (editingItem.display_rules.plans || [])
+                      } 
                     })}
                     className="input text-sm py-1"
-                    placeholder="/shop/*"
-                  />
+                  >
+                    <option value="any">Any Status</option>
+                    <option value="required">Subscribed Only</option>
+                    <option value="none">Non-Subscribers Only</option>
+                  </select>
                 </div>
+              </div>
+
+              {editingItem.display_rules?.subscription === 'required' && (
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase font-bold text-gray-500">Required Tiers (Optional)</label>
+                  <div className="flex flex-wrap gap-2 p-2 border border-gray-200 rounded-md bg-white">
+                    {subscriptionPlans.map(plan => (
+                      <label key={plan.id} className="flex items-center gap-1 text-[10px] cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={(editingItem.display_rules?.plans || []).includes(plan.slug)}
+                          onChange={(e) => {
+                            const currentPlans = editingItem.display_rules?.plans || [];
+                            const newPlans = e.target.checked
+                              ? [...currentPlans, plan.slug]
+                              : currentPlans.filter(s => s !== plan.slug);
+                            setEditingItem({
+                              ...editingItem,
+                              display_rules: { ...editingItem.display_rules, plans: newPlans }
+                            });
+                          }}
+                        />
+                        {plan.name}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-1">
+                <label className="text-[10px] uppercase font-bold text-gray-500">URL Pattern (Regex)</label>
+                <input
+                  type="text"
+                  value={editingItem.display_rules?.urlPattern || ''}
+                  onChange={(e) => setEditingItem({ 
+                    ...editingItem, 
+                    display_rules: { ...editingItem.display_rules, urlPattern: e.target.value } 
+                  })}
+                  className="input text-sm py-1"
+                  placeholder="/shop/*"
+                />
               </div>
 
               <div className="flex gap-2 items-center">
@@ -478,6 +540,8 @@ export default function Menus() {
                       linkType: 'page',
                       display_rules: {
                         auth: 'all',
+                        subscription: 'any',
+                        plans: [],
                         urlPattern: ''
                       }
                     });
@@ -590,7 +654,7 @@ export default function Menus() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="label">Visibility</label>
+                      <label className="label">Authentication</label>
                       <select
                         value={newItem.display_rules?.auth || 'all'}
                         onChange={(e) => setNewItem({ 
@@ -605,18 +669,65 @@ export default function Menus() {
                       </select>
                     </div>
                     <div>
-                      <label className="label">URL Pattern (Regex)</label>
-                      <input
-                        type="text"
-                        value={newItem.display_rules?.urlPattern || ''}
+                      <label className="label">Subscription</label>
+                      <select
+                        value={newItem.display_rules?.subscription || 'any'}
                         onChange={(e) => setNewItem({ 
                           ...newItem, 
-                          display_rules: { ...newItem.display_rules, urlPattern: e.target.value } 
+                          display_rules: { 
+                            ...newItem.display_rules, 
+                            subscription: e.target.value,
+                            plans: e.target.value === 'any' ? [] : (newItem.display_rules.plans || [])
+                          } 
                         })}
                         className="input"
-                        placeholder="e.g. /shop/*"
-                      />
+                      >
+                        <option value="any">Any Status</option>
+                        <option value="required">Subscribed Only</option>
+                        <option value="none">Non-Subscribers Only</option>
+                      </select>
                     </div>
+                  </div>
+
+                  {newItem.display_rules?.subscription === 'required' && (
+                    <div className="space-y-1">
+                      <label className="label">Required Tiers (Optional)</label>
+                      <div className="flex flex-wrap gap-2 p-2 border border-gray-200 rounded-md bg-white">
+                        {subscriptionPlans.map(plan => (
+                          <label key={plan.id} className="flex items-center gap-2 text-xs cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={(newItem.display_rules?.plans || []).includes(plan.slug)}
+                              onChange={(e) => {
+                                const currentPlans = newItem.display_rules?.plans || [];
+                                const newPlans = e.target.checked
+                                  ? [...currentPlans, plan.slug]
+                                  : currentPlans.filter(s => s !== plan.slug);
+                                setNewItem({
+                                  ...newItem,
+                                  display_rules: { ...newItem.display_rules, plans: newPlans }
+                                });
+                              }}
+                            />
+                            {plan.name}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-1">
+                    <label className="label">URL Pattern (Regex)</label>
+                    <input
+                      type="text"
+                      value={newItem.display_rules?.urlPattern || ''}
+                      onChange={(e) => setNewItem({ 
+                        ...newItem, 
+                        display_rules: { ...newItem.display_rules, urlPattern: e.target.value } 
+                      })}
+                      className="input"
+                      placeholder="e.g. /shop/*"
+                    />
                   </div>
 
                   <div className="flex items-center gap-4">

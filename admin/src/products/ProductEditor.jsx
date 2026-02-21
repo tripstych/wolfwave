@@ -46,11 +46,13 @@ export default function ProductEditor() {
     variants: [],
     access_rules: {
       auth: 'any',
-      subscription: 'any'
+      subscription: 'any',
+      plans: []
     }
   });
 
   const [templates, setTemplates] = useState([]);
+  const [subscriptionPlans, setSubscriptionPlans] = useState([]);
   const [regions, setRegions] = useState([]);
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
@@ -177,11 +179,27 @@ export default function ProductEditor() {
   useEffect(() => {
     console.log('[ProductEditor] Mounting, isNew:', isNew);
     loadTemplates();
+    loadSubscriptionPlans();
     if (!isNew) {
       fetchProduct();
       setSlugEdited(true);
     }
   }, [id]);
+
+  const loadSubscriptionPlans = async () => {
+    try {
+      const response = await fetch('/api/subscription-plans', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      if (!response.ok) throw new Error('Failed to load plans');
+      const data = await response.json();
+      setSubscriptionPlans(data.data || []);
+    } catch (err) {
+      console.error('Failed to load subscription plans:', err);
+    }
+  };
 
   // Auto-sync slug from title only if not manually edited
   useEffect(() => {
@@ -280,7 +298,9 @@ export default function ProductEditor() {
       
       // Ensure access_rules exists
       if (!data.access_rules) {
-        data.access_rules = { auth: 'any', subscription: 'any' };
+        data.access_rules = { auth: 'any', subscription: 'any', plans: [] };
+      } else if (!data.access_rules.plans) {
+        data.access_rules.plans = [];
       }
       
       setProduct(data);
@@ -961,7 +981,7 @@ export default function ProductEditor() {
                   value={product.access_rules?.subscription || 'any'}
                   onChange={(e) => setProduct(p => ({ 
                     ...p, 
-                    access_rules: { ...p.access_rules, subscription: e.target.value } 
+                    access_rules: { ...p.access_rules, subscription: e.target.value, plans: e.target.value === 'any' ? [] : (p.access_rules.plans || []) } 
                   }))}
                   className="input"
                 >
@@ -969,6 +989,39 @@ export default function ProductEditor() {
                   <option value="required">Active Subscription Required</option>
                 </select>
               </div>
+
+              {product.access_rules?.subscription === 'required' && (
+                <div className="space-y-2">
+                  <label className="label text-xs">Required Tiers (Optional)</label>
+                  <div className="space-y-1 max-h-32 overflow-y-auto p-2 border border-gray-200 rounded-md">
+                    {subscriptionPlans.length === 0 ? (
+                      <p className="text-xs text-gray-500 italic">No plans defined</p>
+                    ) : (
+                      subscriptionPlans.map(plan => (
+                        <label key={plan.id} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-gray-50 p-1 rounded">
+                          <input
+                            type="checkbox"
+                            checked={(product.access_rules?.plans || []).includes(plan.slug)}
+                            onChange={(e) => {
+                              const currentPlans = product.access_rules?.plans || [];
+                              const newPlans = e.target.checked
+                                ? [...currentPlans, plan.slug]
+                                : currentPlans.filter(s => s !== plan.slug);
+                              setProduct(p => ({
+                                ...p,
+                                access_rules: { ...p.access_rules, plans: newPlans }
+                              }));
+                            }}
+                          />
+                          {plan.name}
+                        </label>
+                      ))
+                    )}
+                  </div>
+                  <p className="text-[10px] text-gray-500">If no tiers are selected, any active subscription will grant access.</p>
+                </div>
+              )}
+
               {product.access_rules?.subscription === 'required' && (
                 <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg text-xs text-blue-700">
                   <p className="flex items-start gap-2">

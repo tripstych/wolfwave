@@ -33,6 +33,7 @@ export default function PageEditor() {
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [templates, setTemplates] = useState([]);
+  const [subscriptionPlans, setSubscriptionPlans] = useState([]);
   const [seoOpen, setSeoOpen] = useState(false);
   const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
   const [mediaPickerTarget, setMediaPickerTarget] = useState(null);
@@ -56,7 +57,8 @@ export default function PageEditor() {
     robots: 'index, follow',
     access_rules: {
       auth: 'any',
-      subscription: 'any'
+      subscription: 'any',
+      plans: []
     }
   });
 
@@ -68,11 +70,21 @@ export default function PageEditor() {
 
   useEffect(() => {
     loadTemplates();
+    loadSubscriptionPlans();
     if (!isNew) {
       loadPage();
       setSlugEdited(true); // Existing pages keep their saved slug
     }
   }, [id]);
+
+  const loadSubscriptionPlans = async () => {
+    try {
+      const response = await api.get('/subscription-plans');
+      setSubscriptionPlans(response.data || []);
+    } catch (err) {
+      console.error('Failed to load subscription plans:', err);
+    }
+  };
 
   // Auto-sync slug from title only for new pages when slug hasn't been manually edited
   useEffect(() => {
@@ -217,7 +229,11 @@ export default function PageEditor() {
         og_image: data.og_image || '',
         canonical_url: data.canonical_url || '',
         robots: data.robots || 'index, follow',
-        access_rules: data.access_rules || { auth: 'any', subscription: 'any' }
+        access_rules: {
+          auth: data.access_rules?.auth || 'any',
+          subscription: data.access_rules?.subscription || 'any',
+          plans: data.access_rules?.plans || []
+        }
       });
       setRegions(parseRegions(data.template_regions));
     } catch (err) {
@@ -686,7 +702,7 @@ export default function PageEditor() {
                   value={page.access_rules?.subscription || 'any'}
                   onChange={(e) => setPage(p => ({ 
                     ...p, 
-                    access_rules: { ...p.access_rules, subscription: e.target.value } 
+                    access_rules: { ...p.access_rules, subscription: e.target.value, plans: e.target.value === 'any' ? [] : (p.access_rules.plans || []) } 
                   }))}
                   className="input"
                 >
@@ -694,6 +710,39 @@ export default function PageEditor() {
                   <option value="required">Active Subscription Required</option>
                 </select>
               </div>
+
+              {page.access_rules?.subscription === 'required' && (
+                <div className="space-y-2">
+                  <label className="label text-xs">Required Tiers (Optional)</label>
+                  <div className="space-y-1 max-h-32 overflow-y-auto p-2 border border-gray-200 rounded-md">
+                    {subscriptionPlans.length === 0 ? (
+                      <p className="text-xs text-gray-500 italic">No plans defined</p>
+                    ) : (
+                      subscriptionPlans.map(plan => (
+                        <label key={plan.id} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-gray-50 p-1 rounded">
+                          <input
+                            type="checkbox"
+                            checked={(page.access_rules?.plans || []).includes(plan.slug)}
+                            onChange={(e) => {
+                              const currentPlans = page.access_rules?.plans || [];
+                              const newPlans = e.target.checked
+                                ? [...currentPlans, plan.slug]
+                                : currentPlans.filter(s => s !== plan.slug);
+                              setPage(p => ({
+                                ...p,
+                                access_rules: { ...p.access_rules, plans: newPlans }
+                              }));
+                            }}
+                          />
+                          {plan.name}
+                        </label>
+                      ))
+                    )}
+                  </div>
+                  <p className="text-[10px] text-gray-500">If no tiers are selected, any active subscription will grant access.</p>
+                </div>
+              )}
+
               {page.access_rules?.subscription === 'required' && (
                 <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg text-xs text-blue-700">
                   <p className="flex items-start gap-2">

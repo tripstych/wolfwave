@@ -10,7 +10,14 @@ describe('Renderer (Shortcodes)', () => {
   };
 
   const mockBlocks = [
-    { slug: 'test-widget', template_filename: 'widgets/test.njk', content_type: 'widgets', content: '{"title":"Test"}' }
+    { slug: 'test-widget', template_filename: 'widgets/test.njk', content_type: 'widgets', content: '{"title":"Test"}' },
+    { 
+      slug: 'premium-widget', 
+      template_filename: 'widgets/premium.njk', 
+      content_type: 'widgets', 
+      content: '{"title":"Premium"}',
+      access_rules: '{"subscription":"required"}'
+    }
   ];
 
   it('should replace valid shortcodes with rendered content', () => {
@@ -19,6 +26,19 @@ describe('Renderer (Shortcodes)', () => {
     
     expect(result).toBe('<p>Hello RENDERED:widgets/test.njk:test-widget</p>');
     expect(mockEnv.render).toHaveBeenCalled();
+  });
+
+  it('should hide gated shortcodes when permissions are not met', () => {
+    const html = '<p>[[widget:premium-widget]]</p>';
+    const result = processShortcodes(html, mockEnv, mockBlocks, { hasActiveSubscription: false });
+    expect(result).toContain('Access denied: premium-widget');
+    expect(result).not.toContain('RENDERED');
+  });
+
+  it('should show gated shortcodes when permissions ARE met', () => {
+    const html = '<p>[[widget:premium-widget]]</p>';
+    const result = processShortcodes(html, mockEnv, mockBlocks, { hasActiveSubscription: true });
+    expect(result).toBe('<p>RENDERED:widgets/premium.njk:premium-widget</p>');
   });
 
   it('should ignore non-matching shortcodes', () => {
