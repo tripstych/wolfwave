@@ -54,7 +54,7 @@ router.get('/', requireAuth, async (req, res) => {
           content: page.content?.data ? JSON.parse(page.content.data) : {},
           access_rules: page.access_rules ? (typeof page.access_rules === 'string' ? JSON.parse(page.access_rules) : page.access_rules) : null,
           title: page.content?.title || page.title,
-          slug: page.content?.slug || page.slug
+          slug: page.content?.slug || ''
         };
       } catch (parseErr) {
         console.error('JSON parse error for page:', page.id, {
@@ -116,7 +116,7 @@ router.get('/:id', requireAuth, async (req, res) => {
       content: page.content?.data ? JSON.parse(page.content.data) : {},
       access_rules: page.access_rules ? (typeof page.access_rules === 'string' ? JSON.parse(page.access_rules) : page.access_rules) : null,
       title: page.content?.title || page.title,
-      slug: page.content?.slug || page.slug
+      slug: page.content?.slug || ''
     });
   } catch (err) {
     console.error('Get page error:', err);
@@ -130,7 +130,7 @@ router.post('/', requireAuth, requireEditor, async (req, res) => {
     const {
       template_id,
       title,
-      slug: providedSlug,
+      providedSlug,
       content,
       content_type = 'pages',
       status = 'draft',
@@ -188,7 +188,6 @@ router.post('/', requireAuth, requireEditor, async (req, res) => {
         template_id: parseInt(template_id),
         content_id: contentRecord.id,
         title,
-        slug,
         content_type,
         status,
         meta_title: meta_title || title,
@@ -260,7 +259,6 @@ router.put('/:id', requireAuth, requireEditor, async (req, res) => {
     const updateData = {};
     if (template_id !== undefined) updateData.template_id = parseInt(template_id);
     if (title !== undefined) updateData.title = title;
-    if (slug !== undefined) updateData.slug = slug;
     if (status !== undefined) updateData.status = status;
     if (meta_title !== undefined) updateData.meta_title = meta_title;
     if (meta_description !== undefined) updateData.meta_description = meta_description;

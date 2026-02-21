@@ -301,7 +301,6 @@ model pages {
   template_id                   Int
   content_id                    Int?
   title                         String        @db.VarChar(255)
-  slug                          String        @unique(map: "slug") @db.VarChar(255)
   content_type                  String?       @default("pages") @db.VarChar(50)
   status                        pages_status? @default(draft)
   published_at                  DateTime?     @db.Timestamp(0)
