@@ -230,21 +230,23 @@ export default function SiteImporter() {
   };
 
   const refreshCrawlingSites = async () => {
-    const isCrawling = sites.some(s => s.status === 'pending' || s.status === 'crawling');
-    if (isCrawling) {
+    try {
+      // 1. Always refresh the site list for the "History" panel
       const updatedSites = await api.get('/import/sites');
-      setSites(updatedSites || []);
+      if (updatedSites) setSites(updatedSites);
       
+      // 2. If a site is selected AND it's currently crawling, refresh its specific data
       if (selectedSite && (selectedSite.status === 'pending' || selectedSite.status === 'crawling')) {
         const updated = await api.get(`/import/sites/${selectedSite.id}`);
         if (updated) {
           setSelectedSite(updated);
-          if (updated.status === 'completed' || Math.abs(updated.page_count - selectedSite.page_count) >= 5) {
+          // Only refresh groups/products if count significantly changed or finished
+          if (updated.status === 'completed' || Math.abs(updated.page_count - (selectedSite.page_count || 0)) >= 5) {
             refreshGroupsAndProducts(updated);
           }
         }
       }
-    }
+    } catch (err) { console.error('Polling error:', err); }
   };
 
   const refreshGroupsAndProducts = async (site) => {
