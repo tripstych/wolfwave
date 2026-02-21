@@ -21,6 +21,8 @@ async function getStripeKey() {
  */
 async function stripeRequest(method, path, data, stripeKey) {
   const url = `https://api.stripe.com/v1${path}`;
+  console.log(`[STRIPE-DEBUG] 📤 ${method.toUpperCase()} ${url}`);
+  
   const config = {
     method,
     url,
@@ -32,8 +34,15 @@ async function stripeRequest(method, path, data, stripeKey) {
   if (data) {
     config.data = new URLSearchParams(data).toString();
   }
-  const response = await axios(config);
-  return response.data;
+  
+  try {
+    const response = await axios(config);
+    console.log(`[STRIPE-DEBUG] 📥 Response: ${response.status}`);
+    return response.data;
+  } catch (error) {
+    console.error(`[STRIPE-DEBUG] ❌ Error: ${error.response?.status}`, error.response?.data || error.message);
+    throw error;
+  }
 }
 
 /**
@@ -112,8 +121,9 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
 
     const stripeKey = await getStripeKey();
     if (stripeKey) {
+      console.log(`[STRIPE-SYNC] 🔑 Key detected, starting sync for "${name}"...`);
       try {
-        const prodData = { name, 'metadata[source]': 'webwolf' };
+        const prodData = { name, 'metadata[source]': 'wolfwave' };
         if (description) prodData.description = description;
         const product = await stripeRequest('post', '/products', prodData, stripeKey);
         stripe_product_id = product.id;
