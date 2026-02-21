@@ -199,7 +199,7 @@ router.post('/', requireAuth, requireEditor, async (req, res) => {
         canonical_url: canonical_url || '',
         robots: robots || 'index, follow',
         schema_markup: schema_markup ? JSON.stringify(schema_markup) : null,
-        access_rules: access_rules ? JSON.stringify(access_rules) : null,
+        access_rules: access_rules || null,
         created_by: req.user?.id || null,
         updated_by: req.user?.id || null
       }
@@ -270,7 +270,7 @@ router.put('/:id', requireAuth, requireEditor, async (req, res) => {
     if (canonical_url !== undefined) updateData.canonical_url = canonical_url;
     if (robots !== undefined) updateData.robots = robots;
     if (schema_markup !== undefined) updateData.schema_markup = schema_markup ? JSON.stringify(schema_markup) : null;
-    if (access_rules !== undefined) updateData.access_rules = access_rules ? JSON.stringify(access_rules) : null;
+    if (access_rules !== undefined) updateData.access_rules = access_rules || null;
     if (status === 'published') updateData.published_at = new Date();
     updateData.updated_by = req.user?.id || null;
 

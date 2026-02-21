@@ -258,10 +258,10 @@ async function seed() {
       }
 
       const pageResult = await query(
-        `INSERT INTO pages (template_id, content_id, title, status, meta_title, meta_description, created_by)
-         VALUES (?, ?, ?, ?, ?, ?, ?)
+        `INSERT INTO pages (template_id, content_id, title, slug, status, meta_title, meta_description, created_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE content_id = VALUES(content_id)`,
-        [templates[0].id, contentId, 'Home', 'published', 'Welcome to WebWolf CMS', 'A powerful SEO-centric content management system', 1]
+        [templates[0].id, contentId, 'Home', '/pages/home', 'published', 'Welcome to WebWolf CMS', 'A powerful SEO-centric content management system', 1]
       );
 
       // Get the page ID (either inserted or existing)
@@ -316,9 +316,9 @@ async function seed() {
             ['pages', sp.slug, sp.title, JSON.stringify(sp.content)]
           );
           await query(
-            `INSERT INTO pages (template_id, content_id, title, status, meta_title, meta_description, created_by)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`,
-            [stdTemplateId, contentResult.insertId, sp.title, 'published', sp.metaTitle, sp.metaDescription, 1]
+            `INSERT INTO pages (template_id, content_id, title, slug, status, meta_title, meta_description, created_by)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [stdTemplateId, contentResult.insertId, sp.title, sp.slug, 'published', sp.metaTitle, sp.metaDescription, 1]
           );
         }
       }

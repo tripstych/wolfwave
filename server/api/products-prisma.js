@@ -193,7 +193,7 @@ router.post('/', requireAuth, requireEditor, async (req, res) => {
         requires_shipping: requires_shipping !== false,
         taxable: taxable !== false,
         status: status || 'draft',
-        access_rules: access_rules ? JSON.stringify(access_rules) : null,
+        access_rules: access_rules || null,
         product_variants: {
           createMany: {
             data: (variants || []).map((v, i) => ({
@@ -297,7 +297,7 @@ router.put('/:id', requireAuth, requireEditor, async (req, res) => {
     if (requires_shipping !== undefined) productUpdates.requires_shipping = requires_shipping;
     if (taxable !== undefined) productUpdates.taxable = taxable;
     if (status !== undefined) productUpdates.status = status;
-    if (access_rules !== undefined) productUpdates.access_rules = access_rules ? JSON.stringify(access_rules) : null;
+    if (access_rules !== undefined) productUpdates.access_rules = access_rules || null;
 
     // Update content if provided
     if (existing.content_id && (content !== undefined || title !== undefined || providedSlug !== undefined || og_image !== undefined)) {

@@ -148,7 +148,7 @@ router.post('/', requireAuth, requireEditor, async (req, res) => {
         slug,
         description,
         content_type,
-        access_rules: access_rules ? JSON.stringify(access_rules) : null,
+        access_rules: access_rules || null,
         created_by: req.user?.id || null,
         updated_by: req.user?.id || null
       }
@@ -208,7 +208,7 @@ router.put('/:id', requireAuth, requireEditor, async (req, res) => {
     if (slug !== undefined) updateData.slug = slug;
     if (description !== undefined) updateData.description = description;
     if (content_type !== undefined) updateData.content_type = content_type;
-    if (access_rules !== undefined) updateData.access_rules = access_rules ? JSON.stringify(access_rules) : null;
+    if (access_rules !== undefined) updateData.access_rules = access_rules || null;
     updateData.updated_by = req.user?.id || null;
 
     await prisma.blocks.update({
