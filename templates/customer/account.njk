@@ -14,6 +14,35 @@
       <div id="profile-content" class="loading">Loading...</div>
     </div>
 
+    {# My Sites Section #}
+    <div class="account-section">
+      <div class="section-header">
+        <h2>My Sites</h2>
+        <div id="site-limits" class="limits-badge">Checking limits...</div>
+      </div>
+      <div id="sites-list" class="sites-grid">
+        <div class="loading">Loading your sites...</div>
+      </div>
+      
+      <div id="create-site-container" class="create-site-box hidden">
+        <hr>
+        <h3>Create New Site</h3>
+        <form id="create-site-form" class="form-inline">
+          <div class="form-group">
+            <input type="text" id="site-name" placeholder="Site Name" required class="form-input">
+          </div>
+          <div class="form-group">
+            <div class="input-group">
+              <input type="text" id="site-subdomain" placeholder="subdomain" required class="form-input">
+              <span class="input-suffix">.wolfwave.com</span>
+            </div>
+          </div>
+          <button type="submit" id="create-site-btn" class="btn btn-primary">Launch Site</button>
+        </form>
+        <div id="create-site-error" class="error-message hidden"></div>
+      </div>
+    </div>
+
     {# Orders Section #}
     <div class="account-section">
       <h2>Recent Orders</h2>
@@ -104,6 +133,99 @@
     }
   }
 
+  // Load customer sites
+  async function loadSites() {
+    try {
+      const sitesList = document.getElementById('sites-list');
+      const response = await fetch('/api/customer-tenants', { credentials: 'include' });
+      
+      if (!response.ok) throw new Error('Failed to load sites');
+      
+      const sites = await response.json();
+      
+      if (sites.length === 0) {
+        sitesList.innerHTML = '<p class="no-sites">You haven\'t created any sites yet.</p>';
+      } else {
+        sitesList.innerHTML = sites.map(site => `
+          <div class="site-card">
+            <div class="site-info">
+              <span class="site-name">${site.name}</span>
+              <span class="site-url">${site.subdomain}.wolfwave.com</span>
+            </div>
+            <div class="site-actions">
+              <a href="http://${site.subdomain}.localhost:3000" target="_blank" class="btn btn-sm btn-secondary">Visit Site</a>
+              <a href="http://${site.subdomain}.localhost:3000/admin" target="_blank" class="btn btn-sm btn-primary">Admin</a>
+            </div>
+          </div>
+        `).join('');
+      }
+      
+      await loadLimits();
+    } catch (err) {
+      console.error('Error loading sites:', err);
+      document.getElementById('sites-list').innerHTML = '<p class="error">Failed to load sites</p>';
+    }
+  }
+
+  async function loadLimits() {
+    try {
+      const limitsDiv = document.getElementById('site-limits');
+      const createContainer = document.getElementById('create-site-container');
+      const response = await fetch('/api/customer-tenants/limits', { credentials: 'include' });
+      
+      if (!response.ok) return;
+      
+      const data = await response.json();
+      limitsDiv.innerHTML = `${data.used} / ${data.limit} sites used (${data.plan_name})`;
+      
+      if (data.can_create) {
+        createContainer.classList.remove('hidden');
+      } else {
+        createContainer.classList.add('hidden');
+      }
+    } catch (err) {
+      console.error('Error loading limits:', err);
+    }
+  }
+
+  // Handle site creation
+  document.getElementById('create-site-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('create-site-btn');
+    const errDiv = document.getElementById('create-site-error');
+    const name = document.getElementById('site-name').value;
+    const subdomain = document.getElementById('site-subdomain').value;
+
+    errDiv.classList.add('hidden');
+    btn.disabled = true;
+    btn.textContent = 'Launching...';
+
+    try {
+      const response = await fetch('/api/customer-tenants', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ name, subdomain })
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || data.error || 'Failed to create site');
+      }
+
+      // Success
+      document.getElementById('create-site-form').reset();
+      await loadSites();
+      alert('Site created successfully! It is now ready to use.');
+    } catch (err) {
+      errDiv.textContent = err.message;
+      errDiv.classList.remove('hidden');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Launch Site';
+    }
+  });
+
   // Load customer orders
   async function loadOrders() {
     try {
@@ -190,6 +312,7 @@
     console.log('[Account] Customer data from template:', {{ customer | dump | safe }});
     
     loadProfile();
+    loadSites();
     loadOrders();
   });
 </script>
@@ -232,6 +355,117 @@
     margin-bottom: 1.5rem;
     font-size: 1.25rem;
     color: #1f2937;
+  }
+
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+  }
+
+  .section-header h2 {
+    margin-bottom: 0;
+  }
+
+  .limits-badge {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #3b82f6;
+    background: #eff6ff;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+  }
+
+  .sites-grid {
+    display: grid;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .site-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+  }
+
+  .site-info {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .site-name {
+    font-weight: 600;
+    color: #111827;
+  }
+
+  .site-url {
+    font-size: 0.875rem;
+    color: #6b7280;
+  }
+
+  .site-actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .btn-sm {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.875rem;
+  }
+
+  .create-site-box {
+    margin-top: 1.5rem;
+  }
+
+  .create-site-box h3 {
+    font-size: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .form-inline {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+  }
+
+  .form-inline .form-group {
+    flex: 1;
+    margin-bottom: 0;
+  }
+
+  .input-group {
+    display: flex;
+    align-items: center;
+  }
+
+  .input-suffix {
+    background: #f3f4f6;
+    border: 1px solid #d1d5db;
+    border-left: none;
+    padding: 0.75rem;
+    border-radius: 0 4px 4px 0;
+    font-size: 0.875rem;
+    color: #6b7280;
+  }
+
+  .form-inline .form-input {
+    border-radius: 4px;
+  }
+
+  .input-group .form-input {
+    border-radius: 4px 0 0 4px;
+  }
+
+  .no-sites {
+    color: #6b7280;
+    font-style: italic;
+    text-align: center;
+    padding: 1rem;
   }
 
   .profile-info {

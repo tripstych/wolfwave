@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import authRoutes from './auth.js';
 import customerAuthRoutes from './customer-auth.js';
+import customerTenantsRoutes from './customer-tenants.js';
 import pagesRoutes from './pages-prisma.js';
 import templatesRoutes from './templates-prisma.js';
 import mediaRoutes from './media.js';
@@ -37,6 +38,7 @@ const router = Router();
 // System routes (always available)
 router.use('/auth', authRoutes);
 router.use('/customer-auth', customerAuthRoutes);
+router.use('/customer-tenants', customerTenantsRoutes);
 router.use('/pages', pagesRoutes);
 router.use('/templates', templatesRoutes);
 router.use('/media', mediaRoutes);

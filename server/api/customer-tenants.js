@@ -1,0 +1,173 @@
+import { Router } from 'express';
+import prisma from '../lib/prisma.js';
+import { query, getPoolForDb } from '../lib/poolManager.js';
+import { provisionTenant } from '../db/provisionTenant.js';
+import { syncTemplatesToDb } from '../services/templateParser.js';
+import { seedNewTenant } from '../services/tenantSeeder.js';
+import { runWithTenant } from '../lib/tenantContext.js';
+import jwt from 'jsonwebtoken';
+
+const router = Router();
+
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
+
+/**
+ * Middleware: require customer auth
+ */
+function requireCustomer(req, res, next) {
+  const token = req.cookies?.customer_token ||
+    req.headers.authorization?.replace('Bearer ', '');
+
+  if (!token) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    // Ensure it's a customer, not an admin (or at least has customer ID)
+    if (decoded.id) {
+      req.customer = decoded;
+      next();
+    } else {
+      return res.status(403).json({ error: 'Customer access required' });
+    }
+  } catch (err) {
+    return res.status(401).json({ error: 'Invalid or expired token' });
+  }
+}
+
+/**
+ * GET / — list current customer's tenants
+ */
+router.get('/', requireCustomer, async (req, res) => {
+  try {
+    const tenants = await prisma.tenants.findMany({
+      where: { customer_id: req.customer.id },
+      orderBy: { created_at: 'desc' }
+    });
+    res.json(tenants);
+  } catch (err) {
+    console.error('List customer tenants error:', err);
+    res.status(500).json({ error: 'Failed to list sites' });
+  }
+});
+
+/**
+ * GET /limits — check current site limits
+ */
+router.get('/limits', requireCustomer, async (req, res) => {
+  try {
+    const customer = await prisma.customers.findUnique({
+      where: { id: req.customer.id },
+      include: {
+        customer_subscriptions: {
+          where: { status: 'active' },
+          include: { subscription_plans: true },
+          take: 1
+        },
+        _count: {
+          select: { tenants: true }
+        }
+      }
+    });
+
+    const activeSub = customer.customer_subscriptions[0];
+    const planLimit = activeSub?.subscription_plans?.max_sites || 0;
+    const override = customer.max_sites_override;
+    const effectiveLimit = override !== null ? override : planLimit;
+
+    res.json({
+      used: customer._count.tenants,
+      limit: effectiveLimit,
+      plan_name: activeSub?.subscription_plans?.name || 'No Plan',
+      can_create: customer._count.tenants < effectiveLimit
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST / — provision a new tenant for the customer
+ */
+router.post('/', requireCustomer, async (req, res) => {
+  try {
+    const { name, subdomain } = req.body;
+
+    if (!name || !subdomain) {
+      return res.status(400).json({ error: 'Name and subdomain are required' });
+    }
+
+    // 1. Check limits
+    const customer = await prisma.customers.findUnique({
+      where: { id: req.customer.id },
+      include: {
+        customer_subscriptions: {
+          where: { status: 'active' },
+          include: { subscription_plans: true },
+          take: 1
+        },
+        _count: {
+          select: { tenants: true }
+        }
+      }
+    });
+
+    const activeSub = customer.customer_subscriptions[0];
+    const planLimit = activeSub?.subscription_plans?.max_sites || 0;
+    const effectiveLimit = customer.max_sites_override !== null ? customer.max_sites_override : planLimit;
+
+    if (customer._count.tenants >= effectiveLimit) {
+      return res.status(403).json({ 
+        error: 'Limit reached', 
+        message: `You have reached your limit of ${effectiveLimit} site(s). Please upgrade your plan to create more.` 
+      });
+    }
+
+    // 2. Validate subdomain format
+    if (!/^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$/.test(subdomain)) {
+      return res.status(400).json({
+        error: 'Subdomain must be lowercase alphanumeric with optional hyphens'
+      });
+    }
+
+    // 3. Check globally if subdomain exists
+    const existing = await prisma.tenants.findUnique({ where: { subdomain } });
+    if (existing) {
+      return res.status(409).json({ error: 'Subdomain already in use' });
+    }
+
+    // 4. Provision
+    // Use dummy email/password for the internal admin user of the new tenant
+    // The customer is the "owner" in the primary DB.
+    const dbName = await provisionTenant(subdomain, req.customer.email, 'changeme123!');
+
+    // 5. Register
+    const tenant = await prisma.tenants.create({
+      data: {
+        name,
+        subdomain,
+        database_name: dbName,
+        customer_id: req.customer.id,
+        status: 'active'
+      }
+    });
+
+    // 6. Setup tenant
+    try {
+      await runWithTenant(dbName, async () => {
+        await syncTemplatesToDb(prisma, 'default');
+        await seedNewTenant(name);
+      });
+    } catch (syncErr) {
+      console.error(`[CUSTOMER_TENANT_SETUP] Failed for ${dbName}:`, syncErr.message);
+    }
+
+    res.status(201).json(tenant);
+  } catch (err) {
+    console.error('Customer site creation error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+export default router;

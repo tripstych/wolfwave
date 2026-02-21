@@ -120,6 +120,7 @@ model customers {
   first_name             String?                  @db.VarChar(100)
   last_name              String?                  @db.VarChar(100)
   phone                  String?                  @db.VarChar(20)
+  max_sites_override     Int?
   created_at             DateTime                 @default(now()) @db.Timestamp(0)
   updated_at             DateTime                 @default(now()) @db.Timestamp(0)
   password               String?                  @db.VarChar(255)
@@ -135,6 +136,7 @@ model customers {
   users                  users?                   @relation(fields: [user_id], references: [id], onUpdate: Restrict, map: "customers_ibfk_1")
   orders                 orders[]
   customer_subscriptions customer_subscriptions[]
+  tenants                tenants[]
 
   @@index([email], map: "idx_email")
   @@index([user_id], map: "user_id")
@@ -408,15 +410,18 @@ model email_templates {
 
 model tenants {
   id            Int             @id @default(autoincrement())
+  customer_id   Int?            // Owner
   name          String          @unique(map: "name_t") @db.VarChar(100)
   subdomain     String          @unique(map: "subdomain_t") @db.VarChar(100)
   database_name String          @unique(map: "database_name_t") @db.VarChar(200)
   status        tenants_status? @default(active)
   created_at    DateTime        @default(now()) @db.Timestamp(0)
   updated_at    DateTime        @default(now()) @db.Timestamp(0)
+  customers     customers?      @relation(fields: [customer_id], references: [id], onDelete: SetNull)
 
   @@index([subdomain], map: "idx_subdomain")
   @@index([status], map: "idx_tenant_status")
+  @@index([customer_id], map: "idx_tenant_customer")
 }
 
 model settings {
@@ -501,6 +506,7 @@ model subscription_plans {
   trial_days             Int                      @default(0)
   features               Json?
   product_discount       Decimal?                 @default(0.00) @db.Decimal(5, 2)
+  max_sites              Int?                     @default(1)
   target_slugs           Json?
   is_active              Boolean                  @default(true)
   position               Int                      @default(0)

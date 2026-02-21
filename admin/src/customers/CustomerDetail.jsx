@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Mail, Phone, Calendar, Package, CreditCard } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, Calendar, Package, CreditCard, Save, Globe } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function CustomerDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [customer, setCustomer] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
   const [error, setError] = useState('');
+  const [overrideValue, setOverrideValue] = useState('');
 
   useEffect(() => {
     loadCustomer();
@@ -28,12 +31,38 @@ export default function CustomerDetail() {
 
       const data = await response.json();
       setCustomer(data);
+      setOverrideValue(data.max_sites_override !== null ? String(data.max_sites_override) : '');
       setError('');
     } catch (err) {
       console.error('Failed to load customer:', err);
       setError('Failed to load customer details');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUpdateOverride = async () => {
+    try {
+      setUpdating(true);
+      const response = await fetch(`/api/customers/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          max_sites_override: overrideValue === '' ? '' : parseInt(overrideValue)
+        })
+      });
+
+      if (!response.ok) throw new Error('Failed to update');
+      
+      toast.success('Customer site limit updated');
+      loadCustomer();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -144,6 +173,33 @@ export default function CustomerDetail() {
                 </span>
               </p>
             </div>
+
+            <div className="pt-4 border-t border-gray-100">
+              <label className="text-sm font-medium text-gray-600 flex items-center gap-2">
+                <Globe className="w-4 h-4 text-gray-400" />
+                Site Creation Limit Override
+              </label>
+              <div className="flex gap-2 mt-1">
+                <input
+                  type="number"
+                  value={overrideValue}
+                  onChange={(e) => setOverrideValue(e.target.value)}
+                  className="input py-1 text-sm flex-1"
+                  placeholder="Leave empty for plan default"
+                  min="0"
+                />
+                <button
+                  onClick={handleUpdateOverride}
+                  disabled={updating}
+                  className="btn btn-primary py-1 px-3"
+                >
+                  <Save className="w-4 h-4" />
+                </button>
+              </div>
+              <p className="text-[10px] text-gray-500 mt-1">
+                Sets the max number of sites this customer can create, overriding their subscription plan.
+              </p>
+            </div>
           </div>
         </div>
 
@@ -178,6 +234,43 @@ export default function CustomerDetail() {
             <p className="text-gray-600">No orders yet</p>
           )}
         </div>
+      </div>
+
+      {/* Owned Sites */}
+      <div className="card p-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <Globe className="w-5 h-5" />
+          Owned Sites ({customer.tenants?.length || 0})
+        </h2>
+        {customer.tenants && customer.tenants.length > 0 ? (
+          <div className="space-y-3">
+            {customer.tenants.map((site) => (
+              <div
+                key={site.id}
+                className="flex justify-between items-center px-4 py-3 bg-gray-50 rounded-md border border-gray-200"
+              >
+                <div>
+                  <div className="font-medium">{site.name}</div>
+                  <div className="text-sm text-gray-500">
+                    {site.subdomain}.wolfwave.com
+                  </div>
+                </div>
+                <div className="flex gap-2 items-center">
+                  <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
+                    site.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                  }`}>
+                    {site.status}
+                  </span>
+                  <a href={`http://${site.subdomain}.localhost:3000`} target="_blank" className="btn btn-sm btn-secondary p-1">
+                    <Globe className="w-4 h-4" />
+                  </a>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-gray-600">This customer doesn't own any sites yet.</p>
+        )}
       </div>
 
       {/* Subscription */}

@@ -110,7 +110,7 @@ router.get('/:id', requireAuth, async (req, res) => {
  */
 router.post('/', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const { name, slug, description, price, interval, interval_count, trial_days, features, is_active, position, product_discount, target_slugs } = req.body;
+    const { name, slug, description, price, interval, interval_count, trial_days, features, is_active, position, product_discount, target_slugs, max_sites } = req.body;
 
     if (!name || !slug || price === undefined) {
       return res.status(400).json({ error: 'Name, slug, and price are required' });
@@ -143,8 +143,8 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
     }
 
     const sql = `
-      INSERT INTO subscription_plans (name, slug, description, price, \`interval\`, interval_count, trial_days, features, is_active, position, product_discount, stripe_product_id, stripe_price_id, target_slugs)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO subscription_plans (name, slug, description, price, \`interval\`, interval_count, trial_days, features, is_active, position, product_discount, stripe_product_id, stripe_price_id, target_slugs, max_sites)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
     
     const params = [
@@ -153,7 +153,8 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
       features ? JSON.stringify(features) : null,
       is_active !== false ? 1 : 0, parseInt(position) || 0, parseFloat(product_discount) || 0,
       stripe_product_id, stripe_price_id,
-      target_slugs ? JSON.stringify(target_slugs) : null
+      target_slugs ? JSON.stringify(target_slugs) : null,
+      max_sites !== undefined ? parseInt(max_sites) : 1
     ];
 
     const result = await query(sql, params);
@@ -172,7 +173,7 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
 router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
     const planId = parseInt(req.params.id);
-    const { name, slug, description, price, interval, interval_count, trial_days, features, is_active, position, product_discount, target_slugs } = req.body;
+    const { name, slug, description, price, interval, interval_count, trial_days, features, is_active, position, product_discount, target_slugs, max_sites } = req.body;
 
     const [existing] = await query('SELECT * FROM subscription_plans WHERE id = ?', [planId]);
     if (!existing) return res.status(404).json({ error: 'Plan not found' });
@@ -223,7 +224,7 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
       SET name = ?, slug = ?, description = ?, price = ?, \`interval\` = ?, 
           interval_count = ?, trial_days = ?, features = ?, is_active = ?, 
           position = ?, product_discount = ?, target_slugs = ?,
-          stripe_product_id = ?, stripe_price_id = ?
+          stripe_product_id = ?, stripe_price_id = ?, max_sites = ?
       WHERE id = ?
     `;
     
@@ -242,6 +243,7 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
       target_slugs ? JSON.stringify(target_slugs) : existing.target_slugs,
       stripe_product_id,
       stripe_price_id,
+      max_sites !== undefined ? parseInt(max_sites) : existing.max_sites,
       planId
     ];
 

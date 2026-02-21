@@ -17,6 +17,7 @@ export default function PlanEditor() {
     interval_count: 1,
     trial_days: 0,
     product_discount: 0,
+    max_sites: 1,
     target_slugs: [],
     features: [],
     is_active: true,
@@ -49,6 +50,7 @@ export default function PlanEditor() {
         interval_count: data.interval_count || 1,
         trial_days: data.trial_days || 0,
         product_discount: data.product_discount || 0,
+        max_sites: data.max_sites || 1,
         target_slugs: Array.isArray(data.target_slugs) ? data.target_slugs : [],
         features: Array.isArray(data.features) ? data.features : [],
         is_active: data.is_active !== false,
@@ -103,6 +105,7 @@ export default function PlanEditor() {
           interval_count: parseInt(plan.interval_count) || 1,
           trial_days: parseInt(plan.trial_days) || 0,
           product_discount: parseFloat(plan.product_discount) || 0,
+          max_sites: parseInt(plan.max_sites) || 1,
           target_slugs: plan.target_slugs,
           features: plan.features,
           is_active: plan.is_active,
@@ -225,6 +228,23 @@ export default function PlanEditor() {
               className="input"
               placeholder="e.g., pro, premium"
             />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="max-w-[200px]">
+            <label className="label">Max Sites Allowed</label>
+            <input
+              type="number"
+              value={plan.max_sites}
+              onChange={(e) => setPlan({ ...plan, max_sites: e.target.value })}
+              className="input"
+              min="1"
+              placeholder="1"
+            />
+            <p className="text-[10px] text-gray-500 mt-1">
+              Number of tenant sites this plan can create.
+            </p>
           </div>
         </div>
 

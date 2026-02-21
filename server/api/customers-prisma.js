@@ -87,7 +87,8 @@ router.get('/:id', requireAuth, requireAdmin, async (req, res) => {
             subscription_plans: true
           },
           orderBy: { created_at: 'desc' }
-        }
+        },
+        tenants: true
       }
     });
 
@@ -116,6 +117,31 @@ router.get('/:id', requireAuth, requireAdmin, async (req, res) => {
   } catch (err) {
     console.error('Get customer error:', err);
     res.status(500).json({ error: 'Failed to get customer' });
+  }
+});
+
+/**
+ * Update customer
+ */
+router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const customerId = parseInt(req.params.id);
+    const { first_name, last_name, phone, max_sites_override } = req.body;
+
+    const customer = await prisma.customers.update({
+      where: { id: customerId },
+      data: {
+        first_name,
+        last_name,
+        phone,
+        max_sites_override: max_sites_override !== undefined ? (max_sites_override === '' ? null : parseInt(max_sites_override)) : undefined
+      }
+    });
+
+    res.json(customer);
+  } catch (err) {
+    console.error('Update customer error:', err);
+    res.status(500).json({ error: 'Failed to update customer' });
   }
 });
 
