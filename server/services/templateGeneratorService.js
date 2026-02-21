@@ -44,6 +44,8 @@ export async function generateTemplateFromGroup(siteId, structuralHash, template
 }
 
 export async function analyzeSiteGroups(siteId) {
+  const dbName = getCurrentDbName();
+  
   const groups = await prisma.imported_pages.groupBy({
     by: ['structural_hash'],
     where: { site_id: siteId, status: 'completed' },
@@ -51,15 +53,39 @@ export async function analyzeSiteGroups(siteId) {
   });
 
   return Promise.all(groups.map(async (group) => {
-    const samplePage = await prisma.imported_pages.findFirst({
+    // 1. Get all pages in this group to determine the dominant type
+    const pages = await prisma.imported_pages.findMany({
       where: { site_id: siteId, structural_hash: group.structural_hash, status: 'completed' },
-      select: { url: true, title: true }
+      select: { url: true, title: true, metadata: true }
     });
+
+    let productCount = 0;
+    let samplePage = null;
+
+    pages.forEach(p => {
+      const meta = typeof p.metadata === 'string' ? JSON.parse(p.metadata) : p.metadata;
+      if (meta && meta.type === 'product') {
+        productCount++;
+      } else if (!samplePage) {
+        // First non-product is our ideal sample
+        samplePage = p;
+      }
+    });
+
+    // If no non-product pages found, use the first page available
+    if (!samplePage && pages.length > 0) {
+      samplePage = pages[0];
+    }
+
+    const isProductGroup = productCount > (pages.length / 2);
+
     return {
       structural_hash: group.structural_hash,
       count: group._count.id,
       sample_url: samplePage?.url,
-      sample_title: samplePage?.title
+      sample_title: samplePage?.title,
+      type: isProductGroup ? 'product' : 'page',
+      product_count: productCount
     };
   }));
 }

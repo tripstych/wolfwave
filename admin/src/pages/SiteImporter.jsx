@@ -608,14 +608,18 @@ export default function SiteImporter() {
                   {groups.map((g, i) => (
                     <div key={i} className="card p-4">
                       <div className="flex justify-between mb-4">
-                        <div>
+                        <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="px-2 py-0.5 bg-gray-100 text-xs font-mono">{g.structural_hash.substring(0,8)}</span>
-                            <span className="text-xs font-medium text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full">{g.count} pages</span>
+                            <span className="px-2 py-0.5 bg-gray-100 text-[10px] font-mono rounded">{g.structural_hash.substring(0,8)}</span>
+                            <span className="text-[10px] font-medium text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full">{g.count} pages</span>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${g.type === 'product' ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-green-50 text-green-700 border border-green-200'}`}>
+                              {g.type}
+                            </span>
                           </div>
-                          <h3 className="font-bold">{g.sample_title}</h3>
+                          <h3 className="font-bold truncate">{g.sample_title}</h3>
+                          <p className="text-[10px] text-gray-400 truncate">{g.sample_url}</p>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 shrink-0">
                           <button onClick={() => openVisualPicker(g.sample_url)} className="btn btn-ghost btn-sm text-amber-600"><Maximize2 className="w-4 h-4 mr-1" /> Visual Picker</button>
                           <button onClick={() => handleGenerateTemplate(g.structural_hash)} className="btn btn-ghost btn-sm text-primary-600"><FileCode className="w-4 h-4 mr-1" /> Generate</button>
                         </div>
