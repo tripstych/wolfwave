@@ -3,6 +3,9 @@ import mysql from 'mysql2/promise';
 import { requireAuth, requireAdmin } from '../middleware/auth.js';
 import { getPoolForDb } from '../lib/poolManager.js';
 import { provisionTenant } from '../db/provisionTenant.js';
+import { syncTemplatesToDb } from '../services/templateParser.js';
+import prisma from '../lib/prisma.js';
+import { runWithTenant } from '../lib/tenantContext.js';
 
 const router = Router();
 
@@ -85,6 +88,19 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
       'INSERT INTO tenants (name, subdomain, database_name, status) VALUES (?, ?, ?, ?)',
       [name, subdomain, dbName, 'active']
     );
+
+    // ── AUTO-SYNC TEMPLATES FOR NEW TENANT ──
+    try {
+      console.log(`[TENANT_CREATE] Running initial template sync for ${dbName}...`);
+      await runWithTenant(dbName, async () => {
+        await syncTemplatesToDb(prisma, 'default');
+      });
+      console.log(`[TENANT_CREATE] Initial template sync complete.`);
+    } catch (syncErr) {
+      console.error(`[TENANT_CREATE] Initial template sync failed for ${dbName}:`, syncErr.message);
+      // We don't fail the whole creation because of a sync failure, 
+      // but it will be logged.
+    }
 
     const tenant = {
       id: result.insertId,
