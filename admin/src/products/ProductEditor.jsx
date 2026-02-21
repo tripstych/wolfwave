@@ -8,7 +8,7 @@ import TitleSlugSection from '../components/TitleSlugSection';
 import RichTextEditor from '../components/RichTextEditor';
 import MediaPicker from '../components/MediaPicker';
 import ContentGroupsWidget from '../components/ContentGroupsWidget';
-import { Save, ArrowLeft, Image as ImageIcon, ExternalLink, Plus, X, Trash2, DownloadCloud, Loader2 } from 'lucide-react';
+import { Save, ArrowLeft, Image as ImageIcon, ExternalLink, Plus, X, Trash2, DownloadCloud, Loader2, Lock, Shield } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function ProductEditor() {
@@ -43,7 +43,11 @@ export default function ProductEditor() {
     download_url: '',
     download_limit: 5,
     download_expiry_days: 30,
-    variants: []
+    variants: [],
+    access_rules: {
+      auth: 'any',
+      subscription: 'any'
+    }
   });
 
   const [templates, setTemplates] = useState([]);
@@ -273,6 +277,12 @@ export default function ProductEditor() {
 
       const data = await response.json();
       console.log('[ProductEditor] Fetched product:', data);
+      
+      // Ensure access_rules exists
+      if (!data.access_rules) {
+        data.access_rules = { auth: 'any', subscription: 'any' };
+      }
+      
       setProduct(data);
       setSlugEdited(true); // Mark as edited so sync doesn't overwrite fetched slug
 
@@ -608,305 +618,369 @@ export default function ProductEditor() {
 
       {error && <div className="p-4 bg-red-50 border border-red-200 rounded text-red-800 mb-4">{error}</div>}
 
-      {/* Title and Slug Section */}
-      <TitleSlugSection
-        title={product.title}
-        slug={product.slug}
-        onTitleChange={(title) => handleUnifiedChange('title', title)}
-        onSlugChange={(slug) => {
-          setSlugEdited(true);
-          handleUnifiedChange('slug', slug);
-        }}
-      />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
+          {/* Title and Slug Section */}
+          <TitleSlugSection
+            title={product.title}
+            slug={product.slug}
+            onTitleChange={(title) => handleUnifiedChange('title', title)}
+            onSlugChange={(slug) => {
+              setSlugEdited(true);
+              handleUnifiedChange('slug', slug);
+            }}
+          />
 
-      {/* Product Image */}
-      <div className="card p-6 mb-6">
-        <h2 className="mt-0 mb-4 text-lg">Product Image</h2>
-        <div className="flex items-start gap-4">
-          {product.og_image && (
-            <img src={product.og_image} alt="" className="w-[120px] h-[120px] object-cover rounded-md border border-gray-200" />
-          )}
-          <div className="flex flex-col gap-2">
-            <button
-              type="button"
-              onClick={() => openMediaPicker('og_image')}
-              className="btn btn-secondary inline-flex items-center gap-2"
-            >
-              <ImageIcon className="w-4 h-4" />
-              {product.og_image ? 'Change Image' : 'Select Image'}
-            </button>
-            {product.og_image && (
-              <button
-                type="button"
-                onClick={() => handleUnifiedChange('og_image', '')}
-                className="btn btn-ghost text-red-500 text-sm"
-              >
-                Remove
-              </button>
-            )}
-            <p className="m-0 text-xs text-gray-500">
-              Default image for this product. Variants without their own image will use this.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Inventory Management */}
-      <div className="card p-6 mb-6">
-        <h2 className="mt-0 mb-6 text-lg">Inventory Management</h2>
-
-        <div className="grid grid-cols-2 gap-6">
-          <div>
-            <label className="label">SKU *</label>
-            <input
-              type="text"
-              value={product.sku}
-              onChange={(e) => handleUnifiedChange('sku', e.target.value)}
-              className="input"
-              placeholder="e.g. WB-001"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="label">
-              {product.variants?.length > 0 ? 'Total Inventory (Managed by Variants)' : 'Inventory Quantity'}
-            </label>
-            <input
-              type="number"
-              value={product.inventory_quantity ?? ''}
-              onChange={(e) => handleUnifiedChange('inventory_quantity', e.target.value ? parseInt(e.target.value) : null)}
-              className="input"
-              disabled={product.variants?.length > 0 || !product.inventory_tracking}
-              placeholder={product.variants?.length > 0 ? 'See variants below' : 'Enter quantity'}
-            />
-          </div>
-        </div>
-
-        <div className="mt-6 flex gap-8">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={product.inventory_tracking}
-              onChange={(e) => handleUnifiedChange('inventory_tracking', e.target.checked)}
-            />
-            <span className="text-sm font-medium">Track Inventory</span>
-          </label>
-
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={product.allow_backorder}
-              onChange={(e) => handleUnifiedChange('allow_backorder', e.target.checked)}
-            />
-            <span className="text-sm font-medium">Allow Backorder</span>
-          </label>
-        </div>
-      </div>
-
-      <div className="card p-6 mb-6">
-        <h2 className="mt-0 mb-6 text-lg">Template Selection</h2>
-
-        <div className="mb-6">
-          <label className="label">Product Template *</label>
-          <select
-            value={product.template_id || ''}
-            onChange={(e) => handleTemplateChange(e.target.value)}
-            className="input"
-          >
-            <option value="">Select template</option>
-            {templates.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {product.template_id && (
-        <div className="card p-6 mb-6">
-          <h2 className="mt-0 mb-6 text-lg">Product Details</h2>
-
-          {getMergedFields().map((field) => (
-            <div key={field.name} className="mb-6">
-              <div className="flex items-center gap-2 mb-2">
-                {field.type === 'checkbox' ? (
-                  <>
-                    {renderField(field)}
-                    <label className="font-medium m-0">
-                      {field.label}
-                      {field.required && <span className="text-red-500"> *</span>}
-                    </label>
-                  </>
-                ) : (
-                  <label className="block font-medium text-gray-700">
-                    {field.label}
-                    {field.required && <span className="text-red-500"> *</span>}
-                  </label>
-                )}
-              </div>
-              {field.type !== 'checkbox' && renderField(field)}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Options & Variants Section */}
-      {product.template_id && (
-        <div className="card p-6 mb-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="m-0 text-lg">Options & Variants</h2>
-            {options.length < 3 && (
-              <button
-                type="button"
-                onClick={addOption}
-                className="btn btn-secondary text-sm"
-              >
-                <Plus className="w-4 h-4 mr-2" /> Add Option
-              </button>
-            )}
-          </div>
-
-          {options.length === 0 && (
-            <p className="text-gray-500 m-0">
-              No options defined. Add options like Color or Size to create product variants.
-            </p>
-          )}
-
-          {options.map((option, optIndex) => (
-            <div key={optIndex} className="border border-gray-200 rounded-md p-4 mb-4">
-              <div className="flex gap-3 items-center mb-3">
-                <input
-                  type="text"
-                  value={option.name}
-                  onChange={(e) => updateOptionName(optIndex, e.target.value)}
-                  placeholder="Option name (e.g. Color, Size)"
-                  className="input flex-1 font-medium"
-                />
+          {/* Product Image */}
+          <div className="card p-6">
+            <h2 className="mt-0 mb-4 text-lg">Product Image</h2>
+            <div className="flex items-start gap-4">
+              {product.og_image && (
+                <img src={product.og_image} alt="" className="w-[120px] h-[120px] object-cover rounded-md border border-gray-200" />
+              )}
+              <div className="flex flex-col gap-2">
                 <button
                   type="button"
-                  onClick={() => removeOption(optIndex)}
-                  className="p-1 text-red-500 hover:text-red-700"
-                  title="Remove option"
+                  onClick={() => openMediaPicker('og_image')}
+                  className="btn btn-secondary inline-flex items-center gap-2"
                 >
-                  <Trash2 className="w-4 h-4" />
+                  <ImageIcon className="w-4 h-4" />
+                  {product.og_image ? 'Change Image' : 'Select Image'}
                 </button>
-              </div>
-              <div className="flex flex-wrap gap-2 mb-2">
-                {option.values.map((val, valIndex) => (
-                  <span
-                    key={valIndex}
-                    className="inline-flex items-center gap-1 bg-gray-100 border border-gray-200 rounded px-2 py-1 text-sm"
+                {product.og_image && (
+                  <button
+                    type="button"
+                    onClick={() => handleUnifiedChange('og_image', '')}
+                    className="btn btn-ghost text-red-500 text-sm p-0 h-auto inline-flex items-center gap-1"
                   >
-                    {val}
+                    <X className="w-3 h-3" /> Remove image
+                  </button>
+                )}
+                <p className="m-0 text-xs text-gray-500">
+                  Default image for this product. Variants without their own image will use this.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Inventory Management */}
+          <div className="card p-6">
+            <h2 className="mt-0 mb-6 text-lg">Inventory Management</h2>
+
+            <div className="grid grid-cols-2 gap-6">
+              <div>
+                <label className="label">SKU *</label>
+                <input
+                  type="text"
+                  value={product.sku}
+                  onChange={(e) => handleUnifiedChange('sku', e.target.value)}
+                  className="input"
+                  placeholder="e.g. WB-001"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="label">
+                  {product.variants?.length > 0 ? 'Total Inventory (Managed by Variants)' : 'Inventory Quantity'}
+                </label>
+                <input
+                  type="number"
+                  value={product.inventory_quantity ?? ''}
+                  onChange={(e) => handleUnifiedChange('inventory_quantity', e.target.value ? parseInt(e.target.value) : null)}
+                  className="input"
+                  disabled={product.variants?.length > 0 || !product.inventory_tracking}
+                  placeholder={product.variants?.length > 0 ? 'See variants below' : 'Enter quantity'}
+                />
+              </div>
+            </div>
+
+            <div className="mt-6 flex gap-8">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={product.inventory_tracking}
+                  onChange={(e) => handleUnifiedChange('inventory_tracking', e.target.checked)}
+                />
+                <span className="text-sm font-medium">Track Inventory</span>
+              </label>
+
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={product.allow_backorder}
+                  onChange={(e) => handleUnifiedChange('allow_backorder', e.target.checked)}
+                />
+                <span className="text-sm font-medium">Allow Backorder</span>
+              </label>
+            </div>
+          </div>
+
+          {product.template_id && (
+            <div className="card p-6">
+              <h2 className="mt-0 mb-6 text-lg">Product Details</h2>
+
+              {getMergedFields().map((field) => (
+                <div key={field.name} className="mb-6 last:mb-0">
+                  <div className="flex items-center gap-2 mb-2">
+                    {field.type === 'checkbox' ? (
+                      <>
+                        {renderField(field)}
+                        <label className="font-medium m-0">
+                          {field.label}
+                          {field.required && <span className="text-red-500"> *</span>}
+                        </label>
+                      </>
+                    ) : (
+                      <label className="block font-medium text-gray-700">
+                        {field.label}
+                        {field.required && <span className="text-red-500"> *</span>}
+                      </label>
+                    )}
+                  </div>
+                  {field.type !== 'checkbox' && renderField(field)}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Options & Variants Section */}
+          {product.template_id && (
+            <div className="card p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="m-0 text-lg">Options & Variants</h2>
+                {options.length < 3 && (
+                  <button
+                    type="button"
+                    onClick={addOption}
+                    className="btn btn-secondary text-sm"
+                  >
+                    <Plus className="w-4 h-4 mr-2" /> Add Option
+                  </button>
+                )}
+              </div>
+
+              {options.length === 0 && (
+                <p className="text-gray-500 m-0">
+                  No options defined. Add options like Color or Size to create product variants.
+                </p>
+              )}
+
+              {options.map((option, optIndex) => (
+                <div key={optIndex} className="border border-gray-200 rounded-md p-4 mb-4">
+                  <div className="flex gap-3 items-center mb-3">
+                    <input
+                      type="text"
+                      value={option.name}
+                      onChange={(e) => updateOptionName(optIndex, e.target.value)}
+                      placeholder="Option name (e.g. Color, Size)"
+                      className="input flex-1 font-medium"
+                    />
                     <button
                       type="button"
-                      onClick={() => removeOptionValue(optIndex, valIndex)}
-                      className="text-gray-400 hover:text-gray-600 p-0 leading-none"
+                      onClick={() => removeOption(optIndex)}
+                      className="p-1 text-red-500 hover:text-red-700"
+                      title="Remove option"
                     >
-                      <X className="w-3 h-3" />
+                      <Trash2 className="w-4 h-4" />
                     </button>
-                  </span>
-                ))}
-              </div>
-              <input
-                type="text"
-                placeholder="Type a value and press Enter"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    addOptionValue(optIndex, e.target.value);
-                    e.target.value = '';
-                  }
-                }}
-                className="input text-sm"
-              />
-            </div>
-          ))}
-
-          {/* Variant Table */}
-          {product.variants && product.variants.length > 0 && (
-            <div className="mt-6">
-              <h3 className="text-base mb-4">
-                Variants ({product.variants.length})
-              </h3>
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse text-sm">
-                  <thead>
-                    <tr className="border-b-2 border-gray-200">
-                      <th className="text-left p-2 font-semibold">Variant</th>
-                      <th className="text-left p-2 font-semibold">SKU</th>
-                      <th className="text-left p-2 font-semibold">Price</th>
-                      <th className="text-left p-2 font-semibold">Inventory</th>
-                      <th className="text-left p-2 font-semibold">Image</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {product.variants.map((variant, vIndex) => (
-                      <tr key={vIndex} className="border-b border-gray-100">
-                        <td className="p-2 font-medium">{variant.title}</td>
-                        <td className="p-2">
-                          <input
-                            type="text"
-                            value={variant.sku || ''}
-                            onChange={(e) => handleVariantChange(vIndex, 'sku', e.target.value)}
-                            placeholder={product.sku ? `${product.sku}-${vIndex + 1}` : ''}
-                            className="input py-1 text-sm"
-                          />
-                        </td>
-                        <td className="p-2">
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={variant.price ?? ''}
-                            onChange={(e) => handleVariantChange(vIndex, 'price', e.target.value ? parseFloat(e.target.value) : null)}
-                            placeholder={product.price?.toString() || '0'}
-                            className="input w-[100px] py-1 text-sm"
-                          />
-                        </td>
-                        <td className="p-2">
-                          <input
-                            type="number"
-                            value={variant.inventory_quantity ?? 0}
-                            onChange={(e) => handleVariantChange(vIndex, 'inventory_quantity', parseInt(e.target.value) || 0)}
-                            className="input w-[80px] py-1 text-sm"
-                          />
-                        </td>
-                        <td className="p-2">
-                          <div className="flex items-center gap-2">
-                            {variant.image && (
-                              <img src={variant.image} alt="" className="w-8 h-8 object-cover rounded border border-gray-300" />
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => openMediaPicker(`variant.${vIndex}`)}
-                              className="border border-gray-300 rounded p-1 flex items-center hover:bg-gray-50"
-                              title="Select image"
-                            >
-                              <ImageIcon className="w-4 h-4 text-gray-500" />
-                            </button>
-                            {variant.image && (
-                              <button
-                                type="button"
-                                onClick={() => handleVariantChange(vIndex, 'image', null)}
-                                className="text-gray-400 hover:text-gray-600 p-0"
-                                title="Remove image"
-                              >
-                                <X className="w-3 h-3" />
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
+                  </div>
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {option.values.map((val, valIndex) => (
+                      <span
+                        key={valIndex}
+                        className="inline-flex items-center gap-1 bg-gray-100 border border-gray-200 rounded px-2 py-1 text-sm"
+                      >
+                        {val}
+                        <button
+                          type="button"
+                          onClick={() => removeOptionValue(optIndex, valIndex)}
+                          className="text-gray-400 hover:text-gray-600 p-0 leading-none"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
                     ))}
-                  </tbody>
-                </table>
-              </div>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Type a value and press Enter"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addOptionValue(optIndex, e.target.value);
+                        e.target.value = '';
+                      }
+                    }}
+                    className="input text-sm"
+                  />
+                </div>
+              ))}
+
+              {/* Variant Table */}
+              {product.variants && product.variants.length > 0 && (
+                <div className="mt-6">
+                  <h3 className="text-base mb-4">
+                    Variants ({product.variants.length})
+                  </h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse text-sm">
+                      <thead>
+                        <tr className="border-b-2 border-gray-200">
+                          <th className="text-left p-2 font-semibold">Variant</th>
+                          <th className="text-left p-2 font-semibold">SKU</th>
+                          <th className="text-left p-2 font-semibold">Price</th>
+                          <th className="text-left p-2 font-semibold">Inventory</th>
+                          <th className="text-left p-2 font-semibold">Image</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {product.variants.map((variant, vIndex) => (
+                          <tr key={vIndex} className="border-b border-gray-100">
+                            <td className="p-2 font-medium">{variant.title}</td>
+                            <td className="p-2">
+                              <input
+                                type="text"
+                                value={variant.sku || ''}
+                                onChange={(e) => handleVariantChange(vIndex, 'sku', e.target.value)}
+                                placeholder={product.sku ? `${product.sku}-${vIndex + 1}` : ''}
+                                className="input py-1 text-sm"
+                              />
+                            </td>
+                            <td className="p-2">
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={variant.price ?? ''}
+                                onChange={(e) => handleVariantChange(vIndex, 'price', e.target.value ? parseFloat(e.target.value) : null)}
+                                placeholder={product.price?.toString() || '0'}
+                                className="input w-[100px] py-1 text-sm"
+                              />
+                            </td>
+                            <td className="p-2">
+                              <input
+                                type="number"
+                                value={variant.inventory_quantity ?? 0}
+                                onChange={(e) => handleVariantChange(vIndex, 'inventory_quantity', parseInt(e.target.value) || 0)}
+                                className="input w-[80px] py-1 text-sm"
+                              />
+                            </td>
+                            <td className="p-2">
+                              <div className="flex items-center gap-2">
+                                {variant.image && (
+                                  <img src={variant.image} alt="" className="w-8 h-8 object-cover rounded border border-gray-300" />
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => openMediaPicker(`variant.${vIndex}`)}
+                                  className="border border-gray-300 rounded p-1 flex items-center hover:bg-gray-50"
+                                  title="Select image"
+                                >
+                                  <ImageIcon className="w-4 h-4 text-gray-500" />
+                                </button>
+                                {variant.image && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleVariantChange(vIndex, 'image', null)}
+                                    className="text-gray-400 hover:text-gray-600 p-0"
+                                    title="Remove image"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
-      )}
+
+        <div className="space-y-6">
+          {/* Status & Template */}
+          <div className="card p-6 space-y-4">
+            <div>
+              <label className="label">Status</label>
+              <select
+                value={product.status || 'draft'}
+                onChange={(e) => handleUnifiedChange('status', e.target.value)}
+                className="input"
+              >
+                <option value="draft">Draft</option>
+                <option value="active">Active</option>
+                <option value="archived">Archived</option>
+              </select>
+            </div>
+            <div>
+              <label className="label">Product Template *</label>
+              <select
+                value={product.template_id || ''}
+                onChange={(e) => handleTemplateChange(e.target.value)}
+                className="input"
+              >
+                <option value="">Select template</option>
+                {templates.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Access Control */}
+          <div className="card p-6 space-y-4">
+            <h2 className="font-semibold text-gray-900 flex items-center gap-2 text-base">
+              <Lock className="w-4 h-4" />
+              Access Control
+            </h2>
+            <div className="space-y-4">
+              <div>
+                <label className="label text-sm">Authentication</label>
+                <select
+                  value={product.access_rules?.auth || 'any'}
+                  onChange={(e) => setProduct(p => ({ 
+                    ...p, 
+                    access_rules: { ...p.access_rules, auth: e.target.value } 
+                  }))}
+                  className="input"
+                >
+                  <option value="any">Everyone</option>
+                  <option value="logged_in">Logged In Only</option>
+                  <option value="logged_out">Logged Out Only</option>
+                </select>
+              </div>
+              <div>
+                <label className="label text-sm">Subscription</label>
+                <select
+                  value={product.access_rules?.subscription || 'any'}
+                  onChange={(e) => setProduct(p => ({ 
+                    ...p, 
+                    access_rules: { ...p.access_rules, subscription: e.target.value } 
+                  }))}
+                  className="input"
+                >
+                  <option value="any">No Subscription Required</option>
+                  <option value="required">Active Subscription Required</option>
+                </select>
+              </div>
+              {product.access_rules?.subscription === 'required' && (
+                <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg text-xs text-blue-700">
+                  <p className="flex items-start gap-2">
+                    <Shield className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                    Users without an active subscription will be redirected to the pricing page.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Groups Widget */}
       {product.content_id && (

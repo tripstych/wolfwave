@@ -9,13 +9,12 @@ const router = Router();
 // List all products
 router.get('/', requireAuth, async (req, res) => {
   try {
-    const { 
+    const {
       status, 
       search, 
       sku, 
       min_price, 
       max_price, 
-      subscription_only,
       sort_by = 'created_at',
       order = 'desc',
       limit = 50, 
@@ -29,7 +28,6 @@ router.get('/', requireAuth, async (req, res) => {
     const where = {};
     if (status) where.status = status;
     if (sku) where.sku = sku;
-    if (subscription_only !== undefined) where.subscription_only = subscription_only === 'true';
     
     // Price range
     if (min_price || max_price) {
@@ -112,6 +110,7 @@ router.get('/:id', requireAuth, async (req, res) => {
       slug: product.content?.slug || '',
       og_image: contentData.og_image || '',
       content: contentData,
+      access_rules: product.access_rules ? (typeof product.access_rules === 'string' ? JSON.parse(product.access_rules) : product.access_rules) : null,
       variants: product.product_variants
     });
   } catch (err) {
@@ -140,7 +139,8 @@ router.post('/', requireAuth, requireEditor, async (req, res) => {
       requires_shipping,
       taxable,
       status,
-      variants
+      variants,
+      access_rules
     } = req.body;
 
     // Validate required fields
@@ -193,6 +193,7 @@ router.post('/', requireAuth, requireEditor, async (req, res) => {
         requires_shipping: requires_shipping !== false,
         taxable: taxable !== false,
         status: status || 'draft',
+        access_rules: access_rules ? JSON.stringify(access_rules) : null,
         product_variants: {
           createMany: {
             data: (variants || []).map((v, i) => ({
@@ -257,7 +258,8 @@ router.put('/:id', requireAuth, requireEditor, async (req, res) => {
       requires_shipping,
       taxable,
       status,
-      variants
+      variants,
+      access_rules
     } = req.body;
 
     // Get existing product
@@ -295,6 +297,7 @@ router.put('/:id', requireAuth, requireEditor, async (req, res) => {
     if (requires_shipping !== undefined) productUpdates.requires_shipping = requires_shipping;
     if (taxable !== undefined) productUpdates.taxable = taxable;
     if (status !== undefined) productUpdates.status = status;
+    if (access_rules !== undefined) productUpdates.access_rules = access_rules ? JSON.stringify(access_rules) : null;
 
     // Update content if provided
     if (existing.content_id && (content !== undefined || title !== undefined || providedSlug !== undefined || og_image !== undefined)) {

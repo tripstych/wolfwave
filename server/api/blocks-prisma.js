@@ -86,6 +86,7 @@ router.get('/:id', requireAuth, async (req, res) => {
       template_filename: block.templates?.filename,
       template_regions: block.templates?.regions || [],
       content: block.content?.data ? JSON.parse(block.content.data) : {},
+      access_rules: block.access_rules ? (typeof block.access_rules === 'string' ? JSON.parse(block.access_rules) : block.access_rules) : null,
       title: block.content?.title || block.name
     });
   } catch (err) {
@@ -102,7 +103,8 @@ router.post('/', requireAuth, requireEditor, async (req, res) => {
       name,
       description,
       content,
-      content_type = 'blocks'
+      content_type = 'blocks',
+      access_rules
     } = req.body;
 
     if (!name || !template_id) {
@@ -146,6 +148,7 @@ router.post('/', requireAuth, requireEditor, async (req, res) => {
         slug,
         description,
         content_type,
+        access_rules: access_rules ? JSON.stringify(access_rules) : null,
         created_by: req.user?.id || null,
         updated_by: req.user?.id || null
       }
@@ -171,7 +174,8 @@ router.put('/:id', requireAuth, requireEditor, async (req, res) => {
       slug,
       description,
       content,
-      content_type
+      content_type,
+      access_rules
     } = req.body;
 
     const existingBlock = await prisma.blocks.findUnique({
@@ -204,6 +208,7 @@ router.put('/:id', requireAuth, requireEditor, async (req, res) => {
     if (slug !== undefined) updateData.slug = slug;
     if (description !== undefined) updateData.description = description;
     if (content_type !== undefined) updateData.content_type = content_type;
+    if (access_rules !== undefined) updateData.access_rules = access_rules ? JSON.stringify(access_rules) : null;
     updateData.updated_by = req.user?.id || null;
 
     await prisma.blocks.update({

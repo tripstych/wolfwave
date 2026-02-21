@@ -52,6 +52,7 @@ router.get('/', requireAuth, async (req, res) => {
           template_filename: page.templates?.filename,
           template_regions: page.templates?.regions || [], // regions is already an array, not JSON string
           content: page.content?.data ? JSON.parse(page.content.data) : {},
+          access_rules: page.access_rules ? (typeof page.access_rules === 'string' ? JSON.parse(page.access_rules) : page.access_rules) : null,
           title: page.content?.title || page.title,
           slug: page.content?.slug || page.slug
         };
@@ -113,6 +114,7 @@ router.get('/:id', requireAuth, async (req, res) => {
       template_filename: page.templates?.filename,
       template_regions: page.templates?.regions ? (typeof page.templates.regions === 'string' ? JSON.parse(page.templates.regions) : page.templates.regions) : [],
       content: page.content?.data ? JSON.parse(page.content.data) : {},
+      access_rules: page.access_rules ? (typeof page.access_rules === 'string' ? JSON.parse(page.access_rules) : page.access_rules) : null,
       title: page.content?.title || page.title,
       slug: page.content?.slug || page.slug
     });
@@ -197,7 +199,7 @@ router.post('/', requireAuth, requireEditor, async (req, res) => {
         canonical_url: canonical_url || '',
         robots: robots || 'index, follow',
         schema_markup: schema_markup ? JSON.stringify(schema_markup) : null,
-        subscription_only: subscription_only || false,
+        access_rules: access_rules ? JSON.stringify(access_rules) : null,
         created_by: req.user?.id || null,
         updated_by: req.user?.id || null
       }
@@ -232,7 +234,7 @@ router.put('/:id', requireAuth, requireEditor, async (req, res) => {
       canonical_url,
       robots,
       schema_markup,
-      subscription_only
+      access_rules
     } = req.body;
 
     // Get existing page
@@ -268,7 +270,7 @@ router.put('/:id', requireAuth, requireEditor, async (req, res) => {
     if (canonical_url !== undefined) updateData.canonical_url = canonical_url;
     if (robots !== undefined) updateData.robots = robots;
     if (schema_markup !== undefined) updateData.schema_markup = schema_markup ? JSON.stringify(schema_markup) : null;
-    if (subscription_only !== undefined) updateData.subscription_only = subscription_only;
+    if (access_rules !== undefined) updateData.access_rules = access_rules ? JSON.stringify(access_rules) : null;
     if (status === 'published') updateData.published_at = new Date();
     updateData.updated_by = req.user?.id || null;
 

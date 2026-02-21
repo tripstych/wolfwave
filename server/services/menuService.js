@@ -1,4 +1,5 @@
 import { query } from '../db/connection.js';
+import { canAccess } from '../middleware/permission.js';
 
 export async function getMenuBySlug(slug, context = {}) {
   try {
@@ -21,19 +22,16 @@ export async function getMenuBySlug(slug, context = {}) {
 
     // Filter items based on rules
     const filteredItems = items.filter(item => {
-      if (!item.display_rules) return true;
-      
       let rules = item.display_rules;
-      if (typeof rules === 'string') {
-        try { rules = JSON.parse(rules); } catch (e) { return true; }
+      if (rules && typeof rules === 'string') {
+        try { rules = JSON.parse(rules); } catch (e) {}
       }
 
-      // Auth rule
-      if (rules.auth === 'logged_in' && !context.isLoggedIn) return false;
-      if (rules.auth === 'logged_out' && context.isLoggedIn) return false;
+      // 1. Centralized permission check (Auth + Subscription)
+      if (!canAccess(rules, context)) return false;
 
-      // URL Pattern rule
-      if (rules.urlPattern && context.currentPath) {
+      // 2. URL Pattern rule (Menu-specific)
+      if (rules && rules.urlPattern && context.currentPath) {
         try {
           // Convert wildcard * to regex .*
           const pattern = rules.urlPattern

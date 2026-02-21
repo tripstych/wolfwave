@@ -36,6 +36,7 @@ model blocks {
   slug                           String    @unique(map: "slug") @db.VarChar(255)
   description                    String?   @db.Text
   content_type                   String?   @default("blocks") @db.VarChar(50)
+  access_rules                   Json?
   created_by                     Int?
   updated_by                     Int?
   created_at                     DateTime  @default(now()) @db.Timestamp(0)
@@ -311,7 +312,7 @@ model pages {
   canonical_url                 String?       @db.VarChar(500)
   robots                        String?       @default("index, follow") @db.VarChar(100)
   schema_markup                 Json?
-  subscription_only             Boolean?      @default(false)
+  access_rules                  Json?
   created_by                    Int?
   updated_by                    Int?
   created_at                    DateTime      @default(now()) @db.Timestamp(0)
@@ -369,7 +370,7 @@ model products {
   weight_unit          products_weight_unit? @default(lb)
   requires_shipping    Boolean?              @default(true)
   taxable              Boolean?              @default(true)
-  subscription_only    Boolean?              @default(false)
+  access_rules         Json?
   is_digital           Boolean?              @default(false)
   download_url         String?               @db.VarChar(500)
   download_limit       Int?                  @default(5)

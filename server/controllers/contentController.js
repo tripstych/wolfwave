@@ -2,6 +2,7 @@ import { query } from '../db/connection.js';
 import { themeRender, renderError } from '../lib/renderer.js';
 import { error as logError } from '../lib/logger.js';
 import { resolveStyles } from '../lib/styleResolver.js';
+import { canAccess } from '../middleware/permission.js';
 
 function parseJsonField(value) {
   if (value === null || value === undefined) return null;
@@ -281,7 +282,7 @@ export const renderContent = async (req, res) => {
       pageData = pages[0];
     } else if (contentType === 'products') {
       const products = await query(`
-        SELECT pr.*, t.filename as template_filename, t.options as template_options, t.id as template_id,
+        SELECT pr.*, pr.access_rules, t.filename as template_filename, t.options as template_options, t.id as template_id,
                c.title as content_title
         FROM products pr
         LEFT JOIN templates t ON pr.template_id = t.id
@@ -310,7 +311,7 @@ export const renderContent = async (req, res) => {
       }
     } else if (contentType === 'blocks') {
       const blocks = await query(`
-        SELECT b.*, t.filename as template_filename, t.options as template_options, t.id as template_id
+        SELECT b.*, b.access_rules, t.filename as template_filename, t.options as template_options, t.id as template_id
         FROM blocks b
         LEFT JOIN templates t ON b.template_id = t.id
         WHERE b.content_id = ?
@@ -370,22 +371,28 @@ export const renderContent = async (req, res) => {
     // FINAL VERIFICATION LOG
     console.log(`[STYLE_SYNC] ${slug} | Global Font: ${globalStyles.google_font_body || 'NONE'} | Resolved Font: ${mergedOptions.google_font_body}`);
 
-    // Gate subscription_only content
-    const isSubscriptionOnly = pageData.subscription_only;
-    const hasActiveSubscription = customer?.subscription != null;
+    // Centralized Permission Check
+    const accessRules = parseJsonField(pageData.access_rules);
+    
+    const hasAccess = canAccess(accessRules, {
+      isLoggedIn: !!customer,
+      hasActiveSubscription: !!customer?.subscription,
+      customer
+    });
 
     // Render template
     const templateContext = {
       page: pageData,
       content,
       user: req.user || null, // Explicitly pass user from req
+      customer: customer || null,
       template: {
         id: pageData.template_id,
         options: mergedOptions
       },
       content_type: contentType,
       seo,
-      subscription_required: isSubscriptionOnly && !hasActiveSubscription
+      subscription_required: !hasAccess
     };
 
     // For products, also pass as 'product' variable for template convenience

@@ -15,7 +15,8 @@ import {
   Image,
   RefreshCw,
   Lock,
-  Unlock
+  Unlock,
+  Shield
 } from 'lucide-react';
 
 export default function BlockEditor() {
@@ -38,7 +39,11 @@ export default function BlockEditor() {
     name: '',
     slug: '',
     content_type: 'blocks',
-    content: {}
+    content: {},
+    access_rules: {
+      auth: 'any',
+      subscription: 'any'
+    }
   });
 
   const [regions, setRegions] = useState([]);
@@ -81,7 +86,8 @@ export default function BlockEditor() {
         template_id: data.template_id,
         name: data.name,
         slug: data.slug,
-        content: data.content || {}
+        content: data.content || {},
+        access_rules: data.access_rules || { auth: 'any', subscription: 'any' }
       });
       setRegions(parseRegions(data.template_regions));
     } catch (err) {
@@ -535,6 +541,53 @@ export default function BlockEditor() {
                   <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
                 </button>
               </div>
+            </div>
+          </div>
+
+          {/* Access Control */}
+          <div className="card p-6 space-y-4">
+            <h2 className="font-semibold text-gray-900 flex items-center gap-2">
+              <Lock className="w-4 h-4" />
+              Access Control
+            </h2>
+            <div className="space-y-4">
+              <div>
+                <label className="label">Authentication</label>
+                <select
+                  value={block.access_rules?.auth || 'any'}
+                  onChange={(e) => setBlock(b => ({ 
+                    ...b, 
+                    access_rules: { ...b.access_rules, auth: e.target.value } 
+                  }))}
+                  className="input"
+                >
+                  <option value="any">Everyone</option>
+                  <option value="logged_in">Logged In Only</option>
+                  <option value="logged_out">Logged Out Only</option>
+                </select>
+              </div>
+              <div>
+                <label className="label">Subscription</label>
+                <select
+                  value={block.access_rules?.subscription || 'any'}
+                  onChange={(e) => setBlock(b => ({ 
+                    ...b, 
+                    access_rules: { ...b.access_rules, subscription: e.target.value } 
+                  }))}
+                  className="input"
+                >
+                  <option value="any">No Subscription Required</option>
+                  <option value="required">Active Subscription Required</option>
+                </select>
+              </div>
+              {block.access_rules?.subscription === 'required' && (
+                <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg text-xs text-blue-700">
+                  <p className="flex items-start gap-2">
+                    <Shield className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                    This block will only be rendered for users with an active subscription.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>

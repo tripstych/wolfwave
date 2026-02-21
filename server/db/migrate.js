@@ -2,15 +2,15 @@ import 'dotenv/config';
 import { query } from '../db/connection.js';
 
 const migrations = [
-  // Add subscription_only to products table
-  `ALTER TABLE products ADD COLUMN subscription_only BOOLEAN DEFAULT FALSE`,
+  // Add access_rules to products table
+  `ALTER TABLE products ADD COLUMN IF NOT EXISTS access_rules JSON`,
 
   // Add digital product fields to products table
   `ALTER TABLE products
-   ADD COLUMN is_digital BOOLEAN DEFAULT FALSE AFTER requires_shipping,
-   ADD COLUMN download_url VARCHAR(500) AFTER is_digital,
-   ADD COLUMN download_limit INT DEFAULT 5 AFTER download_url,
-   ADD COLUMN download_expiry_days INT DEFAULT 30 AFTER download_limit`,
+   ADD COLUMN IF NOT EXISTS is_digital BOOLEAN DEFAULT FALSE AFTER requires_shipping,
+   ADD COLUMN IF NOT EXISTS download_url VARCHAR(500) AFTER is_digital,
+   ADD COLUMN IF NOT EXISTS download_limit INT DEFAULT 5 AFTER download_url,
+   ADD COLUMN IF NOT EXISTS download_expiry_days INT DEFAULT 30 AFTER download_limit`,
 
   // Create digital downloads tracking table
   `CREATE TABLE IF NOT EXISTS digital_downloads (
@@ -28,11 +28,14 @@ const migrations = [
     FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
   )`,
 
-  // Add subscription_only to pages
-  `ALTER TABLE pages ADD COLUMN subscription_only BOOLEAN DEFAULT FALSE`,
+  // Add access_rules to pages
+  `ALTER TABLE pages ADD COLUMN IF NOT EXISTS access_rules JSON`,
+
+  // Add access_rules to blocks
+  `ALTER TABLE blocks ADD COLUMN IF NOT EXISTS access_rules JSON`,
 
   // Add stripe_customer_id to customers
-  `ALTER TABLE customers ADD COLUMN stripe_customer_id VARCHAR(255)`
+  `ALTER TABLE customers ADD COLUMN IF NOT EXISTS stripe_customer_id VARCHAR(255)`
 ];
 
 async function migrate() {

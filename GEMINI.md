@@ -21,3 +21,8 @@ These rules are absolute and must be followed by Gemini CLI at all times to main
 
 ## 5. Verification
 - **Empirical Proof:** After making a styling or configuration change, verify the output via "View Page Source" or server-side logs before declaring the task complete.
+
+## 6. Project Context & Agility
+- **End-Consumer Product:** The product is aimed towards the end consumer.
+- **No Backwards Compatibility:** Currently, there are NO backwards compatibility concerns. Prioritize clean architecture and the best final user experience over preserving legacy fields or logic.
+- **Sole Authority:** There is a sole developer and user in charge. Direct instructions override standard "best practices" if they conflict with the desired product direction.

@@ -6,11 +6,14 @@ import { getCustomerContext } from '../services/customerService.js';
 export async function loadGlobalContext(req, res, next) {
   try {
     const customer = await getCustomerContext(req);
+    const hasActiveSubscription = !!customer?.subscription;
     
     const [site, menus, blocks] = await Promise.all([
       getSiteSettings(),
       getAllMenus({
         isLoggedIn: !!customer,
+        hasActiveSubscription,
+        customer,
         currentPath: req.path
       }),
       getAllBlocks()
@@ -22,7 +25,7 @@ export async function loadGlobalContext(req, res, next) {
     res.locals.customer = customer;
 
     // Helper for templates to check subscription
-    res.locals.hasActiveSubscription = !!customer?.subscription;
+    res.locals.hasActiveSubscription = hasActiveSubscription;
 
     next();
   } catch (err) {

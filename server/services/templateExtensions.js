@@ -100,14 +100,13 @@ export default function registerTemplateExtensions(nunjucksEnv, queryFn) {
    * @param {number} limit - Number of products to return
    * @returns {Promise<Object[]>} Array of active product objects
    */
-  nunjucksEnv.addGlobal('getProductsByCategory', async (category, limit = 10, excludeSubscriptionOnly = false) => {
+  nunjucksEnv.addGlobal('getProductsByCategory', async (category, limit = 10) => {
     try {
-      const subFilter = excludeSubscriptionOnly ? ' AND (p.subscription_only = 0 OR p.subscription_only IS NULL)' : '';
       const results = await queryFn(
         `SELECT p.*, c.slug, c.title as content_title
          FROM products p
          LEFT JOIN content c ON p.content_id = c.id
-         WHERE p.status = 'active'${subFilter}
+         WHERE p.status = 'active'
          LIMIT ?`,
         [limit]
       );

@@ -69,6 +69,8 @@ router.get('/slug/:slug', async (req, res) => {
     const customer = await getCustomerContext(req);
     const menu = await getMenuBySlug(req.params.slug, {
       isLoggedIn: !!customer,
+      hasActiveSubscription: !!customer?.subscription,
+      customer,
       currentPath: req.query.path || '/'
     });
 

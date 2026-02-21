@@ -20,7 +20,9 @@ import {
   Image,
   RefreshCw,
   Sparkles,
-  Loader2
+  Loader2,
+  Lock,
+  Shield
 } from 'lucide-react';
 
 export default function PageEditor() {
@@ -51,7 +53,11 @@ export default function PageEditor() {
     og_description: '',
     og_image: '',
     canonical_url: '',
-    robots: 'index, follow'
+    robots: 'index, follow',
+    access_rules: {
+      auth: 'any',
+      subscription: 'any'
+    }
   });
 
   const [regions, setRegions] = useState([]);
@@ -210,7 +216,8 @@ export default function PageEditor() {
         og_description: data.og_description || '',
         og_image: data.og_image || '',
         canonical_url: data.canonical_url || '',
-        robots: data.robots || 'index, follow'
+        robots: data.robots || 'index, follow',
+        access_rules: data.access_rules || { auth: 'any', subscription: 'any' }
       });
       setRegions(parseRegions(data.template_regions));
     } catch (err) {
@@ -648,6 +655,53 @@ export default function PageEditor() {
                 <option value="published">Published</option>
                 <option value="archived">Archived</option>
               </select>
+            </div>
+          </div>
+
+          {/* Access Control */}
+          <div className="card p-6 space-y-4">
+            <h2 className="font-semibold text-gray-900 flex items-center gap-2">
+              <Lock className="w-4 h-4" />
+              Access Control
+            </h2>
+            <div className="space-y-4">
+              <div>
+                <label className="label">Authentication</label>
+                <select
+                  value={page.access_rules?.auth || 'any'}
+                  onChange={(e) => setPage(p => ({ 
+                    ...p, 
+                    access_rules: { ...p.access_rules, auth: e.target.value } 
+                  }))}
+                  className="input"
+                >
+                  <option value="any">Everyone</option>
+                  <option value="logged_in">Logged In Only</option>
+                  <option value="logged_out">Logged Out Only</option>
+                </select>
+              </div>
+              <div>
+                <label className="label">Subscription</label>
+                <select
+                  value={page.access_rules?.subscription || 'any'}
+                  onChange={(e) => setPage(p => ({ 
+                    ...p, 
+                    access_rules: { ...p.access_rules, subscription: e.target.value } 
+                  }))}
+                  className="input"
+                >
+                  <option value="any">No Subscription Required</option>
+                  <option value="required">Active Subscription Required</option>
+                </select>
+              </div>
+              {page.access_rules?.subscription === 'required' && (
+                <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg text-xs text-blue-700">
+                  <p className="flex items-start gap-2">
+                    <Shield className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                    Users without an active subscription will be redirected to the pricing page.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 

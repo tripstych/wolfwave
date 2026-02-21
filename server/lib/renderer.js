@@ -2,12 +2,13 @@ import { getNunjucksEnv, getThemeAssets } from '../services/themeResolver.js';
 import fs from 'fs';
 import path from 'path';
 import { error as logError } from './logger.js';
+import { canAccess } from '../middleware/permission.js';
 
 function logRenderError(req, templateFilename, err) {
   logError(req, err, `RENDER:${templateFilename}`);
 }
 
-export function setupRenderBlock(env, blocksData) {
+export function setupRenderBlock(env, blocksData, context = {}) {
   const parseJsonField = (value) => {
     if (value === null || value === undefined) return null;
     if (typeof value === 'object') return value;
@@ -28,6 +29,10 @@ export function setupRenderBlock(env, blocksData) {
       console.warn(`Block not found: ${slug}`);
       return '';
     }
+
+    // Permission Check
+    const rules = typeof block.access_rules === 'string' ? JSON.parse(block.access_rules) : block.access_rules;
+    if (!canAccess(rules, context)) return '';
 
     try {
       const blockContent = parseJsonField(block.content) || {};
@@ -50,6 +55,10 @@ export function setupRenderBlock(env, blocksData) {
       return `<!-- Widget not found: ${slug} -->`;
     }
 
+    // Permission Check
+    const rules = typeof widget.access_rules === 'string' ? JSON.parse(widget.access_rules) : widget.access_rules;
+    if (!canAccess(rules, context)) return '';
+
     try {
       const widgetContent = parseJsonField(widget.content) || {};
       const html = env.render(widget.template_filename, {
@@ -66,13 +75,17 @@ export function setupRenderBlock(env, blocksData) {
   });
 }
 
-export function processShortcodes(html, env, blocksData) {
+export function processShortcodes(html, env, blocksData, context = {}) {
   if (!html) return html;
   
   // Replace [[widget:slug]] with rendered widget
   return html.replace(/\[\[widget:([a-zA-Z0-9_-]+)\]\]/g, (match, slug) => {
     const widget = blocksData.find(b => b.slug === slug && b.content_type === 'widgets');
     if (!widget) return `<!-- Widget not found: ${slug} -->`;
+
+    // Permission Check
+    const rules = typeof widget.access_rules === 'string' ? JSON.parse(widget.access_rules) : widget.access_rules;
+    if (!canAccess(rules, context)) return `<!-- Access denied: ${slug} -->`;
 
     try {
       const widgetContent = typeof widget.content === 'string' ? JSON.parse(widget.content) : widget.content;
@@ -92,6 +105,14 @@ export function processShortcodes(html, env, blocksData) {
 export function themeRender(req, res, templateFilename, context = {}) {
   const site = res.locals.site || {};
   const blocks = res.locals.blocks || [];
+  const customer = res.locals.customer || null;
+  const hasActiveSubscription = res.locals.hasActiveSubscription || false;
+
+  const permissionContext = {
+    isLoggedIn: !!customer,
+    hasActiveSubscription,
+    customer
+  };
   
   const themeName = site.active_theme || 'default';
   const env = getNunjucksEnv(themeName);
@@ -100,7 +121,7 @@ export function themeRender(req, res, templateFilename, context = {}) {
   // Store site in env for access in globals
   env.opts.site = site;
 
-  setupRenderBlock(env, blocks);
+  setupRenderBlock(env, blocks, permissionContext);
 
   const fullContext = {
     ...res.locals, // site, menus, customer, blocks
@@ -118,7 +139,7 @@ export function themeRender(req, res, templateFilename, context = {}) {
     let html = env.render(templateFilename, fullContext);
     
     // Process shortcodes in the final output
-    html = processShortcodes(html, env, blocks);
+    html = processShortcodes(html, env, blocks, permissionContext);
     
     res.send(html);
   } catch (err) {
