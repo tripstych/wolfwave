@@ -43,8 +43,9 @@ export async function seedNewTenant(tenantName) {
 
       // Set as homepage in settings
       await query(
-        'UPDATE settings SET setting_value = ? WHERE setting_key = ?',
-        [String(pageResult.insertId), 'home_page_id']
+        `INSERT INTO settings (setting_key, setting_value) VALUES (?, ?)
+         ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`,
+        ['home_page_id', String(pageResult.insertId)]
       );
     }
 
