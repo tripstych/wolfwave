@@ -44,10 +44,39 @@ export default function SiteImporter() {
   const [generatingTemplate, setGeneratingTemplate] = useState(false);
   const [migrating, setMigrating] = useState(false);
   const [templates, setTemplates] = useState([]);
+  const [selectedPages, setSelectedPages] = useState(new Set());
+  const [selectedProducts, setSelectedProducts] = useState(new Set());
+  const [showPicker, setShowPicker] = useState(false);
+  const [pickerUrl, setPickerUrl] = useState('');
   
   const navigate = useNavigate();
 
   useEffect(() => {
+    const handleMessage = (e) => {
+      if (e.data.type === 'WEBWOLF_SELECTOR_PICKED') {
+        const { field, selector } = e.data;
+        // Update current config rules
+        setConfig(prev => {
+          const newRules = [...prev.rules];
+          // Find if rule for this field exists
+          const idx = newRules.findIndex(r => r.action === 'setField' && r.value === field);
+          if (idx > -1) newRules[idx].selector = selector;
+          else newRules.push({ selector, action: 'setField', value: field });
+          return { ...prev, rules: newRules };
+        });
+      }
+      if (e.data.type === 'WEBWOLF_PICKER_DONE') setShowPicker(false);
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
+
+  const openVisualPicker = (sampleUrl) => {
+    if (!sampleUrl) return alert('No sample URL available');
+    setPickerUrl(`${api.defaults.baseURL}/import/proxy?url=${encodeURIComponent(sampleUrl)}`);
+    setShowPicker(true);
+  };
     loadSites();
     loadTemplates();
     loadPresets();
@@ -242,29 +271,68 @@ export default function SiteImporter() {
     finally { setMigrating(false); }
   };
 
+  const togglePageSelection = (id) => {
+    const next = new Set(selectedPages);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedPages(next);
+  };
+
+  const toggleAllPages = () => {
+    if (selectedPages.size === discoveredPages.length) setSelectedPages(new Set());
+    else setSelectedPages(new Set(discoveredPages.map(p => p.id)));
+  };
+
+  const toggleProductSelection = (id) => {
+    const next = new Set(selectedProducts);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedProducts(next);
+  };
+
+  const toggleAllProducts = () => {
+    if (selectedProducts.size === discoveredProducts.length) setSelectedProducts(new Set());
+    else setSelectedProducts(new Set(discoveredProducts.map(p => p.id)));
+  };
+
   const handleBulkPageMigrate = async () => {
+    if (!selectedSite) return;
+    const targetIds = selectedPages.size > 0 ? Array.from(selectedPages) : discoveredPages.map(p => p.id);
+    if (targetIds.length === 0) return alert('No pages selected');
+
     try {
       const std = templates.find(t => t.filename.includes('pages/standard'));
       if (!std) return alert('Standard template not found');
       
-      if (!confirm(`Ready to migrate ${discoveredPages.length} pages using template "${std.name}"?`)) return;
+      if (!confirm(`Ready to migrate ${targetIds.length} pages using template "${std.name}"?`)) return;
       setMigrating(true);
-      await api.post(`/import/sites/${selectedSite.id}/bulk-migrate-all`, { template_id: std.id, selector_map: { main: 'main' } });
+      await api.post(`/import/sites/${selectedSite.id}/bulk-migrate-all`, { 
+        template_id: std.id, 
+        selector_map: { main: 'main' },
+        page_ids: targetIds
+      });
+      alert('Selected pages queued for migration!');
       navigate('/pages');
-    } catch (err) { alert(err.message); }
+    } catch (err) { alert('Failed: ' + err.message); }
     finally { setMigrating(false); }
   };
 
   const handleBulkProductMigrate = async () => {
     try {
+      const targetIds = selectedProducts.size > 0 ? Array.from(selectedProducts) : discoveredProducts.map(p => p.id);
+      if (targetIds.length === 0) return alert('No products selected');
+
       // Find the specific single product template
       const pt = templates.find(t => t.filename === 'products/product-single.njk' || t.filename === 'products/single.njk');
       if (!pt) return alert('Single Product template (products/product-single.njk) not found. Please create it first.');
       
-      if (!confirm(`Ready to migrate ${discoveredProducts.length} products using template "${pt.name}"?`)) return;
+      if (!confirm(`Ready to migrate ${targetIds.length} products using template "${pt.name}"?`)) return;
 
       setMigrating(true);
-      await api.post(`/import/sites/${selectedSite.id}/bulk-migrate-products`, { template_id: pt.id });
+      await api.post(`/import/sites/${selectedSite.id}/bulk-migrate-products`, { 
+        template_id: pt.id,
+        product_ids: targetIds
+      });
       navigate('/products');
     } catch (err) { alert(err.message); }
     finally { setMigrating(false); }
@@ -474,7 +542,10 @@ export default function SiteImporter() {
                           </div>
                           <h3 className="font-bold">{g.sample_title}</h3>
                         </div>
-                        <button onClick={() => handleGenerateTemplate(g.structural_hash)} className="btn btn-ghost btn-sm text-primary-600"><FileCode className="w-4 h-4 mr-1" /> Generate</button>
+                        <div className="flex gap-2">
+                          <button onClick={() => openVisualPicker(g.sample_url)} className="btn btn-ghost btn-sm text-amber-600"><Maximize2 className="w-4 h-4 mr-1" /> Visual Picker</button>
+                          <button onClick={() => handleGenerateTemplate(g.structural_hash)} className="btn btn-ghost btn-sm text-primary-600"><FileCode className="w-4 h-4 mr-1" /> Generate</button>
+                        </div>
                       </div>
                       <button onClick={() => handleBulkMigrate(g.structural_hash)} className="btn btn-primary btn-sm w-full">Migrate Group</button>
                     </div>
@@ -484,9 +555,18 @@ export default function SiteImporter() {
               {view === 'pages' && (
                 <div className="card overflow-hidden">
                   <div className="p-4 border-b flex justify-between items-center">
-                    <h3 className="font-bold">Discovered Pages</h3>
+                    <div className="flex items-center gap-3">
+                      <input 
+                        type="checkbox" 
+                        className="rounded border-gray-300 text-primary-600 focus:ring-primary-600"
+                        checked={selectedPages.size > 0 && selectedPages.size === discoveredPages.length}
+                        onChange={toggleAllPages}
+                      />
+                      <h3 className="font-bold text-gray-700">Discovered Pages ({discoveredPages.length})</h3>
+                    </div>
                     <button onClick={handleBulkPageMigrate} disabled={migrating || discoveredPages.length === 0} className="btn btn-primary btn-sm">
-                      {migrating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileText className="w-4 h-4 mr-2" />} Migrate All
+                      {migrating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileText className="w-4 h-4 mr-2" />} 
+                      {selectedPages.size > 0 ? `Migrate ${selectedPages.size} Selected` : 'Migrate All'}
                     </button>
                   </div>
                   {discoveredPages.length === 0 ? (
@@ -498,6 +578,14 @@ export default function SiteImporter() {
                           const path = (() => { try { return new URL(p.url).pathname; } catch { return p.url; } })();
                           return (
                             <tr key={i} className={p.status === 'migrated' ? 'opacity-50' : ''}>
+                              <td className="px-4 py-3 w-10">
+                                <input 
+                                  type="checkbox" 
+                                  className="rounded border-gray-300 text-primary-600 focus:ring-primary-600"
+                                  checked={selectedPages.has(p.id)}
+                                  onChange={() => togglePageSelection(p.id)}
+                                />
+                              </td>
                               <td className="px-4 py-3">
                                 <div className="font-medium">{p.title || 'Untitled'}</div>
                                 <div className="text-xs text-gray-400">{path}</div>
@@ -520,15 +608,32 @@ export default function SiteImporter() {
               {view === 'products' && (
                 <div className="card overflow-hidden">
                   <div className="p-4 border-b flex justify-between items-center">
-                    <h3 className="font-bold">Discovered Products</h3>
+                    <div className="flex items-center gap-3">
+                      <input 
+                        type="checkbox" 
+                        className="rounded border-gray-300 text-primary-600 focus:ring-primary-600"
+                        checked={selectedProducts.size > 0 && selectedProducts.size === discoveredProducts.length}
+                        onChange={toggleAllProducts}
+                      />
+                      <h3 className="font-bold text-gray-700">Discovered Products ({discoveredProducts.length})</h3>
+                    </div>
                     <button onClick={handleBulkProductMigrate} disabled={migrating || discoveredProducts.length === 0} className="btn btn-primary btn-sm">
-                      {migrating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Package className="w-4 h-4 mr-2" />} Migrate All
+                      {migrating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Package className="w-4 h-4 mr-2" />} 
+                      {selectedProducts.size > 0 ? `Migrate ${selectedProducts.size} Selected` : 'Migrate All'}
                     </button>
                   </div>
                   <table className="w-full text-sm">
                     <tbody className="divide-y">
                       {discoveredProducts.map((p, i) => (
                         <tr key={i}>
+                          <td className="px-4 py-3 w-10">
+                            <input 
+                              type="checkbox" 
+                              className="rounded border-gray-300 text-primary-600 focus:ring-primary-600"
+                              checked={selectedProducts.has(p.id)}
+                              onChange={() => toggleProductSelection(p.id)}
+                            />
+                          </td>
                           <td className="px-4 py-3">{p.title}</td>
                           <td className="px-4 py-3 text-right font-bold text-green-600">${(typeof p.metadata === 'string' ? JSON.parse(p.metadata) : p.metadata)?.price || '0.00'}</td>
                         </tr>

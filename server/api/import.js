@@ -1,3 +1,5 @@
+import axios from 'axios';
+import * as cheerio from 'cheerio';
 import { Router } from 'express';
 import { requireAuth, requireEditor } from '../middleware/auth.js';
 import { scrapeUrl } from '../services/scraperService.js';
@@ -9,6 +11,40 @@ import prisma from '../lib/prisma.js';
 import { CRAWLER_PRESETS } from '../lib/crawlerPresets.js';
 
 const router = Router();
+
+// Visual Selector Proxy
+router.get('/proxy', requireAuth, requireEditor, async (req, res) => {
+  try {
+    const { url } = req.query;
+    if (!url) return res.status(400).send('URL required');
+
+    const { data: html } = await axios.get(url, {
+      headers: { 'User-Agent': 'WebWolf-Proxy/1.0' },
+      timeout: 10000
+    });
+
+    const $ = cheerio.load(html);
+    const origin = new URL(url).origin;
+
+    // 1. Inject <base> to fix relative assets
+    $('head').prepend(`<base href="${origin}/">`);
+
+    // 2. Inject Picker Assets
+    $('head').append(`<link rel="stylesheet" href="/css/selector-picker.css">`);
+    $('body').append(`<script src="/js/selector-picker.js"></script>`);
+
+    // 3. Strip original scripts to prevent redirects/interferences
+    $('script').each((i, el) => {
+      const src = $(el).attr('src');
+      if (src && !src.includes('selector-picker.js')) $(el).remove();
+      if (!src) $(el).remove(); // Remove inline scripts
+    });
+
+    res.send($.html());
+  } catch (err) {
+    res.status(500).send(`Proxy Error: ${err.message}`);
+  }
+});
 
 router.get('/presets', requireAuth, (req, res) => {
   res.json(CRAWLER_PRESETS);
@@ -107,12 +143,12 @@ router.post('/sites/:id/bulk-migrate', requireAuth, requireEditor, async (req, r
 });
 
 router.post('/sites/:id/bulk-migrate-products', requireAuth, requireEditor, async (req, res) => {
-  try { res.json({ success: true, results: await bulkMigrateProducts(parseInt(req.params.id), req.body.template_id) }); }
+  try { res.json({ success: true, results: await bulkMigrateProducts(parseInt(req.params.id), req.body.template_id, req.body.product_ids) }); }
   catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.post('/sites/:id/bulk-migrate-all', requireAuth, requireEditor, async (req, res) => {
-  try { res.json({ success: true, results: await bulkMigrateAll(parseInt(req.params.id), req.body.template_id, req.body.selector_map) }); }
+  try { res.json({ success: true, results: await bulkMigrateAll(parseInt(req.params.id), req.body.template_id, req.body.selector_map, req.body.page_ids) }); }
   catch (err) { res.status(500).json({ error: err.message }); }
 });
 

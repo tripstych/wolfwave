@@ -1,6 +1,6 @@
 import * as cheerio from 'cheerio';
 import prisma from '../lib/prisma.js';
-import slugify from 'slugify';
+import { generateUniqueSlug } from '../lib/slugify.js';
 import { getCurrentDbName } from '../lib/tenantContext.js';
 import { info, error as logError } from '../lib/logger.js';
 import { generateSearchIndex } from '../lib/searchIndexer.js';
@@ -27,8 +27,39 @@ export async function migratePage(importedPageId, templateId, selectorMap = { 'm
 
     // Fallback if still empty
     if (!extractedData.main) extractedData.main = $('body').html();
-    let cleanSlug = slugify(title, { lower: true, strict: true }) || 'imported-page-' + Date.now();
-    const pageSlug = '/pages/' + cleanSlug.replace(/^\/+/, '');
+    const title = importedPage.title || $('title').text() || 'Imported Page';
+
+    // Check if a page with THIS EXACT TITLE already exists to avoid duplication
+    const existingContent = await prisma.content.findFirst({
+      where: { module: 'pages', title: title }
+    });
+
+    if (existingContent) {
+      const existingData = JSON.parse(existingContent.data || '{}');
+      const existingLen = (existingData.main || '').length;
+      const newLen = (extractedData.main || '').length;
+
+      // Only overwrite if the new content seems significantly better/longer
+      if (newLen > existingLen) {
+        await prisma.content.update({
+          where: { id: existingContent.id },
+          data: {
+            data: JSON.stringify(extractedData),
+            search_index: generateSearchIndex(title, extractedData)
+          }
+        });
+        info(dbName, 'PAGE_MERGE_UPDATE', `Updated existing page "${title}" with better content (${newLen} chars vs ${existingLen})`);
+      } else {
+        info(dbName, 'PAGE_MERGE_SKIP', `Preserved existing page "${title}" (existing content was better)`);
+      }
+      
+      // Mark as migrated regardless so it stops showing up in the importer
+      await prisma.imported_pages.update({ where: { id: importedPageId }, data: { status: 'migrated' } });
+      
+      return await prisma.pages.findFirst({ where: { content_id: existingContent.id } });
+    }
+
+    const pageSlug = await generateUniqueSlug(title, 'pages');
 
     const content = await prisma.content.create({
       data: {
@@ -68,9 +99,16 @@ export async function bulkMigrate(siteId, structuralHash, templateId, selectorMa
   return results;
 }
 
-export async function bulkMigrateAll(siteId, templateId, selectorMap) {
+export async function bulkMigrateAll(siteId, templateId, selectorMap, pageIds = null) {
+  const whereClause = { site_id: siteId };
+  if (pageIds && Array.isArray(pageIds)) {
+    whereClause.id = { in: pageIds };
+  } else {
+    whereClause.status = 'completed';
+  }
+
   const pages = await prisma.imported_pages.findMany({
-    where: { site_id: siteId, status: 'completed' }
+    where: whereClause
   });
   const results = [];
   for (const page of pages) {

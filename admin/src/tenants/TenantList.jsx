@@ -1,67 +1,29 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, ExternalLink, Pause, Play } from 'lucide-react';
+import { useState } from 'react';
+import { Plus, Trash2, Pause, Play } from 'lucide-react';
+import DataTable from '../components/DataTable';
+import api from '../lib/api';
 
 export default function TenantList() {
-  const [tenants, setTenants] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [newTenant, setNewTenant] = useState({
-    name: '',
-    subdomain: '',
-    email: 'admin@example.com',
-    password: ''
-  });
+  const [error, setError] = useState(null);
+  const [newTenant, setNewTenant] = useState({ name: '', subdomain: '', email: 'admin@example.com', password: '' });
   const [subdomainEdited, setSubdomainEdited] = useState(false);
-  const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  useEffect(() => {
-    fetchTenants();
-  }, []);
-
-  const fetchTenants = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch('/api/tenants', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
-      if (!response.ok) throw new Error('Failed to fetch tenants');
-      const data = await response.json();
-      setTenants(data.data || []);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const autoSubdomain = (name) =>
+    name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
   const handleCreate = async (e) => {
     e.preventDefault();
     try {
       setCreating(true);
       setError(null);
-      const response = await fetch('/api/tenants', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify(newTenant)
-      });
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to create tenant');
-      }
-      setNewTenant({
-        name: '',
-        subdomain: '',
-        email: 'admin@example.com',
-        password: ''
-      });
+      await api.post('/tenants', newTenant);
+      setNewTenant({ name: '', subdomain: '', email: 'admin@example.com', password: '' });
       setSubdomainEdited(false);
       setShowCreate(false);
-      fetchTenants();
+      setRefreshKey(k => k + 1);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -69,58 +31,56 @@ export default function TenantList() {
     }
   };
 
-  const handleDelete = async (id) => {
-    try {
-      setError(null);
-      const response = await fetch(`/api/tenants/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to delete tenant');
-      }
-      setDeleteConfirm(null);
-      fetchTenants();
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-
-  const handleStatusToggle = async (tenant) => {
+  const handleStatusToggle = async (tenant, refetch) => {
     try {
       setError(null);
       const newStatus = tenant.status === 'active' ? 'suspended' : 'active';
-      const response = await fetch(`/api/tenants/${tenant.id}/status`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ status: newStatus })
-      });
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to update status');
-      }
-      fetchTenants();
+      await api.put(`/tenants/${tenant.id}/status`, { status: newStatus });
+      refetch();
     } catch (err) {
       setError(err.message);
     }
   };
 
-  const autoSubdomain = (name) => {
-    return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-  };
+  const columns = [
+    {
+      key: 'name',
+      label: 'Name',
+      render: (value) => <span className="font-medium">{value}</span>,
+    },
+    {
+      key: 'subdomain',
+      label: 'Subdomain',
+      render: (value) => <span className="font-mono text-sm text-gray-600">{value}</span>,
+    },
+    {
+      key: 'database_name',
+      label: 'Database',
+      render: (value) => <span className="font-mono text-xs text-gray-500">{value}</span>,
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      render: (value) => (
+        <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-medium ${
+          value === 'active' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'
+        }`}>
+          {value}
+        </span>
+      ),
+    },
+    {
+      key: 'created_at',
+      label: 'Created',
+      render: (value) => new Date(value).toLocaleDateString(),
+    },
+  ];
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-gray-900">Tenants</h1>
-        <button
-          className="btn btn-primary"
-          onClick={() => setShowCreate(!showCreate)}
-        >
+        <button className="btn btn-primary" onClick={() => setShowCreate(!showCreate)}>
           <Plus className="w-5 h-5 mr-2" />
           New Tenant
         </button>
@@ -146,8 +106,9 @@ export default function TenantList() {
                 type="text"
                 value={newTenant.name}
                 onChange={(e) => setNewTenant({
+                  ...newTenant,
                   name: e.target.value,
-                  subdomain: subdomainEdited ? newTenant.subdomain : autoSubdomain(e.target.value)
+                  subdomain: subdomainEdited ? newTenant.subdomain : autoSubdomain(e.target.value),
                 })}
                 placeholder="My Store"
                 className="input"
@@ -169,7 +130,6 @@ export default function TenantList() {
               </div>
               <p className="text-xs text-gray-400 mt-1">Database: webwolf_{newTenant.subdomain || '...'}</p>
             </div>
-
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Admin Email</label>
@@ -192,12 +152,11 @@ export default function TenantList() {
                 />
               </div>
             </div>
-
             <div className="flex gap-2">
               <button type="submit" className="btn btn-primary" disabled={creating}>
                 {creating ? 'Provisioning...' : 'Create Tenant'}
               </button>
-              <button type="button" className="btn btn-secondary" onClick={() => { setShowCreate(false); setNewTenant({ name: '', subdomain: '' }); setSubdomainEdited(false); }}>
+              <button type="button" className="btn btn-secondary" onClick={() => { setShowCreate(false); setNewTenant({ name: '', subdomain: '', email: 'admin@example.com', password: '' }); setSubdomainEdited(false); }}>
                 Cancel
               </button>
             </div>
@@ -205,100 +164,44 @@ export default function TenantList() {
         </div>
       )}
 
-      {loading ? (
-        <div className="text-center py-12">
-          <div className="inline-block">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-          </div>
-          <p className="mt-4 text-gray-600">Loading tenants...</p>
-        </div>
-      ) : tenants.length === 0 ? (
-        <div className="bg-white border border-gray-200 rounded-lg p-12 text-center">
-          <p className="text-gray-600">No tenants yet. Create one to get started.</p>
-        </div>
-      ) : (
-        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-          <table className="w-full border-collapse">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Name</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Subdomain</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Database</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Status</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Created</th>
-                <th className="px-6 py-3 text-center text-sm font-semibold text-gray-900">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tenants.map((tenant) => (
-                <tr key={tenant.id} className="border-b border-gray-200 hover:bg-gray-50">
-                  <td className="px-6 py-3 font-medium">{tenant.name}</td>
-                  <td className="px-6 py-3">
-                    <span className="font-mono text-sm text-gray-600">
-                      {tenant.subdomain}
-                    </span>
-                  </td>
-                  <td className="px-6 py-3">
-                    <span className="font-mono text-xs text-gray-500">
-                      {tenant.database_name}
-                    </span>
-                  </td>
-                  <td className="px-6 py-3">
-                    <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      tenant.status === 'active'
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-amber-100 text-amber-800'
-                    }`}>
-                      {tenant.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-3 text-sm text-gray-500">
-                    {new Date(tenant.created_at).toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-3 text-center">
-                    <div className="flex justify-center gap-2">
-                      <button
-                        onClick={() => handleStatusToggle(tenant)}
-                        className="btn btn-ghost px-2 py-1"
-                        title={tenant.status === 'active' ? 'Suspend' : 'Activate'}
-                      >
-                        {tenant.status === 'active'
-                          ? <Pause className="w-4 h-4" />
-                          : <Play className="w-4 h-4" />
-                        }
-                      </button>
-                      {deleteConfirm === tenant.id ? (
-                        <div className="flex gap-1">
-                          <button
-                            onClick={() => handleDelete(tenant.id)}
-                            className="btn btn-danger px-2 py-1 text-xs"
-                          >
-                            Confirm
-                          </button>
-                          <button
-                            onClick={() => setDeleteConfirm(null)}
-                            className="btn btn-ghost px-2 py-1 text-xs"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => setDeleteConfirm(tenant.id)}
-                          className="btn btn-ghost px-2 py-1 text-red-500"
-                          title="Delete tenant"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <DataTable
+        key={refreshKey}
+        endpoint="/tenants"
+        pagination={{ mode: 'none' }}
+        columns={columns}
+        actions={[
+          {
+            icon: Pause,
+            title: 'Suspend',
+            onClick: (row, { refetch }) => handleStatusToggle(row, refetch),
+            show: (row) => row.status === 'active',
+          },
+          {
+            icon: Play,
+            title: 'Activate',
+            onClick: (row, { refetch }) => handleStatusToggle(row, refetch),
+            show: (row) => row.status !== 'active',
+          },
+          {
+            icon: Trash2,
+            title: 'Delete',
+            variant: 'danger',
+            onClick: async (row, { refetch }) => {
+              if (!window.confirm(`Delete tenant "${row.name}"? This will remove the database.`)) return;
+              try {
+                await api.delete(`/tenants/${row.id}`);
+                refetch();
+              } catch (err) {
+                setError(err.message);
+              }
+            },
+          },
+        ]}
+        emptyState={{
+          message: 'No tenants yet.',
+          hint: 'Create one to get started.',
+        }}
+      />
     </div>
   );
 }
