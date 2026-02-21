@@ -33,6 +33,12 @@ function discoverLinks($, currentUrl, rootDomain, visited, queue, config = {}) {
         if (path.match(/\.(jpg|jpeg|png|gif|pdf|zip|gz|mp4|mp3|css|js|svg|woff|woff2)$/)) return;
         if (excludePatterns.some(p => path.includes(p) || search.includes(p))) return;
 
+        // Normalize Shopify collection product URLs to canonical /products/ form
+        const collectionProductMatch = path.match(/\/collections\/[^/]+\/products\/(.+)/);
+        if (collectionProductMatch) {
+          absoluteUrl.pathname = '/products/' + collectionProductMatch[1];
+        }
+
         const cleanUrl = normalizeUrl(absoluteUrl.toString());
         if (cleanUrl && !visited.has(cleanUrl) && !queue.includes(cleanUrl)) {
           found++;
@@ -88,7 +94,20 @@ async function syncFromFeed(siteId, feedUrl, dbName) {
           sku: p.variants?.[0]?.sku || '',
           price: p.variants?.[0]?.price || 0,
           type: 'product',
-          canonical: productUrl
+          canonical: productUrl,
+          options: p.options?.map(o => ({ name: o.name, values: o.values })) || [],
+          variants: p.variants?.map((v, i) => ({
+            title: v.title,
+            sku: v.sku || '',
+            price: v.price,
+            compare_at_price: v.compare_at_price,
+            option1: v.option1 || null,
+            option2: v.option2 || null,
+            option3: v.option3 || null,
+            inventory_quantity: v.inventory_quantity || 0,
+            image: v.featured_image?.src || null,
+            position: i + 1
+          })) || []
         };
 
         await prisma.imported_pages.create({

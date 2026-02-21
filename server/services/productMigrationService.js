@@ -39,6 +39,31 @@ export async function migrateProduct(importedPageId, templateId) {
       data: { content_id: content.id, template_id: templateId, title, sku, price, status: 'active' }
     });
 
+    // Create variants from feed data (Shopify etc.)
+    if (meta.variants && meta.variants.length > 0 && meta.options) {
+      const optionNames = meta.options.map(o => o.name);
+      for (const v of meta.variants) {
+        const variantData = {
+          product_id: product.id,
+          title: v.title || title,
+          sku: v.sku || null,
+          price: parseFloat(v.price) || price,
+          compare_at_price: v.compare_at_price ? parseFloat(v.compare_at_price) : null,
+          inventory_quantity: v.inventory_quantity || 0,
+          image: v.image || null,
+          position: v.position || 1
+        };
+        if (optionNames[0] && v.option1) { variantData.option1_name = optionNames[0]; variantData.option1_value = v.option1; }
+        if (optionNames[1] && v.option2) { variantData.option2_name = optionNames[1]; variantData.option2_value = v.option2; }
+        if (optionNames[2] && v.option3) { variantData.option3_name = optionNames[2]; variantData.option3_value = v.option3; }
+        try {
+          await prisma.product_variants.create({ data: variantData });
+        } catch (err) {
+          console.warn(`[PRODUCT_MIGRATE] Variant "${v.title}" skipped: ${err.message}`);
+        }
+      }
+    }
+
     await prisma.imported_pages.update({ where: { id: importedPageId }, data: { status: 'migrated' } });
     return product;
   } catch (err) {
