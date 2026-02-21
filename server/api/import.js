@@ -141,6 +141,76 @@ router.post('/sites/:id/restart', requireAuth, requireEditor, async (req, res) =
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+router.post('/sites/:id/rules', requireAuth, requireEditor, async (req, res) => {
+  try {
+    const siteId = parseInt(req.params.id);
+    const { name, template_id, selector_map, id } = req.body;
+    
+    const site = await prisma.imported_sites.findUnique({ where: { id: siteId } });
+    if (!site) return res.status(404).json({ error: 'Site not found' });
+
+    let config = typeof site.config === 'string' ? JSON.parse(site.config || '{}') : (site.config || {});
+    if (!config.migration_rules) config.migration_rules = [];
+
+    const newRule = {
+      id: id || Date.now().toString(),
+      name: name || 'New Rule',
+      template_id: parseInt(template_id),
+      selector_map: selector_map || { main: 'main' },
+      updated_at: new Date()
+    };
+
+    const existingIdx = config.migration_rules.findIndex(r => r.id === newRule.id);
+    if (existingIdx > -1) config.migration_rules[existingIdx] = newRule;
+    else config.migration_rules.push(newRule);
+
+    const updated = await prisma.imported_sites.update({
+      where: { id: siteId },
+      data: { config }
+    });
+
+    res.json({ success: true, rule: newRule, site: updated });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/sites/:id/migrate-with-rule', requireAuth, requireEditor, async (req, res) => {
+  try {
+    const siteId = parseInt(req.params.id);
+    const { rule_id, page_ids } = req.body;
+    
+    const site = await prisma.imported_sites.findUnique({ where: { id: siteId } });
+    if (!site) return res.status(404).json({ error: 'Site not found' });
+
+    const config = typeof site.config === 'string' ? JSON.parse(site.config || '{}') : (site.config || {});
+    const rule = (config.migration_rules || []).find(r => r.id === rule_id);
+    if (!rule) return res.status(404).json({ error: 'Rule not found' });
+
+    const results = await bulkMigrateAll(siteId, rule.template_id, rule.selector_map, page_ids);
+    res.json({ success: true, results });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.delete('/sites/:id/rules/:ruleId', requireAuth, requireEditor, async (req, res) => {
+  try {
+    const siteId = parseInt(req.params.id);
+    const { ruleId } = req.params;
+
+    const site = await prisma.imported_sites.findUnique({ where: { id: siteId } });
+    if (!site) return res.status(404).json({ error: 'Site not found' });
+
+    let config = typeof site.config === 'string' ? JSON.parse(site.config || '{}') : (site.config || {});
+    if (config.migration_rules) {
+      config.migration_rules = config.migration_rules.filter(r => r.id !== ruleId);
+      await prisma.imported_sites.update({
+        where: { id: siteId },
+        data: { config }
+      });
+    }
+
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 router.post('/sites/:id/bulk-migrate', requireAuth, requireEditor, async (req, res) => {
   try { res.json({ success: true, results: await bulkMigrate(parseInt(req.params.id), req.body.structural_hash, req.body.template_id, req.body.selector_map) }); }
   catch (err) { res.status(500).json({ error: err.message }); }

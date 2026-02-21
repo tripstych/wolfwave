@@ -41,16 +41,19 @@ export default function SiteImporter() {
   const [groups, setGroups] = useState([]);
   const [discoveredProducts, setDiscoveredProducts] = useState([]);
   const [discoveredPages, setDiscoveredPages] = useState([]);
-  const [view, setView] = useState('templates');
+  const [view, setView] = useState('rules');
   const [generatingTemplate, setGeneratingTemplate] = useState(false);
   const [migrating, setMigrating] = useState(false);
   const [templates, setTemplates] = useState([]);
   const [selectedPages, setSelectedPages] = useState(new Set());
   const [selectedProducts, setSelectedProducts] = useState(new Set());
+  const [lastSelectedPageIndex, setLastSelectedPageIndex] = useState(null);
+  const [lastSelectedProductIndex, setLastSelectedProductIndex] = useState(null);
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
   const [selectorMap, setSelectorMap] = useState({});
   const [showPicker, setShowPicker] = useState(false);
   const [pickerUrl, setPickerUrl] = useState('');
+  const [editingRule, setEditingRule] = useState(null);
   
   const navigate = useNavigate();
 
@@ -84,12 +87,77 @@ export default function SiteImporter() {
           });
         }
       }
-      if (e.data.type === 'WOLFWAVE_PICKER_DONE') setShowPicker(false);
+      if (e.data.type === 'WOLFWAVE_PICKER_DONE') {
+        setShowPicker(false);
+        if (editingRule) {
+           handleSaveRule();
+        }
+      }
     };
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, []);
+  }, [editingRule, selectorMap, selectedTemplateId]);
+
+  const handleSaveRule = async () => {
+    if (!selectedSite || !selectedTemplateId) return;
+    try {
+      const ruleData = {
+        id: editingRule?.id,
+        name: editingRule?.name || prompt('Enter a name for this rule:', 'New Import Rule'),
+        template_id: parseInt(selectedTemplateId),
+        selector_map: selectorMap
+      };
+      if (!ruleData.name) return;
+
+      await api.post(`/import/sites/${selectedSite.id}/rules`, ruleData);
+      setEditingRule(null);
+      
+      // Refresh site to get updated rules in config
+      const updated = await api.get(`/import/sites/${selectedSite.id}`);
+      setSelectedSite(updated);
+    } catch (err) { alert('Failed to save rule: ' + err.message); }
+  };
+
+  const deleteRule = async (ruleId) => {
+    if (!confirm('Delete this rule?')) return;
+    try {
+      await api.delete(`/import/sites/${selectedSite.id}/rules/${ruleId}`);
+      const updated = await api.get(`/import/sites/${selectedSite.id}`);
+      setSelectedSite(updated);
+    } catch (err) { alert(err.message); }
+  };
+
+  const startCreateRuleFromSelection = () => {
+    const selection = view === 'products' ? Array.from(selectedProducts) : Array.from(selectedPages);
+    if (selection.length === 0) return alert('Select at least one page first');
+    
+    const pages = view === 'products' ? discoveredProducts : discoveredPages;
+    const firstPage = pages.find(p => p.id === selection[0]);
+    
+    setEditingRule({ name: '', isNew: true, selection });
+    setSelectorMap({});
+    setSelectedTemplateId('');
+    openVisualPicker(firstPage.url);
+  };
+
+  const applyRuleToSelection = async (rule) => {
+    const selection = view === 'products' ? Array.from(selectedProducts) : Array.from(selectedPages);
+    if (selection.length === 0) return alert('Select pages to migrate first');
+
+    if (!confirm(`Migrate ${selection.length} pages using rule "${rule.name}"?`)) return;
+
+    try {
+      setMigrating(true);
+      await api.post(`/import/sites/${selectedSite.id}/migrate-with-rule`, {
+        rule_id: rule.id,
+        page_ids: selection
+      });
+      alert('Migration started!');
+      navigate('/pages');
+    } catch (err) { alert(err.message); }
+    finally { setMigrating(false); }
+  };
 
   const handlePickerLoad = () => {
     if (selectedTemplateId) {
@@ -330,11 +398,25 @@ export default function SiteImporter() {
     finally { setMigrating(false); }
   };
 
-  const togglePageSelection = (id) => {
+  const togglePageSelection = (e, id, index) => {
     const next = new Set(selectedPages);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
+    
+    if (e.shiftKey && lastSelectedPageIndex !== null) {
+      const start = Math.min(lastSelectedPageIndex, index);
+      const end = Math.max(lastSelectedPageIndex, index);
+      const isSelecting = next.has(discoveredPages[lastSelectedPageIndex].id);
+      
+      for (let i = start; i <= end; i++) {
+        if (isSelecting) next.add(discoveredPages[i].id);
+        else next.delete(discoveredPages[i].id);
+      }
+    } else {
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+    }
+    
     setSelectedPages(next);
+    setLastSelectedPageIndex(index);
   };
 
   const toggleAllPages = () => {
@@ -342,11 +424,25 @@ export default function SiteImporter() {
     else setSelectedPages(new Set(discoveredPages.map(p => p.id)));
   };
 
-  const toggleProductSelection = (id) => {
+  const toggleProductSelection = (e, id, index) => {
     const next = new Set(selectedProducts);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
+    
+    if (e.shiftKey && lastSelectedProductIndex !== null) {
+      const start = Math.min(lastSelectedProductIndex, index);
+      const end = Math.max(lastSelectedProductIndex, index);
+      const isSelecting = next.has(discoveredProducts[lastSelectedProductIndex].id);
+      
+      for (let i = start; i <= end; i++) {
+        if (isSelecting) next.add(discoveredProducts[i].id);
+        else next.delete(discoveredProducts[i].id);
+      }
+    } else {
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+    }
+    
     setSelectedProducts(next);
+    setLastSelectedProductIndex(index);
   };
 
   const toggleAllProducts = () => {
@@ -595,43 +691,80 @@ export default function SiteImporter() {
               <div className="flex items-center justify-between bg-white p-4 rounded-lg border shadow-sm">
                 <h2 className="font-bold text-lg">{new URL(selectedSite.root_url).hostname}</h2>
                 <div className="flex items-center gap-2">
-                  <button onClick={handleBulkMigrateAll} className="btn btn-secondary btn-sm">Migrate All</button>
                   <div className="flex bg-gray-100 p-1 rounded-lg">
-                    <button onClick={() => setView('templates')} className={`px-3 py-1.5 text-sm rounded-md ${view === 'templates' ? 'bg-white shadow-sm' : 'text-gray-500'}`}>Templates</button>
+                    <button onClick={() => setView('rules')} className={`px-3 py-1.5 text-sm rounded-md ${view === 'rules' ? 'bg-white shadow-sm' : 'text-gray-500'}`}>Rules</button>
                     <button onClick={() => setView('pages')} className={`px-3 py-1.5 text-sm rounded-md ${view === 'pages' ? 'bg-white shadow-sm' : 'text-gray-500'}`}>Pages ({discoveredPages.length})</button>
                     <button onClick={() => setView('products')} className={`px-3 py-1.5 text-sm rounded-md ${view === 'products' ? 'bg-white shadow-sm' : 'text-gray-500'}`}>Products ({discoveredProducts.length})</button>
                   </div>
                 </div>
               </div>
-              {view === 'templates' && (
-                <div className="grid grid-cols-1 gap-4">
-                  {groups.map((g, i) => (
-                    <div key={i} className="card p-4">
-                      <div className="flex justify-between mb-4">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="px-2 py-0.5 bg-gray-100 text-[10px] font-mono rounded">{g.structural_hash.substring(0,8)}</span>
-                            <span className="text-[10px] font-medium text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full">{g.count} pages</span>
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${g.type === 'product' ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-green-50 text-green-700 border border-green-200'}`}>
-                              {g.type}
-                            </span>
+              {view === 'rules' && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 gap-4">
+                    {(selectedSite.config?.migration_rules || []).map((rule, i) => (
+                      <div key={i} className="card p-4 flex items-center justify-between">
+                        <div>
+                          <h3 className="font-bold text-lg">{rule.name}</h3>
+                          <p className="text-xs text-gray-400">Target Template: {templates.find(t => t.id === rule.template_id)?.name || rule.template_id}</p>
+                          <div className="flex gap-1 mt-2">
+                            {Object.keys(rule.selector_map || {}).map(f => (
+                              <span key={f} className="text-[10px] bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">{f}</span>
+                            ))}
                           </div>
-                          <h3 className="font-bold truncate">{g.sample_title}</h3>
-                          <p className="text-[10px] text-gray-400 truncate">{g.sample_url}</p>
                         </div>
-                        <div className="flex gap-2 shrink-0">
-                          <button onClick={() => openVisualPicker(g.sample_url)} className="btn btn-ghost btn-sm text-amber-600"><Maximize2 className="w-4 h-4 mr-1" /> Visual Picker</button>
-                          <button onClick={() => handleGenerateTemplate(g.structural_hash)} className="btn btn-ghost btn-sm text-primary-600"><FileCode className="w-4 h-4 mr-1" /> Generate</button>
+                        <div className="flex gap-2">
+                          <button onClick={() => deleteRule(rule.id)} className="p-2 text-red-400 hover:bg-red-50 rounded"><Trash2 className="w-4 h-4" /></button>
+                          <button 
+                            onClick={() => applyRuleToSelection(rule)} 
+                            disabled={selectedPages.size === 0 && selectedProducts.size === 0}
+                            className="btn btn-primary btn-sm"
+                          >
+                            Apply to Selection ({view === 'products' ? selectedProducts.size : selectedPages.size})
+                          </button>
                         </div>
                       </div>
-                      <button onClick={() => handleBulkMigrate(g.structural_hash)} className="btn btn-primary btn-sm w-full">Migrate Group</button>
+                    ))}
+                    {(selectedSite.config?.migration_rules || []).length === 0 && (
+                      <div className="card p-12 text-center text-gray-400 border-dashed">
+                        <FileCode className="w-12 h-12 mx-auto mb-4 opacity-10" />
+                        <p>No custom rules defined yet.</p>
+                        <button onClick={() => setView('pages')} className="text-primary-600 text-sm mt-2 hover:underline">Go to Pages to create one</button>
+                      </div>
+                    )}
+                  </div>
+
+                  <hr className="border-gray-100" />
+                  
+                  <div className="space-y-3">
+                    <h3 className="text-xs font-bold uppercase text-gray-400">Auto-Detected Groups (Structural Hashes)</h3>
+                    <div className="grid grid-cols-1 gap-4 opacity-75">
+                      {groups.map((g, i) => (
+                        <div key={i} className="card p-3 bg-gray-50 border-dashed">
+                          <div className="flex justify-between items-center">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-0.5">
+                                <span className="px-1.5 py-0.5 bg-white text-[9px] font-mono rounded border">{g.structural_hash.substring(0,8)}</span>
+                                <span className="text-[9px] font-medium text-primary-600 bg-primary-50 px-1.5 py-0.5 rounded-full">{g.count} pages</span>
+                                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider ${g.type === 'product' ? 'bg-amber-50 text-amber-700' : 'bg-green-50 text-green-700'}`}>
+                                  {g.type}
+                                </span>
+                              </div>
+                              <h4 className="font-semibold text-sm truncate">{g.sample_title}</h4>
+                            </div>
+                            <div className="flex gap-2 shrink-0">
+                              <button onClick={() => openVisualPicker(g.sample_url)} className="p-1.5 text-amber-600 hover:bg-amber-50 rounded"><Maximize2 className="w-4 h-4" /></button>
+                              <button onClick={() => handleGenerateTemplate(g.structural_hash)} className="p-1.5 text-primary-600 hover:bg-primary-50 rounded"><FileCode className="w-4 h-4" /></button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  </div>
                 </div>
               )}
               {view === 'pages' && (
                 <div className="card overflow-hidden">
-                  <div className="p-4 border-b flex justify-between items-center">
+                  <div className="p-4 border-b flex justify-between items-center bg-gray-50">
                     <div className="flex items-center gap-3">
                       <input 
                         type="checkbox" 
@@ -641,10 +774,19 @@ export default function SiteImporter() {
                       />
                       <h3 className="font-bold text-gray-700">Discovered Pages ({discoveredPages.length})</h3>
                     </div>
-                    <button onClick={handleBulkPageMigrate} disabled={migrating || discoveredPages.length === 0} className="btn btn-primary btn-sm">
-                      {migrating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileText className="w-4 h-4 mr-2" />} 
-                      {selectedPages.size > 0 ? `Migrate ${selectedPages.size} Selected` : 'Migrate All'}
-                    </button>
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={startCreateRuleFromSelection} 
+                        disabled={selectedPages.size === 0} 
+                        className="btn btn-secondary btn-sm"
+                      >
+                        <Plus className="w-4 h-4 mr-1" /> Create Rule
+                      </button>
+                      <button onClick={handleBulkPageMigrate} disabled={migrating || discoveredPages.length === 0} className="btn btn-primary btn-sm">
+                        {migrating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileText className="w-4 h-4 mr-2" />} 
+                        {selectedPages.size > 0 ? `Quick Migrate ${selectedPages.size}` : 'Quick Migrate All'}
+                      </button>
+                    </div>
                   </div>
                   {discoveredPages.length === 0 ? (
                     <div className="p-8 text-center text-gray-400 text-sm">No pages discovered yet. Pages will appear here once the crawl finds non-product URLs.</div>
@@ -653,25 +795,30 @@ export default function SiteImporter() {
                       <tbody className="divide-y">
                         {discoveredPages.map((p, i) => {
                           const path = (() => { try { return new URL(p.url).pathname; } catch { return p.url; } })();
+                          const isSelected = selectedPages.has(p.id);
                           return (
-                            <tr key={i} className={p.status === 'migrated' ? 'opacity-50' : ''}>
+                            <tr 
+                              key={i} 
+                              onClick={(e) => togglePageSelection(e, p.id, i)}
+                              className={`cursor-pointer select-none hover:bg-gray-50 ${isSelected ? 'bg-primary-50' : ''} ${p.status === 'migrated' ? 'opacity-50' : ''}`}
+                            >
                               <td className="px-4 py-3 w-10">
                                 <input 
                                   type="checkbox" 
-                                  className="rounded border-gray-300 text-primary-600 focus:ring-primary-600"
-                                  checked={selectedPages.has(p.id)}
-                                  onChange={() => togglePageSelection(p.id)}
+                                  className="rounded border-gray-300 text-primary-600 focus:ring-primary-600 pointer-events-none"
+                                  checked={isSelected}
+                                  readOnly
                                 />
                               </td>
                               <td className="px-4 py-3">
-                                <div className="font-medium">{p.title || 'Untitled'}</div>
-                                <div className="text-xs text-gray-400">{path}</div>
+                                <div className="font-medium text-gray-900">{p.title || 'Untitled'}</div>
+                                <div className="text-xs text-gray-400 font-mono">{path}</div>
                               </td>
                               <td className="px-4 py-3 text-right">
                                 {p.status === 'migrated' ? (
-                                  <span className="text-xs text-green-600 font-medium">Migrated</span>
+                                  <span className="text-xs text-green-600 font-bold bg-green-50 px-2 py-0.5 rounded-full">MIGRATED</span>
                                 ) : (
-                                  <span className="text-xs text-gray-400">{p.status}</span>
+                                  <span className="text-[10px] text-gray-400 uppercase font-bold">{p.status}</span>
                                 )}
                               </td>
                             </tr>
@@ -684,7 +831,7 @@ export default function SiteImporter() {
               )}
               {view === 'products' && (
                 <div className="card overflow-hidden">
-                  <div className="p-4 border-b flex justify-between items-center">
+                  <div className="p-4 border-b flex justify-between items-center bg-gray-50">
                     <div className="flex items-center gap-3">
                       <input 
                         type="checkbox" 
@@ -694,27 +841,45 @@ export default function SiteImporter() {
                       />
                       <h3 className="font-bold text-gray-700">Discovered Products ({discoveredProducts.length})</h3>
                     </div>
-                    <button onClick={handleBulkProductMigrate} disabled={migrating || discoveredProducts.length === 0} className="btn btn-primary btn-sm">
-                      {migrating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Package className="w-4 h-4 mr-2" />} 
-                      {selectedProducts.size > 0 ? `Migrate ${selectedProducts.size} Selected` : 'Migrate All'}
-                    </button>
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={startCreateRuleFromSelection} 
+                        disabled={selectedProducts.size === 0} 
+                        className="btn btn-secondary btn-sm"
+                      >
+                        <Plus className="w-4 h-4 mr-1" /> Create Rule
+                      </button>
+                      <button onClick={handleBulkProductMigrate} disabled={migrating || discoveredProducts.length === 0} className="btn btn-primary btn-sm">
+                        {migrating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Package className="w-4 h-4 mr-2" />} 
+                        {selectedProducts.size > 0 ? `Quick Migrate ${selectedProducts.size}` : 'Quick Migrate All'}
+                      </button>
+                    </div>
                   </div>
                   <table className="w-full text-sm">
                     <tbody className="divide-y">
-                      {discoveredProducts.map((p, i) => (
-                        <tr key={i}>
-                          <td className="px-4 py-3 w-10">
-                            <input 
-                              type="checkbox" 
-                              className="rounded border-gray-300 text-primary-600 focus:ring-primary-600"
-                              checked={selectedProducts.has(p.id)}
-                              onChange={() => toggleProductSelection(p.id)}
-                            />
-                          </td>
-                          <td className="px-4 py-3">{p.title}</td>
-                          <td className="px-4 py-3 text-right font-bold text-green-600">${(typeof p.metadata === 'string' ? JSON.parse(p.metadata) : p.metadata)?.price || '0.00'}</td>
-                        </tr>
-                      ))}
+                      {discoveredProducts.map((p, i) => {
+                        const isSelected = selectedProducts.has(p.id);
+                        return (
+                          <tr 
+                            key={i}
+                            onClick={(e) => toggleProductSelection(e, p.id, i)}
+                            className={`cursor-pointer select-none hover:bg-gray-50 ${isSelected ? 'bg-primary-50' : ''}`}
+                          >
+                            <td className="px-4 py-3 w-10">
+                              <input 
+                                type="checkbox" 
+                                className="rounded border-gray-300 text-primary-600 focus:ring-primary-600 pointer-events-none"
+                                checked={isSelected}
+                                readOnly
+                              />
+                            </td>
+                            <td className="px-4 py-3 font-medium text-gray-900">{p.title}</td>
+                            <td className="px-4 py-3 text-right font-bold text-green-600">
+                              ${(typeof p.metadata === 'string' ? JSON.parse(p.metadata) : p.metadata)?.price || '0.00'}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
