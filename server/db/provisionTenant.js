@@ -13,10 +13,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
  *
  * @param {string} subdomain - The tenant subdomain (e.g., "shop1" -> database "wolfwave_shop1")
  * @param {string} adminEmail - Initial admin email
- * @param {string} adminPassword - Initial admin password
+ * @param {string} adminPassword - Initial admin password (plain or hashed)
+ * @param {boolean} isHashed - Whether the password provided is already hashed
  * @returns {string} The created database name
  */
-export async function provisionTenant(subdomain, adminEmail, adminPassword) {
+export async function provisionTenant(subdomain, adminEmail, adminPassword, isHashed = false) {
   // Validate tenant name (alphanumeric + hyphens only)
   if (!/^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$/.test(subdomain)) {
     throw new Error('Tenant name must be lowercase alphanumeric with optional hyphens, cannot start/end with a hyphen');
@@ -112,11 +113,18 @@ export async function provisionTenant(subdomain, adminEmail, adminPassword) {
 
       // Seed the initial admin user (defaults to admin@example.com / admin123)
       const finalEmail = adminEmail || 'admin@example.com';
-      const finalPassword = adminPassword || 'admin123';
+      let hashedPassword;
+
+      if (isHashed && adminPassword) {
+        hashedPassword = adminPassword;
+      } else {
+        const finalPassword = adminPassword || 'admin123';
+        console.log(`Hashing password for initial admin user ${finalEmail}...`);
+        const salt = await bcrypt.genSalt(10);
+        hashedPassword = await bcrypt.hash(finalPassword, salt);
+      }
       
       console.log(`Seeding initial admin user ${finalEmail}...`);
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash(finalPassword, salt);
       
       await tenantConn.query(
         `INSERT INTO users (email, password, name, role) VALUES (?, ?, ?, ?)`,

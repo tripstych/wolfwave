@@ -7,6 +7,7 @@ import { syncTemplatesToDb } from '../services/templateParser.js';
 import { seedNewTenant } from '../services/tenantSeeder.js';
 import { runWithTenant } from '../lib/tenantContext.js';
 import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
 
 const router = Router();
 
@@ -139,9 +140,15 @@ router.post('/', requireCustomer, async (req, res) => {
     }
 
     // 4. Provision
-    // Use dummy email/password for the internal admin user of the new tenant
+    // Fetch the customer's actual hashed password from the primary DB
+    const customerRecord = await prisma.customers.findUnique({
+      where: { id: req.customer.id },
+      select: { password: true }
+    });
+
     // The customer is the "owner" in the primary DB.
-    const dbName = await provisionTenant(subdomain, req.customer.email, 'changeme123!');
+    // We pass their existing hash so they can log in immediately.
+    const dbName = await provisionTenant(subdomain, req.customer.email, customerRecord.password, true);
 
     // 5. Register
     const tenant = await prisma.tenants.create({
