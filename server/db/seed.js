@@ -331,6 +331,15 @@ async function seed() {
       console.log('✅ About and Contact pages created');
     }
 
+    // Seed zenblock tenant for testing
+    await query(
+      `INSERT INTO tenants (name, subdomain, database_name, status)
+       VALUES (?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE status = VALUES(status)`,
+      ['ZenBlock', 'zenblock', 'webwolf_zenblock', 'active']
+    );
+    console.log('✅ ZenBlock tenant seeded');
+
     console.log('🌱 Seeding completed successfully');
     const pool = getPool();
     await pool.end();

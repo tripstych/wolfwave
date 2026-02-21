@@ -5,6 +5,7 @@ import prisma from '../lib/prisma.js';
 import { runWithTenant, getCurrentDbName } from '../lib/tenantContext.js';
 import { info, error as logError } from '../lib/logger.js';
 import { extractMetadata } from './scraperService.js';
+import { CRAWLER_PRESETS } from '../lib/crawlerPresets.js';
 
 function normalizeUrl(url) {
   try {
@@ -19,6 +20,70 @@ function normalizeUrl(url) {
     if (cleaned.endsWith('/') && nUrl.pathname !== '/') cleaned = cleaned.slice(0, -1);
     return cleaned;
   } catch { return null; }
+}
+
+async function detectBlueprint(rootUrl, dbName) {
+  try {
+    const { data: html, headers } = await axios.get(rootUrl, {
+      timeout: 10000,
+      headers: { 'User-Agent': 'WebWolf-Detector/1.0' }
+    });
+    const $ = cheerio.load(html);
+
+    // Shopify detection
+    if (html.includes('Shopify.shop') || html.includes('cdn.shopify.com') || headers['x-shopify-stage']) {
+      info(dbName, 'BLUEPRINT_DETECTED', 'Platform: Shopify');
+      return CRAWLER_PRESETS.shopify;
+    }
+
+    // WooCommerce detection
+    if (html.includes('woocommerce') || html.includes('wp-content/plugins/woocommerce') || $('body').hasClass('woocommerce')) {
+      info(dbName, 'BLUEPRINT_DETECTED', 'Platform: WooCommerce');
+      return CRAWLER_PRESETS.woocommerce;
+    }
+
+    // Magento detection
+    if (html.includes('Mage.Cookies') || html.includes('skin/frontend') || html.includes('js/varien')) {
+      info(dbName, 'BLUEPRINT_DETECTED', 'Platform: Magento');
+      return CRAWLER_PRESETS.magento;
+    }
+
+    // BigCommerce detection
+    if (html.includes('cdn11.bigcommerce.com') || html.includes('Stencil') || html.includes('BCData')) {
+      info(dbName, 'BLUEPRINT_DETECTED', 'Platform: BigCommerce');
+      return CRAWLER_PRESETS.bigcommerce;
+    }
+
+    // PrestaShop detection
+    if (html.includes('prestashop') || html.includes('themes/prestashop')) {
+      info(dbName, 'BLUEPRINT_DETECTED', 'Platform: PrestaShop');
+      return CRAWLER_PRESETS.prestashop;
+    }
+
+    // Webflow detection
+    if (html.includes('w-webflow') || $('html').attr('data-wf-page') || $('meta[name="generator"]').attr('content')?.includes('Webflow')) {
+      info(dbName, 'BLUEPRINT_DETECTED', 'Platform: Webflow');
+      return CRAWLER_PRESETS.webflow;
+    }
+
+    // Squarespace detection
+    if (html.includes('Static.SQUARESPACE_CACHE') || html.includes('squarespace.com')) {
+      info(dbName, 'BLUEPRINT_DETECTED', 'Platform: Squarespace');
+      return CRAWLER_PRESETS.squarespace;
+    }
+
+    // Wix detection
+    if (html.includes('wix.com') || html.includes('static.wixstatic.com')) {
+      info(dbName, 'BLUEPRINT_DETECTED', 'Platform: Wix');
+      return CRAWLER_PRESETS.wix;
+    }
+
+    info(dbName, 'BLUEPRINT_DETECTED', 'No specific platform detected, using generic');
+    return null;
+  } catch (err) {
+    logError(dbName, err, 'BLUEPRINT_DETECTION_FAILED');
+    return null;
+  }
 }
 
 function discoverLinks($, currentUrl, rootDomain, visited, queue, config = {}) {
@@ -157,8 +222,36 @@ export async function crawlSite(siteId, rootUrl) {
   runWithTenant(dbName, async () => {
     try {
       const siteRecord = await prisma.imported_sites.findUnique({ where: { id: siteId } });
-      const config = siteRecord?.config ? (typeof siteRecord.config === 'string' ? JSON.parse(siteRecord.config) : siteRecord.config) : {};
+      let config = siteRecord?.config ? (typeof siteRecord.config === 'string' ? JSON.parse(siteRecord.config) : siteRecord.config) : {};
       
+      // Auto-detect blueprint if requested and no specific rules are set
+      if (config.autoDetect) {
+        const detected = await detectBlueprint(rootUrl, dbName);
+        if (detected) {
+          // Merge detected settings into config, but provided config takes precedence
+          config = {
+            ...detected,
+            ...config,
+            rules: [...(detected.rules || []), ...(config.rules || [])]
+          };
+          
+          // Deduplicate rules by value (simplistic)
+          const seen = new Set();
+          config.rules = config.rules.filter(r => {
+            const key = `${r.action}:${r.value}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+
+          // Update the site record with the enriched config
+          await prisma.imported_sites.update({
+            where: { id: siteId },
+            data: { config }
+          });
+        }
+      }
+
       // Use configured feed URL if available (products only)
       let feedSynced = false;
       if (config.feedUrl) {

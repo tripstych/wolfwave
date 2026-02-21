@@ -29,7 +29,8 @@ export default function SiteImporter() {
     feedUrl: '',
     priorityPatterns: '/products/',
     excludePatterns: '/tagged/, /search, sort_by=',
-    rules: []
+    rules: [],
+    autoDetect: true
   });
 
   const [presets, setPresets] = useState({});
@@ -174,7 +175,8 @@ export default function SiteImporter() {
         feedUrl: finalFeedUrl,
         priorityPatterns: config.priorityPatterns.split(',').map(p => p.trim()).filter(Boolean),
         excludePatterns: config.excludePatterns.split(',').map(p => p.trim()).filter(Boolean),
-        rules: config.rules
+        rules: config.rules,
+        autoDetect: config.autoDetect
       };
 
       await api.post('/import/crawl', { url, config: formattedConfig });
@@ -348,13 +350,25 @@ export default function SiteImporter() {
             <form onSubmit={handleStartCrawl} className="space-y-3">
               <input type="url" value={url} onChange={e => setUrl(e.target.value)} className="input" placeholder="https://..." required />
               
-              <button 
-                type="button" 
-                onClick={() => setShowOptions(!showOptions)}
-                className="text-xs text-primary-600 font-medium flex items-center gap-1 hover:underline"
-              >
-                {showOptions ? 'Hide' : 'Show'} Advanced Options
-              </button>
+              <div className="flex items-center justify-between">
+                <button 
+                  type="button" 
+                  onClick={() => setShowOptions(!showOptions)}
+                  className="text-xs text-primary-600 font-medium flex items-center gap-1 hover:underline"
+                >
+                  {showOptions ? 'Hide' : 'Show'} Advanced Options
+                </button>
+
+                <label className="flex items-center gap-2 text-xs font-medium text-gray-600 cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={config.autoDetect}
+                    onChange={e => setConfig({...config, autoDetect: e.target.checked})}
+                    className="rounded border-gray-300 text-primary-600 focus:ring-primary-600"
+                  />
+                  Auto-detect Blueprint
+                </label>
+              </div>
 
               {showOptions && (
                 <div className="p-3 bg-gray-50 rounded border space-y-3">

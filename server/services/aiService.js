@@ -73,7 +73,12 @@ export async function generateText(systemPrompt, userPrompt, model = 'gpt-4o') {
     const content = response.data.choices[0].message.content;
     return JSON.parse(content);
   } catch (error) {
-    console.error('[AI-DEBUG] ❌ AI Text Generation Error:', error.response?.data || error.message);
+    const errorData = error.response?.data;
+    console.error('[AI-DEBUG] ❌ AI Text Generation Error:', errorData || error.message);
+    
+    if (errorData?.error?.message) {
+      throw new Error(`AI Error: ${errorData.error.message}`);
+    }
     throw new Error('Failed to generate text content');
   }
 }

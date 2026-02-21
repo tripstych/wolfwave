@@ -81,6 +81,12 @@ app.use(session({
   }
 }));
 
+// Tenant resolution (subdomain -> database, must be first to catch non-existent tenants)
+app.use(tenantMiddleware);
+
+// Per-tenant access logging
+app.use(accessLog);
+
 // Static files — theme assets
 app.use('/themes', express.static(getThemesDir()));
 
@@ -95,13 +101,7 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 
-// Tenant resolution (subdomain -> database, must be before API and public routes)
-app.use(tenantMiddleware);
-
-// Per-tenant access logging (after tenant middleware so req.tenantDb is set)
-app.use(accessLog);
-
-// Per-tenant upload serving (after tenant middleware so req.tenantDb is set)
+// Per-tenant upload serving
 const uploadsRoot = path.join(__dirname, '../uploads');
 app.use('/uploads', (req, res, next) => {
   const dbName = req.tenantDb || '';
