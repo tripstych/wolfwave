@@ -54,6 +54,7 @@ export default function SiteImporter() {
   const [showPicker, setShowPicker] = useState(false);
   const [pickerUrl, setPickerUrl] = useState('');
   const [editingRule, setEditingRule] = useState(null);
+  const [editingRuleName, setEditingRuleName] = useState('');
   
   const navigate = useNavigate();
 
@@ -104,14 +105,14 @@ export default function SiteImporter() {
     try {
       const ruleData = {
         id: editingRule?.id,
-        name: editingRule?.name || prompt('Enter a name for this rule:', 'New Import Rule'),
+        name: editingRuleName || 'New Import Rule',
         template_id: parseInt(selectedTemplateId),
         selector_map: selectorMap
       };
-      if (!ruleData.name) return;
 
       await api.post(`/import/sites/${selectedSite.id}/rules`, ruleData);
       setEditingRule(null);
+      setEditingRuleName('');
       
       // Refresh site to get updated rules in config
       const updated = await api.get(`/import/sites/${selectedSite.id}`);
@@ -135,7 +136,8 @@ export default function SiteImporter() {
     const pages = view === 'products' ? discoveredProducts : discoveredPages;
     const firstPage = pages.find(p => p.id === selection[0]);
     
-    setEditingRule({ name: '', isNew: true, selection });
+    setEditingRule({ id: Date.now().toString(), selection });
+    setEditingRuleName('');
     setSelectorMap({});
     setSelectedTemplateId('');
     openVisualPicker(firstPage.url);
@@ -231,17 +233,18 @@ export default function SiteImporter() {
 
   const refreshCrawlingSites = async () => {
     try {
+      const now = Date.now();
       // 1. Always refresh the site list for the "History" panel
-      const updatedSites = await api.get('/import/sites');
+      const updatedSites = await api.get(`/import/sites?_t=${now}`);
       if (updatedSites) setSites(updatedSites);
       
       // 2. If a site is selected AND it's currently crawling, refresh its specific data
       if (selectedSite && (selectedSite.status === 'pending' || selectedSite.status === 'crawling')) {
-        const updated = await api.get(`/import/sites/${selectedSite.id}`);
+        const updated = await api.get(`/import/sites/${selectedSite.id}?_t=${now}`);
         if (updated) {
           setSelectedSite(updated);
-          // Only refresh groups/products if count significantly changed or finished
-          if (updated.status === 'completed' || Math.abs(updated.page_count - (selectedSite.page_count || 0)) >= 5) {
+          // Immediate update for every new page discovered
+          if (updated.status === 'completed' || updated.page_count !== (selectedSite.page_count || 0)) {
             refreshGroupsAndProducts(updated);
           }
         }
@@ -794,6 +797,21 @@ export default function SiteImporter() {
                       <h3 className="font-bold text-gray-700">Discovered Pages ({discoveredPages.length})</h3>
                     </div>
                     <div className="flex gap-2">
+                      <select 
+                        onChange={(e) => {
+                          const rule = (selectedSite.config?.migration_rules || []).find(r => r.id === e.target.value);
+                          if (rule) applyRuleToSelection(rule);
+                          e.target.value = ''; // Reset
+                        }}
+                        disabled={selectedPages.size === 0 || !(selectedSite.config?.migration_rules || []).length}
+                        className="input py-1 text-xs max-w-[140px]"
+                        defaultValue=""
+                      >
+                        <option value="" disabled>Apply Rule...</option>
+                        {(selectedSite.config?.migration_rules || []).map(r => (
+                          <option key={r.id} value={r.id}>{r.name}</option>
+                        ))}
+                      </select>
                       <button 
                         onClick={startCreateRuleFromSelection} 
                         disabled={selectedPages.size === 0} 
@@ -861,6 +879,21 @@ export default function SiteImporter() {
                       <h3 className="font-bold text-gray-700">Discovered Products ({discoveredProducts.length})</h3>
                     </div>
                     <div className="flex gap-2">
+                      <select 
+                        onChange={(e) => {
+                          const rule = (selectedSite.config?.migration_rules || []).find(r => r.id === e.target.value);
+                          if (rule) applyRuleToSelection(rule);
+                          e.target.value = ''; // Reset
+                        }}
+                        disabled={selectedProducts.size === 0 || !(selectedSite.config?.migration_rules || []).length}
+                        className="input py-1 text-xs max-w-[140px]"
+                        defaultValue=""
+                      >
+                        <option value="" disabled>Apply Rule...</option>
+                        {(selectedSite.config?.migration_rules || []).map(r => (
+                          <option key={r.id} value={r.id}>{r.name}</option>
+                        ))}
+                      </select>
                       <button 
                         onClick={startCreateRuleFromSelection} 
                         disabled={selectedProducts.size === 0} 
@@ -911,8 +944,15 @@ export default function SiteImporter() {
       {showPicker && (
         <div className="fixed inset-0 z-[100] bg-black bg-opacity-75 flex flex-col !mt-0 !top-0">
           <div className="bg-white p-4 flex justify-between items-center border-b">
-            <div className="flex items-center gap-4">
-              <h2 className="font-bold">Visual Selector Picker</h2>
+            <div className="flex items-center gap-4 flex-1">
+              <h2 className="font-bold shrink-0">Visual Selector Picker</h2>
+              <input 
+                type="text" 
+                placeholder="Rule Name (e.g. Blog Post Mapping)" 
+                value={editingRuleName}
+                onChange={e => setEditingRuleName(e.target.value)}
+                className="input py-1 text-sm max-w-[250px] border-amber-200 focus:border-amber-500 bg-amber-50"
+              />
               <select 
                 value={selectedTemplateId} 
                 onChange={(e) => setSelectedTemplateId(e.target.value)}
