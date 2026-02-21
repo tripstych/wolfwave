@@ -5,6 +5,7 @@ import { getCurrentDbName } from '../lib/tenantContext.js';
 import { info, error as logError } from '../lib/logger.js';
 import { generateSearchIndex } from '../lib/searchIndexer.js';
 import { automaticallyDetectContent } from './scraperService.js';
+import { processHtmlImages } from './mediaService.js';
 
 export async function migratePage(importedPageId, templateId, selectorMap = { 'main': 'body' }) {
   const dbName = getCurrentDbName();
@@ -27,6 +28,14 @@ export async function migratePage(importedPageId, templateId, selectorMap = { 'm
 
     // Fallback if still empty
     if (!extractedData.main) extractedData.main = $('body').html();
+
+    // ── LOCALISE IMAGES ──
+    for (const key in extractedData) {
+      if (extractedData[key]) {
+        extractedData[key] = await processHtmlImages(extractedData[key]);
+      }
+    }
+
     const title = importedPage.title || $('title').text() || 'Imported Page';
 
     // Check if a page with THIS EXACT TITLE already exists to avoid duplication

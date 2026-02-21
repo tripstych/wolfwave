@@ -4,6 +4,7 @@ import { generateUniqueSlug } from '../lib/slugify.js';
 import { getCurrentDbName } from '../lib/tenantContext.js';
 import { info, error as logError } from '../lib/logger.js';
 import { generateSearchIndex } from '../lib/searchIndexer.js';
+import { downloadImage } from './mediaService.js';
 
 export async function migrateProduct(importedPageId, templateId) {
   const dbName = getCurrentDbName();
@@ -23,7 +24,16 @@ export async function migrateProduct(importedPageId, templateId) {
       where: { module: 'products', title: title }
     });
 
-    const contentData = { description: meta.description || '', images: meta.images || [] };
+    // ── LOCALISE IMAGES ──
+    const localImages = [];
+    if (meta.images && meta.images.length > 0) {
+      for (const imgUrl of meta.images) {
+        const localImg = await downloadImage(imgUrl, title);
+        localImages.push(localImg);
+      }
+    }
+
+    const contentData = { description: meta.description || '', images: localImages };
 
     if (existingContent) {
       // 1. Update base product content if needed
@@ -41,6 +51,14 @@ export async function migrateProduct(importedPageId, templateId) {
       });
 
       if (product) {
+        // Update product's main image if it was empty
+        if (localImages.length > 0 && !product.og_image) {
+          await prisma.products.update({
+             where: { id: product.id },
+             data: { og_image: localImages[0] }
+          });
+        }
+
         // 2. SMART VARIANT MERGE
         if (meta.variants && meta.variants.length > 0) {
           const optionNames = meta.options?.map(o => o.name) || [];
@@ -53,6 +71,8 @@ export async function migrateProduct(importedPageId, templateId) {
             );
 
             if (!exists) {
+              const localVariantImg = v.image ? await downloadImage(v.image, v.title || title) : null;
+              
               const variantData = {
                 product_id: product.id,
                 title: v.title || title,
@@ -60,7 +80,7 @@ export async function migrateProduct(importedPageId, templateId) {
                 price: parseFloat(v.price) || product.price,
                 compare_at_price: v.compare_at_price ? parseFloat(v.compare_at_price) : null,
                 inventory_quantity: v.inventory_quantity || 0,
-                image: v.image || null,
+                image: localVariantImg,
                 position: v.position || (product.product_variants.length + 1)
               };
               if (optionNames[0] && v.option1) { variantData.option1_name = optionNames[0]; variantData.option1_value = v.option1; }
@@ -96,13 +116,23 @@ export async function migrateProduct(importedPageId, templateId) {
     });
 
     const product = await prisma.products.create({
-      data: { content_id: content.id, template_id: templateId, title, sku, price, status: 'active' }
+      data: { 
+        content_id: content.id, 
+        template_id: templateId, 
+        title, 
+        sku, 
+        price, 
+        status: 'active',
+        og_image: localImages[0] || null
+      }
     });
 
     // Create variants from feed data (Shopify etc.)
     if (meta.variants && meta.variants.length > 0 && meta.options) {
       const optionNames = meta.options.map(o => o.name);
       for (const v of meta.variants) {
+        const localVariantImg = v.image ? await downloadImage(v.image, v.title || title) : null;
+
         const variantData = {
           product_id: product.id,
           title: v.title || title,
@@ -110,7 +140,7 @@ export async function migrateProduct(importedPageId, templateId) {
           price: parseFloat(v.price) || price,
           compare_at_price: v.compare_at_price ? parseFloat(v.compare_at_price) : null,
           inventory_quantity: v.inventory_quantity || 0,
-          image: v.image || null,
+          image: localVariantImg,
           position: v.position || 1
         };
         if (optionNames[0] && v.option1) { variantData.option1_name = optionNames[0]; variantData.option1_value = v.option1; }
