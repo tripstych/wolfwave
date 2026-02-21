@@ -2,6 +2,7 @@
     let hoveredElement = null;
     let selectedElement = null;
     let ui = null;
+    let mappedFields = new Set();
     let currentFields = [
         { id: 'title', label: 'Set as Title' },
         { id: 'description', label: 'Set as Description' },
@@ -16,9 +17,10 @@
         ui = document.createElement('div');
         ui.id = 'wolfwave-picker-ui';
         
-        let fieldsHtml = currentFields.map(f => `
-            <button class="wolfwave-picker-btn" data-field="${f.id}">${f.label}</button>
-        `).join('');
+        let fieldsHtml = currentFields.map(f => {
+            const isMapped = mappedFields.has(f.id);
+            return `<button class="wolfwave-picker-btn" data-field="${f.id}" style="${isMapped ? 'background: #10b981;' : ''}">${f.label}${isMapped ? ' ✓' : ''}</button>`;
+        }).join('');
 
         ui.innerHTML = `
             <div class="wolfwave-picker-label">Visual Selector Picker</div>
@@ -40,6 +42,9 @@
                 const field = btn.getAttribute('data-field');
                 const selector = getBestSelector(target);
                 
+                // Track mapping locally for UI state
+                mappedFields.add(field);
+                
                 // Send to parent window (WolfWave Admin)
                 window.parent.postMessage({
                     type: 'WOLFWAVE_SELECTOR_PICKED',
@@ -47,8 +52,11 @@
                     selector: selector
                 }, '*');
 
+                // Visual Feedback - Persistent
                 btn.style.background = '#10b981';
-                setTimeout(() => btn.style.background = '#3b82f6', 1000);
+                if (!btn.innerText.endsWith(' ✓')) {
+                    btn.innerText += ' ✓';
+                }
             };
         });
 
