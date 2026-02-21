@@ -88,6 +88,7 @@ export default function SiteImporter() {
   const loadPresets = async () => {
     try {
       const data = await api.get('/import/presets');
+      console.log('[SiteImporter] Loaded presets:', Object.keys(data || {}));
       setPresets(data || {});
     } catch (err) { console.error(err); }
   };
