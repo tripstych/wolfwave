@@ -7,6 +7,7 @@ These rules are absolute and must be followed by Gemini CLI at all times to main
 - **Service Layer:** Services (e.g., `siteService`, `menuService`) must never assume a single global database. They must utilize the `getCurrentDbName()` helper or receive the `req` object to ensure they are querying the correct tenant.
 - **Raw SQL vs Prisma:** Only use raw SQL (`query`) when Prisma's type-safety is a blocker (e.g., dynamic column issues). Otherwise, prioritize Prisma but ensure the client is generated.
 
+## 1A NPX is not installed on the droplet server.
 ## 2. Prisma Lifecycle
 - **Automatic Generation:** Whenever `prisma/schema.prisma` is modified, `npm run db:generate` MUST be executed immediately.
 - **Migration Path:** Use `npm run db:migrate` which combines migration and generation to prevent "out of sync" ORM errors.
