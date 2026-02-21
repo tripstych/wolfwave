@@ -14,7 +14,9 @@ import {
   Check,
   Menu as MenuIcon,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  AlertCircle,
+  Shield
 } from 'lucide-react';
 
 export default function Menus() {
@@ -392,7 +394,15 @@ export default function Menus() {
           ) : (
             <>
               <div className="flex-1">
-                <p className="font-medium text-gray-900">{item.title}</p>
+                <div className="flex items-center gap-2">
+                  <p className="font-medium text-gray-900">{item.title}</p>
+                  {item.page_access_rules && (item.page_access_rules.auth !== 'all' || item.page_access_rules.subscription !== 'any') && (
+                    <span className="flex items-center gap-1 text-[9px] bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded border border-amber-200 uppercase font-bold" title="Target page has access restrictions">
+                      <Shield className="w-2.5 h-2.5" />
+                      Restricted Page
+                    </span>
+                  )}
+                </div>
                 <div className="flex flex-wrap gap-2 mt-1">
                   <p className="text-xs text-gray-500 flex items-center gap-1">
                     {item.page_id ? (

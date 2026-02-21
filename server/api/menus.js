@@ -33,7 +33,7 @@ router.get('/:id', requireAuth, async (req, res) => {
 
     // Get menu items with nested structure
     const itemsData = await query(`
-      SELECT mi.*, p.title as page_title, c.slug as page_slug
+      SELECT mi.*, p.title as page_title, c.slug as page_slug, p.access_rules as page_access_rules
       FROM menu_items mi
       LEFT JOIN pages p ON mi.page_id = p.id
       LEFT JOIN content c ON p.content_id = c.id
@@ -43,7 +43,8 @@ router.get('/:id', requireAuth, async (req, res) => {
 
     const items = itemsData.map(item => ({
       ...item,
-      display_rules: item.display_rules ? (typeof item.display_rules === 'string' ? JSON.parse(item.display_rules) : item.display_rules) : { auth: 'all' }
+      display_rules: item.display_rules ? (typeof item.display_rules === 'string' ? JSON.parse(item.display_rules) : item.display_rules) : { auth: 'all' },
+      page_access_rules: item.page_access_rules ? (typeof item.page_access_rules === 'string' ? JSON.parse(item.page_access_rules) : item.page_access_rules) : null
     }));
 
     // Build nested tree structure
