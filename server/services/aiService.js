@@ -94,9 +94,9 @@ export async function generateText(systemPrompt, userPrompt, model = null, req =
     const openaiModel = model || 'gpt-4o';
     console.log(`[AI-DEBUG] 🔑 OpenAI Key present. Sending request to ${openaiModel}...`);
 
-  try {
-    const response = await axios.post(
-      `${OPENAI_API_URL}/chat/completions`,
+    try {
+      const response = await axios.post(
+        `${OPENAI_API_URL}/chat/completions`,
       {
         model: openaiModel,
         messages: [
@@ -129,6 +129,7 @@ export async function generateText(systemPrompt, userPrompt, model = null, req =
     }
     throw new Error('Failed to generate text content');
   }
+}
 }
 
 /**
