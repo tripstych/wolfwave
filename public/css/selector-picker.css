@@ -1,12 +1,12 @@
-/* Visual Selector Picker Styles */
-.webwolf-picker-highlight {
+/* Visual Selector Picker Styles - WolfWave Rebrand */
+.wolfwave-picker-highlight {
     outline: 2px solid #3b82f6 !important;
     background-color: rgba(59, 130, 246, 0.1) !important;
     cursor: crosshair !important;
     transition: all 0.1s ease;
 }
 
-#webwolf-picker-ui {
+#wolfwave-picker-ui {
     position: fixed;
     bottom: 20px;
     right: 20px;
@@ -20,7 +20,7 @@
     width: 250px;
 }
 
-.webwolf-picker-btn {
+.wolfwave-picker-btn {
     display: block;
     width: 100%;
     padding: 8px;
@@ -34,11 +34,11 @@
     font-size: 12px;
 }
 
-.webwolf-picker-btn:hover {
+.wolfwave-picker-btn:hover {
     background: #2563eb;
 }
 
-.webwolf-picker-label {
+.wolfwave-picker-label {
     font-size: 10px;
     font-weight: bold;
     color: #6b7280;
