@@ -80,7 +80,7 @@ export default function SiteImporter() {
 
   const openVisualPicker = (sampleUrl) => {
     if (!sampleUrl) return alert('No sample URL available');
-    setPickerUrl(`${api.defaults.baseURL}/import/proxy?url=${encodeURIComponent(sampleUrl)}`);
+    setPickerUrl(`/api/import/proxy?url=${encodeURIComponent(sampleUrl)}`);
     setShowPicker(true);
   };
 
