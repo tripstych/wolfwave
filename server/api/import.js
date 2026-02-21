@@ -29,16 +29,19 @@ router.get('/proxy', requireAuth, requireEditor, async (req, res) => {
     // 1. Inject <base> to fix relative assets
     $('head').prepend(`<base href="${origin}/">`);
 
-    // 2. Inject Picker Assets
-    $('head').append(`<link rel="stylesheet" href="/css/selector-picker.css">`);
-    $('body').append(`<script src="/js/selector-picker.js"></script>`);
+    // 2. Inject Picker Assets (Absolute paths to our own server)
+    const siteUrl = `${req.protocol}://${req.get('host')}`;
+    $('head').append(`<link rel="stylesheet" href="${siteUrl}/css/selector-picker.css">`);
+    $('body').append(`<script src="${siteUrl}/js/selector-picker.js"></script>`);
 
-    // 3. Strip original scripts to prevent redirects/interferences
-    $('script').each((i, el) => {
-      const src = $(el).attr('src');
-      if (src && !src.includes('selector-picker.js')) $(el).remove();
-      if (!src) $(el).remove(); // Remove inline scripts
-    });
+    // 3. NUCLEAR STRIP: Original scripts, noscripts, and frames to prevent redirects/loops
+    $('script').remove();
+    $('noscript').remove();
+    $('iframe').remove();
+    $('meta[http-equiv="refresh"]').remove();
+
+    // 4. Force inject our picker script back since we just nuked all scripts
+    $('body').append(`<script src="${siteUrl}/js/selector-picker.js"></script>`);
 
     res.send($.html());
   } catch (err) {
