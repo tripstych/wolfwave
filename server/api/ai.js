@@ -102,6 +102,10 @@ router.post('/generate-image', requireAuth, requireAdmin, async (req, res) => {
  * Payload: { templateId: 1, prompt: "Luxury Bakery", currentData: {} }
  */
 router.post('/generate-content', requireAuth, async (req, res) => {
+  // TEST ERROR: Deliberately fail to see where it logs
+  console.log('[AI-DEBUG] 🧪 TRIGGERING TEST ERROR');
+  throw new Error('TEST_ERROR_FOR_VISIBILITY');
+
   try {
     const { templateId, prompt } = req.body;
     console.log(`[AI-DEBUG] 📥 generate-content request:`, { templateId, prompt });

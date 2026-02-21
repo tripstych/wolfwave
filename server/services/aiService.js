@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import crypto from 'crypto';
+import { logError } from '../lib/logger.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(__dirname, '../../public');
@@ -14,7 +15,7 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 /**
  * Generate text content using an LLM
  */
-export async function generateText(systemPrompt, userPrompt, model = 'gpt-4o') {
+export async function generateText(systemPrompt, userPrompt, model = 'gpt-4o', req = null) {
   // SIMULATION MODE
   if (!OPENAI_API_KEY || OPENAI_API_KEY === 'demo') {
     console.log(`[AI-DEBUG] 💡 Running in SIMULATION MODE (No API Key).`);
@@ -74,7 +75,7 @@ export async function generateText(systemPrompt, userPrompt, model = 'gpt-4o') {
     return JSON.parse(content);
   } catch (error) {
     const errorData = error.response?.data;
-    console.error('[AI-DEBUG] ❌ AI Text Generation Error:', errorData || error.message);
+    logError(req || 'system', errorData || error.message, 'AI_TEXT_GEN');
     
     if (errorData?.error?.message) {
       throw new Error(`AI Error: ${errorData.error.message}`);
