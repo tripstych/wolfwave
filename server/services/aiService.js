@@ -18,8 +18,10 @@ const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
  * Generate text content using an LLM
  */
 export async function generateText(systemPrompt, userPrompt, model = null, req = null) {
+  const isDemo = (!OPENAI_API_KEY || OPENAI_API_KEY === 'demo') && (!ANTHROPIC_API_KEY || ANTHROPIC_API_KEY === 'demo');
+
   // 1. SIMULATION MODE
-  if (!OPENAI_API_KEY && !ANTHROPIC_API_KEY) {
+  if (isDemo) {
     console.log(`[AI-DEBUG] 💡 Running in SIMULATION MODE (No API Keys).`);
     await new Promise(resolve => setTimeout(resolve, 1500));
     
@@ -49,7 +51,7 @@ export async function generateText(systemPrompt, userPrompt, model = null, req =
   }
 
   // 2. ANTHROPIC MODE (Prioritized if key exists)
-  if (ANTHROPIC_API_KEY) {
+  if (ANTHROPIC_API_KEY && ANTHROPIC_API_KEY !== 'demo') {
     const anthropicModel = model || 'claude-3-5-sonnet-20240620';
     console.log(`[AI-DEBUG] 🔑 Anthropic Key present. Sending request to ${anthropicModel}...`);
 
@@ -88,8 +90,9 @@ export async function generateText(systemPrompt, userPrompt, model = null, req =
   }
 
   // 3. OPENAI MODE (Fallback)
-  const openaiModel = model || 'gpt-4o';
-  console.log(`[AI-DEBUG] 🔑 OpenAI Key present. Sending request to ${openaiModel}...`);
+  if (OPENAI_API_KEY && OPENAI_API_KEY !== 'demo') {
+    const openaiModel = model || 'gpt-4o';
+    console.log(`[AI-DEBUG] 🔑 OpenAI Key present. Sending request to ${openaiModel}...`);
 
   try {
     const response = await axios.post(
