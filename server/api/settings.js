@@ -20,8 +20,9 @@ async function ensureStripeWebhook(req, stripeSecretKey) {
   );
   const siteUrl = rows[0]?.setting_value;
   if (!siteUrl || siteUrl.includes('localhost')) {
-    logErr(`ABORTED — site_url is "${siteUrl || 'NOT SET'}". Must be a real domain, not localhost.`);
-    return null;
+    const msg = `ABORTED — site_url is "${siteUrl || 'NOT SET'}". Must be a real domain, not localhost.`;
+    logErr(msg);
+    return { success: false, error: msg };
   }
   const webhookUrl = `${siteUrl}/api/webhooks/stripe`;
   log(`Webhook URL: ${webhookUrl}`);
@@ -59,7 +60,7 @@ async function ensureStripeWebhook(req, stripeSecretKey) {
           `url=${encodeURIComponent(webhookUrl)}&${eventParams}`,
           { headers }
         );
-        return existingWebhookId;
+        return { success: true, id: existingWebhookId };
       } catch (err) {
         // Webhook was deleted on Stripe's side, create a new one
         if (err.response?.status === 404) {
@@ -93,10 +94,11 @@ async function ensureStripeWebhook(req, stripeSecretKey) {
     );
 
     log(`Webhook CREATED: url=${webhookUrl}, id=${webhook.id}, secret=${webhook.secret ? 'received' : 'MISSING'}`);
-    return webhook.id;
+    return { success: true, id: webhook.id };
   } catch (err) {
-    logErr(`Stripe API error: ${err.response?.status} ${JSON.stringify(err.response?.data) || err.message}`);
-    return null;
+    const stripeErr = err.response?.data?.error?.message || err.message;
+    logErr(`Stripe API error: ${stripeErr}`);
+    return { success: false, error: stripeErr };
   }
 }
 
@@ -175,17 +177,19 @@ router.put('/', requireAuth, requireAdmin, async (req, res) => {
     }
 
     // Auto-register Stripe webhook when stripe_secret_key is saved
+    let warning = null;
     if (settings.stripe_secret_key) {
       logInfo(req, 'stripe-setup', 'stripe_secret_key detected in settings save, attempting webhook registration...');
-      const webhookId = await ensureStripeWebhook(req, settings.stripe_secret_key);
-      if (webhookId) {
-        logInfo(req, 'stripe-setup', `Webhook registration SUCCESS: ${webhookId}`);
+      const result = await ensureStripeWebhook(req, settings.stripe_secret_key);
+      if (result.success) {
+        logInfo(req, 'stripe-setup', `Webhook registration SUCCESS: ${result.id}`);
       } else {
-        logError(req, new Error('Webhook registration FAILED — check site_url setting and Stripe key'), 'stripe-setup');
+        warning = `Stripe Webhook registration FAILED: ${result.error}. This means subscription events won't be synced automatically until fixed.`;
+        logError(req, new Error(warning), 'stripe-setup');
       }
     }
 
-    res.json({ success: true });
+    res.json({ success: true, warning });
   } catch (err) {
     console.error('Update settings error:', err);
     res.status(500).json({ error: 'Failed to update settings' });

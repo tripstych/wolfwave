@@ -82,8 +82,13 @@ export default function Settings() {
     setSaving(true);
 
     try {
-      await api.put('/settings', settings);
-      setSuccess('Settings saved successfully');
+      const response = await api.put('/settings', settings);
+      if (response.warning) {
+        setError(response.warning);
+        setSuccess('General settings saved, but there were integration issues (see above).');
+      } else {
+        setSuccess('Settings saved successfully');
+      }
     } catch (err) {
       setError(err.message || 'Failed to save settings');
     } finally {
