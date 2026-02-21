@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import prisma from '../lib/prisma.js';
-import { query, getPoolForDb } from '../lib/poolManager.js';
+import { query } from '../db/connection.js';
+import { getPoolForDb } from '../lib/poolManager.js';
 import { provisionTenant } from '../db/provisionTenant.js';
 import { syncTemplatesToDb } from '../services/templateParser.js';
 import { seedNewTenant } from '../services/tenantSeeder.js';
