@@ -75,10 +75,13 @@ export async function generateText(systemPrompt, userPrompt, model = 'gpt-4o', r
     return JSON.parse(content);
   } catch (error) {
     const errorData = error.response?.data;
-    logError(req || 'system', errorData || error.message, 'AI_TEXT_GEN');
+    logError(req || 'system', errorData || error, 'AI_TEXT_GEN');
     
     if (errorData?.error?.message) {
       throw new Error(`AI Error: ${errorData.error.message}`);
+    }
+    if (error.message) {
+      throw new Error(`AI Service Error: ${error.message}`);
     }
     throw new Error('Failed to generate text content');
   }

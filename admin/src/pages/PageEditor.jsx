@@ -151,10 +151,12 @@ export default function PageEditor() {
         setAiPrompts(prev => ({ ...prev, ...newAiPrompts }));
         
         toast.success('✨ Text content generated! Use the magic wand on image fields to generate visuals.');
+      } else {
+        toast.error('Failed to generate content: ' + (response.error || 'Unknown error'));
       }
     } catch (err) {
       console.error(err);
-      toast.error(err.response?.data?.error || 'Generation failed');
+      toast.error(err.message || 'Generation failed');
     } finally {
       setGenerating(false);
     }
