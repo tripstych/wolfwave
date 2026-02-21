@@ -10,6 +10,11 @@ function normalizeUrl(url) {
   try {
     const nUrl = new URL(url);
     nUrl.hash = '';
+    
+    // List of common query params to strip
+    const stripParams = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'fbclid', 'gclid', 'ref', 'variant', 'view'];
+    stripParams.forEach(p => nUrl.searchParams.delete(p));
+
     let cleaned = nUrl.toString();
     if (cleaned.endsWith('/') && nUrl.pathname !== '/') cleaned = cleaned.slice(0, -1);
     return cleaned;
@@ -173,6 +178,42 @@ export async function crawlSite(siteId, rootUrl) {
   });
 }
 
+async function fetchSitemap(rootUrl, dbName) {
+  const sitemaps = [
+    '/sitemap.xml',
+    '/sitemap_products_1.xml',
+    '/sitemap_pages_1.xml'
+  ];
+  const urls = [];
+
+  for (const path of sitemaps) {
+    try {
+      const sitemapUrl = new URL(path, rootUrl).toString();
+      const { data } = await axios.get(sitemapUrl, { timeout: 5000, headers: { 'User-Agent': 'WebWolf-Sitemap/1.0' } });
+      const $ = cheerio.load(data, { xmlMode: true });
+      
+      $('url loc').each((i, el) => {
+        const url = $(el).text().trim();
+        if (url) urls.push(url);
+      });
+      
+      // Also look for nested sitemaps
+      $('sitemap loc').each((i, el) => {
+        const nestedUrl = $(el).text().trim();
+        // We'll only follow one level deep for simplicity
+        if (nestedUrl && nestedUrl.endsWith('.xml')) {
+           // We could recurse here, but let's stick to simple discovery
+        }
+      });
+
+      if (urls.length > 0) {
+        info(dbName, 'SITEMAP_FOUND', `Found ${urls.length} URLs in ${path}`);
+      }
+    } catch (e) {}
+  }
+  return [...new Set(urls)];
+}
+
 /**
  * Traditional crawling fallback
  */
@@ -181,6 +222,14 @@ async function traditionalCrawl(siteId, rootUrl, config, dbName, feedSynced = fa
   const queue = [normalizeUrl(rootUrl)];
   const maxPages = config.maxPages || 1000;
   const rootDomain = new URL(rootUrl).hostname;
+
+  // 1. Sitemap Discovery (Priority Seed)
+  info(dbName, 'SITEMAP_START', `Attempting sitemap discovery for ${rootUrl}`);
+  const sitemapUrls = await fetchSitemap(rootUrl, dbName);
+  sitemapUrls.forEach(url => {
+    const norm = normalizeUrl(url);
+    if (norm && !queue.includes(norm)) queue.push(norm);
+  });
 
   // Pre-populate visited set with URLs already imported (e.g. from feed sync)
   const existingPages = await prisma.imported_pages.findMany({
@@ -222,19 +271,38 @@ async function traditionalCrawl(siteId, rootUrl, config, dbName, feedSynced = fa
       const structuralHash = calculateStructuralHash(html);
       const meta = extractMetadata($, config.rules || [], normalizedUrl);
 
-      const existingPage = await prisma.imported_pages.findFirst({
-        where: { site_id: siteId, url: normalizedUrl }
-      });
-      if (existingPage) {
-        await prisma.imported_pages.update({
-          where: { id: existingPage.id },
-          data: { title: (meta.title || 'Untitled').substring(0, 255), raw_html: html, structural_hash: structuralHash, metadata: meta }
-        });
-      } else {
-        await prisma.imported_pages.create({
-          data: { site_id: siteId, url: normalizedUrl, title: (meta.title || 'Untitled').substring(0, 255), raw_html: html, structural_hash: structuralHash, metadata: meta, status: 'completed' }
-        });
+      // REDIRECT TO CANONICAL: If the page has a canonical link, we should use that as the primary URL
+      let targetUrl = normalizedUrl;
+      if (meta.canonical) {
+        try {
+          const canonicalUrl = normalizeUrl(new URL(meta.canonical, normalizedUrl).toString());
+          if (canonicalUrl && canonicalUrl !== normalizedUrl) {
+            info(dbName, 'CRAWL_CANONICAL', `Using canonical URL: ${canonicalUrl} instead of ${normalizedUrl}`);
+            targetUrl = canonicalUrl;
+            visited.add(targetUrl);
+          }
+        } catch {}
       }
+
+      await prisma.imported_pages.upsert({
+        where: { unique_site_url: { site_id: siteId, url: targetUrl } },
+        update: {
+          title: (meta.title || 'Untitled').substring(0, 255),
+          raw_html: html,
+          structural_hash: structuralHash,
+          metadata: meta,
+          status: 'completed'
+        },
+        create: {
+          site_id: siteId,
+          url: targetUrl,
+          title: (meta.title || 'Untitled').substring(0, 255),
+          raw_html: html,
+          structural_hash: structuralHash,
+          metadata: meta,
+          status: 'completed'
+        }
+      });
 
       pageCount++;
       await prisma.imported_sites.update({ where: { id: siteId }, data: { page_count: pageCount } });

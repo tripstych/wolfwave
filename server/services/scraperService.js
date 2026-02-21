@@ -13,7 +13,9 @@ export function extractMetadata($, rules = [], url = '') {
     price: null,
     sku: '',
     canonical: '',
-    type: 'page' // 'page' or 'product'
+    type: 'page', // 'page' or 'product'
+    options: [], // e.g., [{ name: 'Size', values: ['S', 'M'] }]
+    variants: [] // e.g., [{ title: 'S', price: 10, sku: '...' }]
   };
 
   // 0. Canonical URL
@@ -26,32 +28,45 @@ export function extractMetadata($, rules = [], url = '') {
       const json = JSON.parse($(el).html());
       const schemas = Array.isArray(json) ? json : [json];
       schemas.forEach(schema => {
-        const type = schema['@type'];
-        if (type === 'Product') {
-          result.type = 'product';
-          if (schema.name) result.title = schema.name;
-          if (schema.description) result.description = schema.description;
-          if (schema.image) {
-            const imgs = Array.isArray(schema.image) ? schema.image : [schema.image];
-            result.images.push(...imgs.map(img => typeof img === 'object' ? img.url : img));
+        // Handle graph or direct objects
+        const items = schema['@graph'] || [schema];
+        items.forEach(item => {
+          const type = item['@type'];
+          if (type === 'Product') {
+            result.type = 'product';
+            if (item.name) result.title = item.name;
+            if (item.description) result.description = item.description;
+            if (item.image) {
+              const imgs = Array.isArray(item.image) ? item.image : [item.image];
+              result.images.push(...imgs.map(img => typeof img === 'object' ? img.url : img));
+            }
+            if (item.sku) result.sku = item.sku;
+            
+            // Extract Variants from Offers
+            if (item.offers) {
+              const offers = Array.isArray(item.offers) ? item.offers : [item.offers];
+              if (offers[0]?.price) result.price = offers[0].price;
+              
+              result.variants = offers.map(offer => ({
+                title: offer.name || item.name,
+                price: parseFloat(offer.price) || 0,
+                sku: offer.sku || item.sku || '',
+                availability: offer.availability?.includes('InStock') ? 1 : 0
+              }));
+            }
           }
-          if (schema.sku) result.sku = schema.sku;
-          if (schema.offers) {
-            const offer = Array.isArray(schema.offers) ? schema.offers[0] : schema.offers;
-            if (offer.price) result.price = offer.price;
+          if (type === 'Article' || type === 'BlogPosting' || type === 'WebPage') {
+            if (!result.title && item.headline) result.title = item.headline;
+            if (!result.title && item.name) result.title = item.name;
+            if (!result.description && (item.description || item.articleBody)) {
+              result.description = item.description || item.articleBody;
+            }
+            if (item.image && result.images.length === 0) {
+              const imgs = Array.isArray(item.image) ? item.image : [item.image];
+              result.images.push(...imgs.map(img => typeof img === 'object' ? img.url : img));
+            }
           }
-        }
-        if (type === 'Article' || type === 'BlogPosting' || type === 'WebPage') {
-          if (!result.title && schema.headline) result.title = schema.headline;
-          if (!result.title && schema.name) result.title = schema.name;
-          if (!result.description && (schema.description || schema.articleBody)) {
-            result.description = schema.description || schema.articleBody;
-          }
-          if (schema.image && result.images.length === 0) {
-            const imgs = Array.isArray(schema.image) ? schema.image : [schema.image];
-            result.images.push(...imgs.map(img => typeof img === 'object' ? img.url : img));
-          }
-        }
+        });
       });
     } catch (e) {}
   });

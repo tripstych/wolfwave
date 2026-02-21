@@ -448,6 +448,7 @@ model imported_pages {
   created_at      DateTime       @default(now()) @db.Timestamp(0)
   site            imported_sites @relation(fields: [site_id], references: [id], onDelete: Cascade)
 
+  @@unique([site_id, url], name: "unique_site_url")
   @@index([site_id], map: "idx_site_id")
   @@index([structural_hash], map: "idx_structural_hash")
 }
