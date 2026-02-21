@@ -725,7 +725,7 @@ export default function SiteImporter() {
       </div>
 
       {showPicker && (
-        <div className="fixed inset-0 z-[100] bg-black bg-opacity-75 flex flex-col">
+        <div className="fixed inset-0 z-[100] bg-black bg-opacity-75 flex flex-col mt-0">
           <div className="bg-white p-4 flex justify-between items-center border-b">
             <div className="flex items-center gap-4">
               <h2 className="font-bold">Visual Selector Picker</h2>
