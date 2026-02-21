@@ -142,7 +142,7 @@ export async function generateImage(prompt, size = "1024x1024") {
 /**
  * Generate content for a specific set of fields
  */
-export async function generateContentForFields(fields, userContext, model = 'gpt-4o') {
+export async function generateContentForFields(fields, userContext, model = 'gpt-4o', req = null) {
   // SIMULATION MODE
   if (!OPENAI_API_KEY || OPENAI_API_KEY === 'demo') {
     console.log(`[AI-DEBUG] ✍️ Content Gen: Simulation Mode active.`);
@@ -182,7 +182,7 @@ export async function generateContentForFields(fields, userContext, model = 'gpt
   const fieldSchema = JSON.stringify(fields, null, 2);
   const fullPrompt = `Context: ${userContext}\n\nFields to fill:\n${fieldSchema}`;
 
-  return await generateText(systemPrompt, fullPrompt, model);
+  return await generateText(systemPrompt, fullPrompt, model, req);
 }
 
 /**

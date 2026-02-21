@@ -102,10 +102,6 @@ router.post('/generate-image', requireAuth, requireAdmin, async (req, res) => {
  * Payload: { templateId: 1, prompt: "Luxury Bakery", currentData: {} }
  */
 router.post('/generate-content', requireAuth, async (req, res) => {
-  // TEST ERROR: Deliberately fail to see where it logs
-  console.log('[AI-DEBUG] 🧪 TRIGGERING TEST ERROR');
-  throw new Error('TEST_ERROR_FOR_VISIBILITY');
-
   try {
     const { templateId, prompt } = req.body;
     console.log(`[AI-DEBUG] 📥 generate-content request:`, { templateId, prompt });
@@ -137,21 +133,16 @@ router.post('/generate-content', requireAuth, async (req, res) => {
       return res.status(500).json({ error: 'Invalid template schema' });
     }
 
-    if (!fields || fields.length === 0) {
-      console.warn(`[AI-DEBUG] ⚠️ No fields found in template regions.`);
-    }
-
     console.log(`[AI-DEBUG] ⏳ Calling AI Service for fields:`, fields.map(f => f.name));
 
-    // 2. Call AI Service
-    const content = await generateContentForFields(fields, prompt);
+    // 2. Call AI Service - PASS REQ FOR LOGGING
+    const content = await generateContentForFields(fields, prompt, 'gpt-4o', req);
     console.log(`[AI-DEBUG] ✅ AI Service returned content:`, Object.keys(content || {}));
 
     res.json({ success: true, data: content });
 
   } catch (error) {
     console.error('[AI-DEBUG] ❌ Content Generation Failed:', error);
-    console.error('[AI-DEBUG] 💥 Error Stack:', error.stack);
     res.status(500).json({ error: error.message });
   }
 });
