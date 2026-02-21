@@ -4,6 +4,7 @@ import { requireAuth, requireAdmin } from '../middleware/auth.js';
 import { getPoolForDb } from '../lib/poolManager.js';
 import { provisionTenant } from '../db/provisionTenant.js';
 import { syncTemplatesToDb } from '../services/templateParser.js';
+import { seedNewTenant } from '../services/tenantSeeder.js';
 import prisma from '../lib/prisma.js';
 import { runWithTenant } from '../lib/tenantContext.js';
 
@@ -94,8 +95,10 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
       console.log(`[TENANT_CREATE] Running initial template sync for ${dbName}...`);
       await runWithTenant(dbName, async () => {
         await syncTemplatesToDb(prisma, 'default');
+        // ── SEED ESSENTIAL PAGES ──
+        await seedNewTenant(name);
       });
-      console.log(`[TENANT_CREATE] Initial template sync complete.`);
+      console.log(`[TENANT_CREATE] Initial sync and seed complete.`);
     } catch (syncErr) {
       console.error(`[TENANT_CREATE] Initial template sync failed for ${dbName}:`, syncErr.message);
       // We don't fail the whole creation because of a sync failure, 
