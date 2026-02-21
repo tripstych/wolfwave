@@ -68,7 +68,7 @@ export default function ContentList() {
       <DataTable
         endpoint={endpoint}
         queryParams={{ content_type: contentTypeName }}
-        pagination={{ mode: 'none' }}
+        pagination={{ mode: 'server', pageSize: 25 }}
         columns={columns}
         search={{
           enabled: true,

@@ -256,52 +256,62 @@ export default function DataTable({
 
   // --- Pagination ---
   const renderPagination = () => {
-    if (pagination.mode === 'none' || table.totalPages <= 1) return null;
+    if (pagination.mode === 'none' || (table.totalPages <= 1 && table.total <= table.pageSize)) return null;
+    
+    const start = table.total === 0 ? 0 : (table.page - 1) * table.pageSize + 1;
+    const end = Math.min(table.total, table.page * table.pageSize);
+
     return (
-      <div className="flex items-center justify-center gap-1">
-        <button
-          disabled={table.page === 1}
-          onClick={() => table.setPage(table.page - 1)}
-          className="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          Previous
-        </button>
-
-        <div className="flex gap-1">
-          {Array.from({ length: Math.min(5, table.totalPages) }, (_, i) => {
-            let pageNum;
-            if (table.totalPages <= 5) {
-              pageNum = i + 1;
-            } else if (table.page <= 3) {
-              pageNum = i + 1;
-            } else if (table.page >= table.totalPages - 2) {
-              pageNum = table.totalPages - 4 + i;
-            } else {
-              pageNum = table.page - 2 + i;
-            }
-            return (
-              <button
-                key={pageNum}
-                onClick={() => table.setPage(pageNum)}
-                className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-                  table.page === pageNum
-                    ? 'bg-primary-600 text-white'
-                    : 'border border-gray-300 hover:bg-gray-50'
-                }`}
-              >
-                {pageNum}
-              </button>
-            );
-          })}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 py-4 px-2">
+        <div className="text-sm text-gray-500 order-2 sm:order-1">
+          Showing <span className="font-medium text-gray-900">{start}</span> to <span className="font-medium text-gray-900">{end}</span> of <span className="font-medium text-gray-900">{table.total}</span> results
         </div>
+        
+        <div className="flex items-center justify-center gap-1 order-1 sm:order-2">
+          <button
+            disabled={table.page === 1}
+            onClick={() => table.setPage(table.page - 1)}
+            className="px-3 py-2 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            Previous
+          </button>
 
-        <button
-          disabled={table.page === table.totalPages}
-          onClick={() => table.setPage(table.page + 1)}
-          className="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          Next
-        </button>
+          <div className="hidden sm:flex gap-1">
+            {Array.from({ length: Math.min(5, table.totalPages) }, (_, i) => {
+              let pageNum;
+              if (table.totalPages <= 5) {
+                pageNum = i + 1;
+              } else if (table.page <= 3) {
+                pageNum = i + 1;
+              } else if (table.page >= table.totalPages - 2) {
+                pageNum = table.totalPages - 4 + i;
+              } else {
+                pageNum = table.page - 2 + i;
+              }
+              return (
+                <button
+                  key={pageNum}
+                  onClick={() => table.setPage(pageNum)}
+                  className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                    table.page === pageNum
+                      ? 'bg-primary-600 text-white border-primary-600'
+                      : 'border border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  {pageNum}
+                </button>
+              );
+            })}
+          </div>
+
+          <button
+            disabled={table.page === table.totalPages}
+            onClick={() => table.setPage(table.page + 1)}
+            className="px-3 py-2 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            Next
+          </button>
+        </div>
       </div>
     );
   };

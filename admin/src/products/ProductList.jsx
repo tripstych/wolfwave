@@ -71,7 +71,7 @@ export default function ProductList() {
 
       <DataTable
         endpoint="/products"
-        pagination={{ mode: 'server', pageSize: 10 }}
+        pagination={{ mode: 'server', pageSize: 25 }}
         columns={columns}
         search={{
           enabled: true,

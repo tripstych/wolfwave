@@ -63,7 +63,7 @@ export default function CouponList() {
 
       <DataTable
         endpoint="/coupons"
-        pagination={{ mode: 'none' }}
+        pagination={{ mode: 'server', pageSize: 25 }}
         columns={columns}
         search={{
           enabled: true,

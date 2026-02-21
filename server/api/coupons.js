@@ -8,7 +8,30 @@ const router = Router();
 // List coupons
 router.get('/', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const coupons = await query('SELECT * FROM coupons ORDER BY created_at DESC');
+    const { search, limit = 50, offset = 0 } = req.query;
+    const pageLimit = Math.max(1, Math.min(500, parseInt(limit) || 50));
+    const pageOffset = Math.max(0, parseInt(offset) || 0);
+
+    let sql = 'SELECT * FROM coupons';
+    let countSql = 'SELECT COUNT(*) as total FROM coupons';
+    const params = [];
+    const countParams = [];
+
+    if (search) {
+      sql += ' WHERE code LIKE ?';
+      countSql += ' WHERE code LIKE ?';
+      const searchParam = `%${search}%`;
+      params.push(searchParam);
+      countParams.push(searchParam);
+    }
+
+    sql += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
+    params.push(pageLimit, pageOffset);
+
+    const coupons = await query(sql, params);
+    const [countResult] = await query(countSql, countParams);
+    const total = countResult?.total || 0;
+
     const transformed = coupons.map(c => {
       let target_slugs = [];
       if (c.target_slugs) {
@@ -20,7 +43,11 @@ router.get('/', requireAuth, requireAdmin, async (req, res) => {
       }
       return { ...c, target_slugs };
     });
-    res.json(transformed);
+
+    res.json({
+      data: transformed,
+      pagination: { total, limit: pageLimit, offset: pageOffset }
+    });
   } catch (err) {
     logError(req, err, 'LIST_COUPONS');
     res.status(500).json({ error: 'Failed to list coupons' });

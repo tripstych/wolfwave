@@ -57,7 +57,7 @@ export default function CustomerList() {
 
       <DataTable
         endpoint="/customers"
-        pagination={{ mode: 'none' }}
+        pagination={{ mode: 'server', pageSize: 25 }}
         columns={columns}
         search={{
           enabled: true,

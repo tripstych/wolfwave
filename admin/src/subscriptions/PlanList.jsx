@@ -71,7 +71,7 @@ export default function PlanList() {
 
       <DataTable
         endpoint="/subscription-plans"
-        pagination={{ mode: 'none' }}
+        pagination={{ mode: 'client', pageSize: 25 }}
         columns={columns}
         onRowClick={(row) => navigate(`/subscriptions/${row.id}`)}
         actions={[

@@ -50,7 +50,7 @@ export default function UserList() {
 
       <DataTable
         endpoint="/auth/users"
-        pagination={{ mode: 'none' }}
+        pagination={{ mode: 'client', pageSize: 25 }}
         columns={columns}
         selection={{
           enabled: true,
