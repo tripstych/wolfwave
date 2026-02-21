@@ -47,10 +47,8 @@ export default function SiteImporter() {
   const [templates, setTemplates] = useState([]);
   const [selectedPages, setSelectedPages] = useState(new Set());
   const [selectedProducts, setSelectedProducts] = useState(new Set());
-  const [showPicker, setShowPicker] = useState(false);
-  const [pickerUrl, setPickerUrl] = useState('');
-  
-  const navigate = useNavigate();
+  const [selectedTemplateId, setSelectedTemplateId] = useState('');
+  const [selectorMap, setSelectorMap] = useState({});
 
   // 1. Initial Load
   useEffect(() => {
@@ -64,13 +62,23 @@ export default function SiteImporter() {
     const handleMessage = (e) => {
       if (e.data.type === 'WOLFWAVE_SELECTOR_PICKED') {
         const { field, selector } = e.data;
-        setConfig(prev => {
-          const newRules = [...prev.rules];
-          const idx = newRules.findIndex(r => r.action === 'setField' && r.value === field);
-          if (idx > -1) newRules[idx].selector = selector;
-          else newRules.push({ selector, action: 'setField', value: field });
-          return { ...prev, rules: newRules };
-        });
+        
+        // Update Selector Map for Migration
+        setSelectorMap(prev => ({
+          ...prev,
+          [field]: selector
+        }));
+
+        // Keep legacy config.rules sync for auto-detection/crawling if it's a known product field
+        if (AUTOSUGGEST_FIELDS.includes(field)) {
+          setConfig(prev => {
+            const newRules = [...prev.rules];
+            const idx = newRules.findIndex(r => r.action === 'setField' && r.value === field);
+            if (idx > -1) newRules[idx].selector = selector;
+            else newRules.push({ selector, action: 'setField', value: field });
+            return { ...prev, rules: newRules };
+          });
+        }
       }
       if (e.data.type === 'WOLFWAVE_PICKER_DONE') setShowPicker(false);
     };
@@ -79,16 +87,39 @@ export default function SiteImporter() {
     return () => window.removeEventListener('message', handleMessage);
   }, []);
 
-  // 3. Polling Interval
+  const handlePickerLoad = () => {
+    if (selectedTemplateId) {
+      const tpl = templates.find(t => t.id === parseInt(selectedTemplateId));
+      if (tpl && tpl.regions) {
+        const regions = typeof tpl.regions === 'string' ? JSON.parse(tpl.regions) : tpl.regions;
+        const fields = regions.map(r => ({
+          id: r.name,
+          label: `Set as ${r.label || r.name}`
+        }));
+        
+        const iframe = document.getElementById('wolfwave-picker-iframe');
+        if (iframe && iframe.contentWindow) {
+          iframe.contentWindow.postMessage({
+            type: 'WOLFWAVE_SET_FIELDS',
+            fields: fields
+          }, '*');
+        }
+      }
+    }
+  };
+
+  // Sync fields if template is changed while picker is already open
   useEffect(() => {
-    const interval = setInterval(refreshCrawlingSites, 3000);
-    return () => clearInterval(interval);
-  }, [sites, selectedSite]);
+    if (showPicker && selectedTemplateId) {
+      handlePickerLoad();
+    }
+  }, [selectedTemplateId]);
 
   const openVisualPicker = (sampleUrl) => {
     if (!sampleUrl) return alert('No sample URL available');
     setPickerUrl(`/api/import/proxy?url=${encodeURIComponent(sampleUrl)}`);
     setShowPicker(true);
+    setSelectorMap({}); // Reset map for new session
   };
 
   const loadPresets = async () => {
@@ -258,11 +289,19 @@ export default function SiteImporter() {
 
   const handleBulkMigrate = async (hash) => {
     try {
-      const siteTemplates = templates.filter(t => t.filename.includes(`imported-${selectedSite.id}`));
-      if (siteTemplates.length === 0) return alert('Generate a template first');
+      const targetTemplateId = selectedTemplateId || templates.find(t => t.filename.includes(`imported-${selectedSite.id}`))?.id;
+      if (!targetTemplateId) return alert('Select a template first');
       
+      const finalSelectorMap = Object.keys(selectorMap).length > 0 ? selectorMap : { main: 'main' };
+
+      if (!confirm(`Ready to migrate group ${hash.substring(0,8)} using ${templates.find(t => t.id === parseInt(targetTemplateId))?.name}?`)) return;
+
       setMigrating(true);
-      await api.post(`/import/sites/${selectedSite.id}/bulk-migrate`, { structural_hash: hash, template_id: siteTemplates[0].id, selector_map: { main: 'main' } });
+      await api.post(`/import/sites/${selectedSite.id}/bulk-migrate`, { 
+        structural_hash: hash, 
+        template_id: parseInt(targetTemplateId), 
+        selector_map: finalSelectorMap 
+      });
       navigate('/pages');
     } catch (err) { alert(err.message); }
     finally { setMigrating(false); }
@@ -270,11 +309,18 @@ export default function SiteImporter() {
 
   const handleBulkMigrateAll = async () => {
     try {
-      const std = templates.find(t => t.filename.includes('pages/standard'));
-      if (!std) return alert('Standard template not found');
+      const targetTemplateId = selectedTemplateId || templates.find(t => t.filename.includes('pages/standard'))?.id;
+      if (!targetTemplateId) return alert('Select a template first');
       
+      const finalSelectorMap = Object.keys(selectorMap).length > 0 ? selectorMap : { main: 'main' };
+      
+      if (!confirm(`Ready to migrate ALL pages using template "${templates.find(t => t.id === parseInt(targetTemplateId))?.name}"?`)) return;
+
       setMigrating(true);
-      await api.post(`/import/sites/${selectedSite.id}/bulk-migrate-all`, { template_id: std.id, selector_map: { main: 'main' } });
+      await api.post(`/import/sites/${selectedSite.id}/bulk-migrate-all`, { 
+        template_id: parseInt(targetTemplateId), 
+        selector_map: finalSelectorMap 
+      });
       navigate('/pages');
     } catch (err) { alert(err.message); }
     finally { setMigrating(false); }
@@ -310,14 +356,16 @@ export default function SiteImporter() {
     if (targetIds.length === 0) return alert('No pages selected');
 
     try {
-      const std = templates.find(t => t.filename.includes('pages/standard'));
-      if (!std) return alert('Standard template not found');
+      const targetTemplateId = selectedTemplateId || templates.find(t => t.filename.includes('pages/standard'))?.id;
+      if (!targetTemplateId) return alert('Select a template first');
+
+      const finalSelectorMap = Object.keys(selectorMap).length > 0 ? selectorMap : { main: 'main' };
       
-      if (!confirm(`Ready to migrate ${targetIds.length} pages using template "${std.name}"?`)) return;
+      if (!confirm(`Ready to migrate ${targetIds.length} pages using template "${templates.find(t => t.id === parseInt(targetTemplateId))?.name}"?`)) return;
       setMigrating(true);
       await api.post(`/import/sites/${selectedSite.id}/bulk-migrate-all`, { 
-        template_id: std.id, 
-        selector_map: { main: 'main' },
+        template_id: parseInt(targetTemplateId), 
+        selector_map: finalSelectorMap,
         page_ids: targetIds
       });
       alert('Selected pages queued for migration!');
@@ -670,13 +718,34 @@ export default function SiteImporter() {
 
       {showPicker && (
         <div className="fixed inset-0 z-[100] bg-black bg-opacity-75 flex flex-col">
-          <div className="bg-white p-4 flex justify-between items-center">
-            <h2 className="font-bold">Visual Selector Picker</h2>
+          <div className="bg-white p-4 flex justify-between items-center border-b">
+            <div className="flex items-center gap-4">
+              <h2 className="font-bold">Visual Selector Picker</h2>
+              <select 
+                value={selectedTemplateId} 
+                onChange={(e) => setSelectedTemplateId(e.target.value)}
+                className="input py-1 text-sm max-w-[200px]"
+              >
+                <option value="">Select Target Template...</option>
+                {templates.map(t => (
+                  <option key={t.id} value={t.id}>{t.name} ({t.filename})</option>
+                ))}
+              </select>
+              <div className="flex gap-2">
+                {Object.entries(selectorMap).map(([field, selector]) => (
+                  <span key={field} className="px-2 py-0.5 bg-green-100 text-green-700 text-[10px] font-mono rounded border border-green-200">
+                    {field}: {selector.substring(0, 15)}...
+                  </span>
+                ))}
+              </div>
+            </div>
             <button onClick={() => setShowPicker(false)} className="btn btn-ghost"><X className="w-5 h-5" /></button>
           </div>
           <div className="flex-1 bg-white">
             <iframe 
+              id="wolfwave-picker-iframe"
               src={pickerUrl} 
+              onLoad={handlePickerLoad}
               className="w-full h-full border-none"
               title="Visual Picker"
             />
