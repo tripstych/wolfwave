@@ -81,6 +81,9 @@ app.use(session({
   }
 }));
 
+// Static files — public JS/CSS (Must be before tenant middleware to be served without DB checks)
+app.use('/', express.static(path.join(__dirname, '../public')));
+
 // Tenant resolution (subdomain -> database, must be first to catch non-existent tenants)
 app.use(tenantMiddleware);
 
@@ -89,9 +92,6 @@ app.use(accessLog);
 
 // Static files — theme assets
 app.use('/themes', express.static(getThemesDir()));
-
-// Static files — public JS/CSS
-app.use('/', express.static(path.join(__dirname, '../public')));
 
 // Serve React admin in production
 if (process.env.NODE_ENV === 'production') {
