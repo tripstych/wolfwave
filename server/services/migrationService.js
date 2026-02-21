@@ -31,8 +31,12 @@ export async function migratePage(importedPageId, templateId, selectorMap = { 'm
 
     // ── LOCALISE IMAGES ──
     for (const key in extractedData) {
-      if (extractedData[key]) {
-        extractedData[key] = await processHtmlImages(extractedData[key]);
+      if (extractedData[key] && typeof extractedData[key] === 'string') {
+        try {
+          extractedData[key] = await processHtmlImages(extractedData[key]);
+        } catch (imgErr) {
+          console.error(`[WebWolf:migrationService] Image localization failed for field ${key}:`, imgErr.message);
+        }
       }
     }
 

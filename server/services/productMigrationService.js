@@ -26,10 +26,12 @@ export async function migrateProduct(importedPageId, templateId) {
 
     // ── LOCALISE IMAGES ──
     const localImages = [];
-    if (meta.images && meta.images.length > 0) {
+    if (meta.images && Array.isArray(meta.images)) {
       for (const imgUrl of meta.images) {
-        const localImg = await downloadImage(imgUrl, title);
-        localImages.push(localImg);
+        if (imgUrl && typeof imgUrl === 'string') {
+          const localImg = await downloadImage(imgUrl, title);
+          localImages.push(localImg);
+        }
       }
     }
 
@@ -51,14 +53,6 @@ export async function migrateProduct(importedPageId, templateId) {
       });
 
       if (product) {
-        // Update product's main image if it was empty
-        if (localImages.length > 0 && !product.og_image) {
-          await prisma.products.update({
-             where: { id: product.id },
-             data: { og_image: localImages[0] }
-          });
-        }
-
         // 2. SMART VARIANT MERGE
         if (meta.variants && meta.variants.length > 0) {
           const optionNames = meta.options?.map(o => o.name) || [];
@@ -116,15 +110,7 @@ export async function migrateProduct(importedPageId, templateId) {
     });
 
     const product = await prisma.products.create({
-      data: { 
-        content_id: content.id, 
-        template_id: templateId, 
-        title, 
-        sku, 
-        price, 
-        status: 'active',
-        og_image: localImages[0] || null
-      }
+      data: { content_id: content.id, template_id: templateId, title, sku, price, status: 'active' }
     });
 
     // Create variants from feed data (Shopify etc.)

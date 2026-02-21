@@ -17,8 +17,7 @@ const UPLOADS_ROOT = path.join(__dirname, '../../uploads');
 function getTenantUploadsDir() {
   const dbName = getCurrentDbName();
   const subdomain = dbName.replace(/^webwolf_/, '') || '_default';
-  const tenantDir = path.join(UPLOADS_ROOT, subdomain);
-  return tenantDir;
+  return path.join(UPLOADS_ROOT, subdomain);
 }
 
 /**
@@ -28,13 +27,14 @@ function getTenantUploadsDir() {
 export async function downloadImage(url, altText = '', userId = null) {
   const dbName = getCurrentDbName();
   try {
-    if (!url || !url.startsWith('http')) return url;
+    if (!url || typeof url !== 'string' || !url.startsWith('http')) return url;
 
     // Normalize URL
     const imageUrl = new URL(url).toString();
 
     // 1. Check if we already have this original URL to avoid duplicates
-    const existing = await query('SELECT * FROM media WHERE original_name = ?', [imageUrl]);
+    // Using LIKE to handle potential truncation in DB
+    const existing = await query('SELECT path FROM media WHERE original_name = ? OR original_name LIKE ? LIMIT 1', [imageUrl, imageUrl.substring(0, 250) + '%']);
     if (existing && existing.length > 0) {
       return `/uploads${existing[0].path}`;
     }
@@ -48,7 +48,6 @@ export async function downloadImage(url, altText = '', userId = null) {
 
     const contentType = response.headers['content-type'];
     if (!contentType || !contentType.startsWith('image/')) {
-      // Not an image, but let's be lenient for common extensions if type is missing
       const ext = path.extname(new URL(imageUrl).pathname).toLowerCase();
       if (!['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg'].includes(ext)) {
         throw new Error(`URL is not an image: ${contentType}`);
@@ -63,7 +62,8 @@ export async function downloadImage(url, altText = '', userId = null) {
     await fs.mkdir(fullPath, { recursive: true });
 
     // 4. Generate filename
-    const originalFilename = path.basename(new URL(imageUrl).pathname) || 'imported-image';
+    const urlObj = new URL(imageUrl);
+    const originalFilename = path.basename(urlObj.pathname) || 'imported-image';
     const ext = path.extname(originalFilename) || ('.' + (contentType ? contentType.split('/')[1] : 'jpg'));
     const filename = `${uuidv4()}${ext}`;
     const filePath = path.join(fullPath, filename);
@@ -72,28 +72,32 @@ export async function downloadImage(url, altText = '', userId = null) {
     await fs.writeFile(filePath, response.data);
 
     // 6. Save to database
-    // Path stored in DB should be relative to tenant uploads dir for consistency with media.js
     const relativePath = `/${subdir}/${filename}`.replace(/\\/g, '/');
     
-    await query(`
-      INSERT INTO media (filename, original_name, mime_type, size, path, alt_text, title, uploaded_by)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `, [
-      filename,
-      imageUrl, // Store original URL as original_name for lookup
-      contentType || 'image/jpeg',
-      response.data.length,
-      relativePath,
-      altText || '',
-      originalFilename,
-      userId
-    ]);
+    try {
+      await query(`
+        INSERT INTO media (filename, original_name, mime_type, size, path, alt_text, title, uploaded_by)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `, [
+        filename.substring(0, 255),
+        imageUrl.substring(0, 255),
+        (contentType || 'image/jpeg').substring(0, 100),
+        response.data.length,
+        relativePath.substring(0, 500),
+        (altText || '').substring(0, 255),
+        originalFilename.substring(0, 255),
+        userId
+      ]);
+    } catch (dbErr) {
+      console.error('[WebWolf:mediaService] DB insert failed:', dbErr.message);
+    }
 
     const localUrl = `/uploads${relativePath}`;
     info(dbName, 'IMAGE_DOWNLOADED', `Downloaded ${imageUrl} to ${localUrl}`);
     
     return localUrl;
   } catch (err) {
+    console.error(`[WebWolf:mediaService] Failed to download image ${url}:`, err.message);
     logError(dbName, err, 'IMAGE_DOWNLOAD_FAILED', { url });
     return url; // Fallback to original URL
   }
