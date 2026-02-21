@@ -1,5 +1,6 @@
 (function() {
     let hoveredElement = null;
+    let selectedElement = null;
     let ui = null;
     let currentFields = [
         { id: 'title', label: 'Set as Title' },
@@ -21,7 +22,7 @@
 
         ui.innerHTML = `
             <div class="wolfwave-picker-label">Visual Selector Picker</div>
-            <div id="wolfwave-current-selector" style="font-size: 10px; color: #9ca3af; margin-bottom: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Hover an element...</div>
+            <div id="wolfwave-current-selector" style="font-size: 10px; color: #9ca3af; margin-bottom: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Click an element to lock it...</div>
             <div id="wolfwave-fields-container" style="max-height: 300px; overflow-y: auto;">
                 ${fieldsHtml}
             </div>
@@ -33,9 +34,11 @@
         ui.querySelectorAll('.wolfwave-picker-btn').forEach(btn => {
             btn.onclick = (e) => {
                 e.stopPropagation();
-                if (!hoveredElement) return;
+                const target = selectedElement || hoveredElement;
+                if (!target) return alert('Please click an element first');
+                
                 const field = btn.getAttribute('data-field');
-                const selector = getBestSelector(hoveredElement);
+                const selector = getBestSelector(target);
                 
                 // Send to parent window (WolfWave Admin)
                 window.parent.postMessage({
@@ -59,7 +62,7 @@
         if (el.id) return `#${el.id}`;
         
         let selector = el.tagName.toLowerCase();
-        if (el.className) {
+        if (el.className && typeof el.className === 'string') {
             const classes = Array.from(el.classList)
                 .filter(c => !c.startsWith('wolfwave-'))
                 .join('.');
@@ -87,13 +90,30 @@
         hoveredElement.classList.add('wolfwave-picker-highlight');
         
         const selectorDisplay = document.getElementById('wolfwave-current-selector');
-        if (selectorDisplay) selectorDisplay.innerText = getBestSelector(hoveredElement);
+        if (selectorDisplay && !selectedElement) {
+            selectorDisplay.innerText = getBestSelector(hoveredElement);
+        }
     }, true);
 
     document.addEventListener('click', (e) => {
         if (ui && ui.contains(e.target)) return;
+        
         e.preventDefault();
         e.stopPropagation();
+
+        if (selectedElement) {
+            selectedElement.classList.remove('wolfwave-picker-selected');
+        }
+
+        selectedElement = e.target;
+        selectedElement.classList.add('wolfwave-picker-selected');
+        
+        const selectorDisplay = document.getElementById('wolfwave-current-selector');
+        if (selectorDisplay) {
+            selectorDisplay.innerText = 'LOCKED: ' + getBestSelector(selectedElement);
+            selectorDisplay.style.color = '#10b981';
+            selectorDisplay.style.fontWeight = 'bold';
+        }
     }, true);
 
     // 4. Message Listener for Dynamic Fields
@@ -109,4 +129,5 @@
     else window.addEventListener('load', createUI);
 
 })();
+
 
