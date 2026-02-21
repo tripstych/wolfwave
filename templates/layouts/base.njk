@@ -66,8 +66,11 @@
       --cms-color-surface: #f8fafc;
       --cms-color-text: {{ template.options.body_color | default('#1e293b') }};
       --cms-color-border: #e2e8f0;
-      --cms-font-sans: {% if template.options.google_font_body %}"{{ template.options.google_font_body }}", sans-serif{% else %}'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif{% endif %};
-      --cms-font-headings: {% if template.options.google_font_heading %}"{{ template.options.google_font_heading }}", sans-serif{% else %}var(--cms-font-sans){% endif %};
+      
+      {# Font Families #}
+      --cms-font-body: {% if template.options.google_font_body %}"{{ template.options.google_font_body }}", sans-serif{% else %}"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif{% endif %};
+      --cms-font-heading: {% if template.options.google_font_heading %}"{{ template.options.google_font_heading }}", sans-serif{% elif template.options.google_font_body %}"{{ template.options.google_font_body }}", sans-serif{% else %}var(--cms-font-body){% endif %};
+      
       --cms-base-font-size: {{ template.options.body_size | default('16px') }};
       --cms-max-width: {{ template.options.container_width | default('1200px') }};
       --header-height: 72px;
@@ -91,7 +94,7 @@
     html { scroll-behavior: smooth; }
     
     body {
-      font-family: var(--cms-font-sans);
+      font-family: var(--cms-font-body);
       font-size: var(--cms-base-font-size);
       line-height: 1.6;
       color: var(--cms-color-text);
@@ -99,7 +102,7 @@
     }
 
     h1, h2, h3 {
-      font-family: var(--cms-font-headings);
+      font-family: var(--cms-font-heading);
     }
 
     h1 {

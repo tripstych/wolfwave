@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { error as logError } from './logger.js';
 import { canAccess } from '../middleware/permission.js';
+import { resolveStyles } from './styleResolver.js';
 
 function logRenderError(req, templateFilename, err) {
   logError(req, err, `RENDER:${templateFilename}`);
@@ -123,9 +124,26 @@ export function themeRender(req, res, templateFilename, context = {}) {
 
   setupRenderBlock(env, blocks, permissionContext);
 
+  const parseJsonField = (value) => {
+    if (value === null || value === undefined) return null;
+    if (typeof value === 'object') return value;
+    if (typeof value === 'string') {
+      try { return JSON.parse(value); } catch { return null; }
+    }
+    return null;
+  };
+
+  const globalStyles = parseJsonField(site.global_styles) || {};
+  const templateOverrides = parseJsonField(context.template?.options) || {};
+  const mergedOptions = resolveStyles(globalStyles, templateOverrides);
+
   const fullContext = {
     ...res.locals, // site, menus, customer, blocks
     ...context,
+    template: {
+      ...context.template,
+      options: mergedOptions
+    },
     theme_css: assets.css,
     theme_js: assets.js
   };

@@ -1,7 +1,6 @@
 import { query } from '../db/connection.js';
 import { themeRender, renderError } from '../lib/renderer.js';
 import { error as logError } from '../lib/logger.js';
-import { resolveStyles } from '../lib/styleResolver.js';
 import { canAccess } from '../middleware/permission.js';
 
 function parseJsonField(value) {
@@ -361,16 +360,6 @@ export const renderContent = async (req, res) => {
 
     setRenderDebugHeaders(req, res, pageData, content);
 
-    // 1. Data Fetch & Parse
-    const globalStyles = parseJsonField(site.global_styles) || {};
-    const templateOverrides = parseJsonField(pageData.template_options) || {};
-
-    // 2. Resolve Styles
-    const mergedOptions = resolveStyles(globalStyles, templateOverrides);
-
-    // FINAL VERIFICATION LOG
-    console.log(`[STYLE_SYNC] ${slug} | Global Font: ${globalStyles.google_font_body || 'NONE'} | Resolved Font: ${mergedOptions.google_font_body}`);
-
     // Centralized Permission Check
     const accessRules = parseJsonField(pageData.access_rules);
     
@@ -388,7 +377,7 @@ export const renderContent = async (req, res) => {
       customer: customer || null,
       template: {
         id: pageData.template_id,
-        options: mergedOptions
+        options: pageData.template_options // Pass raw options, themeRender will resolve them
       },
       content_type: contentType,
       seo,
