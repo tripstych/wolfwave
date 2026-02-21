@@ -52,6 +52,14 @@ export default function SiteImporter() {
   
   const navigate = useNavigate();
 
+  // 1. Initial Load
+  useEffect(() => {
+    loadSites();
+    loadTemplates();
+    loadPresets();
+  }, []);
+
+  // 2. Message Listener
   useEffect(() => {
     const handleMessage = (e) => {
       if (e.data.type === 'WOLFWAVE_SELECTOR_PICKED') {
@@ -68,15 +76,13 @@ export default function SiteImporter() {
     };
 
     window.addEventListener('message', handleMessage);
-    loadSites();
-    loadTemplates();
-    loadPresets();
-    const interval = setInterval(refreshCrawlingSites, 3000);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
 
-    return () => {
-      window.removeEventListener('message', handleMessage);
-      clearInterval(interval);
-    };
+  // 3. Polling Interval
+  useEffect(() => {
+    const interval = setInterval(refreshCrawlingSites, 3000);
+    return () => clearInterval(interval);
   }, [sites, selectedSite]);
 
   const openVisualPicker = (sampleUrl) => {
