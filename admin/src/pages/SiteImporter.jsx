@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import {
@@ -194,6 +194,56 @@ export default function SiteImporter() {
     }
   }, [selectedTemplateId]);
 
+  const refreshGroupsAndProducts = useCallback(async (site) => {
+    const groupsData = await api.get(`/import/sites/${site.id}/groups`);
+    setGroups(groupsData || []);
+    const allPages = site.imported_pages || [];
+    const products = [];
+    const pages = [];
+    for (const p of allPages) {
+      try {
+        const meta = typeof p.metadata === 'string' ? JSON.parse(p.metadata) : p.metadata;
+        if (meta && meta.type === 'product') {
+          products.push(p);
+        } else {
+          pages.push(p);
+        }
+      } catch { pages.push(p); }
+    }
+    setDiscoveredProducts(products);
+    setDiscoveredPages(pages);
+  }, []);
+
+  const refreshCrawlingSites = useCallback(async () => {
+    try {
+      const now = Date.now();
+      // 1. Always refresh the site list for the "History" panel
+      const updatedSites = await api.get(`/import/sites?_t=${now}`);
+      if (updatedSites) setSites(updatedSites);
+      
+      // 2. If a site is selected AND it's currently crawling, refresh its specific data
+      if (selectedSite && (selectedSite.status === 'pending' || selectedSite.status === 'crawling')) {
+        const updated = await api.get(`/import/sites/${selectedSite.id}?_t=${now}`);
+        if (updated) {
+          setSelectedSite(updated);
+          // Immediate update for every new page discovered
+          if (updated.status === 'completed' || updated.page_count !== (selectedSite.page_count || 0)) {
+            refreshGroupsAndProducts(updated);
+          }
+        }
+      }
+    } catch (err) { console.error('Polling error:', err); }
+  }, [selectedSite, refreshGroupsAndProducts]);
+
+  // 3. Polling for crawling sites
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refreshCrawlingSites();
+    }, 2000); // Poll every 2 seconds
+
+    return () => clearInterval(interval);
+  }, [refreshCrawlingSites]);
+
   const openVisualPicker = (sampleUrl) => {
     if (!sampleUrl) return alert('No sample URL available');
     setPickerUrl(`/api/import/proxy?url=${encodeURIComponent(sampleUrl)}`);
@@ -234,47 +284,6 @@ export default function SiteImporter() {
       const data = await api.get('/templates');
       setTemplates(data.data || []);
     } catch (err) { console.error(err); }
-  };
-
-  const refreshCrawlingSites = async () => {
-    try {
-      const now = Date.now();
-      // 1. Always refresh the site list for the "History" panel
-      const updatedSites = await api.get(`/import/sites?_t=${now}`);
-      if (updatedSites) setSites(updatedSites);
-      
-      // 2. If a site is selected AND it's currently crawling, refresh its specific data
-      if (selectedSite && (selectedSite.status === 'pending' || selectedSite.status === 'crawling')) {
-        const updated = await api.get(`/import/sites/${selectedSite.id}?_t=${now}`);
-        if (updated) {
-          setSelectedSite(updated);
-          // Immediate update for every new page discovered
-          if (updated.status === 'completed' || updated.page_count !== (selectedSite.page_count || 0)) {
-            refreshGroupsAndProducts(updated);
-          }
-        }
-      }
-    } catch (err) { console.error('Polling error:', err); }
-  };
-
-  const refreshGroupsAndProducts = async (site) => {
-    const groupsData = await api.get(`/import/sites/${site.id}/groups`);
-    setGroups(groupsData || []);
-    const allPages = site.imported_pages || [];
-    const products = [];
-    const pages = [];
-    for (const p of allPages) {
-      try {
-        const meta = typeof p.metadata === 'string' ? JSON.parse(p.metadata) : p.metadata;
-        if (meta && meta.type === 'product') {
-          products.push(p);
-        } else {
-          pages.push(p);
-        }
-      } catch { pages.push(p); }
-    }
-    setDiscoveredProducts(products);
-    setDiscoveredPages(pages);
   };
 
   const handleStartCrawl = async (e) => {

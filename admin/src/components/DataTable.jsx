@@ -165,6 +165,9 @@ export default function DataTable({
   // --- Table ---
   const renderTable = () => (
     <div className="card overflow-hidden">
+      <div className="border-b border-gray-200">
+        {renderPaginationControls()}
+      </div>
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
@@ -254,17 +257,14 @@ export default function DataTable({
     </div>
   );
 
-  // --- Pagination ---
-  const renderPagination = () => {
-    if (pagination.mode === 'none' || (table.totalPages <= 1 && table.total <= table.pageSize)) return null;
+  // --- Pagination Controls ---
+  const renderPaginationControls = () => {
+    if (pagination.mode === 'none' || table.totalPages <= 1) return null;
     
-    const start = table.total === 0 ? 0 : (table.page - 1) * table.pageSize + 1;
-    const end = Math.min(table.total, table.page * table.pageSize);
-
     return (
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 py-4 px-2">
         <div className="text-sm text-gray-500 order-2 sm:order-1">
-          Showing <span className="font-medium text-gray-900">{start}</span> to <span className="font-medium text-gray-900">{end}</span> of <span className="font-medium text-gray-900">{table.total}</span> results
+          Showing <span className="font-medium text-gray-900">{(table.page - 1) * table.pageSize + 1}</span> to <span className="font-medium text-gray-900">{Math.min(table.total, table.page * table.pageSize)}</span> of <span className="font-medium text-gray-900">{table.total}</span> results
         </div>
         
         <div className="flex items-center justify-center gap-1 order-1 sm:order-2">
@@ -314,6 +314,11 @@ export default function DataTable({
         </div>
       </div>
     );
+  };
+
+  // --- Pagination ---
+  const renderPagination = () => {
+    return renderPaginationControls();
   };
 
   // --- Main Render ---
