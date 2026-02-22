@@ -1,7 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Mail, Phone, Calendar, Package, CreditCard, Save, Globe } from 'lucide-react';
+import { 
+  ArrowLeft, Mail, Phone, Calendar, Package, CreditCard, 
+  Save, Globe, User, Edit2, CheckCircle, XCircle, 
+  DollarSign, ShoppingBag, Layout
+} from 'lucide-react';
 import { toast } from 'sonner';
+import api from '../lib/api';
 
 export default function CustomerDetail() {
   const { id } = useParams();
@@ -10,7 +15,16 @@ export default function CustomerDetail() {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [error, setError] = useState('');
-  const [overrideValue, setOverrideValue] = useState('');
+  const [activeTab, setActiveTab] = useState('overview');
+  
+  // Edit State
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditEditForm] = useState({
+    first_name: '',
+    last_name: '',
+    phone: '',
+    max_sites_override: ''
+  });
 
   useEffect(() => {
     loadCustomer();
@@ -19,19 +33,14 @@ export default function CustomerDetail() {
   const loadCustomer = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/customers/${id}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to load customer');
-      }
-
-      const data = await response.json();
+      const data = await api.get(`/customers/${id}`);
       setCustomer(data);
-      setOverrideValue(data.max_sites_override !== null ? String(data.max_sites_override) : '');
+      setEditEditForm({
+        first_name: data.first_name || '',
+        last_name: data.last_name || '',
+        phone: data.phone || '',
+        max_sites_override: data.max_sites_override !== null ? String(data.max_sites_override) : ''
+      });
       setError('');
     } catch (err) {
       console.error('Failed to load customer:', err);
@@ -41,26 +50,20 @@ export default function CustomerDetail() {
     }
   };
 
-  const handleUpdateOverride = async () => {
+  const handleUpdateCustomer = async (e) => {
+    e.preventDefault();
     try {
       setUpdating(true);
-      const response = await fetch(`/api/customers/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({
-          max_sites_override: overrideValue === '' ? '' : parseInt(overrideValue)
-        })
+      await api.put(`/customers/${id}`, {
+        ...editForm,
+        max_sites_override: editForm.max_sites_override === '' ? '' : parseInt(editForm.max_sites_override)
       });
-
-      if (!response.ok) throw new Error('Failed to update');
       
-      toast.success('Customer site limit updated');
+      toast.success('Customer profile updated');
+      setIsEditing(false);
       loadCustomer();
     } catch (err) {
-      toast.error(err.message);
+      toast.error(err.message || 'Failed to update');
     } finally {
       setUpdating(false);
     }
@@ -68,19 +71,14 @@ export default function CustomerDetail() {
 
   const formatDate = (date) => {
     return new Date(date).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+      year: 'numeric', month: 'short', day: 'numeric'
     });
   };
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount);
+      style: 'currency', currency: 'USD'
+    }).format(amount || 0);
   };
 
   if (loading) {
@@ -94,12 +92,8 @@ export default function CustomerDetail() {
   if (error || !customer) {
     return (
       <div className="space-y-4">
-        <button
-          onClick={() => navigate('/customers')}
-          className="flex items-center gap-2 text-primary-600 hover:text-primary-700"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Customers
+        <button onClick={() => navigate('/customers')} className="btn btn-ghost flex items-center gap-2">
+          <ArrowLeft className="w-4 h-4" /> Back to Customers
         </button>
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
           {error || 'Customer not found'}
@@ -108,291 +102,328 @@ export default function CustomerDetail() {
     );
   }
 
+  const lifetimeValue = customer.orders?.reduce((sum, o) => sum + parseFloat(o.total || 0), 0) || 0;
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <button
-          onClick={() => navigate('/customers')}
-          className="flex items-center gap-2 text-primary-600 hover:text-primary-700 mb-4"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Customers
+      {/* Top Navigation */}
+      <div className="flex items-center justify-between">
+        <button onClick={() => navigate('/customers')} className="btn btn-ghost flex items-center gap-2">
+          <ArrowLeft className="w-4 h-4" /> Back to Customers
         </button>
-        <h1 className="text-3xl font-bold text-gray-900">
-          {customer.first_name} {customer.last_name}
-        </h1>
+        <div className="flex gap-2">
+          <button 
+            onClick={() => setIsEditing(!isEditing)} 
+            className={`btn ${isEditing ? 'btn-secondary' : 'btn-primary'} flex items-center gap-2`}
+          >
+            {isEditing ? <><XCircle className="w-4 h-4" /> Cancel</> : <><Edit2 className="w-4 h-4" /> Edit Profile</>}
+          </button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Customer Information */}
-        <div className="card p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Customer Information</h2>
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium text-gray-600">Email</label>
-              <a
-                href={`mailto:${customer.email}`}
-                className="flex items-center gap-2 text-primary-600 hover:underline mt-1"
-              >
-                <Mail className="w-4 h-4" />
-                {customer.email}
-              </a>
+      {/* Header Info */}
+      <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <div className="h-16 w-16 bg-primary-100 text-primary-700 rounded-full flex items-center justify-center text-2xl font-bold">
+              {customer.first_name?.[0]}{customer.last_name?.[0]}
             </div>
-
-            {customer.phone && (
-              <div>
-                <label className="text-sm font-medium text-gray-600">Phone</label>
-                <a
-                  href={`tel:${customer.phone}`}
-                  className="flex items-center gap-2 text-primary-600 hover:underline mt-1"
-                >
-                  <Phone className="w-4 h-4" />
-                  {customer.phone}
-                </a>
-              </div>
-            )}
-
             <div>
-              <label className="text-sm font-medium text-gray-600">Member Since</label>
-              <div className="flex items-center gap-2 text-gray-900 mt-1">
-                <Calendar className="w-4 h-4 text-gray-400" />
-                {formatDate(customer.created_at)}
+              <h1 className="text-2xl font-bold text-gray-900">{customer.first_name} {customer.last_name}</h1>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-sm text-gray-500">
+                <span className="flex items-center gap-1"><Mail className="w-3.5 h-3.5" /> {customer.email}</span>
+                {customer.phone && <span className="flex items-center gap-1"><Phone className="w-3.5 h-3.5" /> {customer.phone}</span>}
+                <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> Since {formatDate(customer.created_at)}</span>
               </div>
             </div>
-
-            <div>
-              <label className="text-sm font-medium text-gray-600">Email Verified</label>
-              <p className="mt-1">
-                <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
-                  customer.email_verified
-                    ? 'bg-green-100 text-green-700'
-                    : 'bg-gray-100 text-gray-700'
-                }`}>
-                  {customer.email_verified ? 'Verified' : 'Not Verified'}
-                </span>
-              </p>
+          </div>
+          
+          <div className="flex flex-wrap gap-4 md:border-l md:pl-6 border-gray-100">
+            <div className="text-center px-4">
+              <p className="text-xs uppercase tracking-wider text-gray-400 font-semibold">Lifetime Value</p>
+              <p className="text-xl font-bold text-green-600">{formatCurrency(lifetimeValue)}</p>
             </div>
-
-            <div className="pt-4 border-t border-gray-100">
-              <label className="text-sm font-medium text-gray-600 flex items-center gap-2">
-                <Globe className="w-4 h-4 text-gray-400" />
-                Site Creation Limit Override
-              </label>
-              <div className="flex gap-2 mt-1">
-                <input
-                  type="number"
-                  value={overrideValue}
-                  onChange={(e) => setOverrideValue(e.target.value)}
-                  className="input py-1 text-sm flex-1"
-                  placeholder="Leave empty for plan default"
-                  min="0"
-                />
-                <button
-                  onClick={handleUpdateOverride}
-                  disabled={updating}
-                  className="btn btn-primary py-1 px-3"
-                >
-                  <Save className="w-4 h-4" />
-                </button>
-              </div>
-              <p className="text-[10px] text-gray-500 mt-1">
-                Sets the max number of sites this customer can create, overriding their subscription plan.
+            <div className="text-center px-4">
+              <p className="text-xs uppercase tracking-wider text-gray-400 font-semibold">Orders</p>
+              <p className="text-xl font-bold text-gray-900">{customer.orders?.length || 0}</p>
+            </div>
+            <div className="text-center px-4">
+              <p className="text-xs uppercase tracking-wider text-gray-400 font-semibold">Sites</p>
+              <p className="text-xl font-bold text-gray-900">{customer.tenants?.length || 0}</p>
+            </div>
+            <div className="text-center px-4 border-l border-gray-100 ml-2">
+              <p className="text-xs uppercase tracking-wider text-gray-400 font-semibold">Site Limit</p>
+              <p className={`text-xl font-bold ${customer.max_sites_override !== null ? 'text-amber-600' : 'text-gray-900'}`}>
+                {customer.max_sites_override !== null ? customer.max_sites_override : (customer.subscriptions?.[0]?.max_sites || 1)}
+                {customer.max_sites_override !== null && <span className="text-[10px] ml-1 uppercase block leading-none">Override</span>}
               </p>
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Order Summary */}
-        <div className="card p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Order Summary</h2>
-          {customer.orders && customer.orders.length > 0 ? (
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span className="text-gray-600">Total Orders</span>
-                <span className="font-semibold">{customer.orders.length}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Total Spent</span>
-                <span className="font-semibold">
-                  {formatCurrency(
-                    customer.orders.reduce((sum, order) => sum + parseFloat(order.total || 0), 0)
-                  )}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Average Order</span>
-                <span className="font-semibold">
-                  {formatCurrency(
-                    customer.orders.reduce((sum, order) => sum + parseFloat(order.total || 0), 0) /
-                    customer.orders.length
-                  )}
-                </span>
-              </div>
+      {isEditing && (
+        <div className="bg-primary-50 border border-primary-100 rounded-xl p-6">
+          <h3 className="font-bold text-primary-900 mb-4 flex items-center gap-2">
+            <User className="w-5 h-5" /> Edit Customer Details
+          </h3>
+          <form onSubmit={handleUpdateCustomer} className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <label className="label text-xs">First Name</label>
+              <input 
+                type="text" 
+                className="input" 
+                value={editForm.first_name} 
+                onChange={e => setEditEditForm({...editForm, first_name: e.target.value})}
+              />
             </div>
-          ) : (
-            <p className="text-gray-600">No orders yet</p>
-          )}
-        </div>
-      </div>
-
-      {/* Owned Sites */}
-      <div className="card p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <Globe className="w-5 h-5" />
-          Owned Sites ({customer.tenants?.length || 0})
-        </h2>
-        {customer.tenants && customer.tenants.length > 0 ? (
-          <div className="space-y-3">
-            {customer.tenants.map((site) => (
-              <div
-                key={site.id}
-                className="flex justify-between items-center px-4 py-3 bg-gray-50 rounded-md border border-gray-200"
-              >
-                <div>
-                  <div className="font-medium">{site.name}</div>
-                  <div className="text-sm text-gray-500">
-                    {site.subdomain}.wolfwave.com
-                  </div>
-                </div>
-                <div className="flex gap-2 items-center">
-                  <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
-                    site.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                  }`}>
-                    {site.status}
-                  </span>
-                  <a href={`http://${site.subdomain}.localhost:3000`} target="_blank" className="btn btn-sm btn-secondary p-1">
-                    <Globe className="w-4 h-4" />
-                  </a>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-gray-600">This customer doesn't own any sites yet.</p>
-        )}
-      </div>
-
-      {/* Subscription */}
-      {customer.subscriptions && customer.subscriptions.length > 0 && (
-        <div className="card p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <CreditCard className="w-5 h-5" />
-            Subscriptions
-          </h2>
-          <div className="space-y-3">
-            {customer.subscriptions.map((sub) => (
-              <div
-                key={sub.id}
-                className="flex justify-between items-center px-4 py-3 bg-gray-50 rounded-md border border-gray-200"
-              >
-                <div>
-                  <div className="font-medium">{sub.plan_name}</div>
-                  <div className="text-sm text-gray-500">
-                    {formatCurrency(sub.plan_price)}/{sub.plan_interval === 'yearly' ? 'yr' : sub.plan_interval === 'weekly' ? 'wk' : 'mo'}
-                    {sub.current_period_end && (
-                      <span> &middot; Renews {new Date(sub.current_period_end).toLocaleDateString()}</span>
-                    )}
-                  </div>
-                </div>
-                <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
-                  sub.status === 'active' ? 'bg-green-100 text-green-700' :
-                  sub.status === 'trialing' ? 'bg-blue-100 text-blue-700' :
-                  sub.status === 'past_due' ? 'bg-red-100 text-red-700' :
-                  sub.status === 'paused' ? 'bg-yellow-100 text-yellow-700' :
-                  'bg-gray-100 text-gray-700'
-                }`}>
-                  {sub.status}
-                  {sub.cancel_at_period_end ? ' (canceling)' : ''}
-                </span>
-              </div>
-            ))}
-          </div>
+            <div>
+              <label className="label text-xs">Last Name</label>
+              <input 
+                type="text" 
+                className="input" 
+                value={editForm.last_name} 
+                onChange={e => setEditEditForm({...editForm, last_name: e.target.value})}
+              />
+            </div>
+            <div>
+              <label className="label text-xs">Phone</label>
+              <input 
+                type="text" 
+                className="input" 
+                value={editForm.phone} 
+                onChange={e => setEditEditForm({...editForm, phone: e.target.value})}
+              />
+            </div>
+            <div>
+              <label className="label text-xs">Site Limit Override</label>
+              <input 
+                type="number" 
+                className="input" 
+                value={editForm.max_sites_override} 
+                onChange={e => setEditEditForm({...editForm, max_sites_override: e.target.value})}
+                placeholder="Default"
+              />
+            </div>
+            <div className="md:col-span-4 flex justify-end gap-2 mt-2">
+              <button type="button" onClick={() => setIsEditing(false)} className="btn btn-ghost">Cancel</button>
+              <button type="submit" disabled={updating} className="btn btn-primary">
+                {updating ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </form>
         </div>
       )}
 
-      {/* Orders */}
-      {customer.orders && customer.orders.length > 0 && (
-        <div className="card">
-          <div className="p-6 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <Package className="w-5 h-5" />
-              Orders ({customer.orders.length})
-            </h2>
-          </div>
+      {/* Tabs */}
+      <div className="border-b border-gray-200">
+        <nav className="-mb-px flex space-x-8">
+          {[
+            { id: 'overview', label: 'Overview', icon: Layout },
+            { id: 'orders', label: `Orders (${customer.orders?.length || 0})`, icon: ShoppingBag },
+            { id: 'sites', label: `Owned Sites (${customer.tenants?.length || 0})`, icon: Globe },
+            { id: 'subscriptions', label: 'Billing', icon: CreditCard },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`
+                py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2
+                ${activeTab === tab.id 
+                  ? 'border-primary-500 text-primary-600' 
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}
+              `}
+            >
+              <tab.icon className="w-4 h-4" />
+              {tab.label}
+            </button>
+          ))}
+        </nav>
+      </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full">
+      {/* Tab Content */}
+      <div className="mt-6">
+        {activeTab === 'overview' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="card p-6">
+              <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <User className="w-5 h-5 text-gray-400" /> Recent Activity
+              </h3>
+              <div className="space-y-4">
+                <div className="flex items-start gap-3">
+                  <div className="mt-1 bg-green-100 p-1.5 rounded-full"><CheckCircle className="w-3 h-3 text-green-600" /></div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">Account created</p>
+                    <p className="text-xs text-gray-500">{formatDate(customer.created_at)}</p>
+                  </div>
+                </div>
+                {customer.orders?.[0] && (
+                  <div className="flex items-start gap-3">
+                    <div className="mt-1 bg-blue-100 p-1.5 rounded-full"><ShoppingBag className="w-3 h-3 text-blue-600" /></div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">Last order placed: {customer.orders[0].order_number}</p>
+                      <p className="text-xs text-gray-500">{formatDate(customer.orders[0].created_at)}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="card p-6">
+              <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <Mail className="w-5 h-5 text-gray-400" /> Verification Status
+              </h3>
+              <div className={`p-4 rounded-lg border ${customer.email_verified ? 'bg-green-50 border-green-100' : 'bg-amber-50 border-amber-100'}`}>
+                <div className="flex items-center gap-3">
+                  {customer.email_verified ? (
+                    <CheckCircle className="w-5 h-5 text-green-600" />
+                  ) : (
+                    <XCircle className="w-5 h-5 text-amber-600" />
+                  )}
+                  <div>
+                    <p className={`font-bold text-sm ${customer.email_verified ? 'text-green-800' : 'text-amber-800'}`}>
+                      {customer.email_verified ? 'Email Verified' : 'Email Not Verified'}
+                    </p>
+                    <p className="text-xs opacity-80 mt-0.5">
+                      {customer.email_verified ? 'Customer has access to all portal features.' : 'Access to some features may be restricted.'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'orders' && (
+          <div className="card overflow-hidden">
+            <table className="w-full text-left">
               <thead>
-                <tr className="border-b border-gray-200 bg-gray-50">
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                    Order Number
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                    Date
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                    Payment
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 uppercase tracking-wider">
-                    Total
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 uppercase tracking-wider">
-                    Action
-                  </th>
+                <tr className="bg-gray-50 border-b border-gray-200">
+                  <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase">Order #</th>
+                  <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase">Date</th>
+                  <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase">Status</th>
+                  <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase text-right">Total</th>
+                  <th className="px-6 py-3"></th>
                 </tr>
               </thead>
-              <tbody>
-                {customer.orders.map((order) => (
-                  <tr key={order.id} className="border-b border-gray-200 hover:bg-gray-50">
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                      {order.order_number}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-700">
-                      {formatDate(order.created_at)}
-                    </td>
-                    <td className="px-6 py-4 text-sm">
-                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
-                        order.status === 'completed' ? 'bg-green-100 text-green-700' :
-                        order.status === 'shipped' ? 'bg-blue-100 text-blue-700' :
-                        order.status === 'processing' ? 'bg-yellow-100 text-yellow-700' :
-                        order.status === 'cancelled' ? 'bg-red-100 text-red-700' :
-                        'bg-gray-100 text-gray-700'
-                      }`}>
-                        {order.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm">
-                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
-                        order.payment_status === 'paid' ? 'bg-green-100 text-green-700' :
-                        order.payment_status === 'failed' ? 'bg-red-100 text-red-700' :
-                        order.payment_status === 'refunded' ? 'bg-gray-100 text-gray-700' :
-                        'bg-yellow-100 text-yellow-700'
-                      }`}>
-                        {order.payment_status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900 text-right">
-                      {formatCurrency(order.total)}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-right">
-                      <Link
-                        to={`/orders/${order.id}`}
-                        className="text-primary-600 hover:text-primary-700 font-medium"
-                      >
-                        View
-                      </Link>
-                    </td>
+              <tbody className="divide-y divide-gray-100">
+                {customer.orders?.length > 0 ? (
+                  customer.orders.map(order => (
+                    <tr key={order.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4 font-mono text-sm font-bold text-primary-600">{order.order_number}</td>
+                      <td className="px-6 py-4 text-sm text-gray-600">{formatDate(order.created_at)}</td>
+                      <td className="px-6 py-4 text-sm">
+                        <span className={`px-2 py-1 rounded-full text-xs font-bold uppercase ${
+                          order.status === 'completed' ? 'bg-green-100 text-green-700' :
+                          order.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                          'bg-blue-100 text-blue-700'
+                        }`}>
+                          {order.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-sm font-bold text-gray-900 text-right">{formatCurrency(order.total)}</td>
+                      <td className="px-6 py-4 text-right">
+                        <Link to={`/orders/${order.id}`} className="text-xs font-bold text-primary-600 hover:text-primary-800 uppercase tracking-tight">View Details</Link>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="5" className="px-6 py-12 text-center text-gray-500 italic">No orders yet.</td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>
-        </div>
-      )}
+        )}
+
+        {activeTab === 'sites' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {customer.tenants?.length > 0 ? (
+              customer.tenants.map(site => (
+                <div key={site.id} className="card p-5 hover:border-primary-200 transition-all group">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h4 className="font-bold text-gray-900 group-hover:text-primary-600 transition-colors">{site.name}</h4>
+                      <p className="text-sm text-gray-500 font-mono mt-1">{site.subdomain}.wolfwave.com</p>
+                    </div>
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                      site.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                    }`}>
+                      {site.status}
+                    </span>
+                  </div>
+                  <div className="mt-4 pt-4 border-t border-gray-50 flex justify-between items-center">
+                    <span className="text-[10px] text-gray-400 uppercase font-bold tracking-widest">Added {formatDate(site.created_at)}</span>
+                    <a href={`http://${site.subdomain}.localhost:3000`} target="_blank" className="text-primary-600 hover:text-primary-800">
+                      <Globe className="w-4 h-4" />
+                    </a>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="md:col-span-2 card p-12 text-center text-gray-500 italic">
+                No sites owned by this customer.
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'subscriptions' && (
+          <div className="space-y-6">
+            {customer.subscriptions?.length > 0 ? (
+              customer.subscriptions.map(sub => (
+                <div key={sub.id} className="card overflow-hidden">
+                  <div className="p-6 flex justify-between items-center bg-gray-50 border-b border-gray-100">
+                    <div>
+                      <h4 className="text-lg font-bold text-gray-900">{sub.plan_name}</h4>
+                      <p className="text-sm text-gray-500">
+                        {formatCurrency(sub.plan_price)} / {sub.plan_interval}
+                      </p>
+                    </div>
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest ${
+                      sub.status === 'active' ? 'bg-green-100 text-green-700' :
+                      sub.status === 'trialing' ? 'bg-blue-100 text-blue-700' :
+                      'bg-gray-100 text-gray-700'
+                    }`}>
+                      {sub.status}
+                    </span>
+                  </div>
+                  <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase font-bold mb-1">Billing Period</p>
+                      <p className="text-sm font-medium">
+                        {formatDate(sub.current_period_start)} &rarr; {formatDate(sub.current_period_end)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase font-bold mb-1">Status</p>
+                      <p className="text-sm font-medium flex items-center gap-2">
+                        {sub.cancel_at_period_end ? (
+                          <><XCircle className="w-4 h-4 text-red-500" /> Canceling at end of period</>
+                        ) : (
+                          <><CheckCircle className="w-4 h-4 text-green-500" /> Auto-renews</>
+                        )}
+                      </p>
+                    </div>
+                    <div className="flex justify-end items-center">
+                      {sub.stripe_subscription_id && (
+                        <span className="text-[10px] font-mono text-gray-400 bg-gray-100 px-2 py-1 rounded">
+                          ID: {sub.stripe_subscription_id}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="card p-12 text-center text-gray-500 italic border-dashed border-2">
+                No active subscriptions.
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

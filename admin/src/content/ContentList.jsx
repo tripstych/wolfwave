@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { Plus, Edit, Trash2 } from 'lucide-react';
+import { Link, useParams, useNavigate } from 'react-router-dom';
+import { Plus, Edit, Trash2, ExternalLink } from 'lucide-react';
 import DataTable from '../components/DataTable';
 import api from '../lib/api';
+import { getSiteUrl } from '../lib/urls';
 
 export default function ContentList() {
   const { contentType: contentTypeName } = useParams();
+  const navigate = useNavigate();
   const [contentType, setContentType] = useState(null);
 
   const endpoint = contentTypeName === 'blocks' ? '/blocks' : '/pages';
@@ -25,9 +27,24 @@ export default function ContentList() {
       key: 'title',
       label: 'Title',
       render: (value, row) => (
-        <div>
-          <div className="font-medium">{value || row.name}</div>
-          <div className="text-sm text-gray-500">{row.slug}</div>
+        <div className="flex flex-col">
+          <Link 
+            to={`/${contentTypeName}/${row.id}`}
+            className="text-left font-medium text-primary-600 hover:text-primary-900 hover:underline transition-colors"
+          >
+            {value || row.name || '(Untitled)'}
+          </Link>
+          {row.slug && (
+            <a 
+              href={getSiteUrl(row.slug)} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-xs text-gray-500 flex items-center gap-1 hover:text-primary-600 mt-0.5 transition-colors group"
+            >
+              {row.slug}
+              <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+            </a>
+          )}
         </div>
       ),
     },
@@ -109,9 +126,15 @@ export default function ContentList() {
         ] : []}
         actions={[
           {
+            icon: ExternalLink,
+            title: 'View on site',
+            show: (row) => !!row.slug,
+            onClick: (row) => window.open(getSiteUrl(row.slug), '_blank'),
+          },
+          {
             icon: Edit,
             title: 'Edit',
-            onClick: (row) => window.location.href = `/${contentTypeName}/${row.id}`,
+            onClick: (row) => navigate(`/${contentTypeName}/${row.id}`),
           },
           {
             icon: Trash2,

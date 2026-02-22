@@ -1,38 +1,65 @@
-import { Link } from 'react-router-dom';
-import { Users, Eye, Mail, Calendar } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Users, Eye, Mail, Calendar, CreditCard, DollarSign } from 'lucide-react';
 import DataTable from '../components/DataTable';
 import { getSiteUrl } from '../lib/urls';
 
 export default function CustomerList() {
+  const navigate = useNavigate();
+  
   const formatDate = (date) =>
     new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD'
+    }).format(amount || 0);
+  };
 
   const columns = [
     {
       key: 'first_name',
-      label: 'Name',
-      render: (_, row) => <span className="font-medium text-gray-900">{row.first_name} {row.last_name}</span>,
-    },
-    {
-      key: 'email',
-      label: 'Email',
-      render: (value) => (
-        <a href={`mailto:${value}`} className="flex items-center gap-2 text-primary-600 hover:underline">
-          <Mail className="w-4 h-4" />
-          {value}
-        </a>
+      label: 'Customer',
+      render: (_, row) => (
+        <div className="flex flex-col">
+          <button 
+            onClick={() => navigate(`/customers/${row.id}`)}
+            className="text-left font-semibold text-primary-600 hover:text-primary-900 transition-colors"
+          >
+            {row.first_name} {row.last_name}
+          </button>
+          <span className="text-xs text-gray-500">{row.email}</span>
+        </div>
       ),
     },
     {
-      key: 'phone',
-      label: 'Phone',
-      render: (value) => value || '—',
+      key: 'orders',
+      label: 'Orders',
+      render: (orders) => (
+        <div className="flex items-center gap-1.5">
+          <span className="font-medium text-gray-900">{orders?.length || 0}</span>
+          <span className="text-xs text-gray-400 uppercase">Total</span>
+        </div>
+      ),
+    },
+    {
+      key: 'total_spent',
+      label: 'Lifetime Value',
+      render: (_, row) => {
+        const total = row.orders?.reduce((sum, o) => sum + parseFloat(orderTotal(o)), 0) || 0;
+        return (
+          <div className="flex items-center gap-1 text-green-700 font-medium">
+            <DollarSign className="w-3 h-3" />
+            {formatCurrency(total)}
+          </div>
+        );
+      },
     },
     {
       key: 'created_at',
-      label: 'Registered',
+      label: 'Customer Since',
       render: (value) => (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 text-gray-600 text-sm">
           <Calendar className="w-4 h-4 text-gray-400" />
           {formatDate(value)}
         </div>
@@ -40,19 +67,25 @@ export default function CustomerList() {
     },
   ];
 
+  const orderTotal = (order) => {
+    return typeof order.total === 'object' ? order.total.toString() : order.total;
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Users className="w-8 h-8 text-primary-600" />
+          <div className="bg-primary-100 p-2 rounded-lg">
+            <Users className="w-6 h-6 text-primary-600" />
+          </div>
           <h1 className="text-2xl font-bold text-gray-900">Customers</h1>
         </div>
-      </div>
-
-      <div className="flex justify-end">
-        <a href={getSiteUrl('/customer/login')} target="_blank" rel="noopener noreferrer" className="btn btn-secondary">
-          Customer Login
-        </a>
+        <div className="flex gap-2">
+          <a href={getSiteUrl('/customer/login')} target="_blank" rel="noopener noreferrer" className="btn btn-secondary flex items-center gap-2">
+            <CreditCard className="w-4 h-4" />
+            Portal Login
+          </a>
+        </div>
       </div>
 
       <DataTable
@@ -67,15 +100,20 @@ export default function CustomerList() {
         actions={[
           {
             icon: Eye,
-            title: 'View Orders',
+            title: 'View Details',
             variant: 'blue',
-            onClick: (row) => window.location.href = `/customers/${row.id}`,
+            onClick: (row) => navigate(`/customers/${row.id}`),
+          },
+          {
+            icon: Mail,
+            title: 'Send Email',
+            onClick: (row) => window.location.href = `mailto:${row.email}`,
           },
         ]}
         emptyState={{
           icon: Users,
           message: 'No customers found',
-          hint: 'Customers appear here when they place orders',
+          hint: 'Customers appear here when they create accounts or place orders.',
         }}
       />
     </div>

@@ -108,7 +108,8 @@ router.get('/:id', requireAuth, requireAdmin, async (req, res) => {
         ...sub,
         plan_name: sub.subscription_plans?.name,
         plan_price: sub.subscription_plans?.price,
-        plan_interval: sub.subscription_plans?.interval
+        plan_interval: sub.subscription_plans?.interval,
+        max_sites: sub.subscription_plans?.max_sites
       }))
     };
     delete transformedCustomer.customer_subscriptions;

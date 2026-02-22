@@ -13,9 +13,24 @@ export default function Pages() {
       key: 'title',
       label: 'Title',
       render: (value, row) => (
-        <div>
-          <div className="font-medium text-gray-900">{value || '(Untitled)'}</div>
-          <div className="text-sm text-gray-500">{row.slug || '(no slug)'}</div>
+        <div className="flex flex-col">
+          <button 
+            onClick={() => navigate(`/pages/${row.id}`)}
+            className="text-left font-medium text-primary-600 hover:text-primary-900 hover:underline transition-colors"
+          >
+            {value || '(Untitled)'}
+          </button>
+          {row.slug && (
+            <a 
+              href={getSiteUrl(row.slug)} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-xs text-gray-500 flex items-center gap-1 hover:text-primary-600 mt-0.5 transition-colors group"
+            >
+              {row.slug}
+              <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+            </a>
+          )}
         </div>
       ),
     },
