@@ -130,13 +130,6 @@ export default function Themes() {
                       {activating === theme.slug ? 'Activating...' : 'Activate'}
                     </button>
                   )}
-                  <Link
-                    to={`/themes/${theme.slug}/editor`}
-                    className="btn btn-secondary flex-1 py-2 text-sm flex items-center justify-center gap-2"
-                  >
-                    <Code className="w-4 h-4" />
-                    Edit Code
-                  </Link>
                 </div>
               </div>
             </div>

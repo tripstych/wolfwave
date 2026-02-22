@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import api from '../lib/api';
 import { Save, ArrowLeft, Loader2, Code } from 'lucide-react';
 import FileTree from './FileTree';
@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 export default function ThemeEditor() {
   const { themeName } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   
   const [files, setFiles] = useState([]);
   const [selectedFile, setSelectedFile] = useState(null);
@@ -20,17 +21,47 @@ export default function ThemeEditor() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    loadFiles();
+    const init = async () => {
+      const fetchedFiles = await loadFiles();
+      
+      const params = new URLSearchParams(location.search);
+      const fileParam = params.get('file');
+      if (fileParam && fetchedFiles) {
+        // Find the file in the tree that matches the filename
+        const findFile = (items) => {
+          for (const item of items) {
+            if (item.name === fileParam) return item.path;
+            if (item.children) {
+              const res = findFile(item.children);
+              if (res) return res;
+            }
+          }
+          return null;
+        };
+        
+        const fullPath = findFile(fetchedFiles);
+        if (fullPath) {
+          handleSelectFile(fullPath);
+        } else {
+          // If not found in tree, try raw
+          handleSelectFile(fileParam);
+        }
+      }
+    };
+    init();
   }, [themeName]);
 
   const loadFiles = async () => {
     try {
       setLoading(true);
       const data = await api.get(`/themes/${themeName}/files`);
-      setFiles(data || []);
+      const fileList = data || [];
+      setFiles(fileList);
+      return fileList;
     } catch (err) {
       setError('Failed to load theme files');
       console.error(err);
+      return null;
     } finally {
       setLoading(false);
     }

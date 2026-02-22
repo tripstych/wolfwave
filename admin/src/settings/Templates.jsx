@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import api, { parseRegions } from '../lib/api';
-import { RefreshCw, Layers, FileText, ChevronRight, CheckCircle } from 'lucide-react';
+import { RefreshCw, Layers, FileText, ChevronRight, CheckCircle, Code } from 'lucide-react';
 
 export default function Templates() {
   const [templates, setTemplates] = useState([]);
+  const [activeTheme, setActiveTheme] = useState('default');
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [reloading, setReloading] = useState(false);
@@ -12,7 +14,22 @@ export default function Templates() {
 
   useEffect(() => {
     loadTemplates();
+    fetchActiveTheme();
   }, []);
+
+  const fetchActiveTheme = async () => {
+    try {
+      const response = await fetch('/api/themes', {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setActiveTheme(data.active || 'default');
+      }
+    } catch (err) {
+      console.error('Failed to fetch active theme:', err);
+    }
+  };
 
   const loadTemplates = async () => {
     try {
@@ -158,14 +175,20 @@ export default function Templates() {
         <div className="lg:col-span-2">
           {selectedTemplate ? (
             <div className="card p-6 space-y-6">
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900">
-                  {selectedTemplate.name}
-                </h2>
-                <p className="text-gray-500 mt-1">{selectedTemplate.filename}</p>
-                {selectedTemplate.description && (
-                  <p className="text-gray-600 mt-2">{selectedTemplate.description}</p>
-                )}
+              <div className="flex items-start justify-between">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">
+                    {selectedTemplate.name}
+                  </h2>
+                  <p className="text-gray-500 mt-1">{selectedTemplate.filename}</p>
+                </div>
+                <Link
+                  to={`/themes/default/editor?file=${selectedTemplate.filename}`}
+                  className="btn btn-secondary"
+                >
+                  <Code className="w-4 h-4 mr-2" />
+                  Edit Code
+                </Link>
               </div>
 
               <div>
