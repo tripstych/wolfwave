@@ -27,6 +27,10 @@ export default function Settings() {
     smtp_pass: '',
     smtp_from: '',
     smtp_secure: 'false',
+    emailjs_service_id: '',
+    emailjs_template_id: '',
+    emailjs_public_key: '',
+    emailjs_private_key: '',
     admin_page_size: '25'
   });
   const [pages, setPages] = useState([]);
@@ -69,6 +73,10 @@ export default function Settings() {
         smtp_pass: data.smtp_pass || '',
         smtp_from: data.smtp_from || '',
         smtp_secure: data.smtp_secure || 'false',
+        emailjs_service_id: data.emailjs_service_id || '',
+        emailjs_template_id: data.emailjs_template_id || '',
+        emailjs_public_key: data.emailjs_public_key || '',
+        emailjs_private_key: data.emailjs_private_key || '',
         admin_page_size: data.admin_page_size || '25'
       });
       setPages(pagesData.data || pagesData || []);
@@ -515,9 +523,69 @@ export default function Settings() {
             </button>
           </div>
           <p className="text-xs text-gray-500 mt-1">
-            Save your SMTP settings first, then send a test email to verify the configuration
+            Save your settings first, then send a test email to verify the configuration (uses EmailJS if configured, otherwise SMTP)
           </p>
         </div>
+      </div>
+
+      {/* EmailJS Integration */}
+      <div className="card p-6 space-y-4">
+        <h2 className="font-semibold text-gray-900 pb-2 border-b border-gray-200">
+          EmailJS Integration
+        </h2>
+        <p className="text-sm text-gray-500">
+          Alternative to SMTP. If configured, EmailJS will be used as the primary email provider.
+        </p>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="label">Service ID</label>
+            <input
+              type="text"
+              value={settings.emailjs_service_id}
+              onChange={(e) => setSettings({ ...settings, emailjs_service_id: e.target.value })}
+              className="input"
+              placeholder="service_..."
+            />
+          </div>
+          <div>
+            <label className="label">Default Template ID</label>
+            <input
+              type="text"
+              value={settings.emailjs_template_id}
+              onChange={(e) => setSettings({ ...settings, emailjs_template_id: e.target.value })}
+              className="input"
+              placeholder="template_..."
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="label">Public Key</label>
+            <input
+              type="text"
+              value={settings.emailjs_public_key}
+              onChange={(e) => setSettings({ ...settings, emailjs_public_key: e.target.value })}
+              className="input"
+              placeholder="user_..."
+            />
+          </div>
+          <div>
+            <label className="label">Private Key</label>
+            <input
+              type="password"
+              value={settings.emailjs_private_key}
+              onChange={(e) => setSettings({ ...settings, emailjs_private_key: e.target.value })}
+              className="input"
+              placeholder="••••••••"
+            />
+          </div>
+        </div>
+        <p className="text-xs text-gray-500">
+          Get these from your <a href="https://dashboard.emailjs.com/" target="_blank" className="text-blue-600 hover:underline">EmailJS Dashboard</a>. 
+          The template variables passed will include all standard CMS fields plus <code>message</code> and <code>subject</code>.
+        </p>
       </div>
     </div>
   </div>

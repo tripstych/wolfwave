@@ -20,6 +20,7 @@
     "postinstall": "cd admin && npm install"
   },
   "dependencies": {
+    "@emailjs/nodejs": "^5.0.2",
     "@prisma/client": "^6.19.2",
     "axios": "^1.13.4",
     "bcryptjs": "^2.4.3",

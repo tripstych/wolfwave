@@ -199,6 +199,11 @@ model menu_items {
   page_id          Int?
   target           menu_items_target? @default(self)
   position         Int?               @default(0)
+  description      String?            @db.VarChar(500)
+  image            String?            @db.VarChar(500)
+  is_mega          Boolean?           @default(false)
+  mega_columns     Int?               @default(4)
+  css_class        String?            @db.VarChar(255)
   display_rules    Json?
   created_at       DateTime           @default(now()) @db.Timestamp(0)
   updated_at       DateTime           @default(now()) @db.Timestamp(0)

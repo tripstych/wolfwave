@@ -1,13 +1,18 @@
 import nodemailer from 'nodemailer';
+import emailjs from '@emailjs/nodejs';
 import { query } from '../db/connection.js';
 
 /**
- * Get SMTP settings from the database
+ * Get email settings from the database
  */
-async function getSmtpSettings() {
+async function getEmailSettings() {
   const rows = await query(
     `SELECT setting_key, setting_value FROM settings
-     WHERE setting_key IN ('smtp_host','smtp_port','smtp_user','smtp_pass','smtp_from','smtp_secure','site_name','site_url')`
+     WHERE setting_key IN (
+       'smtp_host','smtp_port','smtp_user','smtp_pass','smtp_from','smtp_secure',
+       'emailjs_service_id','emailjs_template_id','emailjs_public_key','emailjs_private_key',
+       'site_name','site_url'
+     )`
   );
   const settings = {};
   rows.forEach(r => { settings[r.setting_key] = r.setting_value; });
@@ -41,6 +46,55 @@ function interpolate(template, variables) {
 }
 
 /**
+ * Send an email using EmailJS
+ */
+async function sendEmailViaEmailJS(to, templateSlug, variables, settings) {
+  const {
+    emailjs_service_id,
+    emailjs_template_id,
+    emailjs_public_key,
+    emailjs_private_key
+  } = settings;
+
+  if (!emailjs_service_id || !emailjs_public_key) return false;
+
+  // Load template from DB to get subject and body if needed
+  // (EmailJS usually uses its own templates, but we can pass the content)
+  const templates = await query(
+    'SELECT subject, html_body FROM email_templates WHERE slug = ?',
+    [templateSlug]
+  );
+
+  let message = '';
+  let subject = '';
+  if (templates && templates[0]) {
+    subject = interpolate(templates[0].subject, variables);
+    message = interpolate(templates[0].html_body, variables);
+  }
+
+  const templateParams = {
+    ...variables,
+    to_email: to,
+    subject: subject,
+    message: message,
+    site_name: settings.site_name,
+    site_url: settings.site_url
+  };
+
+  await emailjs.send(
+    emailjs_service_id,
+    emailjs_template_id || templateSlug, // Fallback to slug if template ID not set
+    templateParams,
+    {
+      publicKey: emailjs_public_key,
+      privateKey: emailjs_private_key,
+    }
+  );
+
+  return true;
+}
+
+/**
  * Send an email using a stored template
  * @param {string} to - Recipient email
  * @param {string} templateSlug - Template slug (e.g. 'order-confirmation')
@@ -48,15 +102,28 @@ function interpolate(template, variables) {
  */
 export async function sendEmail(to, templateSlug, variables = {}) {
   try {
-    const settings = await getSmtpSettings();
+    const settings = await getEmailSettings();
 
     // Inject site-level variables
     variables.site_name = variables.site_name || settings.site_name || 'WebWolf';
     variables.site_url = variables.site_url || settings.site_url || '';
 
+    // Try EmailJS first if configured
+    if (settings.emailjs_service_id && settings.emailjs_public_key) {
+      try {
+        const success = await sendEmailViaEmailJS(to, templateSlug, variables, settings);
+        if (success) {
+          console.log(`[Email] Sent via EmailJS: "${templateSlug}" to ${to}`);
+          return;
+        }
+      } catch (ejsErr) {
+        console.error(`[Email] EmailJS failed, falling back to SMTP:`, ejsErr.message);
+      }
+    }
+
     const transporter = createTransporter(settings);
     if (!transporter) {
-      console.log(`[Email] SMTP not configured — skipping "${templateSlug}" to ${to}`);
+      console.log(`[Email] Email not configured (no SMTP or EmailJS) — skipping "${templateSlug}" to ${to}`);
       return;
     }
 
@@ -81,28 +148,49 @@ export async function sendEmail(to, templateSlug, variables = {}) {
       html
     });
 
-    console.log(`[Email] Sent "${templateSlug}" to ${to}`);
+    console.log(`[Email] Sent via SMTP: "${templateSlug}" to ${to}`);
   } catch (err) {
     console.error(`[Email] Failed to send "${templateSlug}" to ${to}:`, err.message);
   }
 }
 
 /**
- * Send a test email to verify SMTP configuration
+ * Send a test email to verify configuration
  */
 export async function sendTestEmail(to) {
-  const settings = await getSmtpSettings();
-  const transporter = createTransporter(settings);
+  const settings = await getEmailSettings();
 
+  // Try EmailJS test
+  if (settings.emailjs_service_id && settings.emailjs_public_key) {
+    const templateParams = {
+      to_email: to,
+      subject: 'Test Email from ' + (settings.site_name || 'WebWolf CMS'),
+      message: 'EmailJS Configuration Working',
+      site_name: settings.site_name
+    };
+
+    await emailjs.send(
+      settings.emailjs_service_id,
+      settings.emailjs_template_id || 'test',
+      templateParams,
+      {
+        publicKey: settings.emailjs_public_key,
+        privateKey: settings.emailjs_private_key,
+      }
+    );
+    return;
+  }
+
+  const transporter = createTransporter(settings);
   if (!transporter) {
-    throw new Error('SMTP is not configured');
+    throw new Error('Neither SMTP nor EmailJS is configured');
   }
 
   await transporter.sendMail({
     from: settings.smtp_from || settings.smtp_user,
     to,
     subject: 'Test Email from ' + (settings.site_name || 'WebWolf CMS'),
-    html: `<div style="font-family:sans-serif;padding:20px"><h2>SMTP Configuration Working</h2><p>If you're reading this, your email settings are configured correctly.</p></div>`
+    html: `<div style="font-family:sans-serif;padding:20px"><h2>Email Configuration Working</h2><p>If you're reading this, your email settings are configured correctly.</p></div>`
   });
 }
 
