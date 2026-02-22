@@ -68,12 +68,32 @@ export default function ContentList() {
       <DataTable
         endpoint={endpoint}
         queryParams={{ content_type: contentTypeName }}
-        pagination={{ mode: 'server', pageSize: 25 }}
+        pagination={{ mode: 'server' }}
         columns={columns}
         search={{
           enabled: true,
           placeholder: 'Search...',
           fields: ['title', 'name', 'slug'],
+        }}
+        selection={{
+          enabled: true,
+          bulkActions: [
+            {
+              label: 'Delete Selected',
+              icon: Trash2,
+              variant: 'danger',
+              onAction: async (ids, { refetch }) => {
+                const countStr = ids === 'all' ? 'all results' : `${ids.length} item(s)`;
+                if (!window.confirm(`Delete ${countStr}? This cannot be undone.`)) return;
+                try {
+                  await api.delete(`${endpoint}/bulk`, { ids });
+                  refetch();
+                } catch (err) {
+                  alert('Failed to delete some items: ' + err.message);
+                }
+              },
+            },
+          ],
         }}
         filters={contentType.has_status ? [
           {

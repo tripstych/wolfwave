@@ -63,7 +63,7 @@ export default function CouponList() {
 
       <DataTable
         endpoint="/coupons"
-        pagination={{ mode: 'server', pageSize: 25 }}
+        pagination={{ mode: 'server' }}
         columns={columns}
         search={{
           enabled: true,
@@ -77,11 +77,13 @@ export default function CouponList() {
               label: 'Delete Selected',
               icon: Trash2,
               variant: 'danger',
-              onAction: async (ids) => {
-                if (!window.confirm(`Delete ${ids.length} coupon(s)?`)) return;
+              onAction: async (ids, { refetch }) => {
+                const countStr = ids === 'all' ? 'all results' : `${ids.length} coupon(s)`;
+                if (!window.confirm(`Delete ${countStr}? This cannot be undone.`)) return;
                 try {
-                  await Promise.all(ids.map(id => api.delete(`/coupons/${id}`)));
-                  toast.success(`Deleted ${ids.length} coupon(s)`);
+                  await api.delete('/coupons/bulk', { ids });
+                  toast.success(`Deleted ${countStr}`);
+                  refetch();
                 } catch {
                   toast.error('Failed to delete some coupons');
                 }

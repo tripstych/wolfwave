@@ -11,13 +11,14 @@ import DynamicField from '../components/DynamicField';
 import RepeaterField from '../components/RepeaterField';
 import MediaPicker from '../components/MediaPicker';
 import ContentGroupsWidget from '../components/ContentGroupsWidget';
+import VisualPickerModal from '../components/VisualPickerModal';
 
 // Hooks
 import useContentEditor from '../hooks/useContentEditor';
 
 // Icons
 import { 
-  Save, ArrowLeft, Eye, RefreshCw, Sparkles, Loader2, Globe, Download 
+  Save, ArrowLeft, Eye, RefreshCw, Sparkles, Loader2, Globe, Download, Maximize2
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -56,6 +57,10 @@ export default function PageEditor() {
   const [aiPrompts, setAiPrompts] = useState({});
   const [imageGenerating, setImageGenerating] = useState(null);
 
+  // Visual Picker State
+  const [showPicker, setShowPicker] = useState(false);
+  const [selectorMap, setSelectorMap] = useState({});
+
   const openMediaPicker = (target) => {
     setMediaPickerTarget(target);
     setMediaPickerOpen(true);
@@ -80,6 +85,33 @@ export default function PageEditor() {
         handleContentChange(mediaPickerTarget, media.url);
     }
     setMediaPickerOpen(false);
+  };
+
+  const handleExtractContent = async () => {
+    if (!scrapeUrl || Object.keys(selectorMap).length === 0) return;
+    setScraping(true);
+    try {
+      const res = await api.post('/import/extract', { url: scrapeUrl, selector_map: selectorMap });
+      if (res.success && res.data) {
+        const extracted = res.data;
+        setPage(prev => {
+          const newContent = { ...prev.content };
+          const updates = {};
+          Object.keys(extracted).forEach(key => {
+            if (key === 'title') updates.title = extracted[key];
+            else if (key === 'description') newContent.description = extracted[key];
+            else newContent[key] = extracted[key];
+          });
+          return { ...prev, ...updates, content: newContent };
+        });
+        toast.success('Live content extracted!');
+      }
+    } catch (err) {
+      toast.error('Extraction failed: ' + err.message);
+    } finally {
+      setScraping(false);
+      setShowPicker(false);
+    }
   };
 
   const handleScrape = async () => {
@@ -230,27 +262,37 @@ export default function PageEditor() {
         </div>
 
         <div className="space-y-6">
-          <div className="card p-6 space-y-4">
-            <h2 className="font-semibold text-gray-900 flex items-center gap-2">
-              <Globe className="w-4 h-4" /> Import from URL
+          <div className="card p-6 space-y-4 border-amber-200 bg-amber-50/30">
+            <h2 className="font-semibold text-amber-700 flex items-center gap-2 text-xs uppercase tracking-wider">
+              <Globe className="w-4 h-4" /> Live Visual Scrape
             </h2>
             <div className="space-y-3">
               <input
-                type="text"
+                type="url"
                 value={scrapeUrl}
                 onChange={(e) => setScrapeUrl(e.target.value)}
                 placeholder="https://example.com/page"
-                className="input"
+                className="input text-sm bg-white"
                 disabled={scraping}
               />
-              <button
-                onClick={handleScrape}
-                disabled={scraping || !scrapeUrl.trim()}
-                className="btn btn-secondary w-full flex items-center justify-center gap-2"
-              >
-                {scraping ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                {scraping ? 'Scraping...' : 'Scrape Content'}
-              </button>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={handleScrape}
+                  disabled={scraping || !scrapeUrl.trim()}
+                  className="btn btn-secondary flex items-center justify-center gap-2 text-xs"
+                >
+                  {scraping ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
+                  Scrape
+                </button>
+                <button
+                  onClick={() => setShowPicker(true)}
+                  disabled={scraping || !scrapeUrl.trim()}
+                  className="btn btn-secondary flex items-center justify-center gap-2 text-xs"
+                >
+                  <Maximize2 className="w-3 h-3" />
+                  Visual
+                </button>
+              </div>
             </div>
           </div>
 
@@ -317,6 +359,20 @@ export default function PageEditor() {
           onClose={() => setMediaPickerOpen(false)}
         />
       )}
+
+      <VisualPickerModal
+        isOpen={showPicker}
+        onClose={() => setShowPicker(false)}
+        url={scrapeUrl}
+        fields={[
+          { id: 'title', label: 'Title' },
+          { id: 'description', label: 'Description' },
+          ...regions.map(r => ({ id: r.name, label: r.label || r.name }))
+        ]}
+        selectorMap={selectorMap}
+        onSelectorPicked={(field, selector) => setSelectorMap(prev => ({ ...prev, [field]: selector }))}
+        onDone={handleExtractContent}
+      />
     </div>
   );
 }

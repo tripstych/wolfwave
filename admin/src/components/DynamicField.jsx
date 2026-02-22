@@ -1,5 +1,6 @@
 import React from 'react';
 import RichTextEditor from './RichTextEditor';
+import CodeEditor from './CodeEditor';
 import { Image as ImageIcon, Sparkles, Loader2, X } from 'lucide-react';
 
 export default function DynamicField({ 
@@ -21,6 +22,16 @@ export default function DynamicField({
         <RichTextEditor
           value={value || ''}
           onChange={handleChange}
+        />
+      );
+
+    case 'code':
+      return (
+        <CodeEditor
+          value={value || ''}
+          onChange={handleChange}
+          mode={region.mode || 'html'}
+          height={region.height || '300px'}
         />
       );
 

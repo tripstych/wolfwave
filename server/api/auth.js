@@ -207,6 +207,38 @@ router.put('/users/:id', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // Delete user (admin only)
+router.delete('/users/bulk', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!ids || (Array.isArray(ids) && ids.length === 0)) {
+      return res.json({ success: true, count: 0 });
+    }
+
+    let sql = 'DELETE FROM users WHERE id IN ';
+    const params = [];
+
+    // Filter out self if in the list
+    let targetIds = ids === 'all' ? [] : ids.map(id => parseInt(id)).filter(id => id !== req.user.id);
+    
+    if (ids === 'all') {
+      sql = 'DELETE FROM users WHERE id != ?';
+      params.push(req.user.id);
+    } else {
+      if (targetIds.length === 0) return res.json({ success: true, count: 0 });
+      const placeholders = targetIds.map(() => '?').join(',');
+      sql += `(${placeholders})`;
+      params.push(...targetIds);
+    }
+
+    const result = await query(sql, params);
+    res.json({ success: true, count: result.affectedRows });
+  } catch (err) {
+    console.error('Bulk delete users error:', err);
+    res.status(500).json({ error: 'Failed to delete some users' });
+  }
+});
+
+// Delete user (admin only)
 router.delete('/users/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;

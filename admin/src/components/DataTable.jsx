@@ -1,12 +1,12 @@
 import React, { useMemo } from 'react';
-import { X } from 'lucide-react';
+import { X, Check } from 'lucide-react';
 import useDataTable from '../hooks/useDataTable';
 
 export default function DataTable({
   endpoint,
   queryParams,
   columns = [],
-  pagination = { mode: 'none', pageSize: 20 },
+  pagination = { mode: 'none' },
   search: searchConfig,
   filters: filterConfigs = [],
   sorting: sortingConfig,
@@ -19,7 +19,7 @@ export default function DataTable({
     endpoint,
     queryParams,
     paginationMode: pagination.mode,
-    pageSize: pagination.pageSize || 20,
+    pageSize: pagination.pageSize,
     defaultSortBy: sortingConfig?.defaultSortBy || null,
     defaultOrder: sortingConfig?.defaultOrder || 'desc',
     searchFields: searchConfig?.fields || [],
@@ -28,6 +28,7 @@ export default function DataTable({
   const visibleIds = useMemo(() => table.data.map(row => row.id), [table.data]);
   const allVisibleSelected = visibleIds.length > 0 && visibleIds.every(id => table.isSelected(id));
   const someVisibleSelected = visibleIds.some(id => table.isSelected(id));
+  
   const hasFilters = searchConfig?.enabled || filterConfigs.length > 0 || sortingConfig?.enabled;
   const hasActions = actions.length > 0;
   const hasSelection = selectionConfig?.enabled;
@@ -115,7 +116,7 @@ export default function DataTable({
           {table.hasActiveFilters && (
             <button
               onClick={table.resetFilters}
-              className="text-sm text-red-600 hover:underline ml-auto self-center"
+              className="text-sm text-red-600 hover:underline ml-auto self-center font-medium"
             >
               Reset Filters
             </button>
@@ -127,37 +128,72 @@ export default function DataTable({
 
   // --- Bulk Action Toolbar ---
   const renderToolbar = () => {
-    if (!hasSelection || table.selectedIds.size === 0) return null;
+    if (!hasSelection) return null;
+    
+    const selectedCount = table.selectAllResults ? table.total : table.selectedIds.size;
+    if (selectedCount === 0) return null;
+
     return (
-      <div className="bg-primary-50 border border-primary-200 rounded-lg px-4 py-3 flex items-center justify-between">
-        <span className="text-sm font-medium text-gray-700">
-          {table.selectedIds.size} item{table.selectedIds.size !== 1 ? 's' : ''} selected
-        </span>
-        <div className="flex items-center gap-2">
-          {selectionConfig.bulkActions?.map(action => {
-            const Icon = action.icon;
-            return (
-              <button
-                key={action.label}
-                onClick={async () => {
-                  await action.onAction([...table.selectedIds], { refetch: table.refetch });
-                  table.clearSelection();
-                  table.refetch();
-                }}
-                className={`btn btn-sm ${action.variant === 'danger' ? 'btn-danger' : 'btn-primary'}`}
-              >
-                {Icon && <Icon className="w-4 h-4 mr-1" />}
-                {action.label}
-              </button>
-            );
-          })}
-          <button
-            onClick={table.clearSelection}
-            className="btn btn-sm btn-ghost"
-          >
-            <X className="w-4 h-4" />
-          </button>
+      <div className="bg-primary-50 border border-primary-200 rounded-lg px-4 py-3 flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-bold text-primary-900">
+              {selectedCount} item{selectedCount !== 1 ? 's' : ''} selected
+              {table.selectAllResults && <span className="ml-1 text-primary-600 font-normal">(all results across all pages)</span>}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            {selectionConfig.bulkActions?.map(action => {
+              const Icon = action.icon;
+              return (
+                <button
+                  key={action.label}
+                  onClick={async () => {
+                    const ids = table.selectAllResults ? 'all' : [...table.selectedIds];
+                    await action.onAction(ids, { refetch: table.refetch });
+                    table.clearSelection();
+                  }}
+                  className={`btn btn-sm ${action.variant === 'danger' ? 'btn-danger' : 'btn-primary'}`}
+                >
+                  {Icon && <Icon className="w-4 h-4 mr-1" />}
+                  {action.label}
+                </button>
+              );
+            })}
+            <button
+              onClick={table.clearSelection}
+              className="p-1 hover:bg-primary-100 rounded-full text-primary-600"
+              title="Clear selection"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
+        
+        {allVisibleSelected && !table.selectAllResults && table.total > table.data.length && (
+          <div className="text-xs text-primary-700 border-t border-primary-100 pt-2 flex items-center gap-2">
+            All {table.data.length} items on this page are selected. 
+            <button 
+              onClick={() => table.toggleAllResults(true)}
+              className="font-bold underline hover:text-primary-900"
+            >
+              Select all {table.total} results
+            </button>
+          </div>
+        )}
+
+        {table.selectAllResults && (
+            <div className="text-xs text-primary-700 border-t border-primary-100 pt-2 flex items-center gap-2">
+                <Check className="w-3 h-3" />
+                All {table.total} results are selected.
+                <button 
+                  onClick={() => table.clearSelection()}
+                  className="font-bold underline hover:text-primary-900"
+                >
+                  Clear selection
+                </button>
+            </div>
+        )}
       </div>
     );
   };
@@ -165,9 +201,6 @@ export default function DataTable({
   // --- Table ---
   const renderTable = () => (
     <div className="card overflow-hidden">
-      <div className="border-b border-gray-200">
-        {renderPaginationControls()}
-      </div>
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
@@ -176,23 +209,23 @@ export default function DataTable({
                 <th className="px-4 py-3 w-10">
                   <input
                     type="checkbox"
-                    checked={allVisibleSelected}
-                    ref={el => { if (el) el.indeterminate = someVisibleSelected && !allVisibleSelected; }}
+                    checked={allVisibleSelected || table.selectAllResults}
+                    ref={el => { if (el) el.indeterminate = someVisibleSelected && !allVisibleSelected && !table.selectAllResults; }}
                     onChange={() => table.toggleAll(visibleIds)}
-                    className="rounded border-gray-300"
+                    className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                   />
                 </th>
               )}
               {columns.map(col => (
                 <th
                   key={col.key}
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider"
+                  className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider"
                 >
                   {col.label}
                 </th>
               ))}
               {hasActions && (
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-600 uppercase tracking-wider">
+                <th className="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
               )}
@@ -201,10 +234,11 @@ export default function DataTable({
           <tbody>
             {table.data.map(row => {
               const visibleActions = actions.filter(a => !a.show || a.show(row));
+              const selected = table.isSelected(row.id);
               return (
                 <tr
                   key={row.id}
-                  className={`border-b border-gray-200 hover:bg-gray-50 transition-colors ${onRowClick ? 'cursor-pointer' : ''}`}
+                  className={`border-b border-gray-200 hover:bg-gray-50 transition-colors ${onRowClick ? 'cursor-pointer' : ''} ${selected ? 'bg-primary-50/30' : ''}`}
                   onClick={(e) => {
                     if (e.target.closest('button, a, input[type="checkbox"]')) return;
                     onRowClick?.(row);
@@ -214,9 +248,9 @@ export default function DataTable({
                     <td className="px-4 py-4 w-10">
                       <input
                         type="checkbox"
-                        checked={table.isSelected(row.id)}
+                        checked={selected}
                         onChange={() => table.toggleSelection(row.id)}
-                        className="rounded border-gray-300"
+                        className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                       />
                     </td>
                   )}
@@ -258,67 +292,70 @@ export default function DataTable({
   );
 
   // --- Pagination Controls ---
-  const renderPaginationControls = () => {
-    if (pagination.mode === 'none' || table.totalPages <= 1) return null;
+  const renderPaginationControls = (isTop = false) => {
+    if (pagination.mode === 'none') return null;
     
+    // Always show summary if we have results, even if totalPages <= 1
+    const showSummary = table.total > 0;
+    const showControls = table.totalPages > 1;
+
+    if (!showSummary) return null;
+
     return (
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 py-4 px-2">
+      <div className={`flex flex-col sm:flex-row items-center justify-between gap-4 py-4 px-2 ${isTop ? 'border-b border-gray-200 mb-2' : 'mt-2'}`}>
         <div className="text-sm text-gray-500 order-2 sm:order-1">
-          Showing <span className="font-medium text-gray-900">{(table.page - 1) * table.pageSize + 1}</span> to <span className="font-medium text-gray-900">{Math.min(table.total, table.page * table.pageSize)}</span> of <span className="font-medium text-gray-900">{table.total}</span> results
+          Showing <span className="font-bold text-gray-900">{(table.page - 1) * table.pageSize + 1}</span> to <span className="font-bold text-gray-900">{Math.min(table.total, table.page * table.pageSize)}</span> of <span className="font-bold text-gray-900">{table.total}</span> results
         </div>
         
-        <div className="flex items-center justify-center gap-1 order-1 sm:order-2">
-          <button
-            disabled={table.page === 1}
-            onClick={() => table.setPage(table.page - 1)}
-            className="px-3 py-2 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            Previous
-          </button>
+        {showControls && (
+          <div className="flex items-center justify-center gap-1 order-1 sm:order-2">
+            <button
+              disabled={table.page === 1}
+              onClick={() => table.setPage(table.page - 1)}
+              className="px-3 py-2 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Previous
+            </button>
 
-          <div className="hidden sm:flex gap-1">
-            {Array.from({ length: Math.min(5, table.totalPages) }, (_, i) => {
-              let pageNum;
-              if (table.totalPages <= 5) {
-                pageNum = i + 1;
-              } else if (table.page <= 3) {
-                pageNum = i + 1;
-              } else if (table.page >= table.totalPages - 2) {
-                pageNum = table.totalPages - 4 + i;
-              } else {
-                pageNum = table.page - 2 + i;
-              }
-              return (
-                <button
-                  key={pageNum}
-                  onClick={() => table.setPage(pageNum)}
-                  className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-                    table.page === pageNum
-                      ? 'bg-primary-600 text-white border-primary-600'
-                      : 'border border-gray-300 hover:bg-gray-50'
-                  }`}
-                >
-                  {pageNum}
-                </button>
-              );
-            })}
+            <div className="hidden sm:flex gap-1">
+              {Array.from({ length: Math.min(5, table.totalPages) }, (_, i) => {
+                let pageNum;
+                if (table.totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (table.page <= 3) {
+                  pageNum = i + 1;
+                } else if (table.page >= table.totalPages - 2) {
+                  pageNum = table.totalPages - 4 + i;
+                } else {
+                  pageNum = table.page - 2 + i;
+                }
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => table.setPage(pageNum)}
+                    className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                      table.page === pageNum
+                        ? 'bg-primary-600 text-white border-primary-600 shadow-sm'
+                        : 'border border-gray-300 hover:bg-gray-50 text-gray-700'
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+            </div>
+
+            <button
+              disabled={table.page === table.totalPages}
+              onClick={() => table.setPage(table.page + 1)}
+              className="px-3 py-2 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Next
+            </button>
           </div>
-
-          <button
-            disabled={table.page === table.totalPages}
-            onClick={() => table.setPage(table.page + 1)}
-            className="px-3 py-2 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            Next
-          </button>
-        </div>
+        )}
       </div>
     );
-  };
-
-  // --- Pagination ---
-  const renderPagination = () => {
-    return renderPaginationControls();
   };
 
   // --- Main Render ---
@@ -328,7 +365,7 @@ export default function DataTable({
         {renderFilters()}
         <div className="text-center py-12">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600 font-medium">Loading...</p>
         </div>
       </div>
     );
@@ -338,7 +375,7 @@ export default function DataTable({
     return (
       <div className="space-y-4">
         {renderFilters()}
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 font-medium">
           {table.error}
         </div>
       </div>
@@ -352,7 +389,7 @@ export default function DataTable({
         {renderFilters()}
         <div className="card p-12 text-center">
           {EmptyIcon && <EmptyIcon className="w-12 h-12 mx-auto mb-3 text-gray-300" />}
-          <p className="text-gray-600">
+          <p className="text-gray-600 font-medium">
             {emptyState.message || 'No items found.'}
           </p>
           {emptyState.hint && (
@@ -366,9 +403,10 @@ export default function DataTable({
   return (
     <div className="space-y-4">
       {renderFilters()}
+      {renderPaginationControls(true)}
       {renderToolbar()}
       {renderTable()}
-      {renderPagination()}
+      {renderPaginationControls(false)}
     </div>
   );
 }

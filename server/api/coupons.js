@@ -122,6 +122,31 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // Delete coupon
+router.delete('/bulk', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!ids || (Array.isArray(ids) && ids.length === 0)) {
+      return res.json({ success: true, count: 0 });
+    }
+
+    let sql = 'DELETE FROM coupons';
+    const params = [];
+
+    if (ids !== 'all') {
+      const placeholders = ids.map(() => '?').join(',');
+      sql += ` WHERE id IN (${placeholders})`;
+      params.push(...ids.map(id => parseInt(id)));
+    }
+
+    const result = await query(sql, params);
+    res.json({ success: true, count: result.affectedRows });
+  } catch (err) {
+    logError(req, err, 'BULK_DELETE_COUPONS');
+    res.status(500).json({ error: 'Failed to delete some coupons' });
+  }
+});
+
+// Delete coupon
 router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
     await query('DELETE FROM coupons WHERE id = ?', [parseInt(req.params.id)]);

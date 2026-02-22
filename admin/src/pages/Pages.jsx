@@ -1,7 +1,9 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { Plus, Edit, Copy, Trash2, ExternalLink } from 'lucide-react';
+import { toast } from 'sonner';
 import DataTable from '../components/DataTable';
 import { getSiteUrl } from '../lib/urls';
+import api from '../lib/api';
 
 export default function Pages() {
   const navigate = useNavigate();
@@ -58,8 +60,29 @@ export default function Pages() {
 
       <DataTable
         endpoint="/pages"
-        pagination={{ mode: 'server', pageSize: 25 }}
+        pagination={{ mode: 'server' }}
         columns={columns}
+        selection={{
+          enabled: true,
+          bulkActions: [
+            {
+              label: 'Delete Selected',
+              icon: Trash2,
+              variant: 'danger',
+              onAction: async (ids, { refetch }) => {
+                const countStr = ids === 'all' ? 'all results' : `${ids.length} page(s)`;
+                if (!confirm(`Delete ${countStr}? This cannot be undone.`)) return;
+                try {
+                  await api.delete('/pages/bulk', { ids });
+                  toast.success(`Deleted ${countStr}`);
+                  refetch();
+                } catch (err) {
+                  toast.error('Failed to delete some pages');
+                }
+              },
+            },
+          ],
+        }}
         search={{
           enabled: true,
           placeholder: 'Search pages...',
@@ -88,13 +111,11 @@ export default function Pages() {
             title: 'Duplicate',
             onClick: async (row, { refetch }) => {
               try {
-                const result = await fetch(`/api/pages/${row.id}/duplicate`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                }).then(res => res.json());
+                const result = await api.post(`/pages/${row.id}/duplicate`);
+                toast.success('Page duplicated');
                 navigate(`/pages/${result.id}`);
               } catch (err) {
-                alert('Failed to duplicate page');
+                toast.error('Failed to duplicate page');
               }
             },
           },
@@ -111,10 +132,11 @@ export default function Pages() {
             onClick: async (row, { refetch }) => {
               if (!confirm('Are you sure you want to delete this page?')) return;
               try {
-                await fetch(`/api/pages/${row.id}`, { method: 'DELETE' });
+                await api.delete(`/pages/${row.id}`);
+                toast.success('Page deleted');
                 refetch();
               } catch (err) {
-                alert('Failed to delete page');
+                toast.error('Failed to delete page');
               }
             },
           },

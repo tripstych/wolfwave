@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import api from '../lib/api';
 import { Save, AlertCircle, CheckCircle, Send } from 'lucide-react';
+import { useSettings } from '../context/SettingsContext';
 
 export default function Settings() {
+  const { refreshSettings } = useSettings();
   const [settings, setSettings] = useState({
     site_name: '',
     site_tagline: '',
@@ -24,7 +26,8 @@ export default function Settings() {
     smtp_user: '',
     smtp_pass: '',
     smtp_from: '',
-    smtp_secure: 'false'
+    smtp_secure: 'false',
+    admin_page_size: '25'
   });
   const [pages, setPages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -65,7 +68,8 @@ export default function Settings() {
         smtp_user: data.smtp_user || '',
         smtp_pass: data.smtp_pass || '',
         smtp_from: data.smtp_from || '',
-        smtp_secure: data.smtp_secure || 'false'
+        smtp_secure: data.smtp_secure || 'false',
+        admin_page_size: data.admin_page_size || '25'
       });
       setPages(pagesData.data || pagesData || []);
     } catch (err) {
@@ -83,6 +87,7 @@ export default function Settings() {
 
     try {
       const response = await api.put('/settings', settings);
+      await refreshSettings();
       if (response.warning) {
         setError(response.warning);
         setSuccess('General settings saved, but there were integration issues (see above).');
@@ -218,6 +223,22 @@ export default function Settings() {
           />
           <p className="text-xs text-gray-500 mt-1">
             Used in contact forms and footers
+          </p>
+        </div>
+
+        <div>
+          <label className="label">Admin Entries Per Page</label>
+          <input
+            type="number"
+            min="1"
+            max="100"
+            value={settings.admin_page_size}
+            onChange={(e) => setSettings({ ...settings, admin_page_size: e.target.value })}
+            className="input"
+            placeholder="25"
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Default number of items to show in admin tables (e.g. Products, Pages)
           </p>
         </div>
       </div>

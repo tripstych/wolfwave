@@ -57,8 +57,12 @@ export default function OrderList() {
 
       <DataTable
         endpoint="/orders"
-        pagination={{ mode: 'server', pageSize: 20 }}
+        pagination={{ mode: 'server' }}
         columns={columns}
+        selection={{
+          enabled: true,
+          bulkActions: [],
+        }}
         search={{
           enabled: true,
           placeholder: 'Search by order number or email...',

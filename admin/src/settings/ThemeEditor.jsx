@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import { Save, ArrowLeft, Loader2, Code } from 'lucide-react';
 import FileTree from './FileTree';
+import CodeEditor from '../components/CodeEditor';
 import { toast } from 'sonner';
 
 export default function ThemeEditor() {
@@ -17,8 +18,6 @@ export default function ThemeEditor() {
   const [loadingFile, setLoadingFile] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
-
-  const textareaRef = useRef(null);
 
   useEffect(() => {
     loadFiles();
@@ -72,21 +71,24 @@ export default function ThemeEditor() {
     }
   };
 
-  // Handle Tab indentation in textarea
-  const handleKeyDown = (e) => {
-    if (e.key === 'Tab') {
-      e.preventDefault();
-      const start = e.target.selectionStart;
-      const end = e.target.selectionEnd;
-
-      setContent(
-        content.substring(0, start) + '  ' + content.substring(end)
-      );
-
-      // Restore focus
-      setTimeout(() => {
-        e.target.selectionStart = e.target.selectionEnd = start + 2;
-      }, 0);
+  const getMode = (path) => {
+    if (!path) return 'javascript';
+    const ext = path.split('.').pop().toLowerCase();
+    switch (ext) {
+      case 'js':
+      case 'jsx':
+        return 'javascript';
+      case 'html':
+      case 'htm':
+      case 'liquid':
+        return 'html';
+      case 'css':
+      case 'scss':
+        return 'css';
+      case 'json':
+        return 'json';
+      default:
+        return 'text';
     }
   };
 
@@ -145,14 +147,12 @@ export default function ThemeEditor() {
                 <Loader2 className="w-8 h-8 animate-spin mb-2" />
               </div>
             ) : (
-              <textarea
-                ref={textareaRef}
+              <CodeEditor
+                mode={getMode(selectedFile)}
                 value={content}
-                onChange={(e) => setContent(e.target.value)}
-                onKeyDown={handleKeyDown}
-                className="w-full h-full p-4 font-mono text-sm resize-none focus:outline-none"
-                spellCheck="false"
-                style={{ fontFamily: '"Fira Code", "JetBrains Mono", Consolas, monospace', lineHeight: '1.5' }}
+                onChange={setContent}
+                height="100%"
+                theme="github"
               />
             )
           ) : (

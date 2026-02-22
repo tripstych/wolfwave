@@ -11,15 +11,15 @@ export function getSiteUrl(slug) {
   // Ensure slug starts with /
   const path = slug.startsWith('/') ? slug : `/${slug}`;
   
-  // Get current origin (e.g. http://localhost:5173 or http://tenant1.localhost:5173)
+  // Get current origin
   const origin = window.location.origin;
   const port = window.location.port;
   
-  // If we're on the Vite dev server port, replace it with the backend port
+  // Local development fallback (Vite -> Express)
   if (port === '5173') {
     return origin.replace(':5173', ':3000') + path;
   }
   
-  // Otherwise (e.g. behind nginx proxy or in production), use relative path or current origin
-  return path;
+  // In proxy/production environments, use the current origin
+  return origin + path;
 }

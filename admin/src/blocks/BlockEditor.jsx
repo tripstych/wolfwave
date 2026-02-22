@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import api, { parseRegions } from '../lib/api';
 import slugify from 'slugify';
 import RichTextEditor from '../components/RichTextEditor';
+import CodeEditor from '../components/CodeEditor';
 import MediaPicker from '../components/MediaPicker';
 import {
   Save,
@@ -252,6 +253,16 @@ export default function BlockEditor() {
           />
         );
 
+      case 'code':
+        return (
+          <CodeEditor
+            value={value}
+            onChange={(val) => handleContentChange(region.name, val)}
+            mode={region.mode || 'html'}
+            height={region.height || '300px'}
+          />
+        );
+
       case 'textarea':
         return (
           <textarea
@@ -364,6 +375,13 @@ export default function BlockEditor() {
                         value={item[field.name] || ''}
                         onChange={(e) => handleRepeaterChange(region.name, index, field.name, e.target.value)}
                         className="input"
+                      />
+                    ) : field.type === 'code' ? (
+                      <CodeEditor
+                        value={item[field.name] || ''}
+                        onChange={(val) => handleRepeaterChange(region.name, index, field.name, val)}
+                        mode={field.mode || 'html'}
+                        height={field.height || '200px'}
                       />
                     ) : (
                       <input

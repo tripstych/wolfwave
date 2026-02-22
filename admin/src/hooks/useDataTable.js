@@ -1,15 +1,19 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import api from '../lib/api';
+import { useSettings } from '../context/SettingsContext';
 
 export default function useDataTable({
   endpoint,
   queryParams = {},
   paginationMode = 'none',
-  pageSize = 20,
+  pageSize: initialPageSize = null,
   defaultSortBy = null,
   defaultOrder = 'desc',
   searchFields = [],
 }) {
+  const { settings } = useSettings();
+  const pageSize = initialPageSize || parseInt(settings.admin_page_size) || 25;
+
   const [allData, setAllData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -21,11 +25,12 @@ export default function useDataTable({
   const [sortBy, setSortBy] = useState(defaultSortBy);
   const [order, setOrder] = useState(defaultOrder);
   const [selectedIds, setSelectedIds] = useState(new Set());
+  const [selectAllResults, setSelectAllResults] = useState(false);
 
   const debounceRef = useRef(null);
   const prevEndpoint = useRef(endpoint);
 
-  // Reset when endpoint changes (e.g. ContentList switching between blocks/pages)
+  // Reset when endpoint changes
   useEffect(() => {
     if (prevEndpoint.current !== endpoint) {
       prevEndpoint.current = endpoint;
@@ -36,6 +41,7 @@ export default function useDataTable({
       setSearch('');
       setDebouncedSearch('');
       setSelectedIds(new Set());
+      setSelectAllResults(false);
     }
   }, [endpoint]);
 
@@ -147,9 +153,10 @@ export default function useDataTable({
   const totalPages = paginationMode === 'none' ? 1 : Math.ceil(clientTotal / pageSize);
 
   // Selection helpers
-  const isSelected = useCallback((id) => selectedIds.has(id), [selectedIds]);
+  const isSelected = useCallback((id) => selectAllResults || selectedIds.has(id), [selectedIds, selectAllResults]);
 
   const toggleSelection = useCallback((id) => {
+    setSelectAllResults(false);
     setSelectedIds(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -159,6 +166,7 @@ export default function useDataTable({
   }, []);
 
   const toggleAll = useCallback((visibleIds) => {
+    setSelectAllResults(false);
     setSelectedIds(prev => {
       const allSelected = visibleIds.every(id => prev.has(id));
       const next = new Set(prev);
@@ -171,7 +179,15 @@ export default function useDataTable({
     });
   }, []);
 
-  const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
+  const toggleAllResults = useCallback((value) => {
+    setSelectAllResults(value);
+    setSelectedIds(new Set());
+  }, []);
+
+  const clearSelection = useCallback(() => {
+    setSelectedIds(new Set());
+    setSelectAllResults(false);
+  }, []);
 
   const setFilter = useCallback((key, value) => {
     setFilters(prev => ({ ...prev, [key]: value }));
@@ -195,6 +211,7 @@ export default function useDataTable({
     error,
     page,
     setPage,
+    pageSize,
     totalPages,
     total: clientTotal,
     search,
@@ -208,6 +225,8 @@ export default function useDataTable({
     setSortBy,
     setOrder,
     selectedIds,
+    selectAllResults,
+    toggleAllResults,
     isSelected,
     toggleSelection,
     toggleAll,

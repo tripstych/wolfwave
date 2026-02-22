@@ -34,7 +34,11 @@ export default defineConfig({
           }
           return 'http://127.0.0.1:3000';
         }
-      }
+      },
+      // Proxy static assets to backend
+      '/js': 'http://127.0.0.1:3000',
+      '/css': 'http://127.0.0.1:3000',
+      '/images': 'http://127.0.0.1:3000'
     }
   },
   build: {

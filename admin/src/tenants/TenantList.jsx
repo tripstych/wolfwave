@@ -167,7 +167,7 @@ export default function TenantList() {
       <DataTable
         key={refreshKey}
         endpoint="/tenants"
-        pagination={{ mode: 'client', pageSize: 25 }}
+        pagination={{ mode: 'client' }}
         columns={columns}
         actions={[
           {

@@ -50,7 +50,7 @@ export default function UserList() {
 
       <DataTable
         endpoint="/auth/users"
-        pagination={{ mode: 'client', pageSize: 25 }}
+        pagination={{ mode: 'client' }}
         columns={columns}
         selection={{
           enabled: true,
@@ -59,9 +59,15 @@ export default function UserList() {
               label: 'Delete Selected',
               icon: Trash2,
               variant: 'danger',
-              onAction: async (ids) => {
-                if (!window.confirm(`Delete ${ids.length} user(s)? This cannot be undone.`)) return;
-                await Promise.all(ids.map(id => api.delete(`/auth/users/${id}`)));
+              onAction: async (ids, { refetch }) => {
+                const countStr = ids === 'all' ? 'all other users' : `${ids.length} user(s)`;
+                if (!window.confirm(`Delete ${countStr}? This cannot be undone.`)) return;
+                try {
+                  await api.delete('/auth/users/bulk', { ids });
+                  refetch();
+                } catch (err) {
+                  alert('Failed to delete some users: ' + err.message);
+                }
               },
             },
           ],

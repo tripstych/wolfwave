@@ -56,7 +56,7 @@ const api = {
   
   put: (endpoint, body) => request(endpoint, { method: 'PUT', body }),
   
-  delete: (endpoint) => request(endpoint, { method: 'DELETE' }),
+  delete: (endpoint, body) => request(endpoint, { method: 'DELETE', body }),
   
   upload: (endpoint, formData) => request(endpoint, {
     method: 'POST',

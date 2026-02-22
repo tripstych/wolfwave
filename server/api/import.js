@@ -30,8 +30,9 @@ router.get('/proxy', requireAuth, requireEditor, async (req, res) => {
     $('head').prepend(`<base href="${origin}/">`);
 
     // 2. Inject Picker Assets (Absolute paths to our own server)
-    // Use protocol-relative URLs to ensure it matches the parent page (HTTPS)
+    // Using protocol-relative URLs ensures it matches the parent frame's protocol
     const host = req.get('host');
+    
     $('head').append(`<link rel="stylesheet" href="//${host}/css/selector-picker.css">`);
     $('body').append(`<script src="//${host}/js/selector-picker.js"></script>`);
 
@@ -40,6 +41,8 @@ router.get('/proxy', requireAuth, requireEditor, async (req, res) => {
     $('noscript').remove();
     $('iframe').remove();
     $('meta[http-equiv="refresh"]').remove();
+    $('meta[http-equiv="Content-Security-Policy"]').remove();
+    $('meta[http-equiv="content-security-policy"]').remove();
 
     // 4. Force inject our picker script back since we just nuked all scripts
     $('body').append(`<script src="//${host}/js/selector-picker.js"></script>`);

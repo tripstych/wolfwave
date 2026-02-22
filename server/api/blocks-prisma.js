@@ -252,6 +252,43 @@ router.put('/:id', requireAuth, requireEditor, async (req, res) => {
 });
 
 // Delete block
+router.delete('/bulk', requireAuth, requireEditor, async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!ids || (Array.isArray(ids) && ids.length === 0)) {
+      return res.json({ success: true, count: 0 });
+    }
+
+    const where = {};
+    if (ids !== 'all') {
+      where.id = { in: ids.map(id => parseInt(id)) };
+    }
+
+    // Get content_ids to delete orphaned content
+    const blocks = await prisma.blocks.findMany({
+      where,
+      select: { content_id: true }
+    });
+    const contentIds = blocks.map(b => b.content_id).filter(Boolean);
+
+    // Delete blocks
+    const { count } = await prisma.blocks.deleteMany({ where });
+
+    // Delete orphaned content
+    if (contentIds.length > 0) {
+      await prisma.content.deleteMany({
+        where: { id: { in: contentIds } }
+      });
+    }
+
+    res.json({ success: true, count });
+  } catch (err) {
+    console.error('Bulk delete blocks error:', err);
+    res.status(500).json({ error: 'Failed to delete some blocks' });
+  }
+});
+
+// Delete block
 router.delete('/:id', requireAuth, requireEditor, async (req, res) => {
   try {
     const blockId = parseInt(req.params.id);

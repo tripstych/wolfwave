@@ -442,6 +442,47 @@ router.put('/:id', requireAuth, requireEditor, async (req, res) => {
 });
 
 // Delete product
+router.delete('/bulk', requireAuth, requireEditor, async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!ids || (Array.isArray(ids) && ids.length === 0)) {
+      return res.json({ success: true, count: 0 });
+    }
+
+    if (!Array.isArray(ids) && ids !== 'all') {
+      return res.status(400).json({ error: 'IDs required for bulk delete' });
+    }
+
+    const where = {};
+    if (ids !== 'all') {
+      where.id = { in: ids.map(id => parseInt(id)) };
+    }
+
+    // Get content_ids to delete orphaned content
+    const products = await prisma.products.findMany({
+      where,
+      select: { content_id: true }
+    });
+    const contentIds = products.map(p => p.content_id).filter(Boolean);
+
+    // Delete products (cascade will delete variants)
+    const { count } = await prisma.products.deleteMany({ where });
+
+    // Delete orphaned content
+    if (contentIds.length > 0) {
+      await prisma.content.deleteMany({
+        where: { id: { in: contentIds } }
+      });
+    }
+
+    res.json({ success: true, count });
+  } catch (err) {
+    console.error('Bulk delete products error:', err);
+    res.status(500).json({ error: 'Failed to delete some products' });
+  }
+});
+
+// Delete product
 router.delete('/:id', requireAuth, requireEditor, async (req, res) => {
   try {
     const productId = parseInt(req.params.id);

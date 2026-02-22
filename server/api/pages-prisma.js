@@ -315,6 +315,47 @@ router.put('/:id', requireAuth, requireEditor, async (req, res) => {
 });
 
 // Delete page
+router.delete('/bulk', requireAuth, requireEditor, async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!ids || (Array.isArray(ids) && ids.length === 0)) {
+      return res.json({ success: true, count: 0 });
+    }
+
+    if (!Array.isArray(ids) && ids !== 'all') {
+      return res.status(400).json({ error: 'IDs required for bulk delete' });
+    }
+
+    const where = {};
+    if (ids !== 'all') {
+      where.id = { in: ids.map(id => parseInt(id)) };
+    }
+
+    // Get content_ids to delete orphaned content
+    const pages = await prisma.pages.findMany({
+      where,
+      select: { content_id: true }
+    });
+    const contentIds = pages.map(p => p.content_id).filter(Boolean);
+
+    // Delete pages
+    const { count } = await prisma.pages.deleteMany({ where });
+
+    // Delete orphaned content
+    if (contentIds.length > 0) {
+      await prisma.content.deleteMany({
+        where: { id: { in: contentIds } }
+      });
+    }
+
+    res.json({ success: true, count });
+  } catch (err) {
+    console.error('Bulk delete pages error:', err);
+    res.status(500).json({ error: 'Failed to delete some pages' });
+  }
+});
+
+// Delete page
 router.delete('/:id', requireAuth, requireEditor, async (req, res) => {
   try {
     const pageId = parseInt(req.params.id);

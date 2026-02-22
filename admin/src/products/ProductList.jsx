@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { Plus, Edit2, Trash2, ExternalLink } from 'lucide-react';
+import { toast } from 'sonner';
 import DataTable from '../components/DataTable';
 import { getSiteUrl } from '../lib/urls';
 import api from '../lib/api';
@@ -71,7 +72,7 @@ export default function ProductList() {
 
       <DataTable
         endpoint="/products"
-        pagination={{ mode: 'server', pageSize: 25 }}
+        pagination={{ mode: 'server' }}
         columns={columns}
         search={{
           enabled: true,
@@ -114,9 +115,16 @@ export default function ProductList() {
               label: 'Delete Selected',
               icon: Trash2,
               variant: 'danger',
-              onAction: async (ids) => {
-                if (!window.confirm(`Delete ${ids.length} product(s)?`)) return;
-                await Promise.all(ids.map(id => api.delete(`/products/${id}`)));
+              onAction: async (ids, { refetch }) => {
+                const countStr = ids === 'all' ? 'all results' : `${ids.length} product(s)`;
+                if (!window.confirm(`Delete ${countStr}? This cannot be undone.`)) return;
+                try {
+                  await api.delete('/products/bulk', { ids });
+                  toast.success(`Deleted ${countStr}`);
+                  refetch();
+                } catch (err) {
+                  toast.error('Failed to delete some products');
+                }
               },
             },
           ],
@@ -140,8 +148,13 @@ export default function ProductList() {
             variant: 'danger',
             onClick: async (row, { refetch }) => {
               if (!window.confirm('Are you sure you want to delete this product?')) return;
-              await api.delete(`/products/${row.id}`);
-              refetch();
+              try {
+                await api.delete(`/products/${row.id}`);
+                toast.success('Product deleted');
+                refetch();
+              } catch (err) {
+                toast.error('Failed to delete product');
+              }
             },
           },
         ]}

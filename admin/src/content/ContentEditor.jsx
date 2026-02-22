@@ -162,7 +162,7 @@ export default function ContentEditor() {
         <div className="space-y-6">
           <div className="card p-6 space-y-4 border-amber-200 bg-amber-50/30">
             <div className="flex items-center gap-2 text-amber-700 font-bold text-xs uppercase"><Globe className="w-4 h-4" /> Live Visual Scrape</div>
-            <input type="text" placeholder="URL..." value={scrapeUrl} onChange={e => setScrapeUrl(e.target.value)} className="input text-sm" />
+            <input type="url" placeholder="URL..." value={scrapeUrl} onChange={e => setScrapeUrl(e.target.value)} className="input text-sm" />
             <button onClick={() => setShowPicker(true)} className="btn btn-secondary w-full py-2 text-xs"><Maximize2 className="w-3 h-3 mr-2" /> Visual Scrape</button>
           </div>
 
