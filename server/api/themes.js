@@ -90,14 +90,24 @@ router.get('/:theme/files/*', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { theme } = req.params;
     const filePath = req.params[0];
-    const fullPath = resolveThemePath(theme, filePath);
 
+    // If default theme, try to get from DB first
+    if (theme === 'default') {
+      const template = await prisma.templates.findUnique({
+        where: { filename: filePath }
+      });
+      if (template && template.content) {
+        return res.json({ content: template.content, source: 'db' });
+      }
+    }
+
+    const fullPath = resolveThemePath(theme, filePath);
     if (!fs.existsSync(fullPath)) {
       return res.status(404).json({ error: 'File not found' });
     }
 
     const content = await fs.promises.readFile(fullPath, 'utf8');
-    res.json({ content });
+    res.json({ content, source: 'fs' });
   } catch (err) {
     console.error('Failed to read file:', err);
     res.status(500).json({ error: 'Failed to read file' });
@@ -111,6 +121,26 @@ router.post('/:theme/files/*', requireAuth, requireAdmin, async (req, res) => {
     const filePath = req.params[0];
     const { content } = req.body;
     const fullPath = resolveThemePath(theme, filePath);
+
+    // If default theme, save to DB templates table as well
+    if (theme === 'default') {
+      try {
+        await prisma.templates.upsert({
+          where: { filename: filePath },
+          update: { content, updated_at: new Date() },
+          create: { 
+            filename: filePath, 
+            name: path.basename(filePath, path.extname(filePath)), 
+            content,
+            created_at: new Date(),
+            updated_at: new Date()
+          }
+        });
+      } catch (dbErr) {
+        console.error('Failed to sync write to DB:', dbErr);
+        // Continue to FS write
+      }
+    }
 
     // Ensure directory exists
     await fs.promises.mkdir(path.dirname(fullPath), { recursive: true });

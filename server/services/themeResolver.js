@@ -5,16 +5,67 @@ import nunjucks from 'nunjucks';
 import moment from 'moment';
 import { query } from '../db/connection.js';
 import registerTemplateExtensions from './templateExtensions.js';
+import prisma from '../lib/prisma.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const THEMES_DIR = path.join(__dirname, '../../themes');
 const ROOT_TEMPLATES_DIR = path.join(__dirname, '../../templates');
+
+// Custom DB Loader for Nunjucks
+class DbLoader extends nunjucks.Loader {
+  constructor(themeName) {
+    super();
+    this.async = true;
+    this.themeName = themeName;
+    this.cache = new Map(); // Simple in-memory cache
+  }
+
+  getSource(name, callback) {
+    // Only handle 'default' theme for now
+    if (this.themeName !== 'default') {
+      return callback(null, null);
+    }
+
+    // Try cache first
+    if (this.cache.has(name)) {
+      return callback(null, this.cache.get(name));
+    }
+
+    // Normalized name might have leading slash or be relative to search path
+    // Template parser usually gives relative paths like 'pages/home.liquid'
+    prisma.templates.findUnique({
+      where: { filename: name }
+    }).then(template => {
+      if (template && template.content) {
+        const source = {
+          src: template.content,
+          path: name,
+          noCache: false
+        };
+        this.cache.set(name, source);
+        callback(null, source);
+      } else {
+        callback(null, null);
+      }
+    }).catch(err => {
+      console.error('[DbLoader] Error fetching template:', err);
+      callback(err);
+    });
+  }
+
+  clearCache() {
+    this.cache.clear();
+  }
+}
 
 // Cache: theme slug -> parsed theme.json
 const themeConfigCache = new Map();
 
 // Cache: theme slug -> Nunjucks Environment
 const envCache = new Map();
+
+// Cache: theme slug -> DbLoader instance
+const dbLoaderCache = new Map();
 
 /**
  * Read and cache theme.json for a given theme slug.
@@ -216,11 +267,19 @@ export function getNunjucksEnv(themeName) {
   }
 
   const searchPaths = getThemeSearchPaths(themeName);
-  const loader = new nunjucks.FileSystemLoader(searchPaths, {
+  
+  // 1. Filesystem Loader
+  const fsLoader = new nunjucks.FileSystemLoader(searchPaths, {
     watch: process.env.NODE_ENV === 'development',
     noCache: process.env.NODE_ENV === 'development'
   });
-  const env = new nunjucks.Environment(loader, { autoescape: true });
+
+  // 2. DB Loader (Only for active theme or default)
+  const dbLoader = new DbLoader(themeName);
+  dbLoaderCache.set(themeName, dbLoader);
+
+  // Combined loaders (DB takes precedence)
+  const env = new nunjucks.Environment([dbLoader, fsLoader], { autoescape: true });
 
   applyNunjucksCustomizations(env);
 
@@ -234,6 +293,8 @@ export function getNunjucksEnv(themeName) {
 export function clearThemeCache() {
   themeConfigCache.clear();
   envCache.clear();
+  dbLoaderCache.forEach(loader => loader.clearCache());
+  dbLoaderCache.clear();
 }
 
 /**

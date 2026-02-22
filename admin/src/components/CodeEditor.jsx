@@ -29,7 +29,7 @@ export default function CodeEditor({
   readOnly = false
 }) {
   return (
-    <div className="border border-gray-300 rounded-lg overflow-hidden">
+    <div className="border border-gray-300 rounded-lg overflow-hidden flex flex-col" style={{ height: height }}>
        <AceEditor
         mode={mode}
         theme={theme}
@@ -46,7 +46,7 @@ export default function CodeEditor({
           useWorker: true,
         }}
         width="100%"
-        height={height}
+        height="100%"
         fontSize={14}
         showPrintMargin={false}
         showGutter={true}

@@ -463,6 +463,7 @@ model templates {
   id              Int      @id @default(autoincrement())
   name            String   @db.VarChar(255)
   filename        String   @unique(map: "filename") @db.VarChar(255)
+  content         String?  @db.LongText
   description     String?  @db.Text
   regions         Json?
   blueprint       Json?
