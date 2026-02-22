@@ -9,7 +9,7 @@ const router = Router();
 // List all pages
 router.get('/', requireAuth, async (req, res) => {
   try {
-    const { status, template_id, content_type, limit = 50, offset = 0 } = req.query;
+    const { status, template_id, content_type, search, limit = 50, offset = 0 } = req.query;
 
     // Validate pagination parameters
     const pageLimit = Math.max(1, Math.min(500, parseInt(limit) || 50));
@@ -20,6 +20,13 @@ router.get('/', requireAuth, async (req, res) => {
     if (status) where.status = status;
     if (template_id) where.template_id = parseInt(template_id);
     if (content_type) where.content_type = content_type;
+
+    if (search) {
+      where.OR = [
+        { title: { contains: search } },
+        { content: { slug: { contains: search } } }
+      ];
+    }
 
     // Fetch pages with content and template
     const pages = await prisma.pages.findMany({

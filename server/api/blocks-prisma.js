@@ -9,13 +9,20 @@ const router = Router();
 // List all blocks
 router.get('/', requireAuth, async (req, res) => {
   try {
-    const { content_type, limit = 50, offset = 0 } = req.query;
+    const { content_type, search, limit = 50, offset = 0 } = req.query;
 
     const pageLimit = Math.max(1, Math.min(500, parseInt(limit) || 50));
     const pageOffset = Math.max(0, parseInt(offset) || 0);
 
     const where = {};
     if (content_type) where.content_type = content_type;
+
+    if (search) {
+      where.OR = [
+        { name: { contains: search } },
+        { slug: { contains: search } }
+      ];
+    }
 
     const blocks = await prisma.blocks.findMany({
       where,
