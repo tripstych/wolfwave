@@ -17,7 +17,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "start": "pm2 start server/index.js --name wolfwave --update-env && pm2 logs wolfwave",
-    "postinstall": "npm install --prefix admin"
+    "postinstall": "cd admin && npm install"
   },
   "dependencies": {
     "@prisma/client": "^6.19.2",
