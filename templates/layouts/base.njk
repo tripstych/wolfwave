@@ -240,6 +240,8 @@
     }
     
     {% block styles %}{% endblock %}
+
+    {{ site.global_custom_css | safe }}
   </style>
 </head>
 <body{% if user and page %} data-page-id="{{ page.id }}" data-template-id="{{ template.id }}" data-content-type="{{ content_type | default('pages') }}"{% endif %}>
