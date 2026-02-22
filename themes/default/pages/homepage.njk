@@ -1,8 +1,8 @@
 {% extends "layouts/base.njk" %}
-
+ 
 {% block styles %}
 .hero {
-  padding: 6rem 0;
+  padding: 6rem 0; 
   background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
   text-align: center;
 }
@@ -78,6 +78,7 @@
     <h1 data-cms-region="hero_title" data-cms-type="text" data-cms-label="Hero Title">
       {{ content.hero_title | default('Welcome to Our Site') }}
     </h1>
+    <h2>Test</h2>
     <p data-cms-region="hero_subtitle" data-cms-type="text" data-cms-label="Hero Subtitle">
       {{ content.hero_subtitle | default('Build something amazing today') }}
     </p>

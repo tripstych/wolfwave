@@ -284,6 +284,21 @@ export async function syncTemplatesToDb(prisma, themeName = 'default') {
 
   for (const template of templates) {
     const contentType = extractContentType(template.filename);
+    
+    // Read the content from the file to populate the DB
+    let content = null;
+    try {
+      // Check root templates first, then theme
+      let templatePath = path.join(ROOT_TEMPLATES_DIR, template.filename);
+      try {
+        await fs.access(templatePath);
+      } catch (e) {
+        templatePath = path.join(THEMES_DIR, themeName, template.filename);
+      }
+      content = await fs.readFile(templatePath, 'utf-8');
+    } catch (e) {
+      console.error(`Failed to read content for ${template.filename}:`, e.message);
+    }
 
     // Use upsert to insert or update
     await prisma.templates.upsert({
@@ -292,12 +307,16 @@ export async function syncTemplatesToDb(prisma, themeName = 'default') {
         name: template.name,
         filename: template.filename,
         regions: template.regions,
-        content_type: contentType
+        content_type: contentType,
+        content: content
       },
       update: {
         name: template.name,
         regions: template.regions,
-        content_type: contentType
+        content_type: contentType,
+        // Only update content if DB content is empty? 
+        // Or always sync? Let's always sync for now during a full sync command.
+        content: content
       }
     });
   }

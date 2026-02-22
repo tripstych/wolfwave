@@ -17,7 +17,7 @@ class DbLoader extends nunjucks.Loader {
     super();
     this.async = true;
     this.themeName = themeName;
-    this.cache = new Map(); // Simple in-memory cache
+    this.tplCache = new Map(); // Rename to tplCache
   }
 
   getSource(name, callback) {
@@ -27,8 +27,8 @@ class DbLoader extends nunjucks.Loader {
     }
 
     // Try cache first
-    if (this.cache.has(name)) {
-      return callback(null, this.cache.get(name));
+    if (this.tplCache.has(name)) {
+      return callback(null, this.tplCache.get(name));
     }
 
     // Normalized name might have leading slash or be relative to search path
@@ -42,7 +42,7 @@ class DbLoader extends nunjucks.Loader {
           path: name,
           noCache: false
         };
-        this.cache.set(name, source);
+        this.tplCache.set(name, source);
         callback(null, source);
       } else {
         callback(null, null);
@@ -54,7 +54,7 @@ class DbLoader extends nunjucks.Loader {
   }
 
   clearCache() {
-    this.cache.clear();
+    this.tplCache.clear();
   }
 }
 

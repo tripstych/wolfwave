@@ -7,6 +7,7 @@ import prisma from '../lib/prisma.js';
 import fs from 'fs';
 import path from 'path';
 
+import { log, error as logError } from '../lib/logger.js';
 const router = Router();
 
 // Helper to safely resolve theme file path
@@ -14,13 +15,17 @@ function resolveThemePath(theme, filePath) {
   const themesDir = getThemesDir();
   const themeDir = path.join(themesDir, theme);
   const fullPath = filePath ? path.join(themeDir, filePath) : themeDir;
+  
+  // Normalize both for comparison (especially on Windows)
+  const normFullPath = path.normalize(fullPath);
+  const normThemesDir = path.normalize(themesDir);
 
   // Prevent directory traversal
-  if (!fullPath.startsWith(themesDir)) {
-    throw new Error('Invalid path');
+  if (!normFullPath.startsWith(normThemesDir)) {
+    throw new Error(`Invalid path: ${normFullPath} is outside ${normThemesDir}`);
   }
 
-  return fullPath;
+  return normFullPath;
 }
 
 // List all available themes (from filesystem)
@@ -152,8 +157,8 @@ router.post('/:theme/files/*', requireAuth, requireAdmin, async (req, res) => {
     
     res.json({ success: true });
   } catch (err) {
-    console.error('Failed to save file:', err);
-    res.status(500).json({ error: 'Failed to save file' });
+    logError(req, err, 'THEME_SAVE');
+    res.status(500).json({ error: 'Failed to save file', message: err.message });
   }
 });
 
