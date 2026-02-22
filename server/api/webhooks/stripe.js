@@ -124,6 +124,10 @@ router.post('/', async (req, res) => {
         await handleChargeRefunded(req, event.data.object);
         break;
 
+      case 'invoice.paid':
+        await handleInvoicePaid(req, event.data.object);
+        break;
+
       case 'customer.subscription.created':
       case 'customer.subscription.updated':
         await handleSubscriptionChange(req, event.data.object, event.type);
@@ -309,6 +313,83 @@ async function handleInvoicePaymentFailed(req, invoice) {
   } else {
     webhookLog(req, 'info', `No local subscription found for ${subscriptionId}`);
   }
+}
+
+async function handleInvoicePaid(req, invoice) {
+  const { id, customer, subscription, amount_paid, currency, lines } = invoice;
+  webhookLog(req, 'info', `invoice.paid: ${id}, sub: ${subscription}, customer: ${customer}`);
+
+  // Skip if amount is 0 (like a trial start with no charge)
+  if (amount_paid <= 0) {
+    webhookLog(req, 'info', 'Invoice amount is 0, skipping order creation');
+    return;
+  }
+
+  // Find customer
+  const dbCustomer = await prisma.customers.findFirst({ where: { stripe_customer_id: customer } });
+  if (!dbCustomer) {
+    webhookLog(req, 'error', `No customer found for stripe_customer_id=${customer} — cannot create order from invoice`);
+    return;
+  }
+
+  // Check if order already exists for this invoice to prevent duplicates
+  const existingOrder = await prisma.orders.findFirst({
+    where: { payment_intent_id: id } // Using payment_intent_id field to store Stripe Invoice ID for subscriptions
+  });
+
+  if (existingOrder) {
+    webhookLog(req, 'info', `Order already exists for invoice ${id} (Order: ${existingOrder.order_number})`);
+    return;
+  }
+
+  // Generate order number
+  const orderNumber = await generateOrderNumber();
+
+  // Create order
+  const amount = amount_paid / 100;
+  
+  await prisma.orders.create({
+    data: {
+      order_number: orderNumber,
+      customer_id: dbCustomer.id,
+      email: dbCustomer.email,
+      billing_address: JSON.stringify({}), // We might not have full address here from Stripe invoice basic object
+      shipping_address: JSON.stringify({}),
+      payment_method: 'stripe',
+      payment_intent_id: id, // Store Invoice ID
+      subtotal: amount,
+      tax: 0,
+      shipping: 0,
+      discount: 0,
+      total: amount,
+      status: 'completed',
+      payment_status: 'paid',
+      order_items: {
+        create: lines.data.map(line => ({
+          product_title: line.description || 'Subscription',
+          sku: line.price?.id || 'sub',
+          price: (line.amount || 0) / 100,
+          quantity: line.quantity || 1,
+          subtotal: (line.amount || 0) / 100
+        }))
+      }
+    }
+  });
+
+  webhookLog(req, 'info', `Order ${orderNumber} created for subscription invoice ${id}`);
+}
+
+async function generateOrderNumber() {
+  const lastOrder = await prisma.orders.findFirst({
+    orderBy: { id: 'desc' },
+    select: { order_number: true }
+  });
+
+  if (!lastOrder) return '#1001';
+
+  const lastNum = parseInt(lastOrder.order_number.replace('#', ''));
+  if (isNaN(lastNum)) return '#1001';
+  return `#${lastNum + 1}`;
 }
 
 export default router;

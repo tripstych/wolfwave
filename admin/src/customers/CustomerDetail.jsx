@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, Mail, Phone, Calendar, Package, CreditCard, 
   Save, Globe, User, Edit2, CheckCircle, XCircle, 
-  DollarSign, ShoppingBag, Layout
+  DollarSign, ShoppingBag, Layout, Trash2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../lib/api';
@@ -16,6 +16,7 @@ export default function CustomerDetail() {
   const [updating, setUpdating] = useState(false);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
+  const [subscriptionPlans, setSubscriptionPlans] = useState([]);
   
   // Edit State
   const [isEditing, setIsEditing] = useState(false);
@@ -26,9 +27,25 @@ export default function CustomerDetail() {
     max_sites_override: ''
   });
 
+  // Sub Edit State
+  const [editingSub, setEditingSub] = useState(null);
+  const [subForm, setSubForm] = useState({
+    status: '',
+    plan_id: '',
+    current_period_end: ''
+  });
+
   useEffect(() => {
     loadCustomer();
+    loadPlans();
   }, [id]);
+
+  const loadPlans = async () => {
+    try {
+      const res = await api.get('/subscription-plans');
+      setSubscriptionPlans(res.data || []);
+    } catch (e) {}
+  };
 
   const loadCustomer = async () => {
     try {
@@ -64,6 +81,35 @@ export default function CustomerDetail() {
       loadCustomer();
     } catch (err) {
       toast.error(err.message || 'Failed to update');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleUpdateSub = async (e) => {
+    e.preventDefault();
+    try {
+      setUpdating(true);
+      await api.put(`/customer-subscriptions/admin/${editingSub.id}`, subForm);
+      toast.success('Subscription updated');
+      setEditingSub(null);
+      loadCustomer();
+    } catch (err) {
+      toast.error('Failed to update subscription');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleDeleteSub = async (subId) => {
+    if (!confirm('Delete this subscription record? This will NOT cancel it in Stripe.')) return;
+    try {
+      setUpdating(true);
+      await api.delete(`/customer-subscriptions/admin/${subId}`);
+      toast.success('Subscription record deleted');
+      loadCustomer();
+    } catch (err) {
+      toast.error('Failed to delete subscription');
     } finally {
       setUpdating(false);
     }
@@ -371,6 +417,53 @@ export default function CustomerDetail() {
 
         {activeTab === 'subscriptions' && (
           <div className="space-y-6">
+            {editingSub && (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 mb-6">
+                <h3 className="font-bold text-amber-900 mb-4">Edit Subscription Record</h3>
+                <form onSubmit={handleUpdateSub} className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="label text-xs">Status</label>
+                    <select 
+                      className="input" 
+                      value={subForm.status} 
+                      onChange={e => setSubForm({...subForm, status: e.target.value})}
+                    >
+                      <option value="active">Active</option>
+                      <option value="past_due">Past Due</option>
+                      <option value="canceled">Canceled</option>
+                      <option value="trialing">Trialing</option>
+                      <option value="paused">Paused</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="label text-xs">Plan</label>
+                    <select 
+                      className="input" 
+                      value={subForm.plan_id} 
+                      onChange={e => setSubForm({...subForm, plan_id: e.target.value})}
+                    >
+                      {subscriptionPlans.map(p => (
+                        <option key={p.id} value={p.id}>{p.name} ({formatCurrency(p.price)})</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="label text-xs">Period End Date</label>
+                    <input 
+                      type="date" 
+                      className="input" 
+                      value={subForm.current_period_end ? subForm.current_period_end.split('T')[0] : ''} 
+                      onChange={e => setSubForm({...subForm, current_period_end: e.target.value})}
+                    />
+                  </div>
+                  <div className="md:col-span-3 flex justify-end gap-2">
+                    <button type="button" onClick={() => setEditingSub(null)} className="btn btn-ghost">Cancel</button>
+                    <button type="submit" disabled={updating} className="btn btn-primary bg-amber-600 border-amber-600 hover:bg-amber-700">Update Local Record</button>
+                  </div>
+                </form>
+              </div>
+            )}
+
             {customer.subscriptions?.length > 0 ? (
               customer.subscriptions.map(sub => (
                 <div key={sub.id} className="card overflow-hidden">
@@ -381,13 +474,38 @@ export default function CustomerDetail() {
                         {formatCurrency(sub.plan_price)} / {sub.plan_interval}
                       </p>
                     </div>
-                    <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest ${
-                      sub.status === 'active' ? 'bg-green-100 text-green-700' :
-                      sub.status === 'trialing' ? 'bg-blue-100 text-blue-700' :
-                      'bg-gray-100 text-gray-700'
-                    }`}>
-                      {sub.status}
-                    </span>
+                    <div className="flex items-center gap-3">
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest ${
+                        sub.status === 'active' ? 'bg-green-100 text-green-700' :
+                        sub.status === 'trialing' ? 'bg-blue-100 text-blue-700' :
+                        'bg-gray-100 text-gray-700'
+                      }`}>
+                        {sub.status}
+                      </span>
+                      <div className="flex border-l pl-3 ml-1 gap-1">
+                        <button 
+                          onClick={() => {
+                            setEditingSub(sub);
+                            setSubForm({
+                              status: sub.status,
+                              plan_id: sub.plan_id,
+                              current_period_end: sub.current_period_end
+                            });
+                          }}
+                          className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-gray-100 rounded"
+                          title="Edit local record"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteSub(sub.id)}
+                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+                          title="Delete local record"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
                   </div>
                   <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div>

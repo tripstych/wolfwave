@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import prisma from '../lib/prisma.js';
 import { query } from '../db/connection.js';
+import { clearThemeCache } from '../services/themeResolver.js';
 import axios from 'axios';
 import jwt from 'jsonwebtoken';
 
@@ -432,6 +433,48 @@ router.post('/update-payment', requireCustomer, async (req, res) => {
   } catch (err) {
     console.error('Update payment error:', err.response?.data || err.message);
     res.status(500).json({ error: 'Failed to create portal session' });
+  }
+});
+
+// --- ADMIN ROUTES ---
+
+/**
+ * PUT /admin/:id — manually update a subscription (Admin only)
+ */
+router.put('/admin/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { status, plan_id, current_period_end } = req.body;
+    const subId = parseInt(req.params.id);
+
+    const updated = await prisma.customer_subscriptions.update({
+      where: { id: subId },
+      data: {
+        status: status || undefined,
+        plan_id: plan_id ? parseInt(plan_id) : undefined,
+        current_period_end: current_period_end ? new Date(current_period_end) : undefined
+      }
+    });
+
+    clearThemeCache();
+    res.json(updated);
+  } catch (err) {
+    console.error('Admin sub update error:', err);
+    res.status(500).json({ error: 'Failed to update subscription' });
+  }
+});
+
+/**
+ * DELETE /admin/:id — delete a subscription record (Admin only)
+ */
+router.delete('/admin/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    await prisma.customer_subscriptions.delete({
+      where: { id: parseInt(req.params.id) }
+    });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Admin sub delete error:', err);
+    res.status(500).json({ error: 'Failed to delete subscription' });
   }
 });
 
