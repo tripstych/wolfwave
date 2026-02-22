@@ -59,11 +59,11 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
 // Send test email
 router.post('/test', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const { to } = req.body;
+    const { to, provider } = req.body;
     if (!to) {
       return res.status(400).json({ error: 'Recipient email is required' });
     }
-    await sendTestEmail(to);
+    await sendTestEmail(to, provider);
     res.json({ success: true, message: `Test email sent to ${to}` });
   } catch (err) {
     console.error('Send test email error:', err);

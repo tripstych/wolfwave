@@ -201,11 +201,11 @@ export async function sendEmail(to, templateSlug, variables = {}) {
 /**
  * Send a test email to verify configuration
  */
-export async function sendTestEmail(to) {
+export async function sendTestEmail(to, preferredProvider = null) {
   const settings = await getEmailSettings();
 
   // 1. Try Resend test
-  if (settings.resend_api_key) {
+  if ((preferredProvider === 'resend' || !preferredProvider) && settings.resend_api_key) {
     const resend = new Resend(settings.resend_api_key);
     await resend.emails.send({
       from: settings.resend_from || 'onboarding@resend.dev',
@@ -213,11 +213,11 @@ export async function sendTestEmail(to) {
       subject: 'Test Email from ' + (settings.site_name || 'WebWolf CMS'),
       html: '<strong>Resend Configuration Working</strong><p>If you\'re reading this, your Resend settings are configured correctly.</p>'
     });
-    return;
+    if (preferredProvider === 'resend') return;
   }
 
   // 2. Try EmailJS test
-  if (settings.emailjs_service_id && settings.emailjs_public_key) {
+  if ((preferredProvider === 'emailjs' || !preferredProvider) && settings.emailjs_service_id && settings.emailjs_public_key) {
     const templateParams = {
       to_email: to,
       subject: 'Test Email from ' + (settings.site_name || 'WebWolf CMS'),
@@ -234,20 +234,25 @@ export async function sendTestEmail(to) {
         privateKey: settings.emailjs_private_key,
       }
     );
-    return;
+    if (preferredProvider === 'emailjs') return;
   }
 
-  const transporter = createTransporter(settings);
-  if (!transporter) {
-    throw new Error('Neither SMTP nor EmailJS is configured');
-  }
+  // 3. SMTP test
+  if (preferredProvider === 'smtp' || !preferredProvider) {
+    const transporter = createTransporter(settings);
+    if (!transporter) {
+      if (preferredProvider === 'smtp') throw new Error('SMTP is not configured');
+      // If we got here via !preferredProvider and no SMTP exists, we already tried others
+      return;
+    }
 
-  await transporter.sendMail({
-    from: settings.smtp_from || settings.smtp_user,
-    to,
-    subject: 'Test Email from ' + (settings.site_name || 'WebWolf CMS'),
-    html: `<div style="font-family:sans-serif;padding:20px"><h2>Email Configuration Working</h2><p>If you're reading this, your email settings are configured correctly.</p></div>`
-  });
+    await transporter.sendMail({
+      from: settings.smtp_from || settings.smtp_user,
+      to,
+      subject: 'Test Email from ' + (settings.site_name || 'WebWolf CMS'),
+      html: `<div style="font-family:sans-serif;padding:20px"><h2>Email Configuration Working</h2><p>If you're reading this, your email settings are configured correctly.</p></div>`
+    });
+  }
 }
 
 /**

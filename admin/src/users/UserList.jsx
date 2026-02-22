@@ -1,9 +1,10 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Plus, Edit2, Trash2 } from 'lucide-react';
 import DataTable from '../components/DataTable';
 import api from '../lib/api';
 
 export default function UserList() {
+  const navigate = useNavigate();
   const formatDate = (date) =>
     new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 
@@ -19,7 +20,14 @@ export default function UserList() {
     {
       key: 'name',
       label: 'Name',
-      render: (value) => <span className="font-medium text-gray-900">{value || '—'}</span>,
+      render: (value, row) => (
+        <button 
+          onClick={() => navigate(`/users/${row.id}`)}
+          className="text-left font-medium text-primary-600 hover:text-primary-900 transition-colors"
+        >
+          {value || '—'}
+        </button>
+      ),
     },
     { key: 'email', label: 'Email' },
     {
@@ -76,7 +84,7 @@ export default function UserList() {
           {
             icon: Edit2,
             title: 'Edit',
-            onClick: (row) => window.location.href = `/users/${row.id}`,
+            onClick: (row) => navigate(`/users/${row.id}`),
           },
           {
             icon: Trash2,

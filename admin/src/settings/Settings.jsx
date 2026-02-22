@@ -41,7 +41,11 @@ export default function Settings() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [testEmail, setTestEmail] = useState('');
+  const [testResendEmail, setTestResendEmail] = useState('');
+  const [testEmailJS, setTestEmailJS] = useState('');
   const [sendingTest, setSendingTest] = useState(false);
+  const [sendingResendTest, setSendingResendTest] = useState(false);
+  const [sendingEmailJSTest, setSendingEmailJSTest] = useState(false);
 
   useEffect(() => {
     loadSettings();
@@ -125,6 +129,38 @@ export default function Settings() {
       setError(err.response?.data?.error || err.message || 'Failed to send test email');
     } finally {
       setSendingTest(false);
+    }
+  };
+
+  const handleTestResend = async () => {
+    if (!testResendEmail) return;
+    setSendingResendTest(true);
+    setError('');
+    setSuccess('');
+    try {
+      // We pass a specific provider flag if the backend supports it, 
+      // otherwise it will use Resend because it's configured.
+      await api.post('/email-templates/test', { to: testResendEmail, provider: 'resend' });
+      setSuccess(`Resend test email sent to ${testResendEmail}`);
+    } catch (err) {
+      setError(err.response?.data?.error || err.message || 'Failed to send Resend test email');
+    } finally {
+      setSendingResendTest(false);
+    }
+  };
+
+  const handleTestEmailJS = async () => {
+    if (!testEmailJS) return;
+    setSendingEmailJSTest(true);
+    setError('');
+    setSuccess('');
+    try {
+      await api.post('/email-templates/test', { to: testEmailJS, provider: 'emailjs' });
+      setSuccess(`EmailJS test email sent to ${testEmailJS}`);
+    } catch (err) {
+      setError(err.response?.data?.error || err.message || 'Failed to send EmailJS test email');
+    } finally {
+      setSendingEmailJSTest(false);
     }
   };
 
@@ -570,6 +606,27 @@ export default function Settings() {
           Get your key from <a href="https://resend.com/api-keys" target="_blank" className="text-blue-600 hover:underline">Resend Dashboard</a>. 
           Templates from the <strong>Email Templates</strong> section will be used.
         </p>
+
+        <div className="border-t border-gray-200 pt-4">
+          <label className="label">Send Test Email (via Resend)</label>
+          <div className="flex gap-2">
+            <input
+              type="email"
+              value={testResendEmail}
+              onChange={(e) => setTestResendEmail(e.target.value)}
+              className="input flex-1"
+              placeholder="test@example.com"
+            />
+            <button
+              onClick={handleTestResend}
+              disabled={sendingResendTest || !testResendEmail}
+              className="btn btn-secondary whitespace-nowrap"
+            >
+              <Send className="w-4 h-4 mr-2" />
+              {sendingResendTest ? 'Sending...' : 'Send Test'}
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* EmailJS Integration */}
@@ -630,6 +687,27 @@ export default function Settings() {
           Get these from your <a href="https://dashboard.emailjs.com/" target="_blank" className="text-blue-600 hover:underline">EmailJS Dashboard</a>. 
           The template variables passed will include all standard CMS fields plus <code>message</code> and <code>subject</code>.
         </p>
+
+        <div className="border-t border-gray-200 pt-4">
+          <label className="label">Send Test Email (via EmailJS)</label>
+          <div className="flex gap-2">
+            <input
+              type="email"
+              value={testEmailJS}
+              onChange={(e) => setTestEmailJS(e.target.value)}
+              className="input flex-1"
+              placeholder="test@example.com"
+            />
+            <button
+              onClick={handleTestEmailJS}
+              disabled={sendingEmailJSTest || !testEmailJS}
+              className="btn btn-secondary whitespace-nowrap"
+            >
+              <Send className="w-4 h-4 mr-2" />
+              {sendingEmailJSTest ? 'Sending...' : 'Send Test'}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
