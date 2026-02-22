@@ -101,7 +101,13 @@ async function sendEmailViaEmailJS(to, templateSlug, variables, settings) {
  */
 async function sendEmailViaResend(to, templateSlug, variables, settings) {
   const { resend_api_key, resend_from } = settings;
-  if (!resend_api_key) return false;
+  if (!resend_api_key) {
+    console.warn('[Resend] No API key configured');
+    return false;
+  }
+
+  console.log(`[Resend] Attempting to send "${templateSlug}" to ${to}...`);
+  console.log(`[Resend] Using From: ${resend_from || 'onboarding@resend.dev'}`);
 
   const resend = new Resend(resend_api_key);
 
@@ -110,19 +116,33 @@ async function sendEmailViaResend(to, templateSlug, variables, settings) {
     [templateSlug]
   );
 
-  if (!templates || !templates[0]) return false;
+  if (!templates || !templates[0]) {
+    console.warn(`[Resend] Template "${templateSlug}" not found in DB`);
+    return false;
+  }
 
   const subject = interpolate(templates[0].subject, variables);
   const html = interpolate(templates[0].html_body, variables);
 
-  await resend.emails.send({
-    from: resend_from || 'onboarding@resend.dev',
-    to,
-    subject,
-    html
-  });
+  try {
+    const { data, error } = await resend.emails.send({
+      from: resend_from || 'onboarding@resend.dev',
+      to,
+      subject,
+      html
+    });
 
-  return true;
+    if (error) {
+      console.error('[Resend] API Error:', error);
+      throw new Error(error.message || 'Resend API error');
+    }
+
+    console.log('[Resend] Success! ID:', data?.id);
+    return true;
+  } catch (err) {
+    console.error('[Resend] Send failed:', err.message);
+    throw err;
+  }
 }
 
 /**
@@ -206,14 +226,30 @@ export async function sendTestEmail(to, preferredProvider = null) {
 
   // 1. Try Resend test
   if ((preferredProvider === 'resend' || !preferredProvider) && settings.resend_api_key) {
+    console.log(`[Resend] Starting test email to ${to}...`);
     const resend = new Resend(settings.resend_api_key);
-    await resend.emails.send({
-      from: settings.resend_from || 'onboarding@resend.dev',
-      to,
-      subject: 'Test Email from ' + (settings.site_name || 'WebWolf CMS'),
-      html: '<strong>Resend Configuration Working</strong><p>If you\'re reading this, your Resend settings are configured correctly.</p>'
-    });
-    if (preferredProvider === 'resend') return;
+    try {
+      const from = settings.resend_from || 'onboarding@resend.dev';
+      console.log(`[Resend] Sending from: ${from}`);
+      
+      const { data, error } = await resend.emails.send({
+        from: from,
+        to,
+        subject: 'Test Email from ' + (settings.site_name || 'WebWolf CMS'),
+        html: '<strong>Resend Configuration Working</strong><p>If you\'re reading this, your Resend settings are configured correctly.</p>'
+      });
+
+      if (error) {
+        console.error('[Resend] Test failed with API error:', error);
+        if (preferredProvider === 'resend') throw new Error(error.message);
+      } else {
+        console.log('[Resend] Test Success! Response:', data);
+        if (preferredProvider === 'resend') return;
+      }
+    } catch (err) {
+      console.error('[Resend] Test exception:', err.message);
+      if (preferredProvider === 'resend') throw err;
+    }
   }
 
   // 2. Try EmailJS test
