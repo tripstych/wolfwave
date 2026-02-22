@@ -142,7 +142,7 @@ router.post('/', requireAuth, requireEditor, async (req, res) => {
       canonical_url,
       robots,
       schema_markup,
-      subscription_only
+      access_rules
     } = req.body;
 
     if (!template_id || !title) {
@@ -171,40 +171,45 @@ router.post('/', requireAuth, requireEditor, async (req, res) => {
       slug = `/${content_type}/` + slug;
     }
 
-    // Create content record first
-    const contentRecord = await prisma.content.create({
-      data: {
-        module: content_type,
-        title,
-        slug,
-        data: JSON.stringify(content || {}),
-        search_index: generateSearchIndex(title, content)
-      }
+    // Use transaction to ensure both records are created
+    const result = await prisma.$transaction(async (tx) => {
+      // Create content record first
+      const contentRecord = await tx.content.create({
+        data: {
+          module: content_type,
+          title,
+          slug,
+          data: JSON.stringify(content || {}),
+          search_index: generateSearchIndex(title, content)
+        }
+      });
+
+      // Create page
+      const pageRecord = await tx.pages.create({
+        data: {
+          template_id: parseInt(template_id),
+          content_id: contentRecord.id,
+          title,
+          content_type,
+          status,
+          meta_title: meta_title || title,
+          meta_description: meta_description || '',
+          og_title: og_title || '',
+          og_description: og_description || '',
+          og_image: og_image || '',
+          canonical_url: canonical_url || '',
+          robots: robots || 'index, follow',
+          schema_markup: schema_markup ? JSON.stringify(schema_markup) : null,
+          access_rules: access_rules || null,
+          created_by: req.user?.id || null,
+          updated_by: req.user?.id || null
+        }
+      });
+
+      return { page: pageRecord, content: contentRecord };
     });
 
-    // Create page
-    const page = await prisma.pages.create({
-      data: {
-        template_id: parseInt(template_id),
-        content_id: contentRecord.id,
-        title,
-        content_type,
-        status,
-        meta_title: meta_title || title,
-        meta_description: meta_description || '',
-        og_title: og_title || '',
-        og_description: og_description || '',
-        og_image: og_image || '',
-        canonical_url: canonical_url || '',
-        robots: robots || 'index, follow',
-        schema_markup: schema_markup ? JSON.stringify(schema_markup) : null,
-        access_rules: access_rules || null,
-        created_by: req.user?.id || null,
-        updated_by: req.user?.id || null
-      }
-    });
-
-    res.status(201).json({ id: page.id, slug: contentRecord.slug });
+    res.status(201).json({ id: result.page.id, slug: result.content.slug });
   } catch (err) {
     if (err.code === 'P2002') {
       // Unique constraint violation (slug already exists)
