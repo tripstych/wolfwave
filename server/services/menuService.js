@@ -55,13 +55,18 @@ export async function getMenuBySlug(slug, context = {}) {
         try { rules = JSON.parse(rules); } catch (e) { rules = null; }
       }
 
-      itemMap[item.id] = { 
+      itemMap[item.id] = {
         id: item.id,
-        title: item.title, 
-        url, 
+        title: item.title,
+        url,
         target: item.target,
+        description: item.description || null,
+        image: item.image || null,
+        is_mega: !!item.is_mega,
+        mega_columns: item.mega_columns || 4,
+        css_class: item.css_class || null,
         display_rules: rules,
-        children: [] 
+        children: []
       };
     });
 

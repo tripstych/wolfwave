@@ -148,12 +148,12 @@ router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
 // Add menu item
 router.post('/:id/items', requireAuth, requireEditor, async (req, res) => {
   try {
-    const { title, url, page_id, parent_id, target, display_rules } = req.body;
+    const { title, url, page_id, parent_id, target, display_rules, description, image, is_mega, mega_columns, css_class } = req.body;
 
     // Get max position
     const [maxPos] = await query(
-      'SELECT MAX(position) as max_pos FROM menu_items WHERE menu_id = ? AND parent_id IS NULL',
-      [req.params.id]
+      'SELECT MAX(position) as max_pos FROM menu_items WHERE menu_id = ? AND parent_id <=> ?',
+      [req.params.id, parent_id ? parseInt(parent_id) : null]
     );
     const position = (maxPos?.max_pos || 0) + 1;
 
@@ -161,17 +161,22 @@ router.post('/:id/items', requireAuth, requireEditor, async (req, res) => {
     const rulesJson = display_rules ? (typeof display_rules === 'string' ? display_rules : JSON.stringify(display_rules)) : null;
 
     const result = await query(
-      `INSERT INTO menu_items (menu_id, parent_id, title, url, page_id, target, position, display_rules) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO menu_items (menu_id, parent_id, title, url, page_id, target, position, display_rules, description, image, is_mega, mega_columns, css_class)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        req.params.id, 
-        parent_id ? parseInt(parent_id) : null, 
-        title, 
-        url || null, 
-        page_id ? parseInt(page_id) : null, 
-        target || '_self', 
-        position, 
-        rulesJson
+        req.params.id,
+        parent_id ? parseInt(parent_id) : null,
+        title,
+        url || null,
+        page_id ? parseInt(page_id) : null,
+        target || '_self',
+        position,
+        rulesJson,
+        description || null,
+        image || null,
+        is_mega ? 1 : 0,
+        mega_columns ? parseInt(mega_columns) : 4,
+        css_class || null
       ]
     );
 
@@ -186,22 +191,27 @@ router.post('/:id/items', requireAuth, requireEditor, async (req, res) => {
 // Update menu item
 router.put('/:menuId/items/:itemId', requireAuth, requireEditor, async (req, res) => {
   try {
-    const { title, url, page_id, parent_id, target, position, display_rules } = req.body;
+    const { title, url, page_id, parent_id, target, position, display_rules, description, image, is_mega, mega_columns, css_class } = req.body;
 
     // Ensure display_rules is a string for storage
     const rulesJson = display_rules ? (typeof display_rules === 'string' ? display_rules : JSON.stringify(display_rules)) : null;
 
     await query(
-      `UPDATE menu_items SET title = ?, url = ?, page_id = ?, parent_id = ?, target = ?, position = ?, display_rules = ? WHERE id = ? AND menu_id = ?`,
+      `UPDATE menu_items SET title = ?, url = ?, page_id = ?, parent_id = ?, target = ?, position = ?, display_rules = ?, description = ?, image = ?, is_mega = ?, mega_columns = ?, css_class = ? WHERE id = ? AND menu_id = ?`,
       [
-        title, 
-        url || null, 
-        page_id ? parseInt(page_id) : null, 
-        parent_id ? parseInt(parent_id) : null, 
-        target || '_self', 
-        position || 0, 
-        rulesJson, 
-        req.params.itemId, 
+        title,
+        url || null,
+        page_id ? parseInt(page_id) : null,
+        parent_id ? parseInt(parent_id) : null,
+        target || '_self',
+        position || 0,
+        rulesJson,
+        description || null,
+        image || null,
+        is_mega ? 1 : 0,
+        mega_columns ? parseInt(mega_columns) : 4,
+        css_class || null,
+        req.params.itemId,
         req.params.menuId
       ]
     );

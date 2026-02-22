@@ -31,6 +31,8 @@ export default function Settings() {
     emailjs_template_id: '',
     emailjs_public_key: '',
     emailjs_private_key: '',
+    resend_api_key: '',
+    resend_from: '',
     admin_page_size: '25'
   });
   const [pages, setPages] = useState([]);
@@ -77,6 +79,8 @@ export default function Settings() {
         emailjs_template_id: data.emailjs_template_id || '',
         emailjs_public_key: data.emailjs_public_key || '',
         emailjs_private_key: data.emailjs_private_key || '',
+        resend_api_key: data.resend_api_key || '',
+        resend_from: data.resend_from || '',
         admin_page_size: data.admin_page_size || '25'
       });
       setPages(pagesData.data || pagesData || []);
@@ -523,9 +527,49 @@ export default function Settings() {
             </button>
           </div>
           <p className="text-xs text-gray-500 mt-1">
-            Save your settings first, then send a test email to verify the configuration (uses EmailJS if configured, otherwise SMTP)
+            Save your settings first, then send a test email to verify the configuration (uses Resend/EmailJS if configured, otherwise SMTP)
           </p>
         </div>
+      </div>
+
+      {/* Resend Integration */}
+      <div className="card p-6 space-y-4 border-indigo-100 bg-indigo-50/10">
+        <h2 className="font-semibold text-gray-900 pb-2 border-b border-gray-200">
+          Resend Integration
+        </h2>
+        <p className="text-sm text-gray-500">
+          Modern email API. If configured, Resend will be the primary email provider.
+        </p>
+
+        <div>
+          <label className="label">Resend API Key</label>
+          <input
+            type="password"
+            value={settings.resend_api_key}
+            onChange={(e) => setSettings({ ...settings, resend_api_key: e.target.value })}
+            className="input"
+            placeholder="re_..."
+          />
+        </div>
+
+        <div>
+          <label className="label">From Email</label>
+          <input
+            type="text"
+            value={settings.resend_from}
+            onChange={(e) => setSettings({ ...settings, resend_from: e.target.value })}
+            className="input"
+            placeholder="Name <hello@yourdomain.com>"
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Must be a verified domain in your Resend account.
+          </p>
+        </div>
+
+        <p className="text-xs text-gray-500">
+          Get your key from <a href="https://resend.com/api-keys" target="_blank" className="text-blue-600 hover:underline">Resend Dashboard</a>. 
+          Templates from the <strong>Email Templates</strong> section will be used.
+        </p>
       </div>
 
       {/* EmailJS Integration */}

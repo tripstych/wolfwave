@@ -16,7 +16,10 @@ import {
   ArrowUp,
   ArrowDown,
   AlertCircle,
-  Shield
+  Shield,
+  LayoutGrid,
+  Image,
+  PlusCircle
 } from 'lucide-react';
 
 export default function Menus() {
@@ -30,12 +33,19 @@ export default function Menus() {
   const [editingItem, setEditingItem] = useState(null);
   const [newMenuName, setNewMenuName] = useState('');
   const [expandedItems, setExpandedItems] = useState({});
+  const [addingChildTo, setAddingChildTo] = useState(null);
   const [newItem, setNewItem] = useState({
     title: '',
     url: '',
     page_id: null,
+    parent_id: null,
     target: '_self',
     linkType: 'page',
+    description: '',
+    image: '',
+    is_mega: false,
+    mega_columns: 4,
+    css_class: '',
     display_rules: {
       auth: 'all',
       subscription: 'any',
@@ -134,6 +144,26 @@ export default function Menus() {
     }
   };
 
+  const getDefaultNewItem = (parentId = null) => ({
+    title: '',
+    url: '',
+    page_id: null,
+    parent_id: parentId,
+    target: '_self',
+    linkType: 'page',
+    description: '',
+    image: '',
+    is_mega: false,
+    mega_columns: 4,
+    css_class: '',
+    display_rules: {
+      auth: 'all',
+      subscription: 'any',
+      plans: [],
+      urlPattern: ''
+    }
+  });
+
   const handleAddItem = async () => {
     if (!newItem.title.trim()) return;
     try {
@@ -141,26 +171,21 @@ export default function Menus() {
         title: newItem.title,
         target: newItem.target,
         display_rules: newItem.display_rules,
-        ...(newItem.linkType === 'page' 
-          ? { page_id: newItem.page_id } 
+        parent_id: newItem.parent_id || null,
+        description: newItem.description || null,
+        image: newItem.image || null,
+        is_mega: newItem.is_mega || false,
+        mega_columns: newItem.mega_columns || 4,
+        css_class: newItem.css_class || null,
+        ...(newItem.linkType === 'page'
+          ? { page_id: newItem.page_id }
           : { url: newItem.url })
       };
       await api.post(`/menus/${selectedMenu.id}/items`, itemData);
       loadMenu(selectedMenu.id);
-      setNewItem({
-        title: '',
-        url: '',
-        page_id: null,
-        target: '_self',
-        linkType: 'page',
-        display_rules: {
-          auth: 'all',
-          subscription: 'any',
-          plans: [],
-          urlPattern: ''
-        }
-      });
+      setNewItem(getDefaultNewItem());
       setShowNewItem(false);
+      setAddingChildTo(null);
     } catch (err) {
       alert('Failed to add item: ' + err.message);
     }
@@ -374,6 +399,73 @@ export default function Menus() {
                 />
               </div>
 
+              <div className="space-y-1">
+                <label className="text-[10px] uppercase font-bold text-gray-500">Description</label>
+                <input
+                  type="text"
+                  value={editingItem.description || ''}
+                  onChange={(e) => setEditingItem({ ...editingItem, description: e.target.value })}
+                  className="input text-sm py-1"
+                  placeholder="Optional description for megamenu display"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase font-bold text-gray-500">Image URL</label>
+                  <input
+                    type="text"
+                    value={editingItem.image || ''}
+                    onChange={(e) => setEditingItem({ ...editingItem, image: e.target.value })}
+                    className="input text-sm py-1"
+                    placeholder="/uploads/image.jpg"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase font-bold text-gray-500">CSS Class</label>
+                  <input
+                    type="text"
+                    value={editingItem.css_class || ''}
+                    onChange={(e) => setEditingItem({ ...editingItem, css_class: e.target.value })}
+                    className="input text-sm py-1"
+                    placeholder="custom-class"
+                  />
+                </div>
+              </div>
+
+              {!editingItem.parent_id && (
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <label className="text-[10px] uppercase font-bold text-gray-500">Megamenu</label>
+                    <label className="flex items-center gap-2 text-sm p-2 border border-gray-200 rounded-md bg-white cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={!!editingItem.is_mega}
+                        onChange={(e) => setEditingItem({ ...editingItem, is_mega: e.target.checked })}
+                      />
+                      <LayoutGrid className="w-3.5 h-3.5 text-indigo-500" />
+                      Enable Megamenu
+                    </label>
+                  </div>
+                  {editingItem.is_mega && (
+                    <div className="space-y-1">
+                      <label className="text-[10px] uppercase font-bold text-gray-500">Columns</label>
+                      <select
+                        value={editingItem.mega_columns || 4}
+                        onChange={(e) => setEditingItem({ ...editingItem, mega_columns: parseInt(e.target.value) })}
+                        className="input text-sm py-1"
+                      >
+                        <option value={2}>2 Columns</option>
+                        <option value={3}>3 Columns</option>
+                        <option value={4}>4 Columns</option>
+                        <option value={5}>5 Columns</option>
+                        <option value={6}>6 Columns</option>
+                      </select>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="flex gap-2 items-center">
                 <label className="flex items-center gap-2 text-sm">
                   <input
@@ -396,6 +488,12 @@ export default function Menus() {
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <p className="font-medium text-gray-900">{item.title}</p>
+                  {item.is_mega && (
+                    <span className="flex items-center gap-1 text-[9px] bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded border border-indigo-200 uppercase font-bold" title={`Megamenu - ${item.mega_columns || 4} columns`}>
+                      <LayoutGrid className="w-2.5 h-2.5" />
+                      Mega ({item.mega_columns || 4} col)
+                    </span>
+                  )}
                   {item.page_access_rules && (item.page_access_rules.auth !== 'all' || item.page_access_rules.subscription !== 'any') && (
                     <span className="flex items-center gap-1 text-[9px] bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded border border-amber-200 uppercase font-bold" title="Target page has access restrictions">
                       <Shield className="w-2.5 h-2.5" />
@@ -420,6 +518,11 @@ export default function Menus() {
                       <ExternalLink className="w-3 h-3 ml-1" />
                     )}
                   </p>
+                  {item.description && (
+                    <span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">
+                      {item.description.length > 40 ? item.description.slice(0, 40) + '...' : item.description}
+                    </span>
+                  )}
                   {item.display_rules?.auth && item.display_rules.auth !== 'all' && (
                     <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded uppercase font-bold">
                       {item.display_rules.auth.replace('_', ' ')}
@@ -432,10 +535,23 @@ export default function Menus() {
                   )}
                 </div>
               </div>
+              {depth === 0 && (
+                <button
+                  onClick={() => {
+                    setAddingChildTo(item.id);
+                    setNewItem(getDefaultNewItem(item.id));
+                    setShowNewItem(true);
+                  }}
+                  className="p-1 text-indigo-500 hover:text-indigo-700"
+                  title="Add child item"
+                >
+                  <PlusCircle className="w-4 h-4" />
+                </button>
+              )}
               <button
-                onClick={() => setEditingItem({ 
-                  ...item, 
-                  display_rules: item.display_rules || { auth: 'all', urlPattern: '' } 
+                onClick={() => setEditingItem({
+                  ...item,
+                  display_rules: item.display_rules || { auth: 'all', urlPattern: '' }
                 })}
                 className="p-1 text-gray-500 hover:text-gray-700"
                 title="Edit"
@@ -444,7 +560,7 @@ export default function Menus() {
               </button>
               <button
                 onClick={() => handleReorderItem(item.id, 'up')}
-                className="p-1 what-the-fuck-is-going-on text-gray-500 hover:text-gray-700"
+                className="p-1 text-gray-500 hover:text-gray-700"
                 title="Move up"
               >
                 <ArrowUp className="w-4 h-4" />
@@ -542,19 +658,8 @@ export default function Menus() {
                 </div>
                 <button
                   onClick={() => {
-                    setNewItem({
-                      title: '',
-                      url: '',
-                      page_id: null,
-                      target: '_self',
-                      linkType: 'page',
-                      display_rules: {
-                        auth: 'all',
-                        subscription: 'any',
-                        plans: [],
-                        urlPattern: ''
-                      }
-                    });
+                    setAddingChildTo(null);
+                    setNewItem(getDefaultNewItem());
                     setShowNewItem(true);
                   }}
                   className={`btn ${showNewItem ? 'btn-secondary opacity-50 cursor-not-allowed' : 'btn-primary'}`}
@@ -568,6 +673,12 @@ export default function Menus() {
               {/* Add Item Form */}
               {showNewItem && (
                 <div className="mb-6 p-4 bg-gray-50 rounded-lg space-y-4">
+                  {addingChildTo && (
+                    <div className="flex items-center gap-2 text-sm text-indigo-700 bg-indigo-50 px-3 py-2 rounded-md border border-indigo-200">
+                      <PlusCircle className="w-4 h-4" />
+                      Adding child item to: <strong>{selectedMenu.items?.find(i => i.id === addingChildTo)?.title}</strong>
+                    </div>
+                  )}
                   <div className="flex flex-wrap gap-4">
                     <label className="flex items-center gap-2">
                       <input
@@ -741,6 +852,74 @@ export default function Menus() {
                     />
                   </div>
 
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="label">Description</label>
+                      <input
+                        type="text"
+                        value={newItem.description}
+                        onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
+                        className="input"
+                        placeholder="Optional description"
+                      />
+                    </div>
+                    <div>
+                      <label className="label">Image URL</label>
+                      <input
+                        type="text"
+                        value={newItem.image}
+                        onChange={(e) => setNewItem({ ...newItem, image: e.target.value })}
+                        className="input"
+                        placeholder="/uploads/image.jpg"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                      <label className="label">CSS Class</label>
+                      <input
+                        type="text"
+                        value={newItem.css_class}
+                        onChange={(e) => setNewItem({ ...newItem, css_class: e.target.value })}
+                        className="input"
+                        placeholder="custom-class"
+                      />
+                    </div>
+                    {!addingChildTo && (
+                      <>
+                        <div>
+                          <label className="label">Megamenu</label>
+                          <label className="flex items-center gap-2 h-10 px-3 border border-gray-200 rounded-md bg-white cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={newItem.is_mega}
+                              onChange={(e) => setNewItem({ ...newItem, is_mega: e.target.checked })}
+                            />
+                            <LayoutGrid className="w-4 h-4 text-indigo-500" />
+                            Enable Megamenu
+                          </label>
+                        </div>
+                        {newItem.is_mega && (
+                          <div>
+                            <label className="label">Columns</label>
+                            <select
+                              value={newItem.mega_columns}
+                              onChange={(e) => setNewItem({ ...newItem, mega_columns: parseInt(e.target.value) })}
+                              className="input"
+                            >
+                              <option value={2}>2 Columns</option>
+                              <option value={3}>3 Columns</option>
+                              <option value={4}>4 Columns</option>
+                              <option value={5}>5 Columns</option>
+                              <option value={6}>6 Columns</option>
+                            </select>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+
                   <div className="flex items-center gap-4">
                     <label className="flex items-center gap-2">
                       <input
@@ -754,9 +933,9 @@ export default function Menus() {
 
                   <div className="flex gap-2">
                     <button onClick={handleAddItem} className="btn btn-primary">
-                      Add Item
+                      {addingChildTo ? 'Add Child Item' : 'Add Item'}
                     </button>
-                    <button onClick={() => setShowNewItem(false)} className="btn btn-ghost">
+                    <button onClick={() => { setShowNewItem(false); setAddingChildTo(null); }} className="btn btn-ghost">
                       Cancel
                     </button>
                   </div>
@@ -779,11 +958,25 @@ export default function Menus() {
               <div className="mt-6 pt-6 border-t border-gray-200">
                 <h3 className="font-medium text-gray-900 mb-2">Usage in Templates</h3>
                 <pre className="p-3 bg-gray-900 text-gray-100 rounded-lg text-sm overflow-x-auto">
-{`{% set menu = getMenu('${selectedMenu.slug}') %}
+{`{% set menu = menus['${selectedMenu.slug}'] %}
 {% for item in menu.items %}
-  <a href="{{ item.url }}" target="{{ item.target }}">
-    {{ item.title }}
-  </a>
+  {% if item.is_mega and item.children.length %}
+    {# Megamenu parent #}
+    <div class="mega-parent {{ item.css_class }}">
+      <a href="{{ item.url }}">{{ item.title }}</a>
+      <div class="megamenu" style="grid-template-columns: repeat({{ item.mega_columns }}, 1fr)">
+        {% for child in item.children %}
+          <a href="{{ child.url }}" class="{{ child.css_class }}">
+            {% if child.image %}<img src="{{ child.image }}" alt="{{ child.title }}">{% endif %}
+            <strong>{{ child.title }}</strong>
+            {% if child.description %}<span>{{ child.description }}</span>{% endif %}
+          </a>
+        {% endfor %}
+      </div>
+    </div>
+  {% else %}
+    <a href="{{ item.url }}" target="{{ item.target }}">{{ item.title }}</a>
+  {% endif %}
 {% endfor %}`}
                 </pre>
               </div>

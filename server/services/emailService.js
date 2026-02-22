@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import emailjs from '@emailjs/nodejs';
+import { Resend } from 'resend';
 import { query } from '../db/connection.js';
 
 /**
@@ -11,6 +12,7 @@ async function getEmailSettings() {
      WHERE setting_key IN (
        'smtp_host','smtp_port','smtp_user','smtp_pass','smtp_from','smtp_secure',
        'emailjs_service_id','emailjs_template_id','emailjs_public_key','emailjs_private_key',
+       'resend_api_key', 'resend_from',
        'site_name','site_url'
      )`
   );
@@ -95,6 +97,35 @@ async function sendEmailViaEmailJS(to, templateSlug, variables, settings) {
 }
 
 /**
+ * Send an email using Resend
+ */
+async function sendEmailViaResend(to, templateSlug, variables, settings) {
+  const { resend_api_key, resend_from } = settings;
+  if (!resend_api_key) return false;
+
+  const resend = new Resend(resend_api_key);
+
+  const templates = await query(
+    'SELECT subject, html_body FROM email_templates WHERE slug = ?',
+    [templateSlug]
+  );
+
+  if (!templates || !templates[0]) return false;
+
+  const subject = interpolate(templates[0].subject, variables);
+  const html = interpolate(templates[0].html_body, variables);
+
+  await resend.emails.send({
+    from: resend_from || 'onboarding@resend.dev',
+    to,
+    subject,
+    html
+  });
+
+  return true;
+}
+
+/**
  * Send an email using a stored template
  * @param {string} to - Recipient email
  * @param {string} templateSlug - Template slug (e.g. 'order-confirmation')
@@ -108,7 +139,20 @@ export async function sendEmail(to, templateSlug, variables = {}) {
     variables.site_name = variables.site_name || settings.site_name || 'WebWolf';
     variables.site_url = variables.site_url || settings.site_url || '';
 
-    // Try EmailJS first if configured
+    // 1. Try Resend
+    if (settings.resend_api_key) {
+      try {
+        const success = await sendEmailViaResend(to, templateSlug, variables, settings);
+        if (success) {
+          console.log(`[Email] Sent via Resend: "${templateSlug}" to ${to}`);
+          return;
+        }
+      } catch (resendErr) {
+        console.error(`[Email] Resend failed, trying next provider:`, resendErr.message);
+      }
+    }
+
+    // 2. Try EmailJS
     if (settings.emailjs_service_id && settings.emailjs_public_key) {
       try {
         const success = await sendEmailViaEmailJS(to, templateSlug, variables, settings);
@@ -160,7 +204,19 @@ export async function sendEmail(to, templateSlug, variables = {}) {
 export async function sendTestEmail(to) {
   const settings = await getEmailSettings();
 
-  // Try EmailJS test
+  // 1. Try Resend test
+  if (settings.resend_api_key) {
+    const resend = new Resend(settings.resend_api_key);
+    await resend.emails.send({
+      from: settings.resend_from || 'onboarding@resend.dev',
+      to,
+      subject: 'Test Email from ' + (settings.site_name || 'WebWolf CMS'),
+      html: '<strong>Resend Configuration Working</strong><p>If you\'re reading this, your Resend settings are configured correctly.</p>'
+    });
+    return;
+  }
+
+  // 2. Try EmailJS test
   if (settings.emailjs_service_id && settings.emailjs_public_key) {
     const templateParams = {
       to_email: to,
