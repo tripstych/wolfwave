@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import prisma from '../lib/prisma.js';
 import { query } from '../db/connection.js';
+import { requireAuth, requireAdmin } from '../middleware/auth.js';
 import { clearThemeCache } from '../services/themeResolver.js';
 import axios from 'axios';
 import jwt from 'jsonwebtoken';
