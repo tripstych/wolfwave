@@ -32,7 +32,10 @@ export default function useContentEditor({ contentType, endpoint, initialData = 
   const loadTemplates = useCallback(async () => {
     try {
       const result = await api.get(`/templates/content_type/${contentType}`);
-      setTemplates(result.data || []);
+      const list = result.data || [];
+      // Filter out templates with no regions
+      const filtered = list.filter(t => parseRegions(t.regions).length > 0);
+      setTemplates(filtered);
     } catch (err) {
       console.error('Failed to load templates:', err);
     }
