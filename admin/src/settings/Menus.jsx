@@ -321,6 +321,23 @@ export default function Menus() {
                 )}
               </div>
 
+              <div className="space-y-1">
+                <label className="text-[10px] uppercase font-bold text-gray-500">Parent Item</label>
+                <select
+                  value={editingItem.parent_id || ''}
+                  onChange={(e) => setEditingItem({ ...editingItem, parent_id: e.target.value ? parseInt(e.target.value) : null })}
+                  className="input text-sm py-1"
+                >
+                  <option value="">None (Top Level)</option>
+                  {selectedMenu.items
+                    .filter(i => i.id !== item.id) // Can't be own parent
+                    .map(i => (
+                      <option key={i.id} value={i.id}>{i.title}</option>
+                    ))
+                  }
+                </select>
+              </div>
+
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
                   <label className="text-[10px] uppercase font-bold text-gray-500">Authentication</label>
@@ -718,6 +735,26 @@ export default function Menus() {
                       />
                     </div>
 
+                    <div>
+                      <label className="label">Parent Item</label>
+                      <select
+                        value={newItem.parent_id || ''}
+                        onChange={(e) => {
+                          const pid = e.target.value ? parseInt(e.target.value) : null;
+                          setNewItem({ ...newItem, parent_id: pid });
+                          setAddingChildTo(pid);
+                        }}
+                        className="input"
+                      >
+                        <option value="">None (Top Level)</option>
+                        {selectedMenu.items.map(i => (
+                          <option key={i.id} value={i.id}>{i.title}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {newItem.linkType === 'custom' ? (
                       <div>
                         <label className="label">URL</label>
