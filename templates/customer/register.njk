@@ -132,12 +132,16 @@
       }
 
       const data = await response.json();
-      successDiv.textContent = 'Registration successful! Redirecting to login...';
+      successDiv.textContent = 'Registration successful! Redirecting...';
       successDiv.classList.remove('hidden');
 
+      // Check for redirect URL in query params
+      const urlParams = new URLSearchParams(window.location.search);
+      const redirect = urlParams.get('redirect') || '/customer/account';
+
       setTimeout(() => {
-        window.location.href = '/customer/login';
-      }, 2000);
+        window.location.href = redirect;
+      }, 1500);
     } catch (err) {
       errorDiv.textContent = err.message;
       errorDiv.classList.remove('hidden');

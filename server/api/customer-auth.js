@@ -67,14 +67,29 @@ router.post('/register', async (req, res) => {
 
     const customerId = result.insertId;
 
+    // Create token with customer data
+    const token = generateToken({
+      id: customerId,
+      email: email
+    });
+
+    res.cookie('customer_token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+    });
+
     // TODO: Send verification email with token
 
     res.status(201).json({
-      id: customerId,
-      email,
-      firstName,
-      lastName,
-      message: 'Registration successful. Please check your email to verify your account.'
+      customer: {
+        id: customerId,
+        email,
+        firstName: firstName || '',
+        lastName: lastName || ''
+      },
+      token,
+      message: 'Registration successful.'
     });
   } catch (err) {
     if (err.code === 'ER_DUP_ENTRY') {
