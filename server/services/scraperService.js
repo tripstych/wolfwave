@@ -88,60 +88,80 @@ export function extractMetadata($, rules = [], url = '') {
     result.type = 'product';
   }
 
-  // 4. INTELLIGENT RULES ENGINE (Overrides)
+  // 4. INTELLIGENT RULES ENGINE (Recursive/Chained)
   if (Array.isArray(rules)) {
-    rules.forEach(rule => {
-      const { selector, urlPattern, action, value } = rule;
-      if (!action) return;
-
-      // Check URL pattern match (if specified) — tests against pathname
-      let urlMatched = false;
+    const applyRule = (rule, context$, currentUrl) => {
+      const { selector, urlPattern, action, value, actions, children } = rule;
+      
+      // A. Match Evaluation
+      let matched = true;
+      
       if (urlPattern) {
         try {
-          const testPath = url ? new URL(url).pathname : '';
-          urlMatched = new RegExp(urlPattern).test(testPath);
-        } catch { return; }
-        if (!urlMatched) return; // URL pattern specified but didn't match, skip rule
+          const testPath = currentUrl ? new URL(currentUrl).pathname : '';
+          matched = new RegExp(urlPattern).test(testPath);
+        } catch { matched = false; }
       }
-
-      // Check CSS selector match (if specified)
-      let $match = null;
-      if (selector) {
-        $match = $(selector);
-        if ($match.length === 0) return; // CSS selector specified but didn't match, skip rule
+      
+      if (matched && selector) {
+        const $match = context$(selector);
+        matched = $match.length > 0;
       }
+      
+      if (!matched) return; // Rule didn't match, stop here
 
-      // If neither selector nor urlPattern, skip
-      if (!selector && !urlPattern) return;
-
-      switch (action) {
-        case 'setType': result.type = value; break;
-        case 'setField':
-          if (['price', 'sku', 'title', 'description', 'image', 'images'].includes(value)) {
-            if ($match && $match.length > 0) {
-              if (value === 'image' || value === 'images') {
-                const imgUrls = $match.map((i, el) => {
-                  let src = $(el).attr('src') || $(el).attr('data-src') || $(el).attr('data-lazy-src') || $(el).attr('srcset');
-                  if (src && src.includes(' ')) src = src.split(' ')[0]; // Handle srcset
-                  return src;
-                }).get().filter(Boolean);
-                
-                if (value === 'images') result.images.push(...imgUrls);
-                else result.images.unshift(imgUrls[0]);
-              } else {
-                result[value] = $match.first().text().trim();
+      // B. Action Execution
+      const executeAction = (act, val, $localMatch) => {
+        switch (act) {
+          case 'setType': result.type = val; break;
+          case 'setField':
+            if (['price', 'sku', 'title', 'description', 'image', 'images'].includes(val)) {
+              if ($localMatch && $localMatch.length > 0) {
+                if (val === 'image' || val === 'images') {
+                  const imgUrls = $localMatch.map((i, el) => {
+                    let src = context$(el).attr('src') || context$(el).attr('data-src') || context$(el).attr('data-lazy-src') || context$(el).attr('srcset');
+                    if (src && src.includes(' ')) src = src.split(' ')[0];
+                    return src;
+                  }).get().filter(Boolean);
+                  
+                  if (val === 'images') result.images.push(...imgUrls);
+                  else result.images.unshift(imgUrls[0]);
+                } else {
+                  result[val] = $localMatch.first().text().trim();
+                }
               }
             }
-          }
-          break;
-        case 'setConst':
-          const [field, constVal] = value.split(':');
-          if (field && constVal && result.hasOwnProperty(field)) {
-            result[field] = constVal;
-          }
-          break;
+            break;
+          case 'setConst':
+            const [field, constVal] = val.split(':');
+            if (field && constVal && result.hasOwnProperty(field)) {
+              result[field] = constVal;
+            }
+            break;
+        }
+      };
+
+      // Handle Legacy Single Action
+      if (action) {
+        executeAction(action, value, selector ? context$(selector) : null);
       }
-    });
+
+      // Handle Multiple Actions
+      if (Array.isArray(actions)) {
+        actions.forEach(actObj => {
+          // If action has its own selector, use it, otherwise use parent selector
+          const actSelector = actObj.selector || selector;
+          executeAction(actObj.action, actObj.value, actSelector ? context$(actSelector) : null);
+        });
+      }
+
+      // C. Recursive Children
+      if (Array.isArray(children)) {
+        children.forEach(child => applyRule(child, context$, currentUrl));
+      }
+    };
+
+    rules.forEach(rule => applyRule(rule, $, url));
   }
 
   // 5. Final Guessing (If still empty)
