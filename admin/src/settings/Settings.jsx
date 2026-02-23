@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import api from '../lib/api';
 import { Save, AlertCircle, CheckCircle, Send } from 'lucide-react';
 import { useSettings } from '../context/SettingsContext';
+import { toast } from 'sonner';
 
 export default function Settings() {
   const { refreshSettings } = useSettings();
@@ -120,13 +121,12 @@ export default function Settings() {
   const handleTestEmail = async () => {
     if (!testEmail) return;
     setSendingTest(true);
-    setError('');
-    setSuccess('');
+    const toastId = toast.loading(`Sending SMTP test to ${testEmail}...`);
     try {
-      await api.post('/email-templates/test', { to: testEmail });
-      setSuccess(`Test email sent to ${testEmail}`);
+      await api.post('/email-templates/test', { to: testEmail, provider: 'smtp' });
+      toast.success(`SMTP test email sent!`, { id: toastId });
     } catch (err) {
-      setError(err.response?.data?.error || err.message || 'Failed to send test email');
+      toast.error(err.response?.data?.error || err.message || 'Failed to send test email', { id: toastId });
     } finally {
       setSendingTest(false);
     }
@@ -135,15 +135,12 @@ export default function Settings() {
   const handleTestResend = async () => {
     if (!testResendEmail) return;
     setSendingResendTest(true);
-    setError('');
-    setSuccess('');
+    const toastId = toast.loading(`Sending Resend test to ${testResendEmail}...`);
     try {
-      // We pass a specific provider flag if the backend supports it, 
-      // otherwise it will use Resend because it's configured.
       await api.post('/email-templates/test', { to: testResendEmail, provider: 'resend' });
-      setSuccess(`Resend test email sent to ${testResendEmail}`);
+      toast.success(`Resend test email sent!`, { id: toastId });
     } catch (err) {
-      setError(err.response?.data?.error || err.message || 'Failed to send Resend test email');
+      toast.error(err.response?.data?.error || err.message || 'Failed to send Resend test email', { id: toastId });
     } finally {
       setSendingResendTest(false);
     }
@@ -152,13 +149,12 @@ export default function Settings() {
   const handleTestEmailJS = async () => {
     if (!testEmailJS) return;
     setSendingEmailJSTest(true);
-    setError('');
-    setSuccess('');
+    const toastId = toast.loading(`Sending EmailJS test to ${testEmailJS}...`);
     try {
       await api.post('/email-templates/test', { to: testEmailJS, provider: 'emailjs' });
-      setSuccess(`EmailJS test email sent to ${testEmailJS}`);
+      toast.success(`EmailJS test email sent!`, { id: toastId });
     } catch (err) {
-      setError(err.response?.data?.error || err.message || 'Failed to send EmailJS test email');
+      toast.error(err.response?.data?.error || err.message || 'Failed to send EmailJS test email', { id: toastId });
     } finally {
       setSendingEmailJSTest(false);
     }
