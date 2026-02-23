@@ -1,6 +1,7 @@
 /**
  * Predefined configurations for common web platforms.
  * These "Blueprints" capture the quirks of different systems.
+ * Updated to use the Recursive Chained Rule system.
  */
 export const CRAWLER_PRESETS = {
   shopify: {
@@ -10,15 +11,24 @@ export const CRAWLER_PRESETS = {
     priorityPatterns: ['/products/', '/collections/', '/pages/', '/blogs/'],
     excludePatterns: ['/tagged/', '/search', 'sort_by=', 'view=', 'variant='],
     rules: [
-      { urlPattern: '/pages/', action: 'setType', value: 'page' },
-      { urlPattern: '/blogs/', action: 'setType', value: 'page' },
-      { urlPattern: '^/collections(/|$)', action: 'setType', value: 'page' },
-      { urlPattern: '^/products$', action: 'setType', value: 'page' },
-      { selector: 'form[action="/cart/add"]', urlPattern: '^/products/[^/]+$', action: 'setType', value: 'product' },
-      { selector: '.product-single__title, .product__title', action: 'setField', value: 'title' },
-      { selector: '.product-single__description, .product__description', action: 'setField', value: 'description' },
-      { selector: '[data-product-sku]', action: 'setField', value: 'sku' },
-      { selector: '.product-single__media img, .product__media img', action: 'setField', value: 'images' }
+      {
+        urlPattern: '^/products/[^/]+$',
+        selector: 'form[action="/cart/add"]',
+        actions: [
+          { action: 'setType', value: 'product' }
+        ],
+        children: [
+          { selector: '.product-single__title, .product__title', action: 'setField', value: 'title' },
+          { selector: '.product-single__description, .product__description', action: 'setField', value: 'description' },
+          { selector: '[data-product-sku]', action: 'setField', value: 'sku' },
+          { selector: '.product-single__media img, .product__media img', action: 'setField', value: 'images' }
+        ]
+      },
+      {
+        urlPattern: '/pages/|/blogs/|^/collections(/|$)|^/products$',
+        action: 'setType',
+        value: 'page'
+      }
     ]
   },
   woocommerce: {
@@ -27,11 +37,18 @@ export const CRAWLER_PRESETS = {
     priorityPatterns: ['/product/', '/product-category/'],
     excludePatterns: ['/cart/', '/checkout/', '/my-account/', 'add-to-cart='],
     rules: [
-      { selector: '.type-product', action: 'setType', value: 'product' },
-      { selector: '.product_title', action: 'setField', value: 'title' },
-      { selector: '.woocommerce-product-details__short-description', action: 'setField', value: 'description' },
-      { selector: '.sku', action: 'setField', value: 'sku' },
-      { selector: '.woocommerce-product-gallery__image img', action: 'setField', value: 'images' }
+      {
+        selector: '.type-product',
+        actions: [
+          { action: 'setType', value: 'product' }
+        ],
+        children: [
+          { selector: '.product_title', action: 'setField', value: 'title' },
+          { selector: '.woocommerce-product-details__short-description', action: 'setField', value: 'description' },
+          { selector: '.sku', action: 'setField', value: 'sku' },
+          { selector: '.woocommerce-product-gallery__image img', action: 'setField', value: 'images' }
+        ]
+      }
     ]
   },
   magento: {
@@ -40,10 +57,17 @@ export const CRAWLER_PRESETS = {
     priorityPatterns: ['/catalog/product/', '.html'],
     excludePatterns: ['/customer/', '/checkout/', '/catalogsearch/', 'dir=', 'mode='],
     rules: [
-      { selector: '.catalog-product-view', action: 'setType', value: 'product' },
-      { selector: '.page-title .value, .product-name h1', action: 'setField', value: 'title' },
-      { selector: '.product-description, .description .std', action: 'setField', value: 'description' },
-      { selector: '.product-info-stock-sku .sku', action: 'setField', value: 'sku' }
+      {
+        selector: '.catalog-product-view',
+        actions: [
+          { action: 'setType', value: 'product' }
+        ],
+        children: [
+          { selector: '.page-title .value, .product-name h1', action: 'setField', value: 'title' },
+          { selector: '.product-description, .description .std', action: 'setField', value: 'description' },
+          { selector: '.product-info-stock-sku .sku', action: 'setField', value: 'sku' }
+        ]
+      }
     ]
   },
   bigcommerce: {
@@ -52,9 +76,16 @@ export const CRAWLER_PRESETS = {
     priorityPatterns: ['/products/', '/categories/'],
     excludePatterns: ['/cart.php', '/login.php', '/checkout'],
     rules: [
-      { selector: '.productView', action: 'setType', value: 'product' },
-      { selector: '.productView-title', action: 'setField', value: 'title' },
-      { selector: '.productView-description', action: 'setField', value: 'description' }
+      {
+        selector: '.productView',
+        actions: [
+          { action: 'setType', value: 'product' }
+        ],
+        children: [
+          { selector: '.productView-title', action: 'setField', value: 'title' },
+          { selector: '.productView-description', action: 'setField', value: 'description' }
+        ]
+      }
     ]
   },
   prestashop: {
@@ -63,9 +94,16 @@ export const CRAWLER_PRESETS = {
     priorityPatterns: ['/controller=product', '/p/'],
     excludePatterns: ['/controller=cart', '/controller=authentication'],
     rules: [
-      { selector: '#product', action: 'setType', value: 'product' },
-      { selector: 'h1[itemprop="name"]', action: 'setField', value: 'title' },
-      { selector: '#description', action: 'setField', value: 'description' }
+      {
+        selector: '#product',
+        actions: [
+          { action: 'setType', value: 'product' }
+        ],
+        children: [
+          { selector: 'h1[itemprop="name"]', action: 'setField', value: 'title' },
+          { selector: '#description', action: 'setField', value: 'description' }
+        ]
+      }
     ]
   },
   webflow: {
@@ -81,17 +119,31 @@ export const CRAWLER_PRESETS = {
     priorityPatterns: ['/pages/', '/products/'],
     excludePatterns: ['/cart', '/login', '/config'],
     rules: [
-      { selector: '.Main-content, .sqs-layout', action: 'setType', value: 'page' },
-      { selector: 'h1.entry-title, .ProductItem-details-title', action: 'setField', value: 'title' },
-      { selector: '.sqs-block-html, .ProductItem-details-excerpt', action: 'setField', value: 'description' }
+      {
+        selector: '.Main-content, .sqs-layout',
+        actions: [
+          { action: 'setType', value: 'page' }
+        ],
+        children: [
+          { selector: 'h1.entry-title, .ProductItem-details-title', action: 'setField', value: 'title' },
+          { selector: '.sqs-block-html, .ProductItem-details-excerpt', action: 'setField', value: 'description' }
+        ]
+      }
     ]
   },
   wix: {
     name: 'Wix',
     maxPages: 1000,
     rules: [
-      { selector: 'main', action: 'setType', value: 'page' },
-      { selector: 'h1', action: 'setField', value: 'title' }
+      {
+        selector: 'main',
+        actions: [
+          { action: 'setType', value: 'page' }
+        ],
+        children: [
+          { selector: 'h1', action: 'setField', value: 'title' }
+        ]
+      }
     ]
   },
   generic_ecommerce: {
@@ -109,9 +161,16 @@ export const CRAWLER_PRESETS = {
     priorityPatterns: ['/post/', '/article/', '/blog/'],
     excludePatterns: ['/wp-admin/', '/admin/', '/login', '/search'],
     rules: [
-      { selector: 'article', action: 'setType', value: 'page' },
-      { selector: '.post-title, h1', action: 'setField', value: 'title' },
-      { selector: '.post-content, .entry-content', action: 'setField', value: 'description' }
+      {
+        selector: 'article',
+        actions: [
+          { action: 'setType', value: 'page' }
+        ],
+        children: [
+          { selector: '.post-title, h1', action: 'setField', value: 'title' },
+          { selector: '.post-content, .entry-content', action: 'setField', value: 'description' }
+        ]
+      }
     ]
   },
   corporate: {
@@ -120,8 +179,15 @@ export const CRAWLER_PRESETS = {
     priorityPatterns: ['/about', '/services', '/products', '/contact'],
     excludePatterns: ['/admin', '/login', '/wp-admin'],
     rules: [
-      { selector: 'main', action: 'setType', value: 'page' },
-      { selector: 'h1', action: 'setField', value: 'title' }
+      {
+        selector: 'main',
+        actions: [
+          { action: 'setType', value: 'page' }
+        ],
+        children: [
+          { selector: 'h1', action: 'setField', value: 'title' }
+        ]
+      }
     ]
   }
 };
