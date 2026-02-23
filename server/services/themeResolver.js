@@ -6,10 +6,26 @@ import moment from 'moment';
 import { query } from '../db/connection.js';
 import registerTemplateExtensions from './templateExtensions.js';
 import prisma from '../lib/prisma.js';
+import { canAccess } from '../middleware/permission.js';
+import { getCurrentDbName } from '../lib/tenantContext.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const THEMES_DIR = path.join(__dirname, '../../themes');
 const ROOT_TEMPLATES_DIR = path.join(__dirname, '../../templates');
+
+const parseJsonField = (value) => {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'object') return value;
+  if (typeof value === 'string') {
+    if (value.trim() === '') return null;
+    try {
+      return JSON.parse(value);
+    } catch {
+      return null;
+    }
+  }
+  return null;
+};
 
 // Custom DB Loader for Nunjucks
 class DbLoader extends nunjucks.Loader {
@@ -248,22 +264,107 @@ export function applyNunjucksCustomizations(env) {
 
   // Register template extensions (product embeds, etc.)
   registerTemplateExtensions(env, query);
+
+  // Global: renderBlock
+  env.addGlobal('renderBlock', function(slug, callback) {
+    const context = this.ctx;
+    const blocksData = context.blocks || [];
+    const block = blocksData.find(b => b.slug === slug && b.content_type === 'blocks');
+    
+    if (!block) {
+      console.warn(`Block not found: ${slug}`);
+      return callback(null, '');
+    }
+
+    const permissionContext = {
+      isLoggedIn: !!context.customer,
+      hasActiveSubscription: !!context.hasActiveSubscription,
+      customer: context.customer
+    };
+
+    const rules = typeof block.access_rules === 'string' ? JSON.parse(block.access_rules) : block.access_rules;
+    if (!canAccess(rules, permissionContext)) return callback(null, '');
+
+    try {
+      const blockContent = parseJsonField(block.content) || {};
+      env.render(block.template_filename, {
+        ...context,
+        content: blockContent,
+        block,
+        site: env.opts.site
+      }, (err, html) => {
+        if (err) {
+          console.error(`Error rendering block ${slug}:`, err);
+          callback(null, '');
+        } else {
+          callback(null, html);
+        }
+      });
+    } catch (err) {
+      console.error(`Error rendering block ${slug}:`, err);
+      callback(null, '');
+    }
+  }, true);
+
+  // Global: renderWidget
+  env.addGlobal('renderWidget', function(slug, callback) {
+    const context = this.ctx;
+    const blocksData = context.blocks || [];
+    const widget = blocksData.find(b => b.slug === slug && b.content_type === 'widgets');
+    
+    if (!widget) {
+      console.warn(`Widget not found: ${slug}`);
+      return callback(null, `<!-- Widget not found: ${slug} -->`);
+    }
+
+    const permissionContext = {
+      isLoggedIn: !!context.customer,
+      hasActiveSubscription: !!context.hasActiveSubscription,
+      customer: context.customer
+    };
+
+    const rules = typeof widget.access_rules === 'string' ? JSON.parse(widget.access_rules) : widget.access_rules;
+    if (!canAccess(rules, permissionContext)) return callback(null, '');
+
+    try {
+      const widgetContent = parseJsonField(widget.content) || {};
+      env.render(widget.template_filename, {
+        ...context,
+        content: widgetContent,
+        widget,
+        site: env.opts.site,
+        blocks: blocksData
+      }, (err, html) => {
+        if (err) {
+          console.error(`Error rendering widget ${slug}:`, err);
+          callback(null, `<!-- Error rendering widget ${slug}: ${err.message} -->`);
+        } else {
+          callback(null, html);
+        }
+      });
+    } catch (err) {
+      console.error(`Error rendering widget ${slug}:`, err);
+      callback(null, `<!-- Error rendering widget ${slug}: ${err.message} -->`);
+    }
+  }, true);
 }
 
-/**
  * Get or create a cached Nunjucks Environment for a given theme.
- * Environments are cached by theme slug — multiple tenants using
- * the same theme share the same environment.
+ * Environments are cached by theme slug and database name — each tenant
+ * gets their own environment to ensure isolation of globals and loaders.
  */
 export function getNunjucksEnv(themeName) {
+  const dbName = getCurrentDbName();
+  const cacheKey = `${themeName}:${dbName}`;
+
   // Validate theme exists, fall back to default
   const config = getThemeConfig(themeName);
   if (!config) {
     themeName = 'default';
   }
 
-  if (envCache.has(themeName)) {
-    return envCache.get(themeName);
+  if (envCache.has(cacheKey)) {
+    return envCache.get(cacheKey);
   }
 
   const searchPaths = getThemeSearchPaths(themeName);
@@ -276,14 +377,14 @@ export function getNunjucksEnv(themeName) {
 
   // 2. DB Loader (Only for active theme or default)
   const dbLoader = new DbLoader(themeName);
-  dbLoaderCache.set(themeName, dbLoader);
+  dbLoaderCache.set(cacheKey, dbLoader);
 
   // Combined loaders (DB takes precedence)
   const env = new nunjucks.Environment([dbLoader, fsLoader], { autoescape: true });
 
   applyNunjucksCustomizations(env);
 
-  envCache.set(themeName, env);
+  envCache.set(cacheKey, env);
   return env;
 }
 

@@ -9,78 +9,21 @@ function logRenderError(req, templateFilename, err) {
   logError(req, err, `RENDER:${templateFilename}`);
 }
 
-export function setupRenderBlock(env, blocksData, context = {}) {
-  const parseJsonField = (value) => {
-    if (value === null || value === undefined) return null;
-    if (typeof value === 'object') return value;
-    if (typeof value === 'string') {
-      if (value.trim() === '') return null;
-      try {
-        return JSON.parse(value);
-      } catch {
-        return null;
-      }
-    }
-    return null;
-  };
-
-  env.addGlobal('renderBlock', (slug) => {
-    const block = blocksData.find(b => b.slug === slug && b.content_type === 'blocks');
-    if (!block) {
-      console.warn(`Block not found: ${slug}`);
-      return '';
-    }
-
-    // Permission Check
-    const rules = typeof block.access_rules === 'string' ? JSON.parse(block.access_rules) : block.access_rules;
-    if (!canAccess(rules, context)) return '';
-
-    try {
-      const blockContent = parseJsonField(block.content) || {};
-      const html = env.render(block.template_filename, {
-        content: blockContent,
-        block,
-        site: env.opts.site // pass site settings
-      });
-      return html;
-    } catch (err) {
-      console.error(`Error rendering block ${slug}:`, err);
-      return '';
-    }
+async function replaceAsync(str, regex, asyncFn) {
+  const promises = [];
+  str.replace(regex, (match, ...args) => {
+    const promise = asyncFn(match, ...args);
+    promises.push(promise);
   });
-
-  env.addGlobal('renderWidget', (slug) => {
-    const widget = blocksData.find(b => b.slug === slug && b.content_type === 'widgets');
-    if (!widget) {
-      console.warn(`Widget not found: ${slug}`);
-      return `<!-- Widget not found: ${slug} -->`;
-    }
-
-    // Permission Check
-    const rules = typeof widget.access_rules === 'string' ? JSON.parse(widget.access_rules) : widget.access_rules;
-    if (!canAccess(rules, context)) return '';
-
-    try {
-      const widgetContent = parseJsonField(widget.content) || {};
-      const html = env.render(widget.template_filename, {
-        content: widgetContent,
-        widget,
-        site: env.opts.site,
-        blocks: blocksData
-      });
-      return html;
-    } catch (err) {
-      console.error(`Error rendering widget ${slug}:`, err);
-      return `<!-- Error rendering widget ${slug}: ${err.message} -->`;
-    }
-  });
+  const data = await Promise.all(promises);
+  return str.replace(regex, () => data.shift());
 }
 
-export function processShortcodes(html, env, blocksData, context = {}) {
+export async function processShortcodes(html, env, blocksData, context = {}) {
   if (!html) return html;
   
   // Replace [[widget:slug]] with rendered widget
-  return html.replace(/\[\[widget:([a-zA-Z0-9_-]+)\]\]/g, (match, slug) => {
+  return replaceAsync(html, /\[\[widget:([a-zA-Z0-9_-]+)\]\]/g, async (match, slug) => {
     const widget = blocksData.find(b => b.slug === slug && b.content_type === 'widgets');
     if (!widget) return `<!-- Widget not found: ${slug} -->`;
 
@@ -90,14 +33,24 @@ export function processShortcodes(html, env, blocksData, context = {}) {
 
     try {
       const widgetContent = typeof widget.content === 'string' ? JSON.parse(widget.content) : widget.content;
-      return env.render(widget.template_filename, {
-        content: widgetContent || {},
-        widget,
-        site: env.opts.site,
-        blocks: blocksData // pass all blocks context
+      
+      return new Promise((resolve) => {
+        env.render(widget.template_filename, {
+          content: widgetContent || {},
+          widget,
+          site: env.opts.site,
+          blocks: blocksData // pass all blocks context
+        }, (err, rendered) => {
+          if (err) {
+            console.error(`Error rendering shortcode widget ${slug}:`, err);
+            resolve(`<!-- Error rendering widget ${slug}: ${err.message} -->`);
+          } else {
+            resolve(rendered);
+          }
+        });
       });
     } catch (err) {
-      console.error(`Error rendering shortcode widget ${slug}:`, err);
+      console.error(`Error processing shortcode widget ${slug}:`, err);
       return `<!-- Error rendering widget ${slug}: ${err.message} -->`;
     }
   });
@@ -121,8 +74,6 @@ export function themeRender(req, res, templateFilename, context = {}) {
 
   // Store site in env for access in globals
   env.opts.site = site;
-
-  setupRenderBlock(env, blocks, permissionContext);
 
   const parseJsonField = (value) => {
     if (value === null || value === undefined) return null;
@@ -153,22 +104,27 @@ export function themeRender(req, res, templateFilename, context = {}) {
     fullContext.user = req.user;
   }
 
-  try {
-    let html = env.render(templateFilename, fullContext);
-    
-    // Process shortcodes in the final output
-    html = processShortcodes(html, env, blocks, permissionContext);
-    
-    res.send(html);
-  } catch (err) {
-    logRenderError(req, templateFilename, err);
-    // If it's a 404/500 template error, we might recurse, so be careful.
-    if (templateFilename !== 'pages/500.njk' && templateFilename !== 'pages/404.njk') {
-        renderError(req, res, 500, { error: err.message });
-    } else {
-        res.status(500).send('Critical Server Error: ' + err.message);
+  // Use async render
+  env.render(templateFilename, fullContext, async (err, html) => {
+    if (err) {
+      logRenderError(req, templateFilename, err);
+      // If it's a 404/500 template error, we might recurse, so be careful.
+      if (templateFilename !== 'pages/500.njk' && templateFilename !== 'pages/404.njk') {
+        return renderError(req, res, 500, { error: err.message });
+      } else {
+        return res.status(500).send('Critical Server Error: ' + err.message);
+      }
     }
-  }
+
+    try {
+      // Process shortcodes in the final output (now async)
+      const finalHtml = await processShortcodes(html, env, blocks, permissionContext);
+      res.send(finalHtml);
+    } catch (shortcodeErr) {
+      console.error('Error processing shortcodes:', shortcodeErr);
+      res.send(html); // Send without shortcode processing if it fails
+    }
+  });
 }
 
 export function renderError(req, res, statusCode, context = {}) {
