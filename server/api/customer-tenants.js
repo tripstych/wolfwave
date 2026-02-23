@@ -119,6 +119,18 @@ router.get('/limits', requireCustomer, async (req, res) => {
         });
       }
       const customer = await prisma.customers.findUnique({
+        where: { id: req.customer.id },
+        include: {
+          customer_subscriptions: {
+            where: { status: 'active' },
+            include: { subscription_plans: true },
+            take: 1
+          },
+          _count: {
+            select: { tenants: true }
+          }
+        }
+      });
 
       if (!customer) return res.status(404).json({ error: 'Customer not found' });
 
