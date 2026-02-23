@@ -42,7 +42,8 @@ export default function ProductEditor() {
     handleContentChange,
     handleTemplateChange,
     handleSave,
-    restoreVersion
+    restoreVersion,
+    partialRestore
   } = useContentEditor({
     contentType: 'products',
     endpoint: '/products',
