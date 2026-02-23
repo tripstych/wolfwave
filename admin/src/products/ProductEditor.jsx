@@ -11,6 +11,7 @@ import DynamicField from '../components/DynamicField';
 import MediaPicker from '../components/MediaPicker';
 import ContentGroupsWidget from '../components/ContentGroupsWidget';
 import VisualPickerModal from '../components/VisualPickerModal';
+import HistoryPreviewModal from '../components/HistoryPreviewModal';
 import CodeEditor from '../components/CodeEditor';
 
 // Hooks
@@ -58,6 +59,7 @@ export default function ProductEditor() {
   const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
   const [showSource, setShowSource] = useState(false);
   const [activeTab, setActiveTab] = useState('editor');
+  const [previewingVersion, setPreviewingVersion] = useState(null);
   const [mediaPickerTarget, setMediaPickerTarget] = useState(null);
   const [options, setOptions] = useState([]);
   const [importing, setImporting] = useState(false);
@@ -283,6 +285,32 @@ export default function ProductEditor() {
             onSlugChange={(val) => handleFieldChange('slug', val)}
           />
 
+          {/* Tabs */}
+          <div className="border-b border-gray-200 mb-6">
+            <nav className="-mb-px flex space-x-8">
+              <button
+                onClick={() => setActiveTab('editor')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
+                  activeTab === 'editor'
+                    ? 'border-primary-500 text-primary-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Editor
+              </button>
+              <button
+                onClick={() => setActiveTab('history')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
+                  activeTab === 'history'
+                    ? 'border-primary-500 text-primary-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                History {history.length > 0 && <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-[10px]">{history.length}</span>}
+              </button>
+            </nav>
+          </div>
+
           <div className="card p-6">
             <h2 className="mt-0 mb-4 text-lg font-bold">Pricing & Identification</h2>
             <div className="grid grid-cols-2 gap-6">
@@ -467,6 +495,14 @@ export default function ProductEditor() {
         selectorMap={selectorMap}
         onSelectorPicked={(field, selector) => setSelectorMap(prev => ({ ...prev, [field]: selector }))}
         onDone={handleExtractContent}
+      />
+
+      <HistoryPreviewModal
+        isOpen={!!previewingVersion}
+        onClose={() => setPreviewingVersion(null)}
+        version={previewingVersion}
+        regions={regions}
+        onRestore={partialRestore}
       />
     </div>
   );

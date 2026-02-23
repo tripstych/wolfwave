@@ -98,7 +98,7 @@ export default function useContentEditor({ contentType, endpoint, initialData = 
   };
 
   const restoreVersion = async (historyId) => {
-    if (!confirm('Restore this version? Current unsaved changes will be lost.')) return;
+    if (!confirm('Restore this entire version? Current unsaved changes will be lost.')) return;
     try {
       setSaving(true);
       await api.post(`/content/history/${historyId}/restore`);
@@ -109,6 +109,19 @@ export default function useContentEditor({ contentType, endpoint, initialData = 
     } finally {
       setSaving(false);
     }
+  };
+
+  const partialRestore = ({ content, title, slug }) => {
+    setData(prev => {
+      const next = { ...prev };
+      if (title) next.title = title;
+      if (slug) next.slug = slug;
+      if (content) {
+        next.content = { ...prev.content, ...content };
+      }
+      return next;
+    });
+    toast.success('Selected fields brought into editor (unsaved)');
   };
 
   useEffect(() => {
@@ -214,6 +227,7 @@ export default function useContentEditor({ contentType, endpoint, initialData = 
     handleTemplateChange,
     handleSave,
     syncTemplates,
-    restoreVersion
+    restoreVersion,
+    partialRestore
   };
 }

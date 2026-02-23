@@ -12,6 +12,7 @@ import RepeaterField from '../components/RepeaterField';
 import MediaPicker from '../components/MediaPicker';
 import ContentGroupsWidget from '../components/ContentGroupsWidget';
 import VisualPickerModal from '../components/VisualPickerModal';
+import HistoryPreviewModal from '../components/HistoryPreviewModal';
 import CodeEditor from '../components/CodeEditor';
 
 // Hooks
@@ -43,7 +44,8 @@ export default function PageEditor() {
     handleTemplateChange,
     handleSave,
     syncTemplates,
-    restoreVersion
+    restoreVersion,
+    partialRestore
   } = useContentEditor({
     contentType: 'pages',
     endpoint: '/pages',
@@ -56,6 +58,7 @@ export default function PageEditor() {
   const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
   const [showSource, setShowSource] = useState(false);
   const [activeTab, setActiveTab] = useState('editor');
+  const [previewingVersion, setPreviewingVersion] = useState(null);
   const [mediaPickerTarget, setMediaPickerTarget] = useState(null);
   const [scraping, setScraping] = useState(false);
   const [scrapeUrl, setScrapeUrl] = useState('');
@@ -351,12 +354,18 @@ export default function PageEditor() {
                       <td className="px-6 py-4 font-medium">v{ver.version_number}</td>
                       <td className="px-6 py-4 text-gray-500">{new Date(ver.created_at).toLocaleString()}</td>
                       <td className="px-6 py-4">{ver.title}</td>
-                      <td className="px-6 py-4 text-right">
+                      <td className="px-6 py-4 text-right space-x-2">
+                        <button
+                          onClick={() => setPreviewingVersion(ver)}
+                          className="btn btn-xs btn-secondary"
+                        >
+                          <Eye className="w-3 h-3 mr-1" /> Preview & Select
+                        </button>
                         <button
                           onClick={() => restoreVersion(ver.id)}
-                          className="text-primary-600 hover:text-primary-900 font-medium"
+                          className="text-primary-600 hover:text-primary-900 font-medium text-xs"
                         >
-                          Restore
+                          Full Restore
                         </button>
                       </td>
                     </tr>
@@ -483,6 +492,14 @@ export default function PageEditor() {
         selectorMap={selectorMap}
         onSelectorPicked={(field, selector) => setSelectorMap(prev => ({ ...prev, [field]: selector }))}
         onDone={handleExtractContent}
+      />
+
+      <HistoryPreviewModal
+        isOpen={!!previewingVersion}
+        onClose={() => setPreviewingVersion(null)}
+        version={previewingVersion}
+        regions={regions}
+        onRestore={partialRestore}
       />
     </div>
   );
