@@ -338,136 +338,181 @@ export default function ProductEditor() {
             </nav>
           </div>
 
-          <div className="card p-6">
-            <h2 className="mt-0 mb-4 text-lg font-bold">Pricing & Identification</h2>
-            <div className="grid grid-cols-2 gap-6">
-              <div>
-                <label className="label">SKU *</label>
-                <input type="text" value={product.sku || ''} onChange={(e) => handleFieldChange('sku', e.target.value)} className="input" placeholder="WB-001" />
-              </div>
-              <div>
-                <label className="label">Base Price *</label>
-                <input type="number" step="0.01" value={product.price ?? ''} onChange={(e) => handleFieldChange('price', parseFloat(e.target.value) || 0)} className="input" />
-              </div>
-              <div>
-                <label className="label">Compare at Price</label>
-                <input type="number" step="0.01" value={product.compare_at_price ?? ''} onChange={(e) => handleFieldChange('compare_at_price', parseFloat(e.target.value) || null)} className="input" />
-              </div>
-              <div>
-                <label className="label">Inventory Quantity</label>
-                <input type="number" value={product.inventory_quantity ?? ''} onChange={(e) => handleFieldChange('inventory_quantity', parseInt(e.target.value) || 0)} className="input" disabled={product.variants?.length > 0} placeholder={product.variants?.length > 0 ? 'Managed by variants' : ''} />
-              </div>
-            </div>
-            <div className="mt-4 flex gap-6">
-               <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={product.inventory_tracking} onChange={(e) => handleFieldChange('inventory_tracking', e.target.checked)} />
-                <span className="text-sm">Track Inventory</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={product.allow_backorder} onChange={(e) => handleFieldChange('allow_backorder', e.target.checked)} />
-                <span className="text-sm">Allow Backorder</span>
-              </label>
-            </div>
-          </div>
-
-          {regions.length > 0 && (
-            <div className="card p-6 space-y-6">
-              <div className="flex items-center justify-between">
-                <h2 className="mt-0 mb-0 text-lg font-bold">Product Content</h2>
-                <button
-                  type="button"
-                  onClick={() => setShowSource(!showSource)}
-                  className={`btn btn-sm ${showSource ? 'btn-primary' : 'btn-ghost text-gray-500'} flex items-center gap-2`}
-                  title={showSource ? "Switch to Visual Editor" : "Edit Raw JSON Source"}
-                >
-                  <Code className="w-4 h-4" />
-                  {showSource ? 'View Editor' : 'Edit Source'}
-                </button>
-              </div>
-
-              {showSource ? (
-                <div className="space-y-2">
-                  <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded border border-amber-100">
-                    <strong>Warning:</strong> Editing raw JSON can break the visual editor if the structure doesn't match the template regions.
-                  </p>
-                  <CodeEditor
-                    mode="json"
-                    value={JSON.stringify(product.content, null, 2)}
-                    onChange={(val) => {
-                      try {
-                        const parsed = JSON.parse(val);
-                        handleFieldChange('content', parsed);
-                      } catch (e) {
-                        // Invalid JSON, don't update state yet to prevent crashes
-                      }
-                    }}
-                    height="500px"
-                  />
+          {activeTab === 'editor' ? (
+            <>
+              <div className="card p-6">
+                <h2 className="mt-0 mb-4 text-lg font-bold">Pricing & Identification</h2>
+                <div className="grid grid-cols-2 gap-6">
+                  <div>
+                    <label className="label">SKU *</label>
+                    <input type="text" value={product.sku || ''} onChange={(e) => handleFieldChange('sku', e.target.value)} className="input" placeholder="WB-001" />
+                  </div>
+                  <div>
+                    <label className="label">Base Price *</label>
+                    <input type="number" step="0.01" value={product.price ?? ''} onChange={(e) => handleFieldChange('price', parseFloat(e.target.value) || 0)} className="input" />
+                  </div>
+                  <div>
+                    <label className="label">Compare at Price</label>
+                    <input type="number" step="0.01" value={product.compare_at_price ?? ''} onChange={(e) => handleFieldChange('compare_at_price', parseFloat(e.target.value) || null)} className="input" />
+                  </div>
+                  <div>
+                    <label className="label">Inventory Quantity</label>
+                    <input type="number" value={product.inventory_quantity ?? ''} onChange={(e) => handleFieldChange('inventory_quantity', parseInt(e.target.value) || 0)} className="input" disabled={product.variants?.length > 0} placeholder={product.variants?.length > 0 ? 'Managed by variants' : ''} />
+                  </div>
                 </div>
-              ) : (
-                <div className="space-y-6">
-                  {regions.map((region) => (
-                    <div key={region.name}>
-                      <label className="label">{region.label}</label>
-                      <DynamicField
-                        region={region}
-                        value={product.content[region.name]}
-                        onChange={handleContentChange}
-                        openMediaPicker={openMediaPicker}
+                <div className="mt-4 flex gap-6">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={product.inventory_tracking} onChange={(e) => handleFieldChange('inventory_tracking', e.target.checked)} />
+                    <span className="text-sm">Track Inventory</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={product.allow_backorder} onChange={(e) => handleFieldChange('allow_backorder', e.target.checked)} />
+                    <span className="text-sm">Allow Backorder</span>
+                  </label>
+                </div>
+              </div>
+
+              {regions.length > 0 && (
+                <div className="card p-6 space-y-6">
+                  <div className="flex items-center justify-between">
+                    <h2 className="mt-0 mb-0 text-lg font-bold">Product Content</h2>
+                    <button
+                      type="button"
+                      onClick={() => setShowSource(!showSource)}
+                      className={`btn btn-sm ${showSource ? 'btn-primary' : 'btn-ghost text-gray-500'} flex items-center gap-2`}
+                      title={showSource ? "Switch to Visual Editor" : "Edit Raw JSON Source"}
+                    >
+                      <Code className="w-4 h-4" />
+                      {showSource ? 'View Editor' : 'Edit Source'}
+                    </button>
+                  </div>
+
+                  {showSource ? (
+                    <div className="space-y-2">
+                      <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded border border-amber-100">
+                        <strong>Warning:</strong> Editing raw JSON can break the visual editor if the structure doesn't match the template regions.
+                      </p>
+                      <CodeEditor
+                        mode="json"
+                        value={JSON.stringify(product.content, null, 2)}
+                        onChange={(val) => {
+                          try {
+                            const parsed = JSON.parse(val);
+                            handleFieldChange('content', parsed);
+                          } catch (e) {
+                            // Invalid JSON, don't update state yet to prevent crashes
+                          }
+                        }}
+                        height="500px"
                       />
                     </div>
-                  ))}
+                  ) : (
+                    <div className="space-y-6">
+                      {regions.map((region) => (
+                        <div key={region.name}>
+                          <label className="label">{region.label}</label>
+                          <DynamicField
+                            region={region}
+                            value={product.content[region.name]}
+                            onChange={handleContentChange}
+                            openMediaPicker={openMediaPicker}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
+
+              <div className="card p-6">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="m-0 text-lg font-bold">Options & Variants</h2>
+                  {options.length < 3 && <button onClick={addOption} className="btn btn-secondary text-sm"><Plus className="w-4 h-4 mr-2" /> Add Option</button>}
+                </div>
+                {options.map((option, optIndex) => (
+                  <div key={optIndex} className="border p-4 rounded-md mb-4 bg-gray-50">
+                    <div className="flex gap-2 items-center mb-2">
+                      <input type="text" value={option.name} onChange={(e) => updateOptionName(optIndex, e.target.value)} placeholder="e.g. Color" className="input flex-1" />
+                      <button onClick={() => removeOption(optIndex)} className="text-red-500"><Trash2 className="w-4 h-4" /></button>
+                    </div>
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      {option.values.map((v, vIndex) => (
+                        <span key={vIndex} className="bg-white border px-2 py-1 rounded text-sm flex items-center gap-1">
+                          {v} <button onClick={() => removeOptionValue(optIndex, vIndex)}><X className="w-3 h-3" /></button>
+                        </span>
+                      ))}
+                    </div>
+                    <input type="text" placeholder="Add value..." onKeyDown={(e) => { if(e.key === 'Enter') { addOptionValue(optIndex, e.target.value); e.target.value = ''; } }} className="input text-sm" />
+                  </div>
+                ))}
+
+                {product.variants?.length > 0 && (
+                  <div className="overflow-x-auto mt-4">
+                    <table className="w-full text-sm">
+                      <thead><tr className="border-b text-left"><th>Variant</th><th>SKU</th><th>Price</th><th>Stock</th><th>Image</th></tr></thead>
+                      <tbody>
+                        {product.variants.map((v, i) => (
+                          <tr key={i} className="border-b">
+                            <td className="py-2">{v.title}</td>
+                            <td className="py-2"><input type="text" value={v.sku || ''} onChange={(e) => handleVariantChange(i, 'sku', e.target.value)} className="input py-1" /></td>
+                            <td className="py-2"><input type="number" value={v.price ?? ''} onChange={(e) => handleVariantChange(i, 'price', parseFloat(e.target.value))} className="input py-1 w-24" /></td>
+                            <td className="py-2"><input type="number" value={v.inventory_quantity ?? 0} onChange={(e) => handleVariantChange(i, 'inventory_quantity', parseInt(e.target.value))} className="input py-1 w-20" /></td>
+                            <td className="py-2">
+                              <div className="flex items-center gap-1">
+                                {v.image && <img src={v.image} className="w-8 h-8 rounded" />}
+                                <button onClick={() => openMediaPicker(`variant.${i}`)} className="p-1 border rounded"><ImageIcon className="w-4 h-4" /></button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="card overflow-hidden">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-gray-50 border-b">
+                  <tr>
+                    <th className="px-6 py-3 font-bold text-gray-500 uppercase text-xs">Version</th>
+                    <th className="px-6 py-3 font-bold text-gray-500 uppercase text-xs">Date</th>
+                    <th className="px-6 py-3 font-bold text-gray-500 uppercase text-xs">Title</th>
+                    <th className="px-6 py-3 text-right"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {history.map((ver) => (
+                    <tr key={ver.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 font-medium">v{ver.version_number}</td>
+                      <td className="px-6 py-4 text-gray-500">{new Date(ver.created_at).toLocaleString()}</td>
+                      <td className="px-6 py-4">{ver.title}</td>
+                      <td className="px-6 py-4 text-right space-x-2">
+                        <button
+                          onClick={() => setPreviewingVersion(ver)}
+                          className="btn btn-xs btn-secondary"
+                        >
+                          <Eye className="w-3 h-3 mr-1" /> Preview & Select
+                        </button>
+                        <button
+                          onClick={() => restoreVersion(ver.id)}
+                          className="text-primary-600 hover:text-primary-900 font-medium text-xs"
+                        >
+                          Full Restore
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {history.length === 0 && (
+                    <tr>
+                      <td colSpan="4" className="px-6 py-12 text-center text-gray-400 italic">No version history yet. Updates will create recovery points.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           )}
-
-          <div className="card p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="m-0 text-lg font-bold">Options & Variants</h2>
-              {options.length < 3 && <button onClick={addOption} className="btn btn-secondary text-sm"><Plus className="w-4 h-4 mr-2" /> Add Option</button>}
-            </div>
-            {options.map((option, optIndex) => (
-              <div key={optIndex} className="border p-4 rounded-md mb-4 bg-gray-50">
-                <div className="flex gap-2 items-center mb-2">
-                  <input type="text" value={option.name} onChange={(e) => updateOptionName(optIndex, e.target.value)} placeholder="e.g. Color" className="input flex-1" />
-                  <button onClick={() => removeOption(optIndex)} className="text-red-500"><Trash2 className="w-4 h-4" /></button>
-                </div>
-                <div className="flex flex-wrap gap-2 mb-2">
-                  {option.values.map((v, vIndex) => (
-                    <span key={vIndex} className="bg-white border px-2 py-1 rounded text-sm flex items-center gap-1">
-                      {v} <button onClick={() => removeOptionValue(optIndex, vIndex)}><X className="w-3 h-3" /></button>
-                    </span>
-                  ))}
-                </div>
-                <input type="text" placeholder="Add value..." onKeyDown={(e) => { if(e.key === 'Enter') { addOptionValue(optIndex, e.target.value); e.target.value = ''; } }} className="input text-sm" />
-              </div>
-            ))}
-
-            {product.variants?.length > 0 && (
-              <div className="overflow-x-auto mt-4">
-                <table className="w-full text-sm">
-                  <thead><tr className="border-b text-left"><th>Variant</th><th>SKU</th><th>Price</th><th>Stock</th><th>Image</th></tr></thead>
-                  <tbody>
-                    {product.variants.map((v, i) => (
-                      <tr key={i} className="border-b">
-                        <td className="py-2">{v.title}</td>
-                        <td className="py-2"><input type="text" value={v.sku || ''} onChange={(e) => handleVariantChange(i, 'sku', e.target.value)} className="input py-1" /></td>
-                        <td className="py-2"><input type="number" value={v.price ?? ''} onChange={(e) => handleVariantChange(i, 'price', parseFloat(e.target.value))} className="input py-1 w-24" /></td>
-                        <td className="py-2"><input type="number" value={v.inventory_quantity ?? 0} onChange={(e) => handleVariantChange(i, 'inventory_quantity', parseInt(e.target.value))} className="input py-1 w-20" /></td>
-                        <td className="py-2">
-                           <div className="flex items-center gap-1">
-                             {v.image && <img src={v.image} className="w-8 h-8 rounded" />}
-                             <button onClick={() => openMediaPicker(`variant.${i}`)} className="p-1 border rounded"><ImageIcon className="w-4 h-4" /></button>
-                           </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
         </div>
 
         <div className="space-y-6">
