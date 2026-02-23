@@ -35,7 +35,23 @@ const migrations = [
   `ALTER TABLE blocks ADD COLUMN IF NOT EXISTS access_rules JSON`,
 
   // Add stripe_customer_id to customers
-  `ALTER TABLE customers ADD COLUMN IF NOT EXISTS stripe_customer_id VARCHAR(255)`
+  `ALTER TABLE customers ADD COLUMN IF NOT EXISTS stripe_customer_id VARCHAR(255)`,
+
+  // Create API keys table for site-level and per-user API access
+  `CREATE TABLE IF NOT EXISTS api_keys (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    public_key VARCHAR(64) NOT NULL UNIQUE,
+    secret_key_hash VARCHAR(255) NOT NULL,
+    type ENUM('site', 'user') NOT NULL DEFAULT 'site',
+    user_id INT NULL,
+    permissions JSON,
+    last_used_at TIMESTAMP NULL,
+    expires_at TIMESTAMP NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  )`
 ];
 
 async function migrate() {

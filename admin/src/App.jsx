@@ -36,6 +36,7 @@ import Themes from './settings/Themes';
 import ThemeEditor from './settings/ThemeEditor';
 import StyleEditor from './settings/StyleEditor';
 import EmailTemplates from './settings/EmailTemplates';
+import ApiKeys from './settings/ApiKeys';
 import PlanList from './subscriptions/PlanList';
 import PlanEditor from './subscriptions/PlanEditor';
 import CouponList from './marketing/CouponList';
@@ -113,6 +114,7 @@ function App() {
                 <Route path="/themes/:themeName/editor" element={<ThemeEditor />} />
                 <Route path="/styles" element={<StyleEditor />} />
                 <Route path="/email-templates" element={<EmailTemplates />} />
+                <Route path="/api-keys" element={<ApiKeys />} />
 
                 {/* Dynamic content type routes */}
                 {contentTypes.map(type => (
