@@ -12,6 +12,11 @@ const router = Router();
 
 // Helper to safely resolve theme file path
 function resolveThemePath(theme, filePath) {
+  // Block null byte injection
+  if (theme.includes('\0') || (filePath && filePath.includes('\0'))) {
+    throw new Error('Invalid path: null bytes not allowed');
+  }
+
   const themesDir = getThemesDir();
   const themeDir = path.join(themesDir, theme);
   const fullPath = filePath ? path.join(themeDir, filePath) : themeDir;

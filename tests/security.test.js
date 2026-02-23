@@ -13,6 +13,11 @@ describe('File System Security', () => {
   
   function resolveThemePath(theme, filePath) {
     // This is the logic currently in server/api/themes.js
+    // Block null byte injection
+    if (theme.includes('\0') || (filePath && filePath.includes('\0'))) {
+      throw new Error('Invalid path');
+    }
+
     const themeDir = path.join(themesDir, theme);
     const fullPath = filePath ? path.join(themeDir, filePath) : themeDir;
 

@@ -5,45 +5,45 @@ describe('Database Query Validation Patterns', () => {
   describe('Query Result Validation', () => {
     it('should validate null results', () => {
       const nullResult = null;
-      
+
       // Test the validation pattern we implemented
       const isValid = nullResult && nullResult.length > 0 && nullResult[0];
-      expect(isValid).toBe(false);
+      expect(isValid).toBeFalsy();
     });
 
     it('should validate undefined results', () => {
       const undefinedResult = undefined;
-      
+
       const isValid = undefinedResult && undefinedResult.length > 0 && undefinedResult[0];
-      expect(isValid).toBe(false);
+      expect(isValid).toBeFalsy();
     });
 
     it('should validate empty array results', () => {
       const emptyResult = [];
-      
+
       const isValid = emptyResult && emptyResult.length > 0 && emptyResult[0];
-      expect(isValid).toBe(false);
+      expect(isValid).toBeFalsy();
     });
 
     it('should validate valid array results', () => {
       const validResult = [{ id: 1, name: 'test' }];
-      
+
       const isValid = validResult && validResult.length > 0 && validResult[0];
-      expect(isValid).toBe(true);
+      expect(isValid).toBeTruthy();
     });
 
     it('should validate array with null elements', () => {
       const arrayWithNull = [null, undefined];
-      
+
       const isValid = arrayWithNull && arrayWithNull.length > 0 && arrayWithNull[0];
-      expect(isValid).toBe(false);
+      expect(isValid).toBeFalsy();
     });
 
     it('should validate array with valid first element', () => {
       const arrayWithValid = [{ id: 1 }, null];
-      
+
       const isValid = arrayWithValid && arrayWithValid.length > 0 && arrayWithValid[0];
-      expect(isValid).toBe(true);
+      expect(isValid).toBeTruthy();
     });
   });
 
