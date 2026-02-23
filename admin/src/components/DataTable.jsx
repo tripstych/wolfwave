@@ -268,14 +268,38 @@ export default function DataTable({
                             action.variant === 'danger' ? 'hover:bg-red-50 text-red-600' :
                             action.variant === 'blue' ? 'hover:bg-blue-50 text-blue-600' :
                             'hover:bg-gray-100 text-gray-600';
+                          
+                          const href = typeof action.href === 'function' ? action.href(row) : action.href;
+
+                          if (href) {
+                            return (
+                              <a
+                                key={i}
+                                href={href}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => {
+                                  if (action.onClick) {
+                                    e.preventDefault();
+                                    action.onClick(row, { refetch: table.refetch });
+                                  }
+                                }}
+                                className={`p-2 rounded-lg transition-colors ${variantClass}`}
+                                title={typeof action.title === 'function' ? action.title(row) : action.title}
+                              >
+                                {Icon ? <Icon className="w-4 h-4" /> : <span className="text-sm font-medium">{typeof action.title === 'function' ? action.title(row) : action.title}</span>}
+                              </a>
+                            );
+                          }
+
                           return (
                             <button
                               key={i}
                               onClick={() => action.onClick(row, { refetch: table.refetch })}
                               className={`p-2 rounded-lg transition-colors ${variantClass}`}
-                              title={action.title}
+                              title={typeof action.title === 'function' ? action.title(row) : action.title}
                             >
-                              {Icon ? <Icon className="w-4 h-4" /> : <span className="text-sm font-medium">{action.title}</span>}
+                              {Icon ? <Icon className="w-4 h-4" /> : <span className="text-sm font-medium">{typeof action.title === 'function' ? action.title(row) : action.title}</span>}
                             </button>
                           );
                         })}

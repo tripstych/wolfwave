@@ -229,6 +229,7 @@ export default function TenantList() {
             icon: LogIn,
             title: 'Login As Admin',
             variant: 'indigo',
+            href: (row) => `${getTenantUrl(row.subdomain)}/admin/`,
             onClick: (row) => handleLoginAs(row),
           },
           {

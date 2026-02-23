@@ -285,12 +285,18 @@ export default function Sites() {
                     >
                       <Globe className="w-3.5 h-3.5" /> Visit
                     </button>
-                    <button 
-                      onClick={() => handleLoginAs(tenant)}
+                    <a 
+                      href={`${getTenantUrl(tenant.subdomain)}/admin/`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handleLoginAs(tenant);
+                      }}
                       className="btn btn-primary flex-1 py-1.5 text-xs flex items-center justify-center gap-1.5"
                     >
                       <LogIn className="w-3.5 h-3.5" /> Admin
-                    </button>
+                    </a>
                     
                     <div className="relative inline-block group/menu">
                       <button className="p-2 hover:bg-gray-100 rounded-lg text-gray-400">
@@ -332,6 +338,7 @@ export default function Sites() {
             {
               icon: LogIn,
               title: 'Admin Login',
+              href: (row) => `${getTenantUrl(row.subdomain)}/admin/`,
               onClick: (row) => handleLoginAs(row),
             },
             {

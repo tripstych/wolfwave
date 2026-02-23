@@ -47,11 +47,11 @@ export default function MySites() {
     const host = window.location.hostname;
     const protocol = window.location.protocol;
     if (host === 'localhost') {
-      return `${protocol}//${subdomain}.localhost:3000`;
+      return `${protocol}//${subdomain}.localhost:3000/`;
     }
     const parts = host.split('.');
     if (parts.length > 2) parts.shift();
-    return `${protocol}//${subdomain}.${parts.join('.')}`;
+    return `${protocol}//${subdomain}.${parts.join('.')}/`;
   };
 
   const handleCreate = async (e) => {
