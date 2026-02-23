@@ -437,6 +437,79 @@ router.post('/update-payment', requireCustomer, async (req, res) => {
   }
 });
 
+/**
+ * Sync overage quantity to Stripe subscription.
+ * Called when a tenant is created/deleted.
+ */
+export async function syncOverageToStripe(customerId) {
+  try {
+    const stripeKey = await getStripeKey();
+    if (!stripeKey) return;
+
+    // 1. Get current subscription and site count
+    const customer = await prisma.customers.findUnique({
+      where: { id: customerId },
+      include: {
+        customer_subscriptions: {
+          where: { status: 'active' },
+          include: { subscription_plans: true },
+          take: 1
+        },
+        _count: {
+          select: { tenants: true }
+        }
+      }
+    });
+
+    const subscription = customer?.customer_subscriptions[0];
+    if (!subscription || !subscription.stripe_subscription_id) return;
+
+    const plan = subscription.subscription_plans;
+    if (!plan.stripe_overage_price_id) return;
+
+    const totalSites = customer._count.tenants;
+    const planLimit = customer.max_sites_override !== null ? customer.max_sites_override : plan.max_sites;
+    const overageCount = Math.max(0, totalSites - planLimit);
+
+    console.log(`[OVERAGE_SYNC] Customer ${customerId}: Total=${totalSites}, Limit=${planLimit}, Overage=${overageCount}`);
+
+    // 2. Fetch current subscription items from Stripe
+    const stripeSub = await stripeRequest('get', `/subscriptions/${subscription.stripe_subscription_id}`, null, stripeKey);
+    
+    // Check if overage item already exists
+    const overageItem = stripeSub.items.data.find(item => item.price.id === plan.stripe_overage_price_id);
+
+    if (overageCount > 0) {
+      if (overageItem) {
+        // Update existing item quantity
+        if (parseInt(overageItem.quantity) !== overageCount) {
+          await stripeRequest('post', `/subscriptions/${subscription.stripe_subscription_id}`, {
+            'items[0][id]': overageItem.id,
+            'items[0][quantity]': overageCount.toString(),
+            'proration_behavior': 'always_invoice'
+          }, stripeKey);
+        }
+      } else {
+        // Add new overage item
+        await stripeRequest('post', `/subscriptions/${subscription.stripe_subscription_id}`, {
+          'items[0][price]': plan.stripe_overage_price_id,
+          'items[0][quantity]': overageCount.toString(),
+          'proration_behavior': 'always_invoice'
+        }, stripeKey);
+      }
+    } else if (overageItem) {
+      // Remove overage item if count is now 0
+      await stripeRequest('post', `/subscriptions/${subscription.stripe_subscription_id}`, {
+        'items[0][id]': overageItem.id,
+        'items[0][deleted]': 'true',
+        'proration_behavior': 'always_invoice'
+      }, stripeKey);
+    }
+  } catch (err) {
+    console.error(`[OVERAGE_SYNC_ERROR] Customer ${customerId}:`, err.response?.data || err.message);
+  }
+}
+
 // --- ADMIN ROUTES ---
 
 /**

@@ -8,6 +8,7 @@ import { seedNewTenant } from '../services/tenantSeeder.js';
 import { runWithTenant, getCurrentDbName } from '../lib/tenantContext.js';
 import { generateImpersonationToken } from '../middleware/auth.js';
 import { getTenantInfoByDb, getCustomerSubscriptionStats } from '../services/tenantService.js';
+import { syncOverageToStripe } from './customer-subscriptions.js';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 
@@ -220,11 +221,15 @@ router.post('/', requireCustomer, async (req, res) => {
       // 7. Handle Overage Notification/Billing
       if (isOverage) {
         // TODO: Trigger email to reseller
-        // TODO: Update Stripe subscription quantity or add metered charge
-        console.log(`[OVERAGE_BILLING] Triggering charge for customer ${targetCustomerId}`);
+        console.log(`[OVERAGE_BILLING] Customer ${targetCustomerId} is over limit. Syncing to Stripe.`);
       }
 
-      // 7. Setup tenant
+      // Sync to Stripe to ensure overage counts are updated
+      syncOverageToStripe(targetCustomerId).catch(err => {
+        console.error(`[OVERAGE_SYNC_FAIL] Target ${targetCustomerId}:`, err.message);
+      });
+
+      // 8. Setup tenant
       try {
         await runWithTenant(dbName, async () => {
           await syncTemplatesToDb(prisma, 'default');

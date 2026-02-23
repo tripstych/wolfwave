@@ -110,7 +110,7 @@ router.get('/:id', requireAuth, async (req, res) => {
  */
 router.post('/', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const { name, slug, description, price, interval, interval_count, trial_days, features, is_active, position, product_discount, target_slugs, max_sites } = req.body;
+    const { name, slug, description, price, interval, interval_count, trial_days, features, is_active, position, product_discount, target_slugs, max_sites, overage_price } = req.body;
 
     if (!name || !slug || price === undefined) {
       return res.status(400).json({ error: 'Name, slug, and price are required' });
@@ -118,6 +118,7 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
 
     let stripe_product_id = null;
     let stripe_price_id = null;
+    let stripe_overage_price_id = null;
 
     const stripeKey = await getStripeKey();
     if (stripeKey) {
@@ -129,6 +130,8 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
         stripe_product_id = product.id;
 
         const stripeInterval = interval === 'yearly' ? 'year' : interval === 'weekly' ? 'week' : 'month';
+        
+        // Main Plan Price
         const stripePrice = await stripeRequest('post', '/prices', {
           product: product.id,
           unit_amount: Math.round(parseFloat(price) * 100),
@@ -137,14 +140,27 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
           'recurring[interval_count]': interval_count || 1
         }, stripeKey);
         stripe_price_id = stripePrice.id;
+
+        // Overage Price (if provided)
+        if (overage_price && parseFloat(overage_price) > 0) {
+          const stripeOveragePrice = await stripeRequest('post', '/prices', {
+            product: product.id,
+            unit_amount: Math.round(parseFloat(overage_price) * 100),
+            currency: 'usd',
+            'nickname': 'Overage License',
+            'recurring[interval]': stripeInterval,
+            'recurring[interval_count]': interval_count || 1
+          }, stripeKey);
+          stripe_overage_price_id = stripeOveragePrice.id;
+        }
       } catch (stripeErr) {
         console.error('Stripe sync error:', stripeErr.response?.data || stripeErr.message);
       }
     }
 
     const sql = `
-      INSERT INTO subscription_plans (name, slug, description, price, \`interval\`, interval_count, trial_days, features, is_active, position, product_discount, stripe_product_id, stripe_price_id, target_slugs, max_sites)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO subscription_plans (name, slug, description, price, \`interval\`, interval_count, trial_days, features, is_active, position, product_discount, stripe_product_id, stripe_price_id, stripe_overage_price_id, target_slugs, max_sites, overage_price)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
     
     const params = [
@@ -152,9 +168,10 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
       interval || 'monthly', parseInt(interval_count) || 1, parseInt(trial_days) || 0,
       features ? JSON.stringify(features) : null,
       is_active !== false ? 1 : 0, parseInt(position) || 0, parseFloat(product_discount) || 0,
-      stripe_product_id, stripe_price_id,
+      stripe_product_id, stripe_price_id, stripe_overage_price_id,
       target_slugs ? JSON.stringify(target_slugs) : null,
-      max_sites !== undefined ? parseInt(max_sites) : 1
+      max_sites !== undefined ? parseInt(max_sites) : 1,
+      overage_price !== undefined ? parseFloat(overage_price) : 0
     ];
 
     const result = await query(sql, params);
@@ -173,12 +190,12 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
 router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
     const planId = parseInt(req.params.id);
-    const { name, slug, description, price, interval, interval_count, trial_days, features, is_active, position, product_discount, target_slugs, max_sites } = req.body;
+    const { name, slug, description, price, interval, interval_count, trial_days, features, is_active, position, product_discount, target_slugs, max_sites, overage_price } = req.body;
 
     const [existing] = await query('SELECT * FROM subscription_plans WHERE id = ?', [planId]);
     if (!existing) return res.status(404).json({ error: 'Plan not found' });
 
-    let { stripe_product_id, stripe_price_id } = existing;
+    let { stripe_product_id, stripe_price_id, stripe_overage_price_id } = existing;
     const stripeKey = await getStripeKey();
 
     if (stripeKey) {
@@ -199,12 +216,13 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
           }, stripeKey);
         }
 
-        // 2. Create new Price if amount/interval changed OR if it doesn't exist
+        const stripeInterval = (interval || existing.interval) === 'yearly' ? 'year' : (interval || existing.interval) === 'weekly' ? 'week' : 'month';
+
+        // 2. Main Price Sync
         const priceChanged = price !== undefined && parseFloat(price) !== parseFloat(existing.price);
         const intervalChanged = interval !== undefined && interval !== existing.interval;
         
         if (!stripe_price_id || priceChanged || intervalChanged) {
-          const stripeInterval = (interval || existing.interval) === 'yearly' ? 'year' : (interval || existing.interval) === 'weekly' ? 'week' : 'month';
           const stripePrice = await stripeRequest('post', '/prices', {
             product: stripe_product_id,
             unit_amount: Math.round(parseFloat(price || existing.price) * 100),
@@ -213,6 +231,20 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
             'recurring[interval_count]': interval_count || existing.interval_count || 1
           }, stripeKey);
           stripe_price_id = stripePrice.id;
+        }
+
+        // 3. Overage Price Sync
+        const overagePriceChanged = overage_price !== undefined && parseFloat(overage_price) !== parseFloat(existing.overage_price || 0);
+        if ((!stripe_overage_price_id && overage_price > 0) || (stripe_overage_price_id && overagePriceChanged) || (stripe_overage_price_id && intervalChanged)) {
+          const stripeOveragePrice = await stripeRequest('post', '/prices', {
+            product: stripe_product_id,
+            unit_amount: Math.round(parseFloat(overage_price || existing.overage_price) * 100),
+            currency: 'usd',
+            'nickname': 'Overage License',
+            'recurring[interval]': stripeInterval,
+            'recurring[interval_count]': interval_count || existing.interval_count || 1
+          }, stripeKey);
+          stripe_overage_price_id = stripeOveragePrice.id;
         }
       } catch (stripeErr) {
         console.error('[STRIPE-SYNC] ❌ Sync failed:', stripeErr.response?.data || stripeErr.message);
@@ -224,7 +256,8 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
       SET name = ?, slug = ?, description = ?, price = ?, \`interval\` = ?, 
           interval_count = ?, trial_days = ?, features = ?, is_active = ?, 
           position = ?, product_discount = ?, target_slugs = ?,
-          stripe_product_id = ?, stripe_price_id = ?, max_sites = ?
+          stripe_product_id = ?, stripe_price_id = ?, stripe_overage_price_id = ?, 
+          max_sites = ?, overage_price = ?
       WHERE id = ?
     `;
     
@@ -243,7 +276,9 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
       target_slugs ? JSON.stringify(target_slugs) : existing.target_slugs,
       stripe_product_id,
       stripe_price_id,
+      stripe_overage_price_id,
       max_sites !== undefined ? parseInt(max_sites) : existing.max_sites,
+      overage_price !== undefined ? parseFloat(overage_price) : existing.overage_price,
       planId
     ];
 
