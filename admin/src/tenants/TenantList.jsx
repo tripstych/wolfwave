@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Trash2, Pause, Play } from 'lucide-react';
+import { Plus, Trash2, Pause, Play, ExternalLink, Globe } from 'lucide-react';
 import DataTable from '../components/DataTable';
 import api from '../lib/api';
 
@@ -10,6 +10,24 @@ export default function TenantList() {
   const [newTenant, setNewTenant] = useState({ name: '', subdomain: '', email: 'admin@example.com', password: '' });
   const [subdomainEdited, setSubdomainEdited] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+
+  const getTenantUrl = (subdomain) => {
+    // In dev, usually http://subdomain.localhost:3000
+    // In prod, it might be https://subdomain.yourdomain.com
+    const host = window.location.hostname;
+    const protocol = window.location.protocol;
+    
+    if (host === 'localhost') {
+      return `${protocol}//${subdomain}.localhost:3000`;
+    }
+    
+    // Attempt to strip existing subdomain if on a multi-level domain
+    const parts = host.split('.');
+    if (parts.length > 2) {
+      parts.shift(); // remove current subdomain
+    }
+    return `${protocol}//${subdomain}.${parts.join('.')}`;
+  };
 
   const autoSubdomain = (name) =>
     name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -46,12 +64,33 @@ export default function TenantList() {
     {
       key: 'name',
       label: 'Name',
-      render: (value) => <span className="font-medium">{value}</span>,
+      render: (value, row) => (
+        <div className="flex flex-col">
+          <a 
+            href={getTenantUrl(row.subdomain)} 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="font-medium text-primary-600 hover:underline flex items-center gap-1 group"
+          >
+            {value}
+            <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+          </a>
+        </div>
+      ),
     },
     {
       key: 'subdomain',
-      label: 'Subdomain',
-      render: (value) => <span className="font-mono text-sm text-gray-600">{value}</span>,
+      label: 'URL',
+      render: (value) => (
+        <a 
+          href={getTenantUrl(value)} 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          className="font-mono text-sm text-gray-500 hover:text-primary-600"
+        >
+          {value}.wolfwave.com
+        </a>
+      ),
     },
     {
       key: 'database_name',
@@ -170,6 +209,12 @@ export default function TenantList() {
         pagination={{ mode: 'client' }}
         columns={columns}
         actions={[
+          {
+            icon: Globe,
+            title: 'Open Site',
+            variant: 'blue',
+            onClick: (row) => window.open(getTenantUrl(row.subdomain), '_blank'),
+          },
           {
             icon: Pause,
             title: 'Suspend',
