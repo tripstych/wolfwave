@@ -349,6 +349,7 @@ export function applyNunjucksCustomizations(env) {
   }, true);
 }
 
+/**
  * Get or create a cached Nunjucks Environment for a given theme.
  * Environments are cached by theme slug and database name — each tenant
  * gets their own environment to ensure isolation of globals and loaders.
