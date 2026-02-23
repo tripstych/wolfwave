@@ -19,7 +19,14 @@
         
         let fieldsHtml = currentFields.map(f => {
             const isMapped = mappedFields.has(f.id);
-            return `<button class="wolfwave-picker-btn" data-field="${f.id}" style="${isMapped ? 'background: #10b981;' : ''}">${f.label}${isMapped ? ' ✓' : ''}</button>`;
+            return `
+                <div class="wolfwave-field-row" style="display: flex; gap: 4px; margin-bottom: 4px;">
+                    <button class="wolfwave-picker-btn" data-field="${f.id}" style="flex: 1; text-align: left; ${isMapped ? 'background: #10b981;' : ''}">
+                        ${f.label}${isMapped ? ' ✓' : ''}
+                    </button>
+                    ${isMapped ? `<button class="wolfwave-reset-btn" data-field="${f.id}" style="background: #6b7280; color: white; border: none; border-radius: 4px; width: 24px; cursor: pointer;" title="Reset mapping">×</button>` : ''}
+                </div>
+            `;
         }).join('');
 
         ui.innerHTML = `
@@ -52,11 +59,22 @@
                     selector: selector
                 }, '*');
 
-                // Visual Feedback - Persistent
-                btn.style.background = '#10b981';
-                if (!btn.innerText.endsWith(' ✓')) {
-                    btn.innerText += ' ✓';
-                }
+                createUI(); // Re-render to show reset button
+            };
+        });
+
+        ui.querySelectorAll('.wolfwave-reset-btn').forEach(btn => {
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                const field = btn.getAttribute('data-field');
+                mappedFields.delete(field);
+                
+                window.parent.postMessage({
+                    type: 'WOLFWAVE_SELECTOR_REMOVED',
+                    field: field
+                }, '*');
+                
+                createUI(); // Re-render
             };
         });
 
@@ -128,6 +146,10 @@
     window.addEventListener('message', (e) => {
         if (e.data.type === 'WOLFWAVE_SET_FIELDS') {
             currentFields = e.data.fields;
+            createUI();
+        }
+        if (e.data.type === 'WOLFWAVE_SET_MAPPED_FIELDS') {
+            mappedFields = new Set(e.data.fields);
             createUI();
         }
     });

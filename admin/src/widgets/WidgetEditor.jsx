@@ -30,6 +30,7 @@ export default function WidgetEditor() {
   const [saving, setSaving] = useState(false);
   const [templates, setTemplates] = useState([]);
   const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
+  const [showSource, setShowSource] = useState(false);
   const [mediaPickerTarget, setMediaPickerTarget] = useState(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -467,16 +468,51 @@ export default function WidgetEditor() {
 
           {regions.length > 0 && (
             <div className="card p-6 space-y-6">
-              <h2 className="font-semibold text-gray-900">Configurable Properties</h2>
-              {regions.map((region) => (
-                <div key={region.name}>
-                  <label className="label">
-                    {region.label}
-                    {region.required && <span className="text-red-500 ml-1">*</span>}
-                  </label>
-                  {renderField(region)}
+              <div className="flex items-center justify-between">
+                <h2 className="font-semibold text-gray-900">Configurable Properties</h2>
+                <button
+                  type="button"
+                  onClick={() => setShowSource(!showSource)}
+                  className={`btn btn-sm ${showSource ? 'btn-primary' : 'btn-ghost text-gray-500'} flex items-center gap-2`}
+                  title={showSource ? "Switch to Visual Editor" : "Edit Raw JSON Source"}
+                >
+                  <Code className="w-4 h-4" />
+                  {showSource ? 'View Editor' : 'Edit Source'}
+                </button>
+              </div>
+
+              {showSource ? (
+                <div className="space-y-2">
+                  <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded border border-amber-100">
+                    <strong>Warning:</strong> Editing raw JSON can break the visual editor if the structure doesn't match the template regions.
+                  </p>
+                  <CodeEditor
+                    mode="json"
+                    value={JSON.stringify(widget.content, null, 2)}
+                    onChange={(val) => {
+                      try {
+                        const parsed = JSON.parse(val);
+                        setWidget(prev => ({ ...prev, content: parsed }));
+                      } catch (e) {
+                        // Invalid JSON
+                      }
+                    }}
+                    height="500px"
+                  />
                 </div>
-              ))}
+              ) : (
+                <div className="space-y-6">
+                  {regions.map((region) => (
+                    <div key={region.name}>
+                      <label className="label">
+                        {region.label}
+                        {region.required && <span className="text-red-500 ml-1">*</span>}
+                      </label>
+                      {renderField(region)}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

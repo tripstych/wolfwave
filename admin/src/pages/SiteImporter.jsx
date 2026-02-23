@@ -94,6 +94,14 @@ export default function SiteImporter() {
           });
         }
       }
+      if (e.data.type === 'WOLFWAVE_SELECTOR_REMOVED') {
+        const { field } = e.data;
+        setSelectorMap(prev => {
+          const next = { ...prev };
+          delete next[field];
+          return next;
+        });
+      }
       if (e.data.type === 'WOLFWAVE_PICKER_DONE') {
         setShowPicker(false);
         if (editingRule) {
@@ -189,9 +197,16 @@ export default function SiteImporter() {
         
         const iframe = document.getElementById('wolfwave-picker-iframe');
         if (iframe && iframe.contentWindow) {
+          // 1. Send Field List
           iframe.contentWindow.postMessage({
             type: 'WOLFWAVE_SET_FIELDS',
             fields: fields
+          }, '*');
+
+          // 2. Send Currently Mapped Fields
+          iframe.contentWindow.postMessage({
+            type: 'WOLFWAVE_SET_MAPPED_FIELDS',
+            fields: Object.keys(selectorMap)
           }, '*');
         }
       }
@@ -203,7 +218,7 @@ export default function SiteImporter() {
     if (showPicker && selectedTemplateId) {
       handlePickerLoad();
     }
-  }, [selectedTemplateId]);
+  }, [selectedTemplateId, selectorMap]); // Added selectorMap to deps
 
   const refreshGroupsAndProducts = useCallback(async (site) => {
     const groupsData = await api.get(`/import/sites/${site.id}/groups`);
