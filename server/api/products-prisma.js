@@ -72,6 +72,7 @@ router.get('/', requireAuth, async (req, res) => {
       ...p,
       title: p.content?.title || 'Untitled',
       content: p.content?.data || {},
+      image: p.image || '',
       variants: p.product_variants
     }));
 
@@ -109,7 +110,7 @@ router.get('/:id', requireAuth, async (req, res) => {
       ...product,
       title: product.content?.title || 'Untitled',
       slug: product.content?.slug || '',
-      og_image: contentData.og_image || '',
+      image: product.image || '',
       content: contentData,
       access_rules: product.access_rules ? (typeof product.access_rules === 'string' ? JSON.parse(product.access_rules) : product.access_rules) : null,
       variants: product.product_variants
@@ -128,6 +129,7 @@ router.post('/', requireAuth, requireEditor, async (req, res) => {
       title,
       slug: providedSlug,
       content,
+      image,
       sku,
       price,
       compare_at_price,
@@ -182,6 +184,7 @@ router.post('/', requireAuth, requireEditor, async (req, res) => {
       data: {
         template_id,
         content_id: contentRecord.id,
+        image: image || null,
         sku,
         price,
         compare_at_price: compare_at_price || null,
@@ -246,7 +249,7 @@ router.put('/:id', requireAuth, requireEditor, async (req, res) => {
       title,
       slug: providedSlug,
       content,
-      og_image,
+      image,
       sku,
       price,
       compare_at_price,
@@ -298,10 +301,11 @@ router.put('/:id', requireAuth, requireEditor, async (req, res) => {
     if (requires_shipping !== undefined) productUpdates.requires_shipping = requires_shipping;
     if (taxable !== undefined) productUpdates.taxable = taxable;
     if (status !== undefined) productUpdates.status = status;
+    if (image !== undefined) productUpdates.image = image;
     if (access_rules !== undefined) productUpdates.access_rules = access_rules || null;
 
     // Update content if provided
-    if (existing.content_id && (content !== undefined || title !== undefined || providedSlug !== undefined || og_image !== undefined)) {
+    if (existing.content_id && (content !== undefined || title !== undefined || providedSlug !== undefined)) {
       let contentData = existing.content?.data || {};
 
       const contentUpdates = {};
@@ -314,13 +318,10 @@ router.put('/:id', requireAuth, requireEditor, async (req, res) => {
         }
         contentUpdates.slug = slug;
       }
-      if (og_image !== undefined) {
-        contentData.og_image = og_image;
-      }
       if (content !== undefined) {
         contentData = { ...contentData, ...content };
       }
-      if (og_image !== undefined || content !== undefined) {
+      if (content !== undefined) {
         contentUpdates.data = contentData;
       }
 

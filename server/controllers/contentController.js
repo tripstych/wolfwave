@@ -168,7 +168,7 @@ export const renderContent = async (req, res) => {
         // Build product query with filters if it's the products module
         let sql = `
           SELECT c.id, c.module, c.slug, c.title, COALESCE(c.data, '{}') as data,
-                 p.price, p.sku, p.inventory_quantity
+                 p.price, p.sku, p.inventory_quantity, p.image
           FROM content c
           LEFT JOIN products p ON c.id = p.content_id
           WHERE c.module = ? AND c.slug IS NOT NULL
@@ -301,12 +301,6 @@ export const renderContent = async (req, res) => {
           [pageData.id]
         );
         pageData.variants = variants;
-
-        // Surface og_image from content.data onto pageData for template access
-        const productContent = parseJsonField(contentRow.data) || {};
-        if (productContent.og_image) {
-          pageData.og_image = productContent.og_image;
-        }
       }
     } else if (contentType === 'blocks') {
       const blocks = await query(`
@@ -351,7 +345,7 @@ export const renderContent = async (req, res) => {
       og: {
         title: pageData.og_title || pageData.meta_title || contentRow.title,
         description: pageData.og_description || pageData.meta_description || '',
-        image: pageData.og_image || '',
+        image: pageData.image || pageData.og_image || '',
         url: `${site.site_url}${slug}`,
         type: 'website'
       },

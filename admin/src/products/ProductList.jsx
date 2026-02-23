@@ -10,6 +10,19 @@ export default function ProductList() {
 
   const columns = [
     {
+      key: 'image',
+      label: 'Image',
+      render: (value) => (
+        <div className="w-12 h-12 rounded-lg border bg-gray-50 flex items-center justify-center overflow-hidden">
+          {value ? (
+            <img src={value} alt="" className="w-full h-full object-cover" />
+          ) : (
+            <div className="text-gray-400 text-[10px] uppercase font-bold">No img</div>
+          )}
+        </div>
+      ),
+    },
+    {
       key: 'title',
       label: 'Title',
       render: (value, row) => (

@@ -136,8 +136,8 @@ export default function ProductEditor() {
   };
 
   const handleMediaSelect = (media) => {
-    if (mediaPickerTarget === 'og_image') {
-      handleFieldChange('og_image', media.url);
+    if (mediaPickerTarget === 'image') {
+      handleFieldChange('image', media.url);
     } else if (mediaPickerTarget?.startsWith('variant.')) {
       const vIndex = parseInt(mediaPickerTarget.split('.')[1]);
       const newVariants = [...product.variants];
@@ -201,7 +201,7 @@ export default function ProductEditor() {
           content: { ...prev.content, description: data.description || '' },
           price: data.price ? parseFloat(data.price) : prev.price,
           sku: data.sku || prev.sku,
-          og_image: data.images ? data.images[0] : prev.og_image
+          image: data.images ? data.images[0] : prev.image
         }));
         toast.success('Product data imported!');
       }
@@ -445,6 +445,34 @@ export default function ProductEditor() {
         </div>
 
         <div className="space-y-6">
+          <div className="card p-6 space-y-4">
+            <h2 className="mt-0 mb-0 text-lg font-bold">Product Image</h2>
+            {product.image ? (
+              <div className="relative group">
+                <img src={product.image} alt="" className="w-full aspect-square object-cover rounded-lg border" />
+                <button 
+                  onClick={() => handleFieldChange('image', null)}
+                  className="absolute top-2 right-2 p-1.5 bg-white rounded-full shadow-md text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => openMediaPicker('image')}
+                className="w-full aspect-square border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center gap-2 text-gray-500 hover:border-primary-500 hover:text-primary-500 transition-colors"
+              >
+                <ImageIcon className="w-8 h-8" />
+                <span className="text-sm font-medium">Add Image</span>
+              </button>
+            )}
+            {product.image && (
+              <button onClick={() => openMediaPicker('image')} className="btn btn-secondary w-full text-xs">
+                Change Image
+              </button>
+            )}
+          </div>
+
           <div className="card p-6 space-y-4 border-amber-200 bg-amber-50/30">
             <div className="flex items-center gap-2 text-amber-700 font-bold text-xs uppercase"><Globe className="w-4 h-4" /> Live Visual Scrape</div>
             <input type="url" placeholder="URL..." value={scrapeUrl} onChange={e => setScrapeUrl(e.target.value)} className="input text-sm" />
@@ -476,7 +504,7 @@ export default function ProductEditor() {
           <SEOSection
             data={product}
             onChange={(newData) => setProduct(newData)}
-            openMediaPicker={openMediaPicker}
+            hideImage={true}
           />
         </div>
       </div>

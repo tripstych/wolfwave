@@ -393,6 +393,7 @@ model products {
   taxable              Boolean?              @default(true)
   access_rules         Json?
   is_digital           Boolean?              @default(false)
+  image                String?               @db.VarChar(500)
   download_url         String?               @db.VarChar(500)
   download_limit       Int?                  @default(5)
   download_expiry_days Int?                  @default(30)

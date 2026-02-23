@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronDown, ChevronUp, Image as ImageIcon } from 'lucide-react';
 
-export default function SEOSection({ data, onChange, openMediaPicker }) {
+export default function SEOSection({ data, onChange, openMediaPicker = () => {}, hideImage = false }) {
   const [isOpen, setIsOpen] = useState(false);
 
   const handleFieldChange = (field, value) => {
@@ -52,20 +52,22 @@ export default function SEOSection({ data, onChange, openMediaPicker }) {
               {(data.meta_description || '').length}/160 characters
             </p>
           </div>
-          <div>
-            <label className="label">OG Image</label>
-            {data.og_image && (
-              <img src={data.og_image} alt="" className="max-w-full rounded-lg border mb-2 h-32 object-cover" />
-            )}
-            <button
-              type="button"
-              onClick={() => openMediaPicker('og_image')}
-              className="btn btn-secondary w-full"
-            >
-              <ImageIcon className="w-4 h-4 mr-2" />
-              {data.og_image ? 'Change' : 'Select'} OG Image
-            </button>
-          </div>
+          {!hideImage && (
+            <div>
+              <label className="label">OG Image</label>
+              {data.og_image && (
+                <img src={data.og_image} alt="" className="max-w-full rounded-lg border mb-2 h-32 object-cover" />
+              )}
+              <button
+                type="button"
+                onClick={() => openMediaPicker('og_image')}
+                className="btn btn-secondary w-full"
+              >
+                <ImageIcon className="w-4 h-4 mr-2" />
+                {data.og_image ? 'Change' : 'Select'} OG Image
+              </button>
+            </div>
+          )}
           {data.hasOwnProperty('robots') && (
             <div>
               <label className="label">Robots</label>
