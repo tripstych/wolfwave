@@ -29,6 +29,7 @@ export default function Sidebar({ isOpen, onClose, contentTypes = [] }) {
     {
       section: 'Store',
       items: [
+        { name: 'My Sites', href: '/my-sites', icon: Globe },
         { name: 'Products', href: '/products', icon: Package },
         { name: 'Orders', href: '/orders', icon: Briefcase },
         { name: 'Customers', href: '/customers', icon: Users },
@@ -65,7 +66,7 @@ export default function Sidebar({ isOpen, onClose, contentTypes = [] }) {
         { name: 'Themes', href: '/themes', icon: Palette },
         { name: 'Styles', href: '/styles', icon: Palette },
         { name: 'Users', href: '/users', icon: Users },
-        { name: 'Tenants', href: '/tenants', icon: Building },
+        { name: 'Sites', href: '/tenants', icon: Globe },
         { name: 'Email Templates', href: '/email-templates', icon: Mail },
         { name: 'SEO', href: '/seo', icon: Search },
         { name: 'Configuration', href: '/settings', icon: Settings }

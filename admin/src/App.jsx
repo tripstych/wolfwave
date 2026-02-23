@@ -30,6 +30,8 @@ import UserEditor from './users/UserEditor';
 import CustomerList from './customers/CustomerList';
 import CustomerDetail from './customers/CustomerDetail';
 import TenantList from './tenants/TenantList';
+import Sites from './tenants/Sites';
+import MySites from './tenants/MySites';
 import Themes from './settings/Themes';
 import ThemeEditor from './settings/ThemeEditor';
 import StyleEditor from './settings/StyleEditor';
@@ -104,6 +106,8 @@ function App() {
                 <Route path="/marketing/coupons" element={<CouponList />} />
                 <Route path="/marketing/coupons/new" element={<CouponEditor />} />
                 <Route path="/marketing/coupons/:id" element={<CouponEditor />} />
+                <Route path="/sites" element={<Sites />} />
+                <Route path="/my-sites" element={<MySites />} />
                 <Route path="/tenants" element={<TenantList />} />
                 <Route path="/themes" element={<Themes />} />
                 <Route path="/themes/:themeName/editor" element={<ThemeEditor />} />
