@@ -19,7 +19,7 @@ import useContentEditor from '../hooks/useContentEditor';
 
 // Icons
 import { 
-  Save, ArrowLeft, ExternalLink, Plus, X, Trash2, DownloadCloud, Loader2, Globe, Maximize2, Image as ImageIcon, Code 
+  Save, ArrowLeft, ExternalLink, Plus, X, Trash2, DownloadCloud, Loader2, Globe, Maximize2, Image as ImageIcon, Code, Eye
 } from 'lucide-react';
 import { toast } from 'sonner';
 
