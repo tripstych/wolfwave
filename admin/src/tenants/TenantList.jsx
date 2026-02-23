@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Trash2, Pause, Play, ExternalLink, Globe } from 'lucide-react';
+import { Plus, Trash2, Pause, Play, ExternalLink, Globe, LogIn } from 'lucide-react';
 import DataTable from '../components/DataTable';
 import api from '../lib/api';
 
@@ -57,6 +57,16 @@ export default function TenantList() {
       refetch();
     } catch (err) {
       setError(err.message);
+    }
+  };
+
+  const handleLoginAs = async (tenant) => {
+    try {
+      const { token } = await api.post(`/tenants/${tenant.id}/impersonate`);
+      const baseUrl = getTenantUrl(tenant.subdomain);
+      window.open(`${baseUrl}/api/auth/impersonate?token=${token}`, '_blank');
+    } catch (err) {
+      console.error('Login error:', err);
     }
   };
 
@@ -214,6 +224,12 @@ export default function TenantList() {
             title: 'Open Site',
             variant: 'blue',
             onClick: (row) => window.open(getTenantUrl(row.subdomain), '_blank'),
+          },
+          {
+            icon: LogIn,
+            title: 'Login As Admin',
+            variant: 'indigo',
+            onClick: (row) => handleLoginAs(row),
           },
           {
             icon: Pause,

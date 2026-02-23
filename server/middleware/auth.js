@@ -22,6 +22,17 @@ export function generateToken(user) {
 }
 
 /**
+ * Generate short-lived impersonation token
+ */
+export function generateImpersonationToken(tenantId) {
+  return jwt.sign(
+    { tenantId, type: 'impersonation' },
+    SAFE_JWT_SECRET,
+    { expiresIn: '1m' } // Very short lived
+  );
+}
+
+/**
  * Verify JWT token
  */
 export function verifyToken(token) {

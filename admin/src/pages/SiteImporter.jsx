@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../lib/api';
+import api, { parseRegions } from '../lib/api';
 import {
   Globe,
   Loader2,
@@ -102,11 +102,13 @@ export default function SiteImporter() {
 
   const handleSaveRule = async () => {
     if (!selectedSite || !selectedTemplateId) return;
+    const tpl = templates.find(t => t.id === parseInt(selectedTemplateId));
     try {
       const ruleData = {
         id: editingRule?.id,
         name: editingRuleName || 'New Import Rule',
         template_id: parseInt(selectedTemplateId),
+        content_type: tpl?.content_type || 'pages',
         selector_map: selectorMap
       };
 
@@ -144,10 +146,10 @@ export default function SiteImporter() {
   };
 
   const applyRuleToSelection = async (rule) => {
-    const selection = view === 'products' ? Array.from(selectedProducts) : Array.from(selectedPages);
-    if (selection.length === 0) return alert('Select pages to migrate first');
+    const selection = rule.content_type === 'products' ? Array.from(selectedProducts) : Array.from(selectedPages);
+    if (selection.length === 0) return alert('Select items to migrate first');
 
-    if (!confirm(`Migrate ${selection.length} pages using rule "${rule.name}"?`)) return;
+    if (!confirm(`Migrate ${selection.length} items using rule "${rule.name}"?`)) return;
 
     try {
       setMigrating(true);
@@ -161,7 +163,10 @@ export default function SiteImporter() {
       
       alert(`Migration complete! \nSuccess: ${successCount}\nFailed: ${failCount}`);
       
-      if (successCount > 0) navigate('/pages');
+      if (successCount > 0) {
+        if (rule.content_type === 'products') navigate('/products');
+        else navigate('/pages');
+      }
     } catch (err) { alert(err.message); }
     finally { setMigrating(false); }
   };
@@ -282,7 +287,13 @@ export default function SiteImporter() {
   const loadTemplates = async () => {
     try {
       const data = await api.get('/templates');
-      setTemplates(data.data || []);
+      const list = data.data || [];
+      // Annotate templates with region count for easier filtering in UI
+      const annotated = list.map(t => ({
+        ...t,
+        regionCount: parseRegions(t.regions).length
+      }));
+      setTemplates(annotated);
     } catch (err) { console.error(err); }
   };
 
@@ -1011,13 +1022,25 @@ export default function SiteImporter() {
               />
               <select 
                 value={selectedTemplateId} 
-                onChange={(e) => setSelectedTemplateId(e.target.value)}
+                onChange={(e) => {
+                  const id = e.target.value;
+                  setSelectedTemplateId(id);
+                  const tpl = templates.find(t => t.id === parseInt(id));
+                  if (tpl) {
+                    // Sync the view based on the template content type
+                    if (tpl.content_type === 'products') setView('products');
+                    else setView('pages');
+                  }
+                }}
                 className="input py-1 text-sm max-w-[200px]"
               >
                 <option value="">Select Target Template...</option>
-                {templates.map(t => (
-                  <option key={t.id} value={t.id}>{t.name} ({t.filename})</option>
-                ))}
+                {templates
+                  .filter(t => t.regionCount > 0)
+                  .map(t => (
+                    <option key={t.id} value={t.id}>{t.name} ({t.filename})</option>
+                  ))
+                }
               </select>
               <div className="flex gap-2">
                 {Object.entries(selectorMap).map(([field, selector]) => (

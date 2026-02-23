@@ -5,6 +5,7 @@ import { getPoolForDb } from '../lib/poolManager.js';
 import { provisionTenant } from '../db/provisionTenant.js';
 import { syncTemplatesToDb } from '../services/templateParser.js';
 import { seedNewTenant } from '../services/tenantSeeder.js';
+import { generateImpersonationToken } from '../middleware/auth.js';
 import prisma from '../lib/prisma.js';
 import { runWithTenant } from '../lib/tenantContext.js';
 
@@ -184,6 +185,20 @@ router.patch('/:id/status', requireAuth, requireAdmin, async (req, res) => {
   } catch (err) {
     console.error('Tenant status update error:', err);
     res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /:id/impersonate — Generate a token to log into this tenant's admin
+ */
+router.post('/:id/impersonate', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const tenantId = parseInt(req.params.id);
+    const token = generateImpersonationToken(tenantId);
+    res.json({ token });
+  } catch (err) {
+    console.error('Impersonation token error:', err);
+    res.status(500).json({ error: 'Failed to generate impersonation token' });
   }
 });
 

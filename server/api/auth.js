@@ -1,9 +1,53 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 import { query } from '../db/connection.js';
 import { generateToken, requireAuth, requireAdmin } from '../middleware/auth.js';
 
 const router = Router();
+
+// Impersonate (Login As)
+router.get('/impersonate', async (req, res) => {
+  try {
+    const { token } = req.query;
+    if (!token) return res.status(400).send('Missing token');
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'dev-secret-change-in-production');
+    
+    if (decoded.type !== 'impersonation') {
+      return res.status(400).send('Invalid token type');
+    }
+
+    // Tenant check: ensure we are on the correct tenant database
+    // The middleware already resolved the DB based on the domain.
+    // We just need to find an admin user in THIS database.
+    const admins = await query("SELECT * FROM users WHERE role = 'admin' LIMIT 1");
+    const admin = admins[0];
+
+    if (!admin) {
+      return res.status(404).send('No admin user found for this tenant');
+    }
+
+    // Generate standard token for this admin
+    const authToken = jwt.sign(
+      { id: admin.id, email: admin.email, role: admin.role },
+      process.env.JWT_SECRET || 'dev-secret-change-in-production',
+      { expiresIn: '24h' }
+    );
+
+    res.cookie('token', authToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+      maxAge: 24 * 60 * 60 * 1000
+    });
+
+    res.redirect('/admin');
+  } catch (err) {
+    console.error('Impersonation error:', err);
+    res.status(401).send('Invalid or expired impersonation token');
+  }
+});
 
 // Login
 router.post('/login', async (req, res) => {
