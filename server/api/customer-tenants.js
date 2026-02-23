@@ -5,8 +5,9 @@ import { getPoolForDb } from '../lib/poolManager.js';
 import { provisionTenant } from '../db/provisionTenant.js';
 import { syncTemplatesToDb } from '../services/templateParser.js';
 import { seedNewTenant } from '../services/tenantSeeder.js';
-import { runWithTenant } from '../lib/tenantContext.js';
+import { runWithTenant, getCurrentDbName } from '../lib/tenantContext.js';
 import { generateImpersonationToken } from '../middleware/auth.js';
+import { getTenantInfoByDb, getCustomerSubscriptionStats } from '../services/tenantService.js';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 
@@ -107,128 +108,123 @@ router.get('/', requireCustomer, async (req, res) => {
  * GET /limits — check current site limits
  */
 router.get('/limits', requireCustomer, async (req, res) => {
+  const currentDb = getCurrentDbName();
   const primaryDb = process.env.DB_NAME || 'wolfwave_default';
-  return runWithTenant(primaryDb, async () => {
-    try {
-      if (!req.customer) {
-        return res.json({
-          used: 0,
-          limit: 0,
-          plan_name: 'No active license',
-          can_create: false,
-          no_customer: true
-        });
+  
+  try {
+    let targetCustomerId = req.customer?.id;
+    let isResellerChild = false;
+
+    // If we are on a tenant site, we check the TENANT OWNER'S limits
+    if (currentDb !== primaryDb) {
+      const tenantInfo = await getTenantInfoByDb(currentDb);
+      if (tenantInfo?.customer_id) {
+        targetCustomerId = tenantInfo.customer_id;
+        isResellerChild = true;
       }
-      const customer = await prisma.customers.findUnique({
-        where: { id: req.customer.id },
-        include: {
-          customer_subscriptions: {
-            where: { status: 'active' },
-            include: { subscription_plans: true },
-            take: 1
-          },
-          _count: {
-            select: { tenants: true }
-          }
-        }
-      });
-
-      if (!customer) return res.status(404).json({ error: 'Customer not found' });
-
-      const activeSub = customer.customer_subscriptions[0];
-      const planLimit = activeSub?.subscription_plans?.max_sites || 0;
-      const override = customer.max_sites_override;
-      const effectiveLimit = override !== null ? override : planLimit;
-
-      res.json({
-        used: customer._count.tenants,
-        limit: effectiveLimit,
-        plan_name: activeSub?.subscription_plans?.name || 'No Plan',
-        can_create: customer._count.tenants < effectiveLimit
-      });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
     }
-  });
+
+    if (!targetCustomerId) {
+      return res.json({
+        used: 0,
+        limit: 0,
+        plan_name: 'No active license',
+        can_create: false,
+        no_customer: true
+      });
+    }
+
+    const stats = await getCustomerSubscriptionStats(targetCustomerId);
+    
+    if (!stats) return res.status(404).json({ error: 'License owner not found' });
+
+    res.json({
+      ...stats,
+      is_reseller_pool: isResellerChild
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 /**
  * POST / — provision a new tenant for the customer
  */
 router.post('/', requireCustomer, async (req, res) => {
+  const currentDb = getCurrentDbName();
   const primaryDb = process.env.DB_NAME || 'wolfwave_default';
-  return runWithTenant(primaryDb, async () => {
-    try {
-      const { name, subdomain } = req.body;
+  
+  try {
+    const { name, subdomain } = req.body;
+    if (!name || !subdomain) {
+      return res.status(400).json({ error: 'Name and subdomain are required' });
+    }
 
-      if (!name || !subdomain) {
-        return res.status(400).json({ error: 'Name and subdomain are required' });
+    let targetCustomerId = req.customer?.id;
+    
+    // 1. Resolve Ownership (Hierarchical)
+    if (currentDb !== primaryDb) {
+      const tenantInfo = await getTenantInfoByDb(currentDb);
+      if (tenantInfo?.customer_id) {
+        targetCustomerId = tenantInfo.customer_id;
       }
+    }
 
-      // 1. Check limits
-      const customer = await prisma.customers.findUnique({
-        where: { id: req.customer.id },
-        include: {
-          customer_subscriptions: {
-            where: { status: 'active' },
-            include: { subscription_plans: true },
-            take: 1
-          },
-          _count: {
-            select: { tenants: true }
-          }
-        }
-      });
+    if (!targetCustomerId) {
+      return res.status(403).json({ error: 'No active license found for this site.' });
+    }
 
-      if (!customer) return res.status(404).json({ error: 'Customer not found' });
+    // 2. Check limits against the target customer (Reseller or Self)
+    const stats = await getCustomerSubscriptionStats(targetCustomerId);
+    let isOverage = false;
+    
+    if (stats && !stats.can_create) {
+      // SOFT LIMIT: Allow creation but flag as overage
+      isOverage = true;
+      console.log(`[OVERAGE] Customer ${targetCustomerId} is creating a site over their limit of ${stats.limit}.`);
+    }
 
-      const activeSub = customer.customer_subscriptions[0];
-      const planLimit = activeSub?.subscription_plans?.max_sites || 0;
-      const effectiveLimit = customer.max_sites_override !== null ? customer.max_sites_override : planLimit;
-
-      if (customer._count.tenants >= effectiveLimit) {
-        return res.status(403).json({ 
-          error: 'Limit reached', 
-          message: `You have reached your limit of ${effectiveLimit} site(s). Please upgrade your plan to create more.` 
-        });
-      }
-
-      // 2. Validate subdomain format
+    return runWithTenant(primaryDb, async () => {
+      // 3. Validate subdomain format
       if (!/^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$/.test(subdomain)) {
         return res.status(400).json({
           error: 'Subdomain must be lowercase alphanumeric with optional hyphens'
         });
       }
 
-      // 3. Check globally if subdomain exists
+      // 4. Check globally if subdomain exists
       const existing = await prisma.tenants.findUnique({ where: { subdomain } });
       if (existing) {
         return res.status(409).json({ error: 'Subdomain already in use' });
       }
 
-      // 4. Provision
-      // Fetch the customer's actual hashed password from the primary DB
+      // 5. Provision
       const customerRecord = await prisma.customers.findUnique({
         where: { id: req.customer.id },
         select: { password: true }
       });
 
-      // The customer is the "owner" in the primary DB.
-      // We pass their existing hash so they can log in immediately.
       const dbName = await provisionTenant(subdomain, req.customer.email, customerRecord?.password || 'admin123', true);
 
-      // 5. Register
+      // 6. Register
       const tenant = await prisma.tenants.create({
         data: {
           name,
           subdomain,
           database_name: dbName,
-          customer_id: req.customer.id,
+          customer_id: targetCustomerId,
           status: 'active'
         }
       });
 
-      // 6. Setup tenant
+      // 7. Handle Overage Notification/Billing
+      if (isOverage) {
+        // TODO: Trigger email to reseller
+        // TODO: Update Stripe subscription quantity or add metered charge
+        console.log(`[OVERAGE_BILLING] Triggering charge for customer ${targetCustomerId}`);
+      }
+
+      // 7. Setup tenant
       try {
         await runWithTenant(dbName, async () => {
           await syncTemplatesToDb(prisma, 'default');
@@ -239,11 +235,11 @@ router.post('/', requireCustomer, async (req, res) => {
       }
 
       res.status(201).json(tenant);
-    } catch (err) {
-      console.error('Customer site creation error:', err);
-      res.status(500).json({ error: err.message });
-    }
-  });
+    });
+  } catch (err) {
+    console.error('Customer site creation error:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 /**
