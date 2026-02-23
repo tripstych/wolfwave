@@ -342,9 +342,16 @@ export default function Sites() {
               onClick: (row) => handleLoginAs(row),
             },
             {
-              icon: tenant => tenant.status === 'active' ? Pause : Play,
-              title: tenant => tenant.status === 'active' ? 'Suspend' : 'Activate',
+              icon: Pause,
+              title: 'Suspend',
               onClick: (row) => handleStatusToggle(row),
+              show: (row) => row.status === 'active',
+            },
+            {
+              icon: Play,
+              title: 'Activate',
+              onClick: (row) => handleStatusToggle(row),
+              show: (row) => row.status !== 'active',
             },
             {
               icon: Trash2,
