@@ -6,6 +6,7 @@ import { provisionTenant } from '../db/provisionTenant.js';
 import { syncTemplatesToDb } from '../services/templateParser.js';
 import { seedNewTenant } from '../services/tenantSeeder.js';
 import { runWithTenant } from '../lib/tenantContext.js';
+import { generateImpersonationToken } from '../middleware/auth.js';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 
@@ -241,6 +242,37 @@ router.post('/', requireCustomer, async (req, res) => {
     } catch (err) {
       console.error('Customer site creation error:', err);
       res.status(500).json({ error: err.message });
+    }
+  });
+});
+
+/**
+ * POST /:id/impersonate — Generate a token to log into this tenant's admin
+ * Only allowed if the tenant belongs to the current customer
+ */
+router.post('/:id/impersonate', requireCustomer, async (req, res) => {
+  const primaryDb = process.env.DB_NAME || 'wolfwave_default';
+  return runWithTenant(primaryDb, async () => {
+    try {
+      const tenantId = parseInt(req.params.id);
+      
+      // Ensure the tenant belongs to the customer
+      const tenant = await prisma.tenants.findFirst({
+        where: { 
+          id: tenantId,
+          customer_id: req.customer.id
+        }
+      });
+
+      if (!tenant) {
+        return res.status(404).json({ error: 'Site not found or access denied' });
+      }
+
+      const token = generateImpersonationToken(tenantId);
+      res.json({ token });
+    } catch (err) {
+      console.error('Customer impersonation error:', err);
+      res.status(500).json({ error: 'Failed to generate login token' });
     }
   });
 });

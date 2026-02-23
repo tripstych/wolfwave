@@ -72,6 +72,17 @@ export default function MySites() {
     }
   };
 
+  const handleLoginAs = async (site) => {
+    try {
+      const { token } = await api.post(`/customer-tenants/${site.id}/impersonate`);
+      const baseUrl = getTenantUrl(site.subdomain);
+      window.open(`${baseUrl}/api/auth/impersonate?token=${token}`, '_blank');
+    } catch (err) {
+      console.error('Login error:', err);
+      toast.error('Failed to log into site');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -216,9 +227,13 @@ export default function MySites() {
                     <ExternalLink className="w-3.5 h-3.5" /> Visit
                   </a>
                   <a 
-                    href={`${getTenantUrl(site.subdomain)}/admin`} 
+                    href={`${getTenantUrl(site.subdomain)}/admin/`} 
                     target="_blank" 
                     rel="noopener noreferrer"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleLoginAs(site);
+                    }}
                     className="btn btn-primary flex-1 py-1.5 text-xs flex items-center justify-center gap-1.5"
                   >
                     <LogIn className="w-3.5 h-3.5" /> Admin
