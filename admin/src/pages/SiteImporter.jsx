@@ -19,7 +19,8 @@ import {
   RotateCcw,
   Trash2,
   Plus,
-  Sparkles
+  Sparkles,
+  Search
 } from 'lucide-react';
 
 export default function SiteImporter() {
