@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { requireAuth, requireAdmin } from '../middleware/auth.js';
-import { generateThemeFromIndustry, generateImage, generateText, generateContentForFields } from '../services/aiService.js';
+import { generateThemeFromIndustry, generateImage, generateText, generateContentForFields, suggestSelectors } from '../services/aiService.js';
 import fs from 'fs/promises';
 import path from 'path';
 import { getThemesDir } from '../services/themeResolver.js';
@@ -143,6 +143,34 @@ router.post('/generate-content', requireAuth, async (req, res) => {
 
   } catch (error) {
     console.error('[AI-DEBUG] ❌ Content Generation Failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/ai/suggest-selectors
+ * Payload: { url: "...", fields: [...] }
+ */
+router.post('/suggest-selectors', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { url, fields } = req.body;
+    if (!url || !fields) return res.status(400).json({ error: 'URL and fields required' });
+
+    console.log(`[AI-DEBUG] 🔍 Suggesting selectors for URL: ${url}`);
+
+    // 1. Fetch HTML
+    const { data: html } = await axios.get(url, {
+      timeout: 10000,
+      headers: { 'User-Agent': 'WebWolf-AI-Discovery/1.0' }
+    });
+
+    // 2. Call AI Service
+    const suggestions = await suggestSelectors(fields, html, null, req);
+    
+    res.json({ success: true, suggestions });
+
+  } catch (error) {
+    console.error('[AI-DEBUG] ❌ Selector Suggestion Failed:', error.message);
     res.status(500).json({ error: error.message });
   }
 });

@@ -73,9 +73,15 @@ router.post('/extract', requireAuth, requireEditor, async (req, res) => {
     for (const [field, selector] of Object.entries(selector_map)) {
       const $el = $(selector);
       if ($el.length > 0) {
-        // For 'title', usually just text
-        if (field === 'title') results[field] = $el.first().text().trim();
-        else results[field] = $el.html().trim();
+        const tagName = $el.get(0).tagName.toLowerCase();
+        
+        if (tagName === 'img') {
+          results[field] = $el.attr('src') || $el.attr('data-src') || $el.attr('srcset');
+        } else if (field === 'title') {
+          results[field] = $el.first().text().trim();
+        } else {
+          results[field] = $el.html().trim();
+        }
       }
     }
 

@@ -17,7 +17,8 @@ export const CRAWLER_PRESETS = {
       { selector: 'form[action="/cart/add"]', urlPattern: '^/products/[^/]+$', action: 'setType', value: 'product' },
       { selector: '.product-single__title, .product__title', action: 'setField', value: 'title' },
       { selector: '.product-single__description, .product__description', action: 'setField', value: 'description' },
-      { selector: '[data-product-sku]', action: 'setField', value: 'sku' }
+      { selector: '[data-product-sku]', action: 'setField', value: 'sku' },
+      { selector: '.product-single__media img, .product__media img', action: 'setField', value: 'images' }
     ]
   },
   woocommerce: {
@@ -29,7 +30,8 @@ export const CRAWLER_PRESETS = {
       { selector: '.type-product', action: 'setType', value: 'product' },
       { selector: '.product_title', action: 'setField', value: 'title' },
       { selector: '.woocommerce-product-details__short-description', action: 'setField', value: 'description' },
-      { selector: '.sku', action: 'setField', value: 'sku' }
+      { selector: '.sku', action: 'setField', value: 'sku' },
+      { selector: '.woocommerce-product-gallery__image img', action: 'setField', value: 'images' }
     ]
   },
   magento: {

@@ -18,7 +18,8 @@ import {
   X,
   RotateCcw,
   Trash2,
-  Plus
+  Plus,
+  Sparkles
 } from 'lucide-react';
 
 export default function SiteImporter() {
@@ -52,6 +53,8 @@ export default function SiteImporter() {
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
   const [selectorMap, setSelectorMap] = useState({});
   const [showPicker, setShowPicker] = useState(false);
+  const [suggesting, setSuggesting] = useState(false);
+  const [previews, setPreviews] = useState({});
   const [pickerUrl, setPickerUrl] = useState('');
   const [editingRule, setEditingRule] = useState(null);
   const [editingRuleName, setEditingRuleName] = useState('');
@@ -248,6 +251,53 @@ export default function SiteImporter() {
 
     return () => clearInterval(interval);
   }, [refreshCrawlingSites]);
+
+  // 4. Live Preview Logic
+  useEffect(() => {
+    if (!showPicker || Object.keys(selectorMap).length === 0) {
+      setPreviews({});
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await api.post('/import/extract', {
+          url: pickerUrl.replace('/api/import/proxy?url=', ''),
+          selector_map: selectorMap
+        });
+        if (res.success) setPreviews(res.data || {});
+      } catch (err) { console.error('Preview error:', err); }
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timer);
+  }, [selectorMap, showPicker, pickerUrl]);
+
+  const suggestMappings = async () => {
+    if (!selectedTemplateId) return alert('Select a template first');
+    const tpl = templates.find(t => t.id === parseInt(selectedTemplateId));
+    if (!tpl) return;
+
+    setSuggesting(true);
+    const toastId = toast.loading('AI is analyzing page structure...');
+    try {
+      const regions = typeof tpl.regions === 'string' ? JSON.parse(tpl.regions) : tpl.regions;
+      const res = await api.post('/ai/suggest-selectors', { 
+        url: pickerUrl.replace('/api/import/proxy?url=', ''), 
+        fields: regions 
+      });
+      
+      if (res.suggestions) {
+        setSelectorMap(res.suggestions);
+        toast.success('AI suggested mappings applied!', { id: toastId });
+      } else {
+        toast.error('AI couldn\'t find confident matches.', { id: toastId });
+      }
+    } catch (err) {
+      toast.error('AI suggestion failed: ' + err.message, { id: toastId });
+    } finally {
+      setSuggesting(false);
+    }
+  };
 
   const openVisualPicker = (sampleUrl) => {
     if (!sampleUrl) return alert('No sample URL available');
@@ -1010,47 +1060,88 @@ export default function SiteImporter() {
 
       {showPicker && (
         <div className="fixed inset-0 z-[100] bg-black bg-opacity-75 flex flex-col !mt-0 !top-0">
-          <div className="bg-white p-4 flex justify-between items-center border-b">
-            <div className="flex items-center gap-4 flex-1">
-              <h2 className="font-bold shrink-0">Visual Selector Picker</h2>
-              <input 
-                type="text" 
-                placeholder="Rule Name (e.g. Blog Post Mapping)" 
-                value={editingRuleName}
-                onChange={e => setEditingRuleName(e.target.value)}
-                className="input py-1 text-sm max-w-[250px] border-amber-200 focus:border-amber-500 bg-amber-50"
-              />
-              <select 
-                value={selectedTemplateId} 
-                onChange={(e) => {
-                  const id = e.target.value;
-                  setSelectedTemplateId(id);
-                  const tpl = templates.find(t => t.id === parseInt(id));
-                  if (tpl) {
-                    // Sync the view based on the template content type
-                    if (tpl.content_type === 'products') setView('products');
-                    else setView('pages');
+          <div className="bg-white p-4 flex flex-col border-b">
+            <div className="flex justify-between items-center mb-4">
+              <div className="flex items-center gap-4 flex-1">
+                <h2 className="font-bold shrink-0 flex items-center gap-2">
+                  <Maximize2 className="w-5 h-5 text-primary-600" />
+                  Visual Selector Picker
+                </h2>
+                <input 
+                  type="text" 
+                  placeholder="Rule Name (e.g. Blog Post Mapping)" 
+                  value={editingRuleName}
+                  onChange={e => setEditingRuleName(e.target.value)}
+                  className="input py-1 text-sm max-w-[250px] border-amber-200 focus:border-amber-500 bg-amber-50"
+                />
+                <select 
+                  value={selectedTemplateId} 
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    setSelectedTemplateId(id);
+                    const tpl = templates.find(t => t.id === parseInt(id));
+                    if (tpl) {
+                      if (tpl.content_type === 'products') setView('products');
+                      else setView('pages');
+                    }
+                  }}
+                  className="input py-1 text-sm max-w-[200px]"
+                >
+                  <option value="">Select Target Template...</option>
+                  {templates
+                    .filter(t => t.regionCount > 0)
+                    .map(t => (
+                      <option key={t.id} value={t.id}>{t.name} ({t.filename})</option>
+                    ))
                   }
-                }}
-                className="input py-1 text-sm max-w-[200px]"
-              >
-                <option value="">Select Target Template...</option>
-                {templates
-                  .filter(t => t.regionCount > 0)
-                  .map(t => (
-                    <option key={t.id} value={t.id}>{t.name} ({t.filename})</option>
-                  ))
-                }
-              </select>
-              <div className="flex gap-2">
-                {Object.entries(selectorMap).map(([field, selector]) => (
-                  <span key={field} className="px-2 py-0.5 bg-green-100 text-green-700 text-[10px] font-mono rounded border border-green-200">
-                    {field}: {selector.substring(0, 15)}...
-                  </span>
-                ))}
+                </select>
+                <button 
+                  onClick={suggestMappings}
+                  disabled={suggesting || !selectedTemplateId}
+                  className="btn btn-secondary border-indigo-200 text-indigo-700 bg-indigo-50 flex items-center gap-2"
+                >
+                  {suggesting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                  AI Suggest Mappings
+                </button>
               </div>
+              <button onClick={() => setShowPicker(false)} className="btn btn-ghost"><X className="w-5 h-5" /></button>
             </div>
-            <button onClick={() => setShowPicker(false)} className="btn btn-ghost"><X className="w-5 h-5" /></button>
+            
+            {/* Live Preview Bar */}
+            <div className="flex gap-3 overflow-x-auto pb-2">
+              {Object.entries(selectorMap).map(([field, selector]) => {
+                const preview = previews[field];
+                const isImage = preview && (preview.startsWith('http') || preview.startsWith('/') || preview.match(/\.(jpg|jpeg|png|webp|gif|svg)/i));
+                
+                return (
+                  <div key={field} className="flex flex-col gap-1 min-w-[120px] max-w-[200px] bg-gray-50 border rounded p-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[10px] font-bold uppercase text-gray-400">{field}</span>
+                      <button onClick={() => setSelectorMap(prev => { const n = {...prev}; delete n[field]; return n; })} className="text-gray-300 hover:text-red-500">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                    {preview ? (
+                      isImage ? (
+                        <img src={preview} alt="" className="h-12 w-full object-cover rounded border bg-white" />
+                      ) : (
+                        <div className="text-[10px] text-gray-600 line-clamp-2 h-12 bg-white p-1 rounded border overflow-hidden text-ellipsis">
+                          {String(preview).replace(/<[^>]*>/g, '')}
+                        </div>
+                      )
+                    ) : (
+                      <div className="h-12 flex items-center justify-center border border-dashed rounded text-[9px] text-gray-300 bg-white italic">
+                        Not mapped
+                      </div>
+                    )}
+                    <div className="text-[8px] font-mono text-gray-400 truncate" title={selector}>{selector}</div>
+                  </div>
+                );
+              })}
+              {Object.keys(selectorMap).length === 0 && (
+                <div className="text-sm text-gray-400 italic py-2">Click elements in the page to map them to template fields...</div>
+              )}
+            </div>
           </div>
           <div className="flex-1 bg-white">
             <iframe 

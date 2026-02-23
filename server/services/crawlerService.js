@@ -13,7 +13,11 @@ function normalizeUrl(url) {
     nUrl.hash = '';
     
     // List of common query params to strip
-    const stripParams = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'fbclid', 'gclid', 'ref', 'variant', 'view'];
+    const stripParams = [
+      'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 
+      'fbclid', 'gclid', 'ref', 'variant', 'view',
+      'pr_prod_strat', 'pr_rec_id', 'pr_rec_pid', 'pr_ref_pid', 'pr_seq', '_ss', '_v', '_pos'
+    ];
     stripParams.forEach(p => nUrl.searchParams.delete(p));
 
     let cleaned = nUrl.toString();

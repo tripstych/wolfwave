@@ -22,7 +22,14 @@ export async function migratePage(importedPageId, templateId, selectorMap = { 'm
         extractedData[key] = automaticallyDetectContent($);
       } else {
         const $el = $(selector);
-        if ($el.length > 0) extractedData[key] = $el.html().trim();
+        if ($el.length > 0) {
+          const tagName = $el.get(0).tagName.toLowerCase();
+          if (tagName === 'img') {
+            extractedData[key] = $el.attr('src') || $el.attr('data-src') || $el.attr('srcset');
+          } else {
+            extractedData[key] = $el.html().trim();
+          }
+        }
       }
     }
 

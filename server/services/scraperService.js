@@ -117,9 +117,20 @@ export function extractMetadata($, rules = [], url = '') {
       switch (action) {
         case 'setType': result.type = value; break;
         case 'setField':
-          if (['price', 'sku', 'title', 'description'].includes(value)) {
+          if (['price', 'sku', 'title', 'description', 'image', 'images'].includes(value)) {
             if ($match && $match.length > 0) {
-              result[value] = $match.first().text().trim();
+              if (value === 'image' || value === 'images') {
+                const imgUrls = $match.map((i, el) => {
+                  let src = $(el).attr('src') || $(el).attr('data-src') || $(el).attr('data-lazy-src') || $(el).attr('srcset');
+                  if (src && src.includes(' ')) src = src.split(' ')[0]; // Handle srcset
+                  return src;
+                }).get().filter(Boolean);
+                
+                if (value === 'images') result.images.push(...imgUrls);
+                else result.images.unshift(imgUrls[0]);
+              } else {
+                result[value] = $match.first().text().trim();
+              }
             }
           }
           break;
@@ -132,6 +143,61 @@ export function extractMetadata($, rules = [], url = '') {
       }
     });
   }
+
+  // 5. Final Guessing (If still empty)
+  if (result.images.length === 0) {
+    // Look for anything that looks like a primary product image
+    const gallerySelectors = [
+      '.product-single__media-wrapper img',
+      '.product__media img',
+      '.product-gallery img',
+      '.woocommerce-product-gallery__image img',
+      '.featured-image',
+      '.primary-image',
+      '#main-image',
+      '#product-photo-container img',
+      '.product-main-image img',
+      '.gallery-item img'
+    ];
+    for (const sel of gallerySelectors) {
+      const $imgs = $(sel);
+      if ($imgs.length > 0) {
+        $imgs.each((i, el) => {
+          let src = $(el).attr('src') || $(el).attr('data-src') || $(el).attr('data-lazy-src') || $(el).attr('srcset');
+          if (src) {
+            if (src.includes(' ')) src = src.split(' ')[0];
+            result.images.push(src);
+          }
+        });
+        if (result.images.length > 0) break;
+      }
+    }
+  }
+
+  // 6. Generic Image Extraction (Last Resort - only if still empty)
+  if (result.images.length === 0 && result.type === 'product') {
+    $('img').each((i, el) => {
+      const $img = $(el);
+      const width = parseInt($img.attr('width') || '0');
+      const height = parseInt($img.attr('height') || '0');
+      const src = $img.attr('src') || $img.attr('data-src');
+      
+      // Skip small icons/spacers
+      if (src && !src.match(/icon|logo|avatar|spacer|pixel/i)) {
+        if ((width > 200 && height > 200) || (!width && !height)) {
+          result.images.push(src);
+        }
+      }
+    });
+  }
+
+  // Final cleanup and URL normalization
+  const origin = url ? new URL(url).origin : '';
+  result.images = [...new Set(result.images)].filter(Boolean).map(img => {
+    if (img.startsWith('//')) return 'https:' + img;
+    if (img.startsWith('/') && origin) return origin + img;
+    return img;
+  });
 
   // Clean numeric fields
   const numericFields = ['price', 'compare_at_price', 'cost', 'inventory_quantity', 'weight'];
@@ -152,39 +218,44 @@ export function extractMetadata($, rules = [], url = '') {
  * Looks for common container tags, IDs, and classes.
  */
 export function automaticallyDetectContent($) {
-  // 1. Semantic Tags
-  const semantic = $('main, article, [role="main"]').first();
-  if (semantic.length > 0) return semantic.html();
+  // 0. Pre-clean: remove obvious non-content
+  $('header, footer, nav, aside, .header, .footer, .nav, .sidebar, .comments, .social-share, .related-products, #header, #footer, #nav, script, style, noscript').remove();
+
+  // 1. Semantic Tags (Highest Priority)
+  const semantic = $('main, [role="main"], article').first();
+  if (semantic.length > 0 && semantic.text().trim().length > 100) return semantic.html().trim();
 
   // 2. Common Content IDs/Classes
   const common = [
     '#content', '#main', '#main-content', '.main-content', '.post-content', '.article-content',
-    '.entry-content', '.product-description', '#description'
+    '.entry-content', '.product-description', '#description', '.product-single__description',
+    '.product__description', '.page-content'
   ];
   for (const selector of common) {
     const el = $(selector).first();
-    if (el.length > 0 && el.text().trim().length > 200) {
-      return el.html();
+    if (el.length > 0 && el.text().trim().length > 100) {
+      return el.html().trim();
     }
   }
 
-  // 3. Heuristic: Find element with highest text density (crude)
+  // 3. Heuristic: Find element with highest text density
   let best = $('body');
   let maxLen = 0;
+  
   $('div, section').each((i, el) => {
-    const text = $(el).text().trim();
-    if (text.length > maxLen) {
-      // Avoid common footer/header patterns
-      const id = $(el).attr('id') || '';
-      const cls = $(el).attr('class') || '';
-      if (id.match(/footer|header|nav/i) || cls.match(/footer|header|nav/i)) return;
-      
-      maxLen = text.length;
-      best = $(el);
+    const $el = $(el);
+    const text = $el.text().trim();
+    // Calculate a simple score based on text length and tag depth
+    // We want deep nodes with lots of text, but not the body itself
+    const score = text.length; 
+    
+    if (score > maxLen) {
+      maxLen = score;
+      best = $el;
     }
   });
 
-  return best.html();
+  return best.html()?.trim() || '';
 }
 
 export async function scrapeUrl(url) {
