@@ -77,7 +77,11 @@ router.post('/extract', requireAuth, requireEditor, async (req, res) => {
         const type = field_types[field] || 'text';
         
         if (tagName === 'img') {
-          results[field] = $el.attr('src') || $el.attr('data-src') || $el.attr('srcset');
+          if ($el.length > 1) {
+            results[field] = $el.map((i, el) => $(el).attr('src') || $(el).attr('data-src') || $(el).attr('srcset')).get().filter(Boolean);
+          } else {
+            results[field] = $el.attr('src') || $el.attr('data-src') || $el.attr('srcset');
+          }
         } else if (type === 'richtext') {
           results[field] = $el.html().trim();
         } else {

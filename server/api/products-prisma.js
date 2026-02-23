@@ -4,6 +4,7 @@ import { requireAuth, requireEditor } from '../middleware/auth.js';
 import prisma from '../lib/prisma.js';
 import { generateSearchIndex } from '../lib/searchIndexer.js';
 import { updateContent } from '../services/contentService.js';
+import { downloadImage, processHtmlImages } from '../services/mediaService.js';
 
 const router = Router();
 
@@ -56,6 +57,9 @@ router.get('/', requireAuth, async (req, res) => {
       where,
       include: {
         content: true,
+        product_images: {
+          orderBy: { position: 'asc' }
+        },
         product_variants: {
           orderBy: { position: 'asc' }
         }
@@ -72,7 +76,8 @@ router.get('/', requireAuth, async (req, res) => {
       ...p,
       title: p.content?.title || 'Untitled',
       content: p.content?.data || {},
-      image: p.image || '',
+      image: p.image || p.product_images?.[0]?.url || '',
+      images: p.product_images,
       variants: p.product_variants
     }));
 
@@ -95,6 +100,9 @@ router.get('/:id', requireAuth, async (req, res) => {
       where: { id: productId },
       include: {
         content: true,
+        product_images: {
+          orderBy: { position: 'asc' }
+        },
         product_variants: {
           orderBy: { position: 'asc' }
         }
@@ -110,7 +118,8 @@ router.get('/:id', requireAuth, async (req, res) => {
       ...product,
       title: product.content?.title || 'Untitled',
       slug: product.content?.slug || '',
-      image: product.image || '',
+      image: product.image || product.product_images?.[0]?.url || '',
+      images: product.product_images,
       content: contentData,
       access_rules: product.access_rules ? (typeof product.access_rules === 'string' ? JSON.parse(product.access_rules) : product.access_rules) : null,
       variants: product.product_variants
@@ -130,6 +139,7 @@ router.post('/', requireAuth, requireEditor, async (req, res) => {
       slug: providedSlug,
       content,
       image,
+      images,
       sku,
       price,
       compare_at_price,
@@ -168,14 +178,26 @@ router.post('/', requireAuth, requireEditor, async (req, res) => {
       productSlug = '/products/' + productSlug;
     }
 
+    // Process images and content for local storage
+    const userId = req.user?.id;
+    const processedImage = image ? await downloadImage(image, title, userId) : null;
+    const processedImages = images ? await Promise.all(images.map(img => downloadImage(img.url || img, title, userId).then(url => ({ url, alt: img.alt || '', position: img.position })))) : [];
+    const processedVariants = variants ? await Promise.all(variants.map(async v => ({ ...v, image: v.image ? await downloadImage(v.image, v.title, userId) : null }))) : [];
+    
+    // Process HTML content for images
+    const processedContent = content || {};
+    if (processedContent.description) {
+      processedContent.description = await processHtmlImages(processedContent.description, userId);
+    }
+
     // Create content record first
       const contentRecord = await prisma.content.create({
         data: {
           module: 'products',
           title,
           slug: productSlug,
-          data: content || {},
-          search_index: generateSearchIndex(title, content)
+          data: processedContent,
+          search_index: generateSearchIndex(title, processedContent)
         }
       });
 
@@ -184,7 +206,7 @@ router.post('/', requireAuth, requireEditor, async (req, res) => {
       data: {
         template_id,
         content_id: contentRecord.id,
-        image: image || null,
+        image: processedImage,
         sku,
         price,
         compare_at_price: compare_at_price || null,
@@ -198,9 +220,18 @@ router.post('/', requireAuth, requireEditor, async (req, res) => {
         taxable: taxable !== false,
         status: status || 'draft',
         access_rules: access_rules || null,
+        product_images: {
+          createMany: {
+            data: processedImages.map((img, i) => ({
+              url: img.url,
+              alt: img.alt || '',
+              position: img.position !== undefined ? img.position : i
+            }))
+          }
+        },
         product_variants: {
           createMany: {
-            data: (variants || []).map((v, i) => ({
+            data: processedVariants.map((v, i) => ({
               title: v.title || '',
               sku: v.sku || null,
               price: v.price !== undefined ? v.price : null,
@@ -212,7 +243,7 @@ router.post('/', requireAuth, requireEditor, async (req, res) => {
               option2_value: v.option2_value || null,
               option3_name: v.option3_name || null,
               option3_value: v.option3_value || null,
-              image: v.image || null,
+              image: v.image,
               position: i
             }))
           }
@@ -228,7 +259,8 @@ router.post('/', requireAuth, requireEditor, async (req, res) => {
       ...product,
       title: product.content?.title || 'Untitled',
       slug: product.content?.slug || '',
-      content: product.content?.data ? JSON.parse(product.content.data) : {},
+      content: product.content?.data || {},
+      images: product.product_images,
       variants: product.product_variants
     });
   } catch (err) {
@@ -250,6 +282,7 @@ router.put('/:id', requireAuth, requireEditor, async (req, res) => {
       slug: providedSlug,
       content,
       image,
+      images,
       sku,
       price,
       compare_at_price,
@@ -286,6 +319,8 @@ router.put('/:id', requireAuth, requireEditor, async (req, res) => {
       }
     }
 
+    const userId = req.user?.id;
+    
     // Prepare product updates
     const productUpdates = {};
     if (template_id !== undefined) productUpdates.template_id = template_id;
@@ -301,7 +336,9 @@ router.put('/:id', requireAuth, requireEditor, async (req, res) => {
     if (requires_shipping !== undefined) productUpdates.requires_shipping = requires_shipping;
     if (taxable !== undefined) productUpdates.taxable = taxable;
     if (status !== undefined) productUpdates.status = status;
-    if (image !== undefined) productUpdates.image = image;
+    if (image !== undefined) {
+      productUpdates.image = image ? await downloadImage(image, title || existing.title, userId) : null;
+    }
     if (access_rules !== undefined) productUpdates.access_rules = access_rules || null;
 
     // Update content if provided
@@ -320,6 +357,10 @@ router.put('/:id', requireAuth, requireEditor, async (req, res) => {
       }
       if (content !== undefined) {
         contentData = { ...contentData, ...content };
+        // Process images in description
+        if (contentData.description) {
+          contentData.description = await processHtmlImages(contentData.description, userId);
+        }
       }
       if (content !== undefined) {
         contentUpdates.data = contentData;
@@ -346,6 +387,34 @@ router.put('/:id', requireAuth, requireEditor, async (req, res) => {
       }
     });
 
+    // Handle images update
+    if (images !== undefined) {
+      // Download any external images first
+      const processedImages = await Promise.all(images.map(img => 
+        downloadImage(img.url || img, title || existing.title, userId).then(url => ({ 
+          url, 
+          alt: img.alt || '', 
+          position: img.position 
+        }))
+      ));
+
+      // Delete existing images and recreate
+      await prisma.product_images.deleteMany({
+        where: { product_id: productId }
+      });
+
+      if (processedImages.length > 0) {
+        await prisma.product_images.createMany({
+          data: processedImages.map((img, i) => ({
+            product_id: productId,
+            url: img.url,
+            alt: img.alt,
+            position: img.position !== undefined ? img.position : i
+          }))
+        });
+      }
+    }
+
     // Handle variants update
     if (variants !== undefined) {
       // Get IDs of incoming variants
@@ -362,6 +431,8 @@ router.put('/:id', requireAuth, requireEditor, async (req, res) => {
       // Update or create variants
       for (let i = 0; i < variants.length; i++) {
         const v = variants[i];
+        const variantImage = v.image ? await downloadImage(v.image, v.title, userId) : null;
+        
         if (v.id) {
           // Update existing
           await prisma.product_variants.update({
@@ -378,7 +449,7 @@ router.put('/:id', requireAuth, requireEditor, async (req, res) => {
               option2_value: v.option2_value || null,
               option3_name: v.option3_name || null,
               option3_value: v.option3_value || null,
-              image: v.image || null,
+              image: variantImage,
               position: i
             }
           });
@@ -398,7 +469,7 @@ router.put('/:id', requireAuth, requireEditor, async (req, res) => {
               option2_value: v.option2_value || null,
               option3_name: v.option3_name || null,
               option3_value: v.option3_value || null,
-              image: v.image || null,
+              image: variantImage,
               position: i
             }
           });
@@ -411,6 +482,9 @@ router.put('/:id', requireAuth, requireEditor, async (req, res) => {
       where: { id: productId },
       include: {
         content: true,
+        product_images: {
+          orderBy: { position: 'asc' }
+        },
         product_variants: {
           orderBy: { position: 'asc' }
         }
@@ -421,7 +495,9 @@ router.put('/:id', requireAuth, requireEditor, async (req, res) => {
       ...finalProduct,
       title: finalProduct.content?.title || 'Untitled',
       slug: finalProduct.content?.slug || '',
-      content: finalProduct.content?.data ? JSON.parse(finalProduct.content.data) : {},
+      image: finalProduct.image || finalProduct.product_images?.[0]?.url || '',
+      images: finalProduct.product_images,
+      content: finalProduct.content?.data || {},
       variants: finalProduct.product_variants
     });
   } catch (err) {

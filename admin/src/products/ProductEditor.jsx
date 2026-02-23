@@ -136,8 +136,9 @@ export default function ProductEditor() {
   };
 
   const handleMediaSelect = (media) => {
-    if (mediaPickerTarget === 'image') {
-      handleFieldChange('image', media.url);
+    if (mediaPickerTarget === 'images') {
+      const currentImages = product.images || [];
+      handleFieldChange('images', [...currentImages, { url: media.url, alt: '', position: currentImages.length }]);
     } else if (mediaPickerTarget?.startsWith('variant.')) {
       const vIndex = parseInt(mediaPickerTarget.split('.')[1]);
       const newVariants = [...product.variants];
@@ -168,14 +169,24 @@ export default function ProductEditor() {
         setProduct(prev => {
           const newContent = { ...prev.content };
           const updates = {};
+          let newImages = [...(prev.images || [])];
+
           Object.keys(extracted).forEach(key => {
             if (key === 'title') updates.title = extracted[key];
             else if (key === 'price') updates.price = parseFloat(extracted[key].replace(/[^\d.]/g, '')) || prev.price;
             else if (key === 'sku') updates.sku = extracted[key];
+            else if (key === 'images') {
+              const urls = Array.isArray(extracted[key]) ? extracted[key] : [extracted[key]];
+              const mapped = urls.map((url, i) => ({ url, alt: '', position: newImages.length + i }));
+              newImages = [...newImages, ...mapped];
+              if (!updates.image && !prev.image && mapped.length > 0) {
+                updates.image = mapped[0].url;
+              }
+            }
             else if (key === 'description') newContent.description = extracted[key];
             else newContent[key] = extracted[key];
           });
-          return { ...prev, ...updates, content: newContent };
+          return { ...prev, ...updates, content: newContent, images: newImages };
         });
         toast.success('Content extracted!');
       }
@@ -195,13 +206,15 @@ export default function ProductEditor() {
       const response = await api.post('/import/url', { url });
       if (response.success && response.data) {
         const data = response.data;
+        const importedImages = (data.images || []).map((url, i) => ({ url, alt: '', position: i }));
         setProduct(prev => ({
           ...prev,
           title: data.title || prev.title,
           content: { ...prev.content, description: data.description || '' },
           price: data.price ? parseFloat(data.price) : prev.price,
           sku: data.sku || prev.sku,
-          image: data.images ? data.images[0] : prev.image
+          image: data.images ? data.images[0] : prev.image,
+          images: importedImages
         }));
         toast.success('Product data imported!');
       }
@@ -244,6 +257,19 @@ export default function ProductEditor() {
     newOptions[optionIndex] = { ...newOptions[optionIndex], values: newOptions[optionIndex].values.filter((_, i) => i !== valueIndex) };
     setOptions(newOptions);
     handleFieldChange('variants', generateVariantsFromOptions(newOptions, product.variants));
+  };
+
+  const removeImage = (index) => {
+    const newImages = (product.images || []).filter((_, i) => i !== index);
+    handleFieldChange('images', newImages);
+    // If we removed the primary image, update the main image field
+    if (product.image === product.images?.[index]?.url) {
+      handleFieldChange('image', newImages[0]?.url || null);
+    }
+  };
+
+  const setPrimaryImage = (url) => {
+    handleFieldChange('image', url);
   };
 
   const handleVariantChange = (vIndex, field, value) => {
@@ -446,31 +472,49 @@ export default function ProductEditor() {
 
         <div className="space-y-6">
           <div className="card p-6 space-y-4">
-            <h2 className="mt-0 mb-0 text-lg font-bold">Product Image</h2>
-            {product.image ? (
-              <div className="relative group">
-                <img src={product.image} alt="" className="w-full aspect-square object-cover rounded-lg border" />
-                <button 
-                  onClick={() => handleFieldChange('image', null)}
-                  className="absolute top-2 right-2 p-1.5 bg-white rounded-full shadow-md text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            ) : (
+            <div className="flex justify-between items-center">
+              <h2 className="mt-0 mb-0 text-lg font-bold">Product Media</h2>
+              <button onClick={() => openMediaPicker('images')} className="btn btn-ghost btn-sm text-primary-600">
+                <Plus className="w-4 h-4 mr-1" /> Add
+              </button>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-2">
+              {(product.images || []).map((img, idx) => (
+                <div key={idx} className={`relative group aspect-square rounded-lg border-2 overflow-hidden ${product.image === img.url ? 'border-primary-500' : 'border-gray-200'}`}>
+                  <img src={img.url} alt="" className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                    <button 
+                      onClick={() => setPrimaryImage(img.url)}
+                      title="Set as primary"
+                      className={`p-1.5 rounded-full ${product.image === img.url ? 'bg-primary-500 text-white' : 'bg-white text-gray-700'}`}
+                    >
+                      <Save className="w-3.5 h-3.5" />
+                    </button>
+                    <button 
+                      onClick={() => removeImage(idx)}
+                      title="Remove image"
+                      className="p-1.5 bg-white text-red-500 rounded-full"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  {product.image === img.url && (
+                    <div className="absolute top-1 left-1 bg-primary-500 text-white text-[8px] font-bold px-1.5 py-0.5 rounded uppercase">
+                      Primary
+                    </div>
+                  )}
+                </div>
+              ))}
               <button
-                onClick={() => openMediaPicker('image')}
-                className="w-full aspect-square border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center gap-2 text-gray-500 hover:border-primary-500 hover:text-primary-500 transition-colors"
+                onClick={() => openMediaPicker('images')}
+                className="aspect-square border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center gap-1 text-gray-400 hover:border-primary-500 hover:text-primary-500 transition-colors"
               >
-                <ImageIcon className="w-8 h-8" />
-                <span className="text-sm font-medium">Add Image</span>
+                <Plus className="w-6 h-6" />
+                <span className="text-[10px] font-medium uppercase">Add Media</span>
               </button>
-            )}
-            {product.image && (
-              <button onClick={() => openMediaPicker('image')} className="btn btn-secondary w-full text-xs">
-                Change Image
-              </button>
-            )}
+            </div>
+            <p className="text-[10px] text-gray-500 text-center italic">The highlighted image is used as the primary display.</p>
           </div>
 
           <div className="card p-6 space-y-4 border-amber-200 bg-amber-50/30">
@@ -519,6 +563,7 @@ export default function ProductEditor() {
         url={scrapeUrl}
         fields={[
           { id: 'title', label: 'Title' }, { id: 'price', label: 'Price' }, { id: 'sku', label: 'SKU' },
+          { id: 'images', label: 'Gallery Images' },
           ...regions.map(r => ({ id: r.name, label: r.label || r.name }))
         ]}
         selectorMap={selectorMap}

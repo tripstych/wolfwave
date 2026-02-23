@@ -301,6 +301,12 @@ export const renderContent = async (req, res) => {
           [pageData.id]
         );
         pageData.variants = variants;
+
+        const images = await query(
+          'SELECT * FROM product_images WHERE product_id = ? ORDER BY position ASC',
+          [pageData.id]
+        );
+        pageData.images = images;
       }
     } else if (contentType === 'blocks') {
       const blocks = await query(`
@@ -345,7 +351,7 @@ export const renderContent = async (req, res) => {
       og: {
         title: pageData.og_title || pageData.meta_title || contentRow.title,
         description: pageData.og_description || pageData.meta_description || '',
-        image: pageData.image || pageData.og_image || '',
+        image: pageData.image || (pageData.images && pageData.images[0]?.url) || pageData.og_image || '',
         url: `${site.site_url}${slug}`,
         type: 'website'
       },

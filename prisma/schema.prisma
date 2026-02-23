@@ -375,6 +375,18 @@ model product_variants {
   @@index([product_id], map: "idx_product_id")
 }
 
+model product_images {
+  id         Int      @id @default(autoincrement())
+  product_id Int
+  url        String   @db.VarChar(500)
+  alt        String?  @db.VarChar(255)
+  position   Int      @default(0)
+  created_at DateTime @default(now()) @db.Timestamp(0)
+  products   products @relation(fields: [product_id], references: [id], onDelete: Cascade)
+
+  @@index([product_id], map: "idx_pi_product_id")
+}
+
 model products {
   id                   Int                   @id @default(autoincrement())
   content_id           Int?
@@ -402,6 +414,7 @@ model products {
   updated_at           DateTime              @default(now()) @db.Timestamp(0)
   order_items          order_items[]
   product_variants     product_variants[]
+  product_images       product_images[]
   digital_downloads    digital_downloads[]
   content              content?              @relation(fields: [content_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "products_ibfk_2")
 
