@@ -18,6 +18,7 @@ export default function MySites() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+  const [noCustomer, setNoCustomer] = useState(false);
   const [newSite, setNewSite] = useState({ name: '', subdomain: '' });
 
   useEffect(() => {
@@ -33,6 +34,7 @@ export default function MySites() {
       ]);
       setSites(sitesData || []);
       setLimits(limitsData);
+      setNoCustomer(!!limitsData?.no_customer);
     } catch (err) {
       console.error('Failed to load sites:', err);
       toast.error('Failed to load your sites');
@@ -88,7 +90,7 @@ export default function MySites() {
           </h1>
           <p className="text-sm text-gray-500">Manage and launch your personal WolfWave sites.</p>
         </div>
-        {limits?.can_create && (
+        {limits?.can_create && !noCustomer && (
           <button 
             onClick={() => setShowCreate(!showCreate)} 
             className="btn btn-primary"
@@ -99,8 +101,24 @@ export default function MySites() {
         )}
       </div>
 
-      {/* Limits Overview */}
-      {limits && (
+      {/* Limits Overview or No Customer Blurb */}
+      {noCustomer ? (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-8 text-center space-y-4">
+          <div className="mx-auto w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center text-amber-600">
+            <ShieldCheck className="w-6 h-6" />
+          </div>
+          <div className="max-w-md mx-auto">
+            <h2 className="text-lg font-bold text-amber-900">No Active License Found</h2>
+            <p className="text-sm text-amber-700 mt-2">
+              This site is not currently linked to a global customer profile. To launch additional sites or manage a network, you'll need an active subscription license.
+            </p>
+          </div>
+          <div className="flex justify-center gap-3 pt-2">
+            <a href="/subscribe" target="_blank" className="btn btn-primary bg-amber-600 border-amber-600 hover:bg-amber-700">View Plans</a>
+            <button onClick={loadData} className="btn btn-secondary">Refresh Status</button>
+          </div>
+        </div>
+      ) : limits && (
         <div className="bg-white border border-gray-200 rounded-xl p-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-primary-50 rounded-lg text-primary-600">

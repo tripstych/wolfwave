@@ -66,11 +66,16 @@ async function requireCustomer(req, res, next) {
               last_name: customer.last_name
             };
             return next();
+          } else {
+            // User is a valid admin but has no customer record
+            req.customer = null;
+            return next();
           }
         }
       } catch (err) { /* invalid token */ }
     }
 
+    if (customerToken) return res.status(401).json({ error: 'Invalid or expired token' });
     return res.status(401).json({ error: 'Authentication required' });
   });
 }
@@ -82,6 +87,9 @@ router.get('/', requireCustomer, async (req, res) => {
   const primaryDb = process.env.DB_NAME || 'wolfwave_default';
   return runWithTenant(primaryDb, async () => {
     try {
+      if (!req.customer) {
+        return res.json([]);
+      }
       const tenants = await prisma.tenants.findMany({
         where: { customer_id: req.customer.id },
         orderBy: { created_at: 'desc' }
@@ -101,19 +109,16 @@ router.get('/limits', requireCustomer, async (req, res) => {
   const primaryDb = process.env.DB_NAME || 'wolfwave_default';
   return runWithTenant(primaryDb, async () => {
     try {
+      if (!req.customer) {
+        return res.json({
+          used: 0,
+          limit: 0,
+          plan_name: 'No active license',
+          can_create: false,
+          no_customer: true
+        });
+      }
       const customer = await prisma.customers.findUnique({
-        where: { id: req.customer.id },
-        include: {
-          customer_subscriptions: {
-            where: { status: 'active' },
-            include: { subscription_plans: true },
-            take: 1
-          },
-          _count: {
-            select: { tenants: true }
-          }
-        }
-      });
 
       if (!customer) return res.status(404).json({ error: 'Customer not found' });
 
