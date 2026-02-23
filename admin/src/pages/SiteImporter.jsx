@@ -23,6 +23,160 @@ import {
   Search
 } from 'lucide-react';
 
+const AUTOSUGGEST_FIELDS = ['title', 'description', 'price', 'sku', 'compare_at_price', 'inventory_quantity'];
+
+function RuleItem({ rule, onChange, onRemove, depth = 0 }) {
+  const updateRule = (field, value) => {
+    onChange({ ...rule, [field]: value });
+  };
+
+  const addAction = () => {
+    const actions = [...(rule.actions || [])];
+    actions.push({ action: 'setField', value: '' });
+    updateRule('actions', actions);
+  };
+
+  const updateAction = (idx, field, value) => {
+    const actions = [...(rule.actions || [])];
+    actions[idx] = { ...actions[idx], [field]: value };
+    updateRule('actions', actions);
+  };
+
+  const removeAction = (idx) => {
+    const actions = (rule.actions || []).filter((_, i) => i !== idx);
+    updateRule('actions', actions);
+  };
+
+  const addChild = () => {
+    const children = [...(rule.children || [])];
+    children.push({ selector: '', action: 'setField', value: '' });
+    updateRule('children', children);
+  };
+
+  const updateChild = (idx, newChild) => {
+    const children = [...(rule.children || [])];
+    children[idx] = newChild;
+    updateRule('children', children);
+  };
+
+  const removeChild = (idx) => {
+    const children = (rule.children || []).filter((_, i) => i !== idx);
+    updateRule('children', children);
+  };
+
+  return (
+    <div className={`p-3 bg-white rounded border border-gray-200 shadow-sm relative ${depth > 0 ? 'ml-6 mt-2 border-l-4 border-l-primary-200' : ''}`}>
+      <button onClick={onRemove} className="absolute top-2 right-2 text-gray-300 hover:text-red-500">
+        <X className="w-3.5 h-3.5" />
+      </button>
+
+      <div className="grid grid-cols-2 gap-2 mb-2 pr-6">
+        <div>
+          <label className="text-[8px] uppercase font-bold text-gray-400 block">URL Pattern (Regex)</label>
+          <input
+            type="text"
+            value={rule.urlPattern || ''}
+            onChange={e => updateRule('urlPattern', e.target.value)}
+            placeholder="e.g. ^/products/"
+            className="input py-1 px-2 text-[10px] w-full"
+          />
+        </div>
+        <div>
+          <label className="text-[8px] uppercase font-bold text-gray-400 block">CSS Selector</label>
+          <input
+            type="text"
+            value={rule.selector || ''}
+            onChange={e => updateRule('selector', e.target.value)}
+            placeholder="e.g. .product-view"
+            className="input py-1 px-2 text-[10px] w-full"
+          />
+        </div>
+      </div>
+
+      {/* Legacy/Single Action support */}
+      {!rule.actions && (
+        <div className="grid grid-cols-2 gap-2 mb-2">
+          <select
+            value={rule.action || 'setType'}
+            onChange={e => updateRule('action', e.target.value)}
+            className="input py-1 px-2 text-[10px]"
+          >
+            <option value="setType">Set Type</option>
+            <option value="setField">Set Field</option>
+            <option value="setConst">Set Const</option>
+          </select>
+          <input
+            type="text"
+            value={rule.value || ''}
+            onChange={e => updateRule('value', e.target.value)}
+            placeholder="Value"
+            className="input py-1 px-2 text-[10px]"
+            list="field-suggestions"
+          />
+        </div>
+      )}
+
+      {/* Multiple Actions */}
+      <div className="space-y-1.5 mb-2">
+        {(rule.actions || []).map((act, idx) => (
+          <div key={idx} className="flex gap-1 items-center bg-gray-50 p-1 rounded">
+            <select
+              value={act.action}
+              onChange={e => updateAction(idx, 'action', e.target.value)}
+              className="input py-0.5 px-1 text-[9px] w-24"
+            >
+              <option value="setType">Set Type</option>
+              <option value="setField">Set Field</option>
+              <option value="setConst">Set Const</option>
+            </select>
+            <input
+              type="text"
+              value={act.value}
+              onChange={e => updateAction(idx, 'value', e.target.value)}
+              className="input py-0.5 px-1 text-[9px] flex-1"
+              placeholder="Value"
+              list="field-suggestions"
+            />
+            <button onClick={() => removeAction(idx)} className="text-gray-400 hover:text-red-500">
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+        ))}
+        <button 
+          type="button" 
+          onClick={addAction}
+          className="text-[9px] text-primary-600 hover:underline flex items-center gap-1"
+        >
+          <Plus className="w-3 h-3" /> Add Action
+        </button>
+      </div>
+
+      {/* Children */}
+      {rule.children && rule.children.length > 0 && (
+        <div className="space-y-2 border-t pt-2 mt-2">
+          <label className="text-[8px] uppercase font-bold text-gray-400 block">Child Rules</label>
+          {rule.children.map((child, idx) => (
+            <RuleItem
+              key={idx}
+              rule={child}
+              depth={depth + 1}
+              onChange={newChild => updateChild(idx, newChild)}
+              onRemove={() => removeChild(idx)}
+            />
+          ))}
+        </div>
+      )}
+      <button 
+        type="button" 
+        onClick={addChild}
+        className="text-[9px] text-gray-500 hover:text-primary-600 hover:underline flex items-center gap-1 mt-2"
+      >
+        <Plus className="w-3 h-3" /> Add Child Rule
+      </button>
+    </div>
+  );
+}
+
 export default function SiteImporter() {
   const [url, setUrl] = useState('');
   const [showOptions, setShowOptions] = useState(false);
@@ -36,7 +190,6 @@ export default function SiteImporter() {
   });
 
   const [presets, setPresets] = useState({});
-  const AUTOSUGGEST_FIELDS = ['title', 'description', 'price', 'sku', 'compare_at_price', 'inventory_quantity'];
   const [sites, setSites] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedSite, setSelectedSite] = useState(null);
@@ -422,7 +575,7 @@ export default function SiteImporter() {
   const addRule = () => {
     setConfig({
       ...config,
-      rules: [...config.rules, { selector: '', urlPattern: '', action: 'setType', value: 'product' }]
+      rules: [...config.rules, { selector: '', urlPattern: '', actions: [{ action: 'setType', value: 'product' }], children: [] }]
     });
   };
 
@@ -432,9 +585,9 @@ export default function SiteImporter() {
     setConfig({ ...config, rules: newRules });
   };
 
-  const updateRule = (index, field, value) => {
+  const updateRule = (index, newRule) => {
     const newRules = [...config.rules];
-    newRules[index][field] = value;
+    newRules[index] = newRule;
     setConfig({ ...config, rules: newRules });
   };
 
@@ -740,48 +893,12 @@ export default function SiteImporter() {
                     <label className="text-[10px] uppercase font-bold text-gray-500 block mb-2">Structural Signals / Rules</label>
                     <div className="space-y-2">
                       {config.rules.map((rule, idx) => (
-                        <div key={idx} className="flex gap-1 items-start bg-white p-2 rounded border border-gray-200 shadow-sm relative">
-                          <div className="flex-1 space-y-1">
-                            <div className="flex gap-1">
-                              <input
-                                type="text"
-                                value={rule.urlPattern || ''}
-                                onChange={e => updateRule(idx, 'urlPattern', e.target.value)}
-                                placeholder="URL Pattern (regex)"
-                                className="input py-0.5 px-1 text-[10px] flex-1"
-                              />
-                              <input
-                                type="text"
-                                value={rule.selector || ''}
-                                onChange={e => updateRule(idx, 'selector', e.target.value)}
-                                placeholder="CSS Selector"
-                                className="input py-0.5 px-1 text-[10px] flex-1"
-                              />
-                            </div>
-                            <div className="flex gap-1">
-                              <select
-                                value={rule.action}
-                                onChange={e => updateRule(idx, 'action', e.target.value)}
-                                className="input py-0.5 px-1 text-[10px] flex-1"
-                              >
-                                <option value="setType">Set Type</option>
-                                <option value="setField">Extract text to Field</option>
-                                <option value="setConst">Set Const (field:val)</option>
-                              </select>
-                              <input
-                                type="text"
-                                value={rule.value}
-                                onChange={e => updateRule(idx, 'value', e.target.value)}
-                                placeholder="Value"
-                                className="input py-0.5 px-1 text-[10px] flex-1"
-                                list={rule.action === 'setField' ? 'field-suggestions' : undefined}
-                              />
-                            </div>
-                          </div>
-                          <button onClick={() => removeRule(idx)} className="text-red-400 hover:text-red-600">
-                            <X className="w-3 h-3" />
-                          </button>
-                        </div>
+                        <RuleItem 
+                          key={idx} 
+                          rule={rule} 
+                          onChange={(newRule) => updateRule(idx, newRule)} 
+                          onRemove={() => removeRule(idx)} 
+                        />
                       ))}
                       <datalist id="field-suggestions">
                         {AUTOSUGGEST_FIELDS.map(f => <option key={f} value={f} />)}
