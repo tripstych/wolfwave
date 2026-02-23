@@ -6,6 +6,7 @@ import { info, error as logError } from '../lib/logger.js';
 import { generateSearchIndex } from '../lib/searchIndexer.js';
 import { automaticallyDetectContent } from './scraperService.js';
 import { processHtmlImages } from './mediaService.js';
+import { updateContent } from './contentService.js';
 
 export async function migratePage(importedPageId, templateId, selectorMap = { 'main': 'body' }) {
   const dbName = getCurrentDbName();
@@ -63,12 +64,9 @@ export async function migratePage(importedPageId, templateId, selectorMap = { 'm
 
       // Only overwrite if the new content seems significantly better/longer
       if (newLen > existingLen) {
-        await prisma.content.update({
-          where: { id: existingContent.id },
-          data: {
-            data: JSON.stringify(extractedData),
-            search_index: generateSearchIndex(title, extractedData)
-          }
+        await updateContent(existingContent.id, {
+          data: extractedData,
+          search_index: generateSearchIndex(title, extractedData)
         });
         info(dbName, 'PAGE_MERGE_UPDATE', `Updated existing page "${title}" with better content (${newLen} chars vs ${existingLen})`);
       } else {

@@ -3,6 +3,7 @@ import slugify from 'slugify';
 import { requireAuth, requireEditor } from '../middleware/auth.js';
 import prisma from '../lib/prisma.js';
 import { generateSearchIndex } from '../lib/searchIndexer.js';
+import { updateContent } from '../services/contentService.js';
 
 const router = Router();
 
@@ -58,7 +59,7 @@ router.get('/', requireAuth, async (req, res) => {
           template_name: page.templates?.name,
           template_filename: page.templates?.filename,
           template_regions: page.templates?.regions || [], // regions is already an array, not JSON string
-          content: page.content?.data ? JSON.parse(page.content.data) : {},
+          content: page.content?.data || {},
           access_rules: page.access_rules ? (typeof page.access_rules === 'string' ? JSON.parse(page.access_rules) : page.access_rules) : null,
           title: page.content?.title || page.title,
           slug: page.content?.slug || ''
@@ -120,7 +121,7 @@ router.get('/:id', requireAuth, async (req, res) => {
       template_name: page.templates?.name,
       template_filename: page.templates?.filename,
       template_regions: page.templates?.regions ? (typeof page.templates.regions === 'string' ? JSON.parse(page.templates.regions) : page.templates.regions) : [],
-      content: page.content?.data ? JSON.parse(page.content.data) : {},
+      content: page.content?.data || {},
       access_rules: page.access_rules ? (typeof page.access_rules === 'string' ? JSON.parse(page.access_rules) : page.access_rules) : null,
       title: page.content?.title || page.title,
       slug: page.content?.slug || ''
@@ -186,7 +187,7 @@ router.post('/', requireAuth, requireEditor, async (req, res) => {
           module: content_type,
           title,
           slug,
-          data: JSON.stringify(content || {}),
+          data: content || {},
           search_index: generateSearchIndex(title, content)
         }
       });
@@ -297,22 +298,19 @@ router.put('/:id', requireAuth, requireEditor, async (req, res) => {
         if (content) {
           const existing = await prisma.content.findUnique({ where: { id: existingPage.content_id } });
           if (existing && existing.data) {
-            try {
-              const existingData = typeof existing.data === 'string' ? JSON.parse(existing.data) : existing.data;
-              mergedContent = { ...existingData, ...content };
-            } catch { /* use content as-is */ }
+            const existingData = typeof existing.data === 'string' ? JSON.parse(existing.data) : existing.data;
+            mergedContent = { ...existingData, ...content };
           }
         }
 
-        await prisma.content.update({
-          where: { id: existingPage.content_id },
-          data: {
-            ...(mergedContent && { data: JSON.stringify(mergedContent) }),
-            ...(title && { title }),
-            ...(slug && { slug }),
-            search_index: generateSearchIndex(title || existingPage.title, mergedContent)
-          }
-        });
+        const contentUpdates = {
+          ...(mergedContent && { data: mergedContent }),
+          ...(title && { title }),
+          ...(slug && { slug }),
+          search_index: generateSearchIndex(title || existingPage.title, mergedContent)
+        };
+
+        await updateContent(existingPage.content_id, contentUpdates);
       }
     }
 

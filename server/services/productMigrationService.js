@@ -5,6 +5,7 @@ import { getCurrentDbName } from '../lib/tenantContext.js';
 import { info, error as logError } from '../lib/logger.js';
 import { generateSearchIndex } from '../lib/searchIndexer.js';
 import { downloadImage } from './mediaService.js';
+import { updateContent } from './contentService.js';
 
 export async function migrateProduct(importedPageId, templateId) {
   const dbName = getCurrentDbName();
@@ -39,12 +40,9 @@ export async function migrateProduct(importedPageId, templateId) {
 
     if (existingContent) {
       // 1. Update base product content if needed
-      await prisma.content.update({
-        where: { id: existingContent.id },
-        data: {
-          data: JSON.stringify(contentData),
-          search_index: generateSearchIndex(title, contentData)
-        }
+      await updateContent(existingContent.id, {
+        data: contentData,
+        search_index: generateSearchIndex(title, contentData)
       });
       
       const product = await prisma.products.findFirst({ 

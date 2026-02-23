@@ -56,7 +56,7 @@ model blocks {
 model content {
   id             Int              @id @default(autoincrement())
   module         String           @db.VarChar(50)
-  data           String?          @db.LongText
+  data           Json?
   search_index   String?          @db.LongText
   created_at     DateTime         @default(now()) @db.Timestamp(0)
   updated_at     DateTime         @default(now()) @db.Timestamp(0)
@@ -66,8 +66,22 @@ model content {
   content_groups content_groups[]
   pages          pages[]
   products       products[]
+  history        content_history[]
 
   @@index([module], map: "idx_type")
+}
+
+model content_history {
+  id             Int      @id @default(autoincrement())
+  content_id     Int
+  version_number Int
+  data           Json?
+  title          String?  @db.VarChar(255)
+  slug           String?  @db.VarChar(255)
+  created_at     DateTime @default(now()) @db.Timestamp(0)
+  content        content  @relation(fields: [content_id], references: [id], onDelete: Cascade)
+
+  @@index([content_id], map: "idx_content_id")
 }
 
 model content_groups {

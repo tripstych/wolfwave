@@ -36,11 +36,14 @@ export default function PageEditor() {
     regions,
     loading,
     saving,
+    history,
+    loadingHistory,
     handleFieldChange,
     handleContentChange,
     handleTemplateChange,
     handleSave,
-    syncTemplates
+    syncTemplates,
+    restoreVersion
   } = useContentEditor({
     contentType: 'pages',
     endpoint: '/pages',
@@ -52,6 +55,7 @@ export default function PageEditor() {
 
   const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
   const [showSource, setShowSource] = useState(false);
+  const [activeTab, setActiveTab] = useState('editor');
   const [mediaPickerTarget, setMediaPickerTarget] = useState(null);
   const [scraping, setScraping] = useState(false);
   const [scrapeUrl, setScrapeUrl] = useState('');
@@ -237,70 +241,133 @@ export default function PageEditor() {
             onSlugChange={(val) => handleFieldChange('slug', val)}
           />
 
-          {regions.length > 0 && (
-            <div className="card p-6 space-y-6">
-              <div className="flex items-center justify-between">
-                <h2 className="font-semibold text-gray-900">Content</h2>
-                <button
-                  type="button"
-                  onClick={() => setShowSource(!showSource)}
-                  className={`btn btn-sm ${showSource ? 'btn-primary' : 'btn-ghost text-gray-500'} flex items-center gap-2`}
-                  title={showSource ? "Switch to Visual Editor" : "Edit Raw JSON Source"}
-                >
-                  <Code className="w-4 h-4" />
-                  {showSource ? 'View Editor' : 'Edit Source'}
-                </button>
-              </div>
+          {/* Tabs */}
+          <div className="border-b border-gray-200">
+            <nav className="-mb-px flex space-x-8">
+              <button
+                onClick={() => setActiveTab('editor')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
+                  activeTab === 'editor'
+                    ? 'border-primary-500 text-primary-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Editor
+              </button>
+              <button
+                onClick={() => setActiveTab('history')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
+                  activeTab === 'history'
+                    ? 'border-primary-500 text-primary-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                History {history.length > 0 && <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-[10px]">{history.length}</span>}
+              </button>
+            </nav>
+          </div>
 
-              {showSource ? (
-                <div className="space-y-2">
-                  <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded border border-amber-100">
-                    <strong>Warning:</strong> Editing raw JSON can break the visual editor if the structure doesn't match the template regions.
-                  </p>
-                  <CodeEditor
-                    mode="json"
-                    value={JSON.stringify(page.content, null, 2)}
-                    onChange={(val) => {
-                      try {
-                        const parsed = JSON.parse(val);
-                        handleFieldChange('content', parsed);
-                      } catch (e) {
-                        // Invalid JSON, don't update state yet to prevent crashes
-                      }
-                    }}
-                    height="500px"
-                  />
+          {activeTab === 'editor' ? (
+            regions.length > 0 && (
+              <div className="card p-6 space-y-6">
+                <div className="flex items-center justify-between">
+                  <h2 className="font-semibold text-gray-900">Content</h2>
+                  <button
+                    type="button"
+                    onClick={() => setShowSource(!showSource)}
+                    className={`btn btn-sm ${showSource ? 'btn-primary' : 'btn-ghost text-gray-500'} flex items-center gap-2`}
+                    title={showSource ? "Switch to Visual Editor" : "Edit Raw JSON Source"}
+                  >
+                    <Code className="w-4 h-4" />
+                    {showSource ? 'View Editor' : 'Edit Source'}
+                  </button>
                 </div>
-              ) : (
-                <div className="space-y-6">
-                  {regions.map((region) => (
-                    <div key={region.name}>
-                      <label className="label">
-                        {region.label}
-                        {region.required && <span className="text-red-500 ml-1">*</span>}
-                      </label>
-                      {region.type === 'repeater' ? (
-                        <RepeaterField
-                          region={region}
-                          value={page.content[region.name]}
-                          onChange={handleContentChange}
-                          openMediaPicker={openMediaPicker}
-                        />
-                      ) : (
-                        <DynamicField
-                          region={region}
-                          value={page.content[region.name]}
-                          onChange={handleContentChange}
-                          openMediaPicker={openMediaPicker}
-                          onImageGenerate={handleImageGenerate}
-                          imageGenerating={imageGenerating}
-                          aiPrompt={aiPrompts[region.name]}
-                        />
-                      )}
-                    </div>
+
+                {showSource ? (
+                  <div className="space-y-2">
+                    <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded border border-amber-100">
+                      <strong>Warning:</strong> Editing raw JSON can break the visual editor if the structure doesn't match the template regions.
+                    </p>
+                    <CodeEditor
+                      mode="json"
+                      value={JSON.stringify(page.content, null, 2)}
+                      onChange={(val) => {
+                        try {
+                          const parsed = JSON.parse(val);
+                          handleFieldChange('content', parsed);
+                        } catch (e) {
+                          // Invalid JSON, don't update state yet to prevent crashes
+                        }
+                      }}
+                      height="500px"
+                    />
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {regions.map((region) => (
+                      <div key={region.name}>
+                        <label className="label">
+                          {region.label}
+                          {region.required && <span className="text-red-500 ml-1">*</span>}
+                        </label>
+                        {region.type === 'repeater' ? (
+                          <RepeaterField
+                            region={region}
+                            value={page.content[region.name]}
+                            onChange={handleContentChange}
+                            openMediaPicker={openMediaPicker}
+                          />
+                        ) : (
+                          <DynamicField
+                            region={region}
+                            value={page.content[region.name]}
+                            onChange={handleContentChange}
+                            openMediaPicker={openMediaPicker}
+                            onImageGenerate={handleImageGenerate}
+                            imageGenerating={imageGenerating}
+                            aiPrompt={aiPrompts[region.name]}
+                          />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          ) : (
+            <div className="card overflow-hidden">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-gray-50 border-b">
+                  <tr>
+                    <th className="px-6 py-3 font-bold text-gray-500 uppercase text-xs">Version</th>
+                    <th className="px-6 py-3 font-bold text-gray-500 uppercase text-xs">Date</th>
+                    <th className="px-6 py-3 font-bold text-gray-500 uppercase text-xs">Title</th>
+                    <th className="px-6 py-3 text-right"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {history.map((ver) => (
+                    <tr key={ver.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 font-medium">v{ver.version_number}</td>
+                      <td className="px-6 py-4 text-gray-500">{new Date(ver.created_at).toLocaleString()}</td>
+                      <td className="px-6 py-4">{ver.title}</td>
+                      <td className="px-6 py-4 text-right">
+                        <button
+                          onClick={() => restoreVersion(ver.id)}
+                          className="text-primary-600 hover:text-primary-900 font-medium"
+                        >
+                          Restore
+                        </button>
+                      </td>
+                    </tr>
                   ))}
-                </div>
-              )}
+                  {history.length === 0 && (
+                    <tr>
+                      <td colSpan="4" className="px-6 py-12 text-center text-gray-400 italic">No version history yet. Updates will create recovery points.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           )}
         </div>

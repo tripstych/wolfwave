@@ -3,6 +3,7 @@ import slugify from 'slugify';
 import { requireAuth, requireEditor } from '../middleware/auth.js';
 import prisma from '../lib/prisma.js';
 import { generateSearchIndex } from '../lib/searchIndexer.js';
+import { updateContent } from '../services/contentService.js';
 
 const router = Router();
 
@@ -70,7 +71,7 @@ router.get('/', requireAuth, async (req, res) => {
     const transformed = products.map(p => ({
       ...p,
       title: p.content?.title || 'Untitled',
-      content: p.content?.data ? JSON.parse(p.content.data) : {},
+      content: p.content?.data || {},
       variants: p.product_variants
     }));
 
@@ -103,7 +104,7 @@ router.get('/:id', requireAuth, async (req, res) => {
       return res.status(404).json({ error: 'Product not found' });
     }
 
-    const contentData = product.content?.data ? JSON.parse(product.content.data) : {};
+    const contentData = product.content?.data || {};
     res.json({
       ...product,
       title: product.content?.title || 'Untitled',
@@ -166,15 +167,15 @@ router.post('/', requireAuth, requireEditor, async (req, res) => {
     }
 
     // Create content record first
-    const contentRecord = await prisma.content.create({
-      data: {
-        module: 'products',
-        title,
-        slug: productSlug,
-        data: JSON.stringify(content || {}),
-        search_index: generateSearchIndex(title, content)
-      }
-    });
+      const contentRecord = await prisma.content.create({
+        data: {
+          module: 'products',
+          title,
+          slug: productSlug,
+          data: content || {},
+          search_index: generateSearchIndex(title, content)
+        }
+      });
 
     // Create product with variants in transaction
     const product = await prisma.products.create({
@@ -301,14 +302,7 @@ router.put('/:id', requireAuth, requireEditor, async (req, res) => {
 
     // Update content if provided
     if (existing.content_id && (content !== undefined || title !== undefined || providedSlug !== undefined || og_image !== undefined)) {
-      let contentData = {};
-      if (existing.content?.data) {
-        try {
-          contentData = JSON.parse(existing.content.data);
-        } catch (e) {
-          contentData = {};
-        }
-      }
+      let contentData = existing.content?.data || {};
 
       const contentUpdates = {};
       if (title !== undefined) contentUpdates.title = title;
@@ -327,7 +321,7 @@ router.put('/:id', requireAuth, requireEditor, async (req, res) => {
         contentData = { ...contentData, ...content };
       }
       if (og_image !== undefined || content !== undefined) {
-        contentUpdates.data = JSON.stringify(contentData);
+        contentUpdates.data = contentData;
       }
 
       if (Object.keys(contentUpdates).length > 0) {
@@ -337,10 +331,7 @@ router.put('/:id', requireAuth, requireEditor, async (req, res) => {
           contentData
         );
 
-        await prisma.content.update({
-          where: { id: existing.content_id },
-          data: contentUpdates
-        });
+        await updateContent(existing.content_id, contentUpdates);
       }
     }
 

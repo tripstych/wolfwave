@@ -3,6 +3,7 @@ import slugify from 'slugify';
 import { requireAuth, requireEditor } from '../middleware/auth.js';
 import prisma from '../lib/prisma.js';
 import { generateSearchIndex } from '../lib/searchIndexer.js';
+import { updateContent } from '../services/contentService.js';
 
 const router = Router();
 
@@ -49,7 +50,7 @@ router.get('/', requireAuth, async (req, res) => {
       template_name: block.templates?.name,
       template_filename: block.templates?.filename,
       template_regions: block.templates?.regions || [],
-      content: block.content?.data ? JSON.parse(block.content.data) : {},
+      content: block.content?.data || {},
       title: block.content?.title || block.name
     }));
 
@@ -92,7 +93,7 @@ router.get('/:id', requireAuth, async (req, res) => {
       template_name: block.templates?.name,
       template_filename: block.templates?.filename,
       template_regions: block.templates?.regions || [],
-      content: block.content?.data ? JSON.parse(block.content.data) : {},
+      content: block.content?.data || {},
       access_rules: block.access_rules ? (typeof block.access_rules === 'string' ? JSON.parse(block.access_rules) : block.access_rules) : null,
       title: block.content?.title || block.name
     });
@@ -141,7 +142,7 @@ router.post('/', requireAuth, requireEditor, async (req, res) => {
         module: content_type,
         title: name,
         slug,
-        data: JSON.stringify(content || {}),
+        data: content || {},
         search_index: generateSearchIndex(name, content)
       }
     });
@@ -229,22 +230,19 @@ router.put('/:id', requireAuth, requireEditor, async (req, res) => {
         if (content) {
           const existing = await prisma.content.findUnique({ where: { id: existingBlock.content_id } });
           if (existing && existing.data) {
-            try {
-              const existingData = typeof existing.data === 'string' ? JSON.parse(existing.data) : existing.data;
-              mergedContent = { ...existingData, ...content };
-            } catch { /* use content as-is */ }
+            const existingData = typeof existing.data === 'string' ? JSON.parse(existing.data) : existing.data;
+            mergedContent = { ...existingData, ...content };
           }
         }
 
-        await prisma.content.update({
-          where: { id: existingBlock.content_id },
-          data: {
-            ...(mergedContent && { data: JSON.stringify(mergedContent) }),
-            ...(name && { title: name }),
-            ...(content_type && { module: content_type }),
-            search_index: generateSearchIndex(name || existingBlock.name, mergedContent)
-          }
-        });
+        const contentUpdates = {
+          ...(mergedContent && { data: mergedContent }),
+          ...(name && { title: name }),
+          ...(content_type && { module: content_type }),
+          search_index: generateSearchIndex(name || existingBlock.name, mergedContent)
+        };
+
+        await updateContent(existingBlock.content_id, contentUpdates);
       }
     }
 

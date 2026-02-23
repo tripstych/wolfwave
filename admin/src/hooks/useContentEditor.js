@@ -15,6 +15,8 @@ export default function useContentEditor({ contentType, endpoint, initialData = 
   const [subscriptionPlans, setSubscriptionPlans] = useState([]);
   const [regions, setRegions] = useState([]);
   const [slugEdited, setSlugEdited] = useState(false);
+  const [history, setHistory] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
   const [data, setData] = useState({
     template_id: '',
     title: '',
@@ -71,6 +73,10 @@ export default function useContentEditor({ contentType, endpoint, initialData = 
       setData(merged);
       setRegions(parseRegions(result.regions || result.template_regions));
       setSlugEdited(true);
+
+      if (result.content_id) {
+        loadHistory(result.content_id);
+      }
     } catch (err) {
       console.error('Failed to load item:', err);
       toast.error('Failed to load item');
@@ -78,6 +84,32 @@ export default function useContentEditor({ contentType, endpoint, initialData = 
       setLoading(false);
     }
   }, [id, endpoint, isNew, data]);
+
+  const loadHistory = async (contentId) => {
+    try {
+      setLoadingHistory(true);
+      const res = await api.get(`/content/${contentId}/history`);
+      setHistory(res || []);
+    } catch (err) {
+      console.error('Failed to load history:', err);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  const restoreVersion = async (historyId) => {
+    if (!confirm('Restore this version? Current unsaved changes will be lost.')) return;
+    try {
+      setSaving(true);
+      await api.post(`/content/history/${historyId}/restore`);
+      toast.success('Version restored!');
+      await loadItem(); // Reload everything
+    } catch (err) {
+      toast.error('Failed to restore version');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   useEffect(() => {
     loadTemplates();
@@ -163,10 +195,13 @@ export default function useContentEditor({ contentType, endpoint, initialData = 
     saving,
     slugEdited,
     setSlugEdited,
+    history,
+    loadingHistory,
     handleFieldChange,
     handleContentChange,
     handleTemplateChange,
     handleSave,
-    syncTemplates
+    syncTemplates,
+    restoreVersion
   };
 }

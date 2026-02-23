@@ -35,10 +35,13 @@ export default function ProductEditor() {
     regions,
     loading,
     saving,
+    history,
+    loadingHistory,
     handleFieldChange,
     handleContentChange,
     handleTemplateChange,
     handleSave,
+    restoreVersion
   } = useContentEditor({
     contentType: 'products',
     endpoint: '/products',
@@ -54,6 +57,7 @@ export default function ProductEditor() {
 
   const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
   const [showSource, setShowSource] = useState(false);
+  const [activeTab, setActiveTab] = useState('editor');
   const [mediaPickerTarget, setMediaPickerTarget] = useState(null);
   const [options, setOptions] = useState([]);
   const [importing, setImporting] = useState(false);
