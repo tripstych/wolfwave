@@ -59,7 +59,7 @@ router.get('/presets', requireAuth, (req, res) => {
 
 router.post('/extract', requireAuth, requireEditor, async (req, res) => {
   try {
-    const { url, selector_map } = req.body;
+    const { url, selector_map, field_types = {} } = req.body;
     if (!url || !selector_map) return res.status(400).json({ error: 'URL and selector map required' });
 
     const { data: html } = await axios.get(url, {
@@ -74,13 +74,15 @@ router.post('/extract', requireAuth, requireEditor, async (req, res) => {
       const $el = $(selector);
       if ($el.length > 0) {
         const tagName = $el.get(0).tagName.toLowerCase();
+        const type = field_types[field] || 'text';
         
         if (tagName === 'img') {
           results[field] = $el.attr('src') || $el.attr('data-src') || $el.attr('srcset');
-        } else if (field === 'title') {
-          results[field] = $el.first().text().trim();
-        } else {
+        } else if (type === 'richtext') {
           results[field] = $el.html().trim();
+        } else {
+          // Default to stripping tags for all other types (text, textarea, title, etc)
+          results[field] = $el.first().text().trim();
         }
       }
     }

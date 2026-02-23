@@ -279,9 +279,14 @@ export default function SiteImporter() {
 
     const timer = setTimeout(async () => {
       try {
+        const tpl = templates.find(t => t.id === parseInt(selectedTemplateId));
+        const regions = tpl ? (typeof tpl.regions === 'string' ? JSON.parse(tpl.regions) : tpl.regions) : [];
+        const field_types = Object.fromEntries(regions.map(r => [r.name, r.type]));
+
         const res = await api.post('/import/extract', {
           url: pickerUrl.replace('/api/import/proxy?url=', ''),
-          selector_map: selectorMap
+          selector_map: selectorMap,
+          field_types
         });
         if (res.success) setPreviews(res.data || {});
       } catch (err) { console.error('Preview error:', err); }

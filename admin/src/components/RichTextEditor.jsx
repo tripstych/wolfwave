@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
@@ -16,11 +16,14 @@ import {
   Heading1,
   Heading2,
   Heading3,
+  Code
 } from 'lucide-react';
 import MediaPicker from './MediaPicker';
+import CodeEditor from './CodeEditor';
 
 export default function RichTextEditor({ value, onChange }) {
   const [showMediaPicker, setShowMediaPicker] = useState(false);
+  const [showSource, setShowSource] = useState(false);
   const editorRef = useRef(null);
 
   const editor = useEditor({
@@ -39,6 +42,13 @@ export default function RichTextEditor({ value, onChange }) {
       onChange(editor.getHTML());
     },
   });
+
+  // Keep editor in sync if value changes externally (e.g. from Source mode)
+  useEffect(() => {
+    if (editor && value !== editor.getHTML()) {
+      editor.commands.setContent(value);
+    }
+  }, [value, editor]);
 
   const handleMediaSelect = (media) => {
     if (editor) {
@@ -159,10 +169,34 @@ export default function RichTextEditor({ value, onChange }) {
           <ToolbarButton onClick={() => editor.chain().focus().redo().run()} title="Redo">
             <Redo className="w-4 h-4" />
           </ToolbarButton>
+
+          <div className="w-px h-6 bg-gray-300 mx-1" />
+
+          <ToolbarButton 
+            onClick={() => setShowSource(!showSource)} 
+            active={showSource}
+            title="Edit Source"
+          >
+            <Code className="w-4 h-4" />
+          </ToolbarButton>
         </div>
 
         {/* Editor */}
-        <EditorContent editor={editor} className="prose prose-sm max-w-none p-4" />
+        <div className={showSource ? 'hidden' : 'block'}>
+          <EditorContent editor={editor} className="prose prose-sm max-w-none p-4" />
+        </div>
+        
+        {showSource && (
+          <div className="border-t border-gray-200">
+            <CodeEditor
+              mode="html"
+              value={value}
+              onChange={onChange}
+              height="300px"
+              theme="monokai"
+            />
+          </div>
+        )}
       </div>
 
       {showMediaPicker && (
@@ -174,7 +208,8 @@ export default function RichTextEditor({ value, onChange }) {
 
       <style>{`
         .ProseMirror {
-          min-h-[200px] outline-none;
+          min-height: 200px;
+          outline: none;
         }
         .ProseMirror p {
           margin-bottom: 1rem;

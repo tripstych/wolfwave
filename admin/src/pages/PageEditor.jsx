@@ -93,7 +93,14 @@ export default function PageEditor() {
     if (!scrapeUrl || Object.keys(selectorMap).length === 0) return;
     setScraping(true);
     try {
-      const res = await api.post('/import/extract', { url: scrapeUrl, selector_map: selectorMap });
+      const field_types = Object.fromEntries(regions.map(r => [r.name, r.type]));
+      field_types.title = 'text'; // title is always text
+
+      const res = await api.post('/import/extract', { 
+        url: scrapeUrl, 
+        selector_map: selectorMap,
+        field_types
+      });
       if (res.success && res.data) {
         const extracted = res.data;
         setPage(prev => {

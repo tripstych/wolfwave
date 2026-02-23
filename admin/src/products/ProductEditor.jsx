@@ -146,7 +146,16 @@ export default function ProductEditor() {
     if (!scrapeUrl || Object.keys(selectorMap).length === 0) return;
     setImporting(true);
     try {
-      const res = await api.post('/import/extract', { url: scrapeUrl, selector_map: selectorMap });
+      const field_types = Object.fromEntries(regions.map(r => [r.name, r.type]));
+      field_types.title = 'text';
+      field_types.price = 'text';
+      field_types.sku = 'text';
+
+      const res = await api.post('/import/extract', { 
+        url: scrapeUrl, 
+        selector_map: selectorMap,
+        field_types
+      });
       if (res.success && res.data) {
         const extracted = res.data;
         setProduct(prev => {
