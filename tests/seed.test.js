@@ -56,7 +56,7 @@ describe('Database Seeding', () => {
       
       // This should not throw due to our validation
       const hasValidResult = emptyResult && emptyResult.length > 0 && emptyResult[0];
-      expect(hasValidResult).toBe(false);
+      expect(hasValidResult).toBeFalsy();
     });
 
     it('should create search widget template with proper regions', async () => {
@@ -77,7 +77,7 @@ describe('Database Seeding', () => {
 
       // Verify template was created correctly
       const templates = await query('SELECT * FROM templates WHERE filename = ?', ['widgets/test-search-form.njk']);
-      expect(templates && templates.length > 0 && templates[0]).toBe(true);
+      expect(templates && templates.length > 0 && templates[0]).toBeTruthy();
       
       if (templates && templates.length > 0 && templates[0]) {
         const template = templates[0];
@@ -128,10 +128,10 @@ describe('Database Seeding', () => {
       const emptyArray = [];
       const validArray = [{ id: 1 }];
 
-      expect(nullResult && nullResult.length > 0 && nullResult[0]).toBe(false);
-      expect(undefinedResult && undefinedResult.length > 0 && undefinedResult[0]).toBe(false);
-      expect(emptyArray && emptyArray.length > 0 && emptyArray[0]).toBe(false);
-      expect(validArray && validArray.length > 0 && validArray[0]).toBe(true);
+      expect(nullResult && nullResult.length > 0 && nullResult[0]).toBeFalsy();
+      expect(undefinedResult && undefinedResult.length > 0 && undefinedResult[0]).toBeFalsy();
+      expect(emptyArray && emptyArray.length > 0 && emptyArray[0]).toBeFalsy();
+      expect(validArray && validArray.length > 0 && validArray[0]).toBeTruthy();
     });
 
     it('should validate menu service query pattern', async () => {
@@ -142,7 +142,7 @@ describe('Database Seeding', () => {
       expect(menuResult).toBeDefined();
       
       const hasValidMenu = menuResult && menuResult.length > 0 && menuResult[0];
-      expect(hasValidMenu).toBe(false);
+      expect(hasValidMenu).toBeFalsy();
       
       // Should not throw when trying to destructure
       expect(() => {
