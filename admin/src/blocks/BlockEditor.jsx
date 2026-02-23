@@ -228,10 +228,19 @@ export default function BlockEditor() {
       if (isNew) {
         const result = await api.post('/blocks', block);
         setSuccess('Block created successfully!');
+        
+        if (result.content_id) {
+          loadHistory(result.content_id);
+        }
+        
         navigate(`/blocks/${result.id}`, { replace: true });
       } else {
         await api.put(`/blocks/${id}`, block);
         setSuccess('Block saved successfully!');
+        
+        if (block.content_id) {
+          loadHistory(block.content_id);
+        }
       }
     } catch (err) {
       setError(err.message || 'Failed to save block');

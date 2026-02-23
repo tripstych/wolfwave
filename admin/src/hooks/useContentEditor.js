@@ -155,14 +155,26 @@ export default function useContentEditor({ contentType, endpoint, initialData = 
       if (isNew) {
         const result = await api.post(endpoint, payload);
         toast.success('Created successfully!');
+        
+        // Refresh history if we have content_id
+        if (result.content_id) {
+          loadHistory(result.content_id);
+        }
+        
         navigate(`${endpoint}/${result.id}`, { replace: true });
         return result;
       } else {
-        await api.put(`${endpoint}/${id}`, payload);
+        const result = await api.put(`${endpoint}/${id}`, payload);
         toast.success('Saved successfully!');
         if (overrideStatus) {
             setData(prev => ({ ...prev, status: overrideStatus }));
         }
+        
+        // Refresh history
+        if (data.content_id) {
+          loadHistory(data.content_id);
+        }
+        
         return payload;
       }
     } catch (err) {

@@ -206,10 +206,19 @@ export default function WidgetEditor() {
       if (isNew) {
         const result = await api.post('/blocks', widget);
         toast.success('Widget created successfully!');
+        
+        if (result.content_id) {
+          loadHistory(result.content_id);
+        }
+        
         navigate(`/widgets/${result.id}`, { replace: true });
       } else {
         await api.put(`/blocks/${id}`, widget);
         toast.success('Widget saved successfully!');
+        
+        if (widget.content_id) {
+          loadHistory(widget.content_id);
+        }
       }
     } catch (err) {
       setError(err.message || 'Failed to save widget');
