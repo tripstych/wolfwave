@@ -511,6 +511,24 @@ model users {
   media                           media[]
   pages_pages_created_byTousers   pages[]     @relation("pages_created_byTousers")
   pages_pages_updated_byTousers   pages[]     @relation("pages_updated_byTousers")
+  api_keys                        api_keys[]
+}
+
+model api_keys {
+  id             Int              @id @default(autoincrement())
+  name           String           @db.VarChar(255)
+  public_key     String           @unique(map: "public_key") @db.VarChar(64)
+  secret_key_hash String          @db.VarChar(255)
+  type           api_keys_type    @default(site)
+  user_id        Int?
+  permissions    Json?
+  last_used_at   DateTime?        @db.Timestamp(0)
+  expires_at     DateTime?        @db.Timestamp(0)
+  is_active      Boolean?         @default(true)
+  created_at     DateTime         @default(now()) @db.Timestamp(0)
+  users          users?           @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Restrict)
+
+  @@index([user_id], map: "user_id")
 }
 
 model subscription_plans {
@@ -635,4 +653,9 @@ enum tenants_status {
   active
   suspended
   deleted
+}
+
+enum api_keys_type {
+  site
+  user
 }
