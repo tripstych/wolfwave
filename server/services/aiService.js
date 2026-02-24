@@ -14,6 +14,7 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
 
 /**
  * Generate text content using an LLM
@@ -53,7 +54,7 @@ export async function generateText(systemPrompt, userPrompt, model = null, req =
 
   // 2. GEMINI MODE (AI Studio)
   if (GEMINI_API_KEY && GEMINI_API_KEY !== 'demo') {
-    const geminiModel = model || 'gemini-1.5-flash';
+    const geminiModel = model || GEMINI_MODEL;
     console.log(`[AI-DEBUG] 🔑 Gemini Key present. Sending request to ${geminiModel}...`);
 
     try {
