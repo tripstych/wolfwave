@@ -20,7 +20,8 @@ import {
   Trash2,
   Plus,
   Sparkles,
-  Search
+  Search,
+  List
 } from 'lucide-react';
 
 const AUTOSUGGEST_FIELDS = ['title', 'description', 'price', 'sku', 'compare_at_price', 'inventory_quantity'];
