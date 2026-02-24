@@ -496,6 +496,16 @@ model imported_sites {
   staged_items   staged_items[]
 }
 
+model ai_cache {
+  id          Int      @id @default(autoincrement())
+  prompt_hash String   @unique(map: "prompt_hash") @db.VarChar(64)
+  response    Json
+  model       String   @db.VarChar(100)
+  created_at  DateTime @default(now()) @db.Timestamp(0)
+
+  @@index([prompt_hash], map: "idx_prompt_hash")
+}
+
 model staged_items {
   id              Int            @id @default(autoincrement())
   site_id         Int

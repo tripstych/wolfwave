@@ -6,9 +6,39 @@ import crypto from 'crypto';
 import { logError, info } from '../lib/logger.js';
 import { downloadImage } from './mediaService.js';
 import { query } from '../db/connection.js';
+import prisma from '../lib/prisma.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(__dirname, '../../public');
+
+/**
+ * Get cached LLM response if it exists
+ */
+async function getCachedAiResponse(promptHash) {
+  try {
+    const cached = await prisma.ai_cache.findUnique({
+      where: { prompt_hash: promptHash }
+    });
+    return cached ? cached.response : null;
+  } catch (err) {
+    return null;
+  }
+}
+
+/**
+ * Cache an LLM response
+ */
+async function setCachedAiResponse(promptHash, response, model) {
+  try {
+    await prisma.ai_cache.upsert({
+      where: { prompt_hash: promptHash },
+      update: { response, model, created_at: new Date() },
+      create: { prompt_hash: promptHash, response, model }
+    });
+  } catch (err) {
+    console.error('[AI-CACHE] Failed to save cache:', err.message);
+  }
+}
 
 // Cache for discovered Gemini image generation models
 let imagenModelsCache = null;
@@ -90,6 +120,21 @@ async function getAiSettings() {
 export async function generateText(systemPrompt, userPrompt, model = null, req = null) {
   const config = await getAiSettings();
   
+  // Create prompt hash for caching
+  const targetModel = model || config.gemini_model || 'gpt-4o';
+  const promptHash = crypto.createHash('sha256')
+    .update(`${systemPrompt}|${userPrompt}|${targetModel}`)
+    .digest('hex');
+
+  // Check cache first (skip for simulation mode)
+  if (!config.ai_simulation_mode) {
+    const cached = await getCachedAiResponse(promptHash);
+    if (cached) {
+      console.log(`[AI-CACHE] 🎯 HIT: Returning cached response for hash ${promptHash.substring(0, 8)}`);
+      return cached;
+    }
+  }
+
   const hasNoKeys = !config.openai_api_key && !config.anthropic_api_key && !config.gemini_api_key;
   const isDemoKey = config.openai_api_key === 'demo' || config.anthropic_api_key === 'demo' || config.gemini_api_key === 'demo';
 
@@ -101,7 +146,7 @@ export async function generateText(systemPrompt, userPrompt, model = null, req =
     const industry = userPrompt.replace('Create a theme for:', '').trim();
     const slug = industry.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
     
-    return {
+    const result = {
       slug: `${slug}-mock`,
       name: `${industry} (Simulated)`,
       description: `A professionally drafted theme for the ${industry} industry.`,
@@ -121,6 +166,7 @@ export async function generateText(systemPrompt, userPrompt, model = null, req =
         hero_image_prompt: "mock"
       }
     };
+    return result;
   }
 
   // 2. GEMINI MODE (AI Studio)
@@ -151,7 +197,12 @@ export async function generateText(systemPrompt, userPrompt, model = null, req =
 
       console.log(`[AI-DEBUG] 📥 Received response from Gemini.`);
       const content = response.data.candidates[0].content.parts[0].text;
-      return JSON.parse(content);
+      const parsed = JSON.parse(content);
+      
+      // Save to cache
+      await setCachedAiResponse(promptHash, parsed, geminiModel);
+      
+      return parsed;
     } catch (error) {
       const errorData = error.response?.data;
       logError(req || 'system', errorData || error, 'AI_TEXT_GEN_GEMINI');
@@ -190,7 +241,12 @@ export async function generateText(systemPrompt, userPrompt, model = null, req =
 
       console.log(`[AI-DEBUG] 📥 Received response from Anthropic.`);
       const content = response.data.content[0].text;
-      return JSON.parse(content);
+      const parsed = JSON.parse(content);
+      
+      // Save to cache
+      await setCachedAiResponse(promptHash, parsed, anthropicModel);
+      
+      return parsed;
     } catch (error) {
       const errorData = error.response?.data;
       logError(req || 'system', errorData || error, 'AI_TEXT_GEN_ANTHROPIC');
@@ -229,7 +285,12 @@ export async function generateText(systemPrompt, userPrompt, model = null, req =
 
     console.log(`[AI-DEBUG] 📥 Received response from OpenAI.`);
     const content = response.data.choices[0].message.content;
-    return JSON.parse(content);
+    const parsed = JSON.parse(content);
+    
+    // Save to cache
+    await setCachedAiResponse(promptHash, parsed, openaiModel);
+    
+    return parsed;
   } catch (error) {
     const errorData = error.response?.data;
     logError(req || 'system', errorData || error, 'AI_TEXT_GEN_OPENAI');
@@ -254,6 +315,21 @@ export async function generateText(systemPrompt, userPrompt, model = null, req =
 export async function generateRawText(systemPrompt, userPrompt, model = null) {
   const config = await getAiSettings();
 
+  // Create prompt hash for caching
+  const targetModel = model || config.gemini_model || 'gpt-4o';
+  const promptHash = crypto.createHash('sha256')
+    .update(`RAW|${systemPrompt}|${userPrompt}|${targetModel}`)
+    .digest('hex');
+
+  // Check cache
+  if (!config.ai_simulation_mode) {
+    const cached = await getCachedAiResponse(promptHash);
+    if (cached && typeof cached === 'string') {
+      console.log(`[AI-CACHE] 🎯 HIT (RAW): Returning cached response for hash ${promptHash.substring(0, 8)}`);
+      return cached;
+    }
+  }
+
   // Gemini
   if (config.gemini_api_key && config.gemini_api_key !== 'demo') {
     const geminiModel = model || config.gemini_model;
@@ -266,7 +342,9 @@ export async function generateRawText(systemPrompt, userPrompt, model = null) {
       },
       { headers: { 'Content-Type': 'application/json' } }
     );
-    return response.data.candidates[0].content.parts[0].text;
+    const result = response.data.candidates[0].content.parts[0].text;
+    await setCachedAiResponse(promptHash, result, geminiModel);
+    return result;
   }
 
   // Anthropic
@@ -289,7 +367,9 @@ export async function generateRawText(systemPrompt, userPrompt, model = null) {
         },
       }
     );
-    return response.data.content[0].text;
+    const result = response.data.content[0].text;
+    await setCachedAiResponse(promptHash, result, anthropicModel);
+    return result;
   }
 
   // OpenAI
@@ -313,7 +393,9 @@ export async function generateRawText(systemPrompt, userPrompt, model = null) {
         },
       }
     );
-    return response.data.choices[0].message.content;
+    const result = response.data.choices[0].message.content;
+    await setCachedAiResponse(promptHash, result, openaiModel);
+    return result;
   }
 
   throw new Error('No valid AI Text Generation provider configured (Missing API Key)');

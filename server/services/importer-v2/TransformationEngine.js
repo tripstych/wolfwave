@@ -112,6 +112,13 @@ export class TransformationEngine {
         // --- Create/Update Module Specific Record ---
         const templateId = groupRules.template_id;
         
+        // Sanitize price (remove currency symbols etc)
+        let cleanPrice = 0;
+        if (extractedContent.price) {
+          const priceStr = String(extractedContent.price).replace(/[^\d.]/g, '');
+          cleanPrice = parseFloat(priceStr) || 0;
+        }
+        
         if (moduleName === 'pages') {
           await prisma.pages.upsert({
             where: { id: content.pages?.[0]?.id || -1 }, // Try to find existing page linked to this content
@@ -125,7 +132,7 @@ export class TransformationEngine {
             update: { 
               title: content.title, 
               template_id: templateId, 
-              price: extractedContent.price || 0,
+              price: cleanPrice,
               status: 'active'
             },
             create: { 
@@ -133,7 +140,7 @@ export class TransformationEngine {
               title: content.title, 
               template_id: templateId, 
               sku: extractedContent.sku || `slug-${content.slug}`,
-              price: extractedContent.price || 0,
+              price: cleanPrice,
               status: 'active'
             }
           });
