@@ -501,8 +501,15 @@
             {% endfor %}
           {% else %}
             <li><a href="/">Home</a></li>
+            <li><a href="/classifieds">Classifieds</a></li>
             <li><a href="/pages/about">About</a></li>
             <li><a href="/pages/contact">Contact</a></li>
+            {% if customer %}
+              <li><a href="/customer/ads">My Ads</a></li>
+              <li><a href="/customer/account">Account</a></li>
+            {% else %}
+              <li><a href="/customer/login">Login</a></li>
+            {% endif %}
           {% endif %}
         </ul>
       </nav>

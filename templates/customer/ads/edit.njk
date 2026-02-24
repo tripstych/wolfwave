@@ -5,118 +5,153 @@
   <div class="account-header">
     <div class="flex items-center gap-4">
       <a href="/customer/ads" class="btn btn-secondary">Back to My Ads</a>
-      <h1 id="page-title">Create New Ad</h1>
+      <h1 id="page-title">{% if adId == 'new' %}Post an Ad{% else %}Edit Ad{% endif %}</h1>
     </div>
   </div>
 
   <div class="account-content">
-    <div class="account-section">
-      <form id="ad-form" class="form">
-        <div class="form-group">
-          <label for="title">Title *</label>
-          <input type="text" id="title" name="title" required class="form-input" placeholder="e.g. 2020 Mountain Bike - Great Condition">
-        </div>
-
-        <div class="grid grid-cols-2 gap-4">
-          <div class="form-group">
-            <label for="price">Price ($)</label>
-            <input type="number" id="price" name="price" step="0.01" class="form-input" placeholder="0.00">
+    <form id="ad-form" class="space-y-6">
+      <div class="card p-6">
+        <h2 class="text-lg font-bold mb-4">Basic Information</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="col-span-2">
+            <label class="label">Ad Title *</label>
+            <input type="text" id="title" name="title" required class="form-input" value="{{ ad.title }}" placeholder="e.g. 2020 Mountain Bike - Great Condition">
           </div>
-          <div class="form-group">
-            <label for="condition">Condition</label>
-            <select id="condition" name="condition" class="form-input">
-              <option value="na">N/A</option>
-              <option value="new_item">New</option>
-              <option value="used">Used</option>
-              <option value="refurbished">Refurbished</option>
+
+          <div>
+            <label class="label">Price ($)</label>
+            <input type="number" id="price" name="price" step="0.01" class="form-input" value="{{ ad.price }}" placeholder="0.00">
+          </div>
+
+          <div>
+            <label class="label">Category *</label>
+            <select id="category_id" name="category_id" required class="form-input">
+              <option value="">Select Category</option>
+              {% for cat in categories %}
+                <option value="{{ cat.id }}" {% if ad.category_id == cat.id %}selected{% endif %}>{{ cat.name }}</option>
+              {% endfor %}
             </select>
           </div>
-        </div>
 
-        <div class="form-group">
-          <label for="description">Description *</label>
-          <textarea id="description" name="description" required class="form-input" rows="6" placeholder="Describe what you are selling..."></textarea>
-        </div>
-
-        <div class="form-group">
-          <label for="location">Location</label>
-          <input type="text" id="location" name="location" class="form-input" placeholder="e.g. Los Angeles, CA">
-        </div>
-
-        <div class="form-group">
-          <label for="contact_info">Contact Info *</label>
-          <input type="text" id="contact_info" name="contact_info" required class="form-input" placeholder="Phone number or email">
-        </div>
-
-        <div class="form-group">
-          <label>Images (URLs)</label>
-          <div id="image-urls" class="space-y-2">
-            <input type="url" name="image" class="form-input ad-image-input" placeholder="https://...">
+          <div>
+            <label class="label">Condition</label>
+            <select id="condition" name="condition" class="form-input">
+              <option value="na" {% if ad.condition == 'na' %}selected{% endif %}>N/A</option>
+              <option value="new_item" {% if ad.condition == 'new_item' %}selected{% endif %}>New</option>
+              <option value="used" {% if ad.condition == 'used' %}selected{% endif %}>Used</option>
+              <option value="refurbished" {% if ad.condition == 'refurbished' %}selected{% endif %}>Refurbished</option>
+            </select>
           </div>
-          <button type="button" onclick="addImageInput()" class="btn btn-sm btn-secondary mt-2">Add Another Image</button>
-        </div>
 
-        <div id="form-error" class="error-message hidden"></div>
-        
-        <div class="form-actions mt-6">
-          <button type="submit" id="submit-btn" class="btn btn-primary w-full">Post Ad for Review</button>
+          <div>
+            <label class="label">Location</label>
+            <input type="text" id="location" name="location" class="form-input" value="{{ ad.location }}" placeholder="e.g. Los Angeles, CA">
+          </div>
+
+          <div class="col-span-2">
+            <label class="label">Contact Information *</label>
+            <input type="text" id="contact_info" name="contact_info" required class="form-input" value="{{ ad.contact_info }}" placeholder="Phone number or email">
+          </div>
         </div>
-      </form>
-    </div>
+      </div>
+
+      <div class="card p-6">
+        <h2 class="text-lg font-bold mb-4">Media & Description</h2>
+        <div class="space-y-4">
+          <div>
+            <label class="label">Primary Image URL</label>
+            <input type="url" id="image" name="image" class="form-input" value="{{ ad.image }}" placeholder="https://...">
+          </div>
+          
+          <div>
+            <label class="label">Description *</label>
+            <textarea id="description" name="description" required class="form-input" rows="6" placeholder="Describe what you are selling...">{{ ad.description }}</textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="card p-6">
+        <h2 class="text-lg font-bold mb-4">Extended Content</h2>
+        <div class="space-y-4">
+          <div>
+            <label class="label">Display Template</label>
+            <select id="template_id" name="template_id" class="form-input" onchange="renderRegions()">
+              <option value="">Standard Ad</option>
+              {% for tpl in templates %}
+                <option value="{{ tpl.id }}" {% if ad.template_id == tpl.id %}selected{% endif %}>{{ tpl.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div id="dynamic-regions" class="space-y-4 pt-4 border-t border-gray-100">
+            {# Regions will be injected here via JS #}
+          </div>
+        </div>
+      </div>
+
+      <div id="form-error" class="error-message hidden"></div>
+      
+      <div class="flex justify-end gap-4">
+        <a href="/customer/ads" class="btn btn-secondary">Cancel</a>
+        <button type="submit" id="submit-btn" class="btn btn-primary px-12">
+          {% if adId == 'new' %}Post Ad for Review{% else %}Save Changes{% endif %}
+        </button>
+      </div>
+    </form>
   </div>
 </div>
 
 <script>
-  const adId = '{{ adId }}' === 'new' ? null : '{{ adId }}';
+  const adId = '{{ adId }}';
+  const templates = {{ templates | dump | safe }};
+  const adContent = {{ ad.content | dump | safe }} || {};
 
-  async function loadAdData() {
-    if (!adId) return;
+  function renderRegions() {
+    const templateId = document.getElementById('template_id').value;
+    const container = document.getElementById('dynamic-regions');
+    container.innerHTML = '';
 
-    document.getElementById('page-title').textContent = 'Edit Classified Ad';
-    document.getElementById('submit-btn').textContent = 'Update Ad';
+    if (!templateId) return;
 
+    const template = templates.find(t => t.id == templateId);
+    if (!template || !template.regions) return;
+
+    let regions = [];
     try {
-      // We need a way to get ad by ID for editing
-      // Assuming our API supports GET /my-ads which we can filter
-      const response = await fetch('/api/classified-ads/my-ads', { credentials: 'include' });
-      const ads = await response.json();
-      const ad = ads.find(a => a.id == adId);
+      regions = typeof template.regions === 'string' ? JSON.parse(template.regions) : template.regions;
+    } catch (e) { console.error('Failed to parse regions', e); }
 
-      if (!ad) throw new Error('Ad not found');
+    regions.forEach(region => {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'form-group';
+      
+      const label = document.createElement('label');
+      label.className = 'label';
+      label.textContent = region.label || region.name;
+      wrapper.appendChild(label);
 
-      document.getElementById('title').value = ad.title;
-      document.getElementById('price').value = ad.price;
-      document.getElementById('condition').value = ad.condition;
-      document.getElementById('description').value = ad.description;
-      document.getElementById('location').value = ad.location;
-      document.getElementById('contact_info').value = ad.contact_info;
+      const val = adContent[region.name] || '';
 
-      if (ad.images && ad.images.length > 0) {
-        const container = document.getElementById('image-urls');
-        container.innerHTML = '';
-        ad.images.forEach(url => {
-          const input = document.createElement('input');
-          input.type = 'url';
-          input.name = 'image';
-          input.className = 'form-input ad-image-input mt-2';
-          input.value = url;
-          container.appendChild(input);
-        });
+      if (region.type === 'richtext' || region.type === 'textarea') {
+        const input = document.createElement('textarea');
+        input.className = 'form-input';
+        input.name = `region_${region.name}`;
+        input.rows = 4;
+        input.value = val;
+        wrapper.appendChild(input);
+      } else {
+        const input = document.createElement('input');
+        input.className = 'form-input';
+        input.name = `region_${region.name}`;
+        input.type = region.type === 'image' ? 'url' : 'text';
+        input.value = val;
+        input.placeholder = region.type === 'image' ? 'https://...' : '';
+        wrapper.appendChild(input);
       }
-    } catch (err) {
-      console.error(err);
-      alert('Failed to load ad data');
-    }
-  }
 
-  function addImageInput() {
-    const container = document.getElementById('image-urls');
-    const input = document.createElement('input');
-    input.type = 'url';
-    input.name = 'image';
-    input.className = 'form-input ad-image-input mt-2';
-    input.placeholder = 'https://...';
-    container.appendChild(input);
+      container.appendChild(wrapper);
+    });
   }
 
   document.getElementById('ad-form').addEventListener('submit', async (e) => {
@@ -125,25 +160,37 @@
     const errDiv = document.getElementById('form-error');
     
     btn.disabled = true;
-    btn.textContent = adId ? 'Updating...' : 'Posting...';
     errDiv.classList.add('hidden');
 
     const formData = new FormData(e.target);
+    
+    // Extract dynamic regions
+    const content = {};
+    for (let [key, value] of formData.entries()) {
+      if (key.startsWith('region_')) {
+        content[key.replace('region_', '')] = value;
+      }
+    }
+
     const data = {
       title: formData.get('title'),
       description: formData.get('description'),
       price: formData.get('price'),
+      category_id: formData.get('category_id'),
       condition: formData.get('condition'),
       location: formData.get('location'),
       contact_info: formData.get('contact_info'),
-      images: Array.from(document.querySelectorAll('.ad-image-input'))
-        .map(input => input.value.trim())
-        .filter(Boolean)
+      image: formData.get('image'),
+      template_id: formData.get('template_id'),
+      content: content
     };
 
     try {
-      const response = await fetch(adId ? `/api/classified-ads/${adId}` : '/api/classified-ads', {
-        method: adId ? 'PUT' : 'POST',
+      const url = adId === 'new' ? '/api/classified-ads' : `/api/classified-ads/${adId}`;
+      const method = adId === 'new' ? 'POST' : 'PUT';
+
+      const response = await fetch(url, {
+        method: method,
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify(data)
@@ -159,20 +206,22 @@
       errDiv.textContent = err.message;
       errDiv.classList.remove('hidden');
       btn.disabled = false;
-      btn.textContent = adId ? 'Update Ad' : 'Post Ad for Review';
     }
   });
 
-  document.addEventListener('DOMContentLoaded', loadAdData);
+  document.addEventListener('DOMContentLoaded', renderRegions);
 </script>
 
 <style>
+  .label { display: block; font-weight: 600; font-size: 0.875rem; color: #374151; margin-bottom: 0.5rem; }
   .grid { display: grid; }
-  .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .gap-4 { gap: 1rem; }
-  .mt-2 { margin-top: 0.5rem; }
+  .md\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .gap-6 { gap: 1.5rem; }
+  .col-span-2 { grid-column: span 2 / span 2; }
+  .space-y-6 > * + * { margin-top: 1.5rem; }
+  .space-y-4 > * + * { margin-top: 1rem; }
+  .pt-4 { padding-top: 1rem; }
+  .mt-4 { margin-top: 1rem; }
   .mt-6 { margin-top: 1.5rem; }
-  .space-y-2 > * + * { margin-top: 0.5rem; }
-  .w-full { width: 100%; }
 </style>
 {% endblock %}

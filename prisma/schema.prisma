@@ -707,6 +707,7 @@ model classified_ads {
   condition        classified_condition?  @default(na)
   location         String?                @db.VarChar(255)
   contact_info     String?                @db.VarChar(500)
+  image            String?                @db.VarChar(500)
   images           Json?
   status           classified_status      @default(pending_review)
   rejection_reason String?                @db.Text

@@ -1,0 +1,85 @@
+{% extends "layouts/base.njk" %}
+
+{% block content %}
+<div class="ad-detail-container max-w-6xl mx-auto px-4 py-8">
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-12">
+    {# Left: Images #}
+    <div class="space-y-4">
+      <div class="aspect-square bg-gray-100 rounded-xl overflow-hidden border">
+        {% if ad.image %}
+          <img src="{{ ad.image }}" alt="{{ ad.title }}" class="w-full h-full object-cover">
+        {% else %}
+          <div class="w-full h-full flex items-center justify-center text-gray-400">No Image Provided</div>
+        {% endif %}
+      </div>
+      
+      {# Gallery (if multiple images implemented) #}
+      {% if ad.images and ad.images.length > 0 %}
+        <div class="grid grid-cols-4 gap-4">
+          {% for img in ad.images %}
+            <div class="aspect-square rounded-lg border overflow-hidden bg-gray-50 cursor-pointer hover:ring-2 hover:ring-primary-500 transition-all">
+              <img src="{{ img.url or img }}" class="w-full h-full object-cover">
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </div>
+
+    {# Right: Info #}
+    <div class="space-y-6">
+      <div class="border-b pb-6">
+        <nav class="text-xs font-bold uppercase text-gray-400 mb-2 flex gap-2">
+          <a href="/classifieds" class="hover:text-primary-600">Classifieds</a>
+          <span>/</span>
+          <span>{{ ad.category_name }}</span>
+        </nav>
+        <h1 class="text-3xl font-black text-gray-900 leading-tight">{{ ad.title }}</h1>
+        <div class="mt-4 flex items-baseline gap-4">
+          <span class="text-4xl font-black text-green-600">
+            {% if ad.price %}${{ ad.price }}{% else %}Contact for Price{% endif %}
+          </span>
+          <span class="px-2 py-1 bg-gray-100 text-gray-600 text-[10px] font-bold uppercase rounded">{{ ad.condition | replace('_', ' ') }}</span>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-6 py-6 border-b border-gray-100">
+        <div>
+          <label class="text-[10px] uppercase font-black text-gray-400 block mb-1">Location</label>
+          <p class="font-bold text-gray-700">{{ ad.location or 'Not specified' }}</p>
+        </div>
+        <div>
+          <label class="text-[10px] uppercase font-black text-gray-400 block mb-1">Posted By</label>
+          <p class="font-bold text-gray-700">{{ ad.owner_first_name }} {{ ad.owner_last_name }}</p>
+        </div>
+      </div>
+
+      <div class="prose prose-sm max-w-none text-gray-600 leading-relaxed">
+        <label class="text-[10px] uppercase font-black text-gray-400 block mb-2">Description</label>
+        {{ ad.description | nl2br | safe }}
+      </div>
+
+      {# Dynamic Regions #}
+      {% for region_name, val in content %}
+        {% if region_name != 'description' and val %}
+          <div class="mt-8">
+            <label class="text-[10px] uppercase font-black text-gray-400 block mb-2">{{ region_name | replace('_', ' ') }}</label>
+            <div class="bg-gray-50 p-4 rounded-lg border border-gray-100">
+              {{ val | safe }}
+            </div>
+          </div>
+        {% endif %}
+      {% endfor %}
+
+      <div class="pt-8">
+        <button class="w-full bg-gray-900 text-white py-4 rounded-xl font-black uppercase tracking-widest hover:bg-primary-600 transition-colors shadow-xl">
+          Contact Seller: {{ ad.contact_info }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .font-black { font-weight: 900; }
+</style>
+{% endblock %}

@@ -5,6 +5,7 @@ import { loadGlobalContext } from '../middleware/globalContext.js';
 import * as shopController from '../controllers/shopController.js';
 import * as customerController from '../controllers/customerController.js';
 import * as contentController from '../controllers/contentController.js';
+import * as classifiedController from '../controllers/classifiedController.js';
 
 const router = Router();
 
@@ -23,6 +24,9 @@ router.get('/cart', shopController.cart);
 router.get('/checkout', shopController.checkout);
 router.get('/order-confirmation/:orderNumber', shopController.orderConfirmation);
 
+// Classifieds (Public)
+router.get('/classifieds', classifiedController.listAds);
+
 // Customer
 router.get('/customer/logout', customerController.logout);
 router.get(['/customer/login', '/customers/login'], customerController.login);
@@ -34,6 +38,11 @@ router.get(['/customer/reset-password/:token', '/customers/reset-password/:token
 router.get(['/customer/account', '/customers/account'], customerController.account);
 router.get('/subscribe', customerController.subscribe);
 router.get('/account/subscription', customerController.subscription);
+
+// Classifieds (Customer Management)
+router.get('/customer/ads', classifiedController.myAds);
+router.get('/customer/ads/create', classifiedController.createAd);
+router.get('/customer/ads/edit/:id', classifiedController.editAd);
 
 // Content (catch-all)
 router.get('*', contentController.renderContent);

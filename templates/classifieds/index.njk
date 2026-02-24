@@ -1,0 +1,105 @@
+{% extends "layouts/base.njk" %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 py-12">
+  <div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
+    <div>
+      <h1 class="text-5xl font-black text-gray-900 tracking-tight mb-4">Classifieds</h1>
+      <p class="text-xl text-gray-500 max-w-2xl">Find local deals, from vintage gear to professional services. Support your community by buying direct.</p>
+    </div>
+    <div class="flex-shrink-0">
+      <a href="/customer/ads/create" class="inline-flex items-center gap-2 px-8 py-4 bg-primary-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-primary-700 transition-all shadow-lg hover:shadow-primary-200">
+        Post Your Own Ad
+      </a>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-4 gap-12">
+    {# Sidebar: Filters #}
+    <div class="lg:col-span-1 space-y-10">
+      <div>
+        <h3 class="text-xs font-black uppercase text-gray-400 tracking-widest mb-6">Search</h3>
+        <form action="/classifieds" method="GET" class="relative">
+          <input 
+            type="text" 
+            name="q" 
+            value="{{ filters.q }}" 
+            placeholder="What are you looking for?" 
+            class="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-primary-500 focus:bg-white outline-none transition-all"
+          >
+          <svg class="w-6 h-6 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+        </form>
+      </div>
+
+      <div>
+        <h3 class="text-xs font-black uppercase text-gray-400 tracking-widest mb-6">Categories</h3>
+        <div class="flex flex-col gap-2">
+          <a href="/classifieds" class="px-4 py-3 rounded-xl font-bold transition-all {% if not filters.category %}bg-gray-900 text-white shadow-xl{% else %}text-gray-600 hover:bg-gray-100{% endif %}">
+            All Categories
+          </a>
+          {% for cat in categories %}
+            <a href="/classifieds?category={{ cat.slug }}" class="px-4 py-3 rounded-xl font-bold transition-all {% if filters.category == cat.slug %}bg-gray-900 text-white shadow-xl{% else %}text-gray-600 hover:bg-gray-100{% endif %}">
+              {{ cat.name }}
+            </a>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div>
+        <h3 class="text-xs font-black uppercase text-gray-400 tracking-widest mb-6">Sort By</h3>
+        <select onchange="window.location.href='/classifieds?sort=' + this.value" class="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl font-bold outline-none">
+          <option value="newest" {% if filters.sort == 'newest' %}selected{% endif %}>Newest First</option>
+          <option value="price_asc" {% if filters.sort == 'price_asc' %}selected{% endif %}>Price: Low to High</option>
+          <option value="price_desc" {% if filters.sort == 'price_desc' %}selected{% endif %}>Price: High to Low</option>
+        </select>
+      </div>
+    </div>
+
+    {# Main: Ads List #}
+    <div class="lg:col-span-3">
+      {% if ads.length > 0 %}
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+          {% for ad in ads %}
+            <a href="{{ ad.slug }}" class="group flex flex-col bg-white border border-gray-100 rounded-3xl overflow-hidden hover:border-primary-500 hover:shadow-2xl transition-all">
+              <div class="aspect-[4/3] bg-gray-100 overflow-hidden relative">
+                {% if ad.image %}
+                  <img src="{{ ad.image }}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
+                {% else %}
+                  <div class="w-full h-full flex items-center justify-center text-gray-400 font-black uppercase tracking-tighter">No Image</div>
+                {% endif %}
+                <div class="absolute top-4 left-4">
+                  <span class="px-3 py-1 bg-white/90 backdrop-blur rounded-lg text-[10px] font-black uppercase tracking-widest">{{ ad.category.name }}</span>
+                </div>
+              </div>
+              <div class="p-6 flex-1 flex flex-col">
+                <div class="flex items-baseline justify-between gap-4 mb-2">
+                  <h3 class="text-xl font-black text-gray-900 truncate group-hover:text-primary-600 transition-colors">{{ ad.title }}</h3>
+                </div>
+                <div class="mt-auto pt-4 flex items-end justify-between">
+                  <div class="text-2xl font-black text-green-600">
+                    {% if ad.price %}${{ ad.price }}{% else %}Free{% endif %}
+                  </div>
+                  <div class="text-[10px] font-black uppercase text-gray-400 tracking-wider">
+                    {{ ad.created_at | date("MMM D") }}
+                  </div>
+                </div>
+              </div>
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="bg-gray-50 border-2 border-dashed border-gray-200 rounded-3xl p-24 text-center">
+          <div class="text-6xl mb-6">🔍</div>
+          <h3 class="text-2xl font-black text-gray-900 mb-2">No ads found</h3>
+          <p class="text-gray-500">Try adjusting your filters or search terms.</p>
+          <a href="/classifieds" class="inline-block mt-8 text-primary-600 font-black uppercase tracking-widest hover:underline">Clear All Filters</a>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<style>
+  .font-black { font-weight: 900; }
+</style>
+{% endblock %}

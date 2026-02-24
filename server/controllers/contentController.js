@@ -308,6 +308,22 @@ export const renderContent = async (req, res) => {
         );
         pageData.images = images;
       }
+    } else if (contentType === 'classifieds') {
+      const ads = await query(`
+        SELECT ca.*, t.filename as template_filename, t.options as template_options, t.id as template_id,
+               c.title as content_title, cat.name as category_name, cat.slug as category_slug,
+               cust.first_name as owner_first_name, cust.last_name as owner_last_name
+        FROM classified_ads ca
+        LEFT JOIN templates t ON ca.template_id = t.id
+        LEFT JOIN content c ON ca.content_id = c.id
+        LEFT JOIN classified_categories cat ON ca.category_id = cat.id
+        LEFT JOIN customers cust ON ca.customer_id = cust.id
+        WHERE ca.content_id = ? AND ca.status = 'approved'
+      `, [contentRow.id]);
+      pageData = ads[0];
+      if (pageData && pageData.content_title) {
+        pageData.title = pageData.content_title;
+      }
     } else if (contentType === 'blocks') {
       const blocks = await query(`
         SELECT b.*, b.access_rules, t.filename as template_filename, t.options as template_options, t.id as template_id
@@ -387,6 +403,10 @@ export const renderContent = async (req, res) => {
     // For products, also pass as 'product' variable for template convenience
     if (contentType === 'products') {
       templateContext.product = pageData;
+    }
+    
+    if (contentType === 'classifieds') {
+      templateContext.ad = pageData;
     }
 
     themeRender(req, res, pageData.template_filename, templateContext);
