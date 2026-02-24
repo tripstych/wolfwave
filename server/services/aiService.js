@@ -51,7 +51,47 @@ export async function generateText(systemPrompt, userPrompt, model = null, req =
     };
   }
 
-  // 2. ANTHROPIC MODE (Prioritized if key exists)
+  // 2. GEMINI MODE (AI Studio)
+  if (GEMINI_API_KEY && GEMINI_API_KEY !== 'demo') {
+    const geminiModel = model || 'gemini-1.5-flash';
+    console.log(`[AI-DEBUG] 🔑 Gemini Key present. Sending request to ${geminiModel}...`);
+
+    try {
+      const response = await axios.post(
+        `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${GEMINI_API_KEY}`,
+        {
+          system_instruction: {
+            parts: [{ text: systemPrompt + "\n\nCRITICAL: Return ONLY a valid JSON object. No preamble, no explanation." }]
+          },
+          contents: [
+            { role: "user", parts: [{ text: userPrompt }] }
+          ],
+          generationConfig: {
+            responseMimeType: "application/json"
+          }
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      console.log(`[AI-DEBUG] 📥 Received response from Gemini.`);
+      const content = response.data.candidates[0].content.parts[0].text;
+      return JSON.parse(content);
+    } catch (error) {
+      const errorData = error.response?.data;
+      logError(req || 'system', errorData || error, 'AI_TEXT_GEN_GEMINI');
+      
+      if (errorData?.error?.message) {
+        throw new Error(`Gemini AI Error: ${errorData.error.message}`);
+      }
+      throw new Error(`Failed to generate content via Gemini: ${error.message}`);
+    }
+  }
+
+  // 3. ANTHROPIC MODE (Prioritized if key exists)
   if (ANTHROPIC_API_KEY && ANTHROPIC_API_KEY !== 'demo') {
     const anthropicModel = model || 'claude-3-5-sonnet-20240620';
     console.log(`[AI-DEBUG] 🔑 Anthropic Key present. Sending request to ${anthropicModel}...`);
