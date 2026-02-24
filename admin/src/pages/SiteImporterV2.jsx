@@ -189,7 +189,7 @@ export default function SiteImporterV2() {
         <div className="lg:col-span-1 space-y-6">
           <div className="card p-4">
             <h2 className="font-semibold mb-4 text-sm uppercase tracking-wider text-gray-500">Start New Import</h2>
-            <form onSubmit={handleStartImport} className="space-y-4">
+            <form onSubmit={handleStartImport} id="admin-site-importer-v2-start-import-form" className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-gray-400 mb-1 uppercase">Website URL</label>
                 <input
@@ -199,6 +199,7 @@ export default function SiteImporterV2() {
                   placeholder="https://example.com"
                   className="input text-sm"
                   required
+                  id="admin-site-importer-v2-url-input"
                 />
               </div>
               <div>
@@ -210,12 +211,14 @@ export default function SiteImporterV2() {
                   className="input text-sm"
                   min="1"
                   max="5000"
+                  id="admin-site-importer-v2-max-pages-input"
                 />
               </div>
               <button
                 type="submit"
                 disabled={isStarting}
                 className="btn btn-primary w-full flex items-center justify-center gap-2"
+                id="admin-site-importer-v2-start-import-button"
               >
                 {isStarting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                 Autopilot Import
@@ -226,7 +229,7 @@ export default function SiteImporterV2() {
           <div className="card overflow-hidden">
             <div className="p-3 bg-gray-50 border-b font-bold text-[10px] uppercase text-gray-500 flex justify-between items-center">
               <span>Import History</span>
-              <button onClick={loadSites} className="hover:text-primary-600 transition-colors">
+              <button onClick={loadSites} id="admin-site-importer-v2-refresh-history-button" className="hover:text-primary-600 transition-colors">
                 <RefreshCw className="w-3 h-3" />
               </button>
             </div>
@@ -298,28 +301,30 @@ export default function SiteImporterV2() {
                     <button 
                       onClick={() => setView('overview')} 
                       className={`px-4 py-1.5 text-xs font-bold rounded-md flex items-center gap-2 transition-all ${view === 'overview' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+                      id="admin-site-importer-v2-overview-tab"
                     >
                       <Layers className="w-3.5 h-3.5" /> OVERVIEW
                     </button>
                     <button 
                       onClick={() => setView('staged')} 
                       className={`px-4 py-1.5 text-xs font-bold rounded-md flex items-center gap-2 transition-all ${view === 'staged' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+                      id="admin-site-importer-v2-staged-tab"
                     >
                       <Database className="w-3.5 h-3.5" /> STAGED ITEMS
                     </button>
                   </div>
                   {selectedSite.status === 'crawled' && (
-                    <button onClick={triggerRuleGen} className="btn btn-primary btn-sm bg-amber-500 hover:bg-amber-600 border-none">
+                    <button onClick={triggerRuleGen} id="admin-site-importer-v2-generate-rules-button" className="btn btn-primary btn-sm bg-amber-500 hover:bg-amber-600 border-none">
                       Generate Rules
                     </button>
                   )}
                   {selectedSite.status === 'rules_generated' && (
-                    <button onClick={triggerTemplateGen} className="btn btn-primary btn-sm bg-blue-500 hover:bg-blue-600 border-none">
+                    <button onClick={triggerTemplateGen} id="admin-site-importer-v2-generate-templates-button" className="btn btn-primary btn-sm bg-blue-500 hover:bg-blue-600 border-none">
                       Generate Templates
                     </button>
                   )}
                   {selectedSite.llm_ruleset && selectedSite.status !== 'completed' && (
-                    <button onClick={triggerTransform} id="finalize-migrate" className="btn btn-primary btn-sm flex items-center gap-2">
+                    <button onClick={triggerTransform} id="admin-site-importer-v2-finalize-migrate-button" className="btn btn-primary btn-sm flex items-center gap-2">
                       <Zap className="w-3.5 h-3.5" />
                       Finalize & Migrate
                     </button>
