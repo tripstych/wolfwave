@@ -88,10 +88,15 @@ export class TemplateGenerator {
           type: (name === 'description' || name === 'content' || name === 'body') ? 'richtext' : 'text'
         }));
 
+        // Clean name: "Imported Homepage", "Imported Product", etc.
+        // We add a number only if we have multiple of the same type
+        const typeCount = generatedTemplates.filter(t => t.page_type === group.page_type).length;
+        const displayName = `Imported ${group.page_type.charAt(0).toUpperCase() + group.page_type.slice(1)}${typeCount > 0 ? ` (${typeCount + 1})` : ''}`;
+
         const template = await prisma.templates.upsert({
           where: { filename: filename },
           update: {
-            name: `Imported ${group.page_type} (${hash.substring(0, 8)})`,
+            name: displayName,
             content_type: contentType,
             description: group.summary,
             blueprint: group.selector_map,
@@ -99,7 +104,7 @@ export class TemplateGenerator {
             updated_at: new Date()
           },
           create: {
-            name: `Imported ${group.page_type} (${hash.substring(0, 8)})`,
+            name: displayName,
             filename: filename,
             content_type: contentType,
             description: group.summary,

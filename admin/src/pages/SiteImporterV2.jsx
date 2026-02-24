@@ -25,12 +25,14 @@ import {
 export default function SiteImporterV2() {
   const [url, setUrl] = useState('');
   const [maxPages, setMaxPages] = useState(500);
+  const [nuke, setNuke] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sites, setSites] = useState([]);
   const [selectedSite, setSelectedSite] = useState(null);
   const [stagedItems, setStagedItems] = useState([]);
   const [view, setView] = useState('overview'); // overview | staged
   const [isStarting, setIsStarting] = useState(false);
+  const [isFinalizing, setIsFinalizing] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState(new Set());
   const lastActionRef = useRef({}); // Track last action per site to avoid duplicate toasts
 
@@ -103,7 +105,7 @@ export default function SiteImporterV2() {
     if (!url) return;
     setIsStarting(true);
     try {
-      const res = await api.post('/import-v2', { url, config: { maxPages: parseInt(maxPages) } });
+      const res = await api.post('/import-v2', { url, config: { maxPages: parseInt(maxPages), nuke } });
       if (res.success) {
         setUrl('');
         loadSites();
@@ -152,12 +154,15 @@ export default function SiteImporterV2() {
   const triggerTransform = async () => {
     if (!selectedSite) return;
     if (!confirm('This will use the AI rules to migrate all staged content into your CMS tables. Continue?')) return;
+    setIsFinalizing(true);
     try {
       await api.post(`/import-v2/sites/${selectedSite.id}/transform`);
       toast.success('Migration started in background...');
       refreshSite();
     } catch (err) {
       alert('Transformation failed: ' + err.message);
+    } finally {
+      setIsFinalizing(false);
     }
   };
 
@@ -213,6 +218,18 @@ export default function SiteImporterV2() {
                   max="5000"
                   id="admin-site-importer-v2-max-pages-input"
                 />
+              </div>
+              <div className="flex items-center gap-2 p-2 bg-red-50 border border-red-100 rounded">
+                <input
+                  type="checkbox"
+                  id="admin-site-importer-v2-nuke-checkbox"
+                  checked={nuke}
+                  onChange={(e) => setNuke(e.target.checked)}
+                  className="rounded border-red-300 text-red-600 focus:ring-red-500"
+                />
+                <label htmlFor="admin-site-importer-v2-nuke-checkbox" className="text-xs font-bold text-red-700 cursor-pointer uppercase">
+                  Nuke Existing Site Data
+                </label>
               </div>
               <button
                 type="submit"
@@ -323,10 +340,15 @@ export default function SiteImporterV2() {
                       Generate Templates
                     </button>
                   )}
-                  {selectedSite.llm_ruleset && selectedSite.status !== 'completed' && (
-                    <button onClick={triggerTransform} id="admin-site-importer-v2-finalize-migrate-button" className="btn btn-primary btn-sm flex items-center gap-2">
-                      <Zap className="w-3.5 h-3.5" />
-                      Finalize & Migrate
+                  {selectedSite.llm_ruleset && (selectedSite.status === 'ready' || selectedSite.status === 'completed') && (
+                    <button 
+                      onClick={triggerTransform} 
+                      disabled={isFinalizing}
+                      id="admin-site-importer-v2-finalize-migrate-button" 
+                      className="btn btn-primary btn-sm flex items-center gap-2"
+                    >
+                      {isFinalizing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
+                      {selectedSite.status === 'completed' ? 'Re-Migrate Content' : 'Finalize & Migrate'}
                     </button>
                   )}
                 </div>

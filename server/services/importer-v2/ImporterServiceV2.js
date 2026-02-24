@@ -19,6 +19,26 @@ export class ImporterServiceV2 {
   }
 
   /**
+   * Clears all content, pages, products, and imported templates for a fresh start
+   */
+  static async nukeSiteData(dbName) {
+    info(dbName, 'IMPORT_V2_NUKE_START', 'Nuking existing site data for fresh import');
+    
+    // Order matters for relational safety (though we loosened constraints, it's good practice)
+    await prisma.pages.deleteMany({});
+    await prisma.products.deleteMany({});
+    await prisma.content_history.deleteMany({});
+    await prisma.content.deleteMany({});
+    
+    // Only nuke templates we created (in the imported/ folder)
+    await prisma.templates.deleteMany({
+      where: { filename: { startsWith: 'imported/' } }
+    });
+
+    info(dbName, 'IMPORT_V2_NUKE_COMPLETE', 'Site data cleared');
+  }
+
+  /**
    * Start a new import process
    */
   static async startImport(siteId, rootUrl) {
@@ -35,6 +55,14 @@ export class ImporterServiceV2 {
   static async _runFullProcess(siteId, rootUrl, dbName) {
     await runWithTenant(dbName, async () => {
       try {
+        const site = await prisma.imported_sites.findUnique({ where: { id: siteId } });
+        const config = site.config || {};
+
+        if (config.nuke) {
+          await ImporterServiceV2.updateStatus(siteId, 'nuking', 'Clearing existing site data...');
+          await ImporterServiceV2.nukeSiteData(dbName);
+        }
+
         await ImporterServiceV2.updateStatus(siteId, 'analyzing', 'Starting site discovery...');
         
         // Phase 1: Discovery
@@ -61,15 +89,9 @@ export class ImporterServiceV2 {
         const templateGen = new TemplateGenerator(siteId, dbName);
         await templateGen.run();
 
-        await ImporterServiceV2.updateStatus(siteId, 'transforming', 'Transforming content to CMS...');
-
-        // Phase 5: Transformation (Optional/Auto)
-        const transform = new TransformationEngine(siteId, dbName);
-        await transform.run();
-
-        info(dbName, 'IMPORT_V2_COMPLETE', `Import process for ${rootUrl} fully completed`);
+        info(dbName, 'IMPORT_V2_READY', `Import process for ${rootUrl} is ready for manual finalization`);
         
-        await ImporterServiceV2.updateStatus(siteId, 'completed', 'Import fully completed successfully!');
+        await ImporterServiceV2.updateStatus(siteId, 'ready', 'Templates generated. Ready for final migration!');
 
       } catch (err) {
         logError(dbName, err, 'IMPORT_V2_PROCESS_FAILED');
