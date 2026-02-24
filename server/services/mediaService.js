@@ -27,7 +27,37 @@ function getTenantUploadsDir() {
 export async function downloadMedia(url, altText = '', userId = null, strict = false) {
   const dbName = getCurrentDbName();
   try {
-    if (!url || typeof url !== 'string' || !url.startsWith('http')) return url;
+    if (!url || typeof url !== 'string') return url;
+    if (!url.startsWith('http') && !url.startsWith('data:')) return url;
+
+    // 1. Handle Data URIs (e.g. from Gemini Imagen)
+    if (url.startsWith('data:')) {
+      const match = url.match(/^data:([^;]+);base64,(.+)$/);
+      if (!match) throw new Error('Invalid data URI');
+      
+      const contentType = match[1];
+      const base64Data = match[2];
+      const buffer = Buffer.from(base64Data, 'base64');
+      
+      const tenantDir = getTenantUploadsDir();
+      const date = new Date();
+      const subdir = `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}`;
+      const fullPath = path.join(tenantDir, subdir);
+      await fs.mkdir(fullPath, { recursive: true });
+
+      const ext = '.' + (contentType.split('/')[1] || 'png');
+      const filename = `${uuidv4()}${ext}`;
+      const filePath = path.join(fullPath, filename);
+      await fs.writeFile(filePath, buffer);
+
+      const relativePath = `/${subdir}/${filename}`.replace(/\\/g, '/');
+      await query(`
+        INSERT INTO media (filename, original_name, mime_type, size, path, alt_text, title, uploaded_by)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `, [filename, 'ai-generated' + ext, contentType, buffer.length, relativePath, altText, 'AI Generated', userId]);
+
+      return `/uploads${relativePath}`;
+    }
 
     // Normalize URL
     const mediaUrl = new URL(url).toString();

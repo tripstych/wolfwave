@@ -262,13 +262,38 @@ export async function generateImage(prompt, size = "1024x1024", userId = null) {
   }
 
   // 1. GEMINI MODE (Vertex / AI Studio Imagen API)
-  // Note: Imagen 3 usually requires specialized access or Google Cloud Vertex AI.
-  // Standard AI Studio models don't always support image generation via generateContent.
   if (GEMINI_API_KEY && GEMINI_API_KEY !== 'demo') {
-    // For now, Gemini Image Gen is a placeholder for future implementation 
-    // unless the user has specifically configured Imagen API access.
-    // We fall through to DALL-E if available.
-    console.log(`[AI-DEBUG] ℹ️ Gemini Image Gen integration pending. Falling back to DALL-E...`);
+    console.log(`[AI-DEBUG] 🎨 Generating image via Gemini Imagen: "${prompt}"...`);
+    try {
+      const response = await axios.post(
+        `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:generateContent?key=${GEMINI_API_KEY}`,
+        {
+          contents: [{ parts: [{ text: prompt }] }]
+        },
+        { timeout: 60000 }
+      );
+
+      // Gemini Imagen returns base64 data in the response
+      const imageData = response.data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+      
+      if (imageData) {
+        console.log(`[AI-DEBUG] 📥 Base64 image received from Gemini. Processing...`);
+        // We'll create a data URI to pass to our existing downloadMedia logic, 
+        // or we could refactor downloadMedia to handle buffers. 
+        // For simplicity and minimal change to working logic, data URI works:
+        const dataUri = `data:image/png;base64,${imageData}`;
+        const localUrl = await downloadMedia(dataUri, prompt, userId, true);
+        
+        console.log(`[AI-DEBUG] ✅ Gemini Image processed: ${localUrl}`);
+        return localUrl;
+      }
+      
+      console.log(`[AI-DEBUG] ⚠️ Gemini returned no image data, trying fallback...`);
+    } catch (e) {
+      const errorMsg = e.response?.data?.error?.message || e.message;
+      console.log(`[AI-DEBUG] ⚠️ Gemini Image Gen failed: ${errorMsg}`);
+      // If they don't have OpenAI, this will eventually hit the final throw
+    }
   }
 
   // 2. DALL-E 3 (Primary for now as it's more stable in AI Studio/OpenAI)
