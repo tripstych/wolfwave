@@ -861,7 +861,7 @@ export default function SiteImporter() {
               />
               
               <div className="flex items-center justify-between">
-                <button 
+                <button id="select-site-{{id}}"
                   type="button" 
                   onClick={() => setShowOptions(!showOptions)}
                   className="text-xs text-primary-600 font-medium flex items-center gap-1 hover:underline"
