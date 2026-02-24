@@ -494,6 +494,7 @@ export default function BlockEditor() {
             </button>
           )}
           <button
+            id="btn-save-block"
             onClick={handleSave}
             disabled={saving}
             className="btn btn-primary"
@@ -547,6 +548,7 @@ export default function BlockEditor() {
                 )}
               </label>
               <input
+                id="input-block-name"
                 type="text"
                 value={block.name}
                 onChange={(e) => handleNameChange(e.target.value)}
@@ -564,6 +566,7 @@ export default function BlockEditor() {
                 )}
               </label>
               <input
+                id="input-block-slug"
                 type="text"
                 value={block.slug}
                 onChange={(e) => setBlock(b => ({ ...b, slug: e.target.value }))}
@@ -578,6 +581,7 @@ export default function BlockEditor() {
           <div className="border-b border-gray-200">
             <nav className="-mb-px flex space-x-8">
               <button
+                id="tab-editor"
                 onClick={() => setActiveTab('editor')}
                 className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
                   activeTab === 'editor'
@@ -588,6 +592,7 @@ export default function BlockEditor() {
                 Editor
               </button>
               <button
+                id="tab-history"
                 onClick={() => setActiveTab('history')}
                 className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
                   activeTab === 'history'
@@ -607,6 +612,7 @@ export default function BlockEditor() {
                 <div className="flex items-center justify-between">
                   <h2 className="font-semibold text-gray-900">Content</h2>
                   <button
+                    id="btn-edit-source"
                     type="button"
                     onClick={() => setShowSource(!showSource)}
                     className={`btn btn-sm ${showSource ? 'btn-primary' : 'btn-ghost text-gray-500'} flex items-center gap-2`}
@@ -697,6 +703,7 @@ export default function BlockEditor() {
               <label className="label">Template</label>
               <div className="flex gap-2">
                 <select
+                  id="select-template"
                   value={block.template_id || ''}
                   onChange={(e) => handleTemplateChange(e.target.value)}
                   className="input flex-1"
@@ -709,6 +716,7 @@ export default function BlockEditor() {
                   ))}
                 </select>
                 <button
+                  id="btn-sync-templates"
                   onClick={syncTemplates}
                   disabled={syncing}
                   className="btn btn-ghost px-3"
@@ -730,6 +738,7 @@ export default function BlockEditor() {
               <div>
                 <label className="label">Authentication</label>
                 <select
+                  id="select-auth-rule"
                   value={block.access_rules?.auth || 'any'}
                   onChange={(e) => setBlock(b => ({ 
                     ...b, 
@@ -745,6 +754,7 @@ export default function BlockEditor() {
               <div>
                 <label className="label">Subscription</label>
                 <select
+                  id="select-subscription-rule"
                   value={block.access_rules?.subscription || 'any'}
                   onChange={(e) => setBlock(b => ({ 
                     ...b, 

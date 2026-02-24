@@ -158,11 +158,13 @@ export default function Settings() {
 
   const field = (key, label, opts = {}) => {
     const { type = 'text', placeholder = '', hint = '', rows } = opts;
+    const fieldId = `input-${key.replace(/_/g, '-')}`;
     return (
       <div>
-        <label className="label">{label}</label>
+        <label className="label" htmlFor={fieldId}>{label}</label>
         {rows ? (
           <textarea
+            id={fieldId}
             value={settings[key]}
             onChange={(e) => setSettings({ ...settings, [key]: e.target.value })}
             className={`input ${opts.className || ''}`}
@@ -171,6 +173,7 @@ export default function Settings() {
           />
         ) : (
           <input
+            id={fieldId}
             type={type}
             value={settings[key]}
             onChange={(e) => setSettings({ ...settings, [key]: e.target.value })}
@@ -198,7 +201,7 @@ export default function Settings() {
       <div className="sticky top-0 z-30 bg-gray-50/80 backdrop-blur-sm -mx-4 px-4 py-4 mb-6 border-b border-gray-200">
         <div className="max-w-3xl mx-auto flex items-center justify-between">
           <h1 className="text-2xl font-bold text-gray-900">{_('settings.title', 'Settings')}</h1>
-          <button onClick={handleSave} disabled={saving} className="btn btn-primary">
+          <button id="btn-save-settings" onClick={handleSave} disabled={saving} className="btn btn-primary">
             <Save className="w-4 h-4 mr-2" />
             {saving ? _('common.saving', 'Saving...') : _('common.save_changes', 'Save Changes')}
           </button>
@@ -247,8 +250,9 @@ export default function Settings() {
               {field('site_tagline', _('settings.site_tagline', 'Site Tagline'), { placeholder: _('settings.site_tagline_placeholder', 'Just another awesome website') })}
               {field('site_url', _('settings.site_url', 'Site URL'), { type: 'url', placeholder: 'https://example.com', hint: _('settings.site_url_hint', 'Used for sitemap generation and canonical URLs') })}
               <div>
-                <label className="label">{_('settings.home_page', 'Home Page')}</label>
+                <label className="label" htmlFor="select-home-page">{_('settings.home_page', 'Home Page')}</label>
                 <select
+                  id="select-home-page"
                   value={settings.home_page_id}
                   onChange={(e) => setSettings({ ...settings, home_page_id: e.target.value })}
                   className="input"
@@ -479,8 +483,8 @@ export default function Settings() {
             <div className="card p-6 space-y-4">
               <h2 className="font-semibold text-gray-900 pb-2 border-b border-gray-200">{_('settings.email.test_title', 'Test Email')}</h2>
               <div className="flex gap-2">
-                <input type="email" value={testEmail} onChange={(e) => setTestEmail(e.target.value)} className="input flex-1" placeholder="test@example.com" />
-                <button onClick={handleTestEmail} disabled={sendingTest || !testEmail} className="btn btn-secondary whitespace-nowrap">
+                <input id="input-test-email" type="email" value={testEmail} onChange={(e) => setTestEmail(e.target.value)} className="input flex-1" placeholder="test@example.com" />
+                <button id="btn-send-test-email" onClick={handleTestEmail} disabled={sendingTest || !testEmail} className="btn btn-secondary whitespace-nowrap">
                   <Send className="w-4 h-4 mr-2" />
                   {sendingTest ? _('common.sending', 'Sending...') : _('settings.email.send_test', 'Send Test')}
                 </button>

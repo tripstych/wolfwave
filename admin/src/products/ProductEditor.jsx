@@ -350,16 +350,16 @@ export default function ProductEditor() {
           <h1>{isNew ? _('products.new_product', 'New Product') : _('products.edit_product', 'Edit Product')}</h1>
         </div>
         <div className="flex gap-2">
-          <button className="btn btn-secondary" onClick={handleImport} disabled={importing || saving}>
+          <button id="btn-import-url" className="btn btn-secondary" onClick={handleImport} disabled={importing || saving}>
             {importing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <DownloadCloud className="w-4 h-4 mr-2" />}
             {_('products.import_url', 'Import URL')}
           </button>
           {!isNew && product.slug && (
-            <a href={getSiteUrl(product.slug)} target="_blank" rel="noopener noreferrer" className="btn btn-secondary inline-flex items-center gap-2">
+            <a id="link-view-product" href={getSiteUrl(product.slug)} target="_blank" rel="noopener noreferrer" className="btn btn-secondary inline-flex items-center gap-2">
               <ExternalLink className="w-4 h-4" /> {_('common.view', 'View')}
             </a>
           )}
-          <button className="btn btn-primary" onClick={() => handleSave()} disabled={saving}>
+          <button id="btn-save-product" className="btn btn-primary" onClick={() => handleSave()} disabled={saving}>
             {saving ? _('common.saving', 'Saving...') : _('products.save_product', 'Save Product')}
           </button>
         </div>
@@ -378,6 +378,7 @@ export default function ProductEditor() {
           <div className="border-b border-gray-200 mb-6">
             <nav className="-mb-px flex space-x-8">
               <button
+                id="tab-editor"
                 onClick={() => setActiveTab('editor')}
                 className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
                   activeTab === 'editor'
@@ -388,6 +389,7 @@ export default function ProductEditor() {
                 {_('common.editor', 'Editor')}
               </button>
               <button
+                id="tab-history"
                 onClick={() => setActiveTab('history')}
                 className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
                   activeTab === 'history'
@@ -407,19 +409,19 @@ export default function ProductEditor() {
                 <div className="grid grid-cols-2 gap-6">
                   <div>
                     <label className="label">{_('products.sku', 'SKU')} *</label>
-                    <input type="text" value={product.sku || ''} onChange={(e) => handleFieldChange('sku', e.target.value)} className="input" placeholder="WB-001" />
+                    <input id="input-sku" type="text" value={product.sku || ''} onChange={(e) => handleFieldChange('sku', e.target.value)} className="input" placeholder="WB-001" />
                   </div>
                   <div>
                     <label className="label">{_('products.base_price', 'Base Price')} *</label>
-                    <input type="number" step="0.01" value={product.price ?? ''} onChange={(e) => handleFieldChange('price', parseFloat(e.target.value) || 0)} className="input" />
+                    <input id="input-price" type="number" step="0.01" value={product.price ?? ''} onChange={(e) => handleFieldChange('price', parseFloat(e.target.value) || 0)} className="input" />
                   </div>
                   <div>
                     <label className="label">{_('products.compare_price', 'Compare at Price')}</label>
-                    <input type="number" step="0.01" value={product.compare_at_price ?? ''} onChange={(e) => handleFieldChange('compare_at_price', parseFloat(e.target.value) || null)} className="input" />
+                    <input id="input-compare-price" type="number" step="0.01" value={product.compare_at_price ?? ''} onChange={(e) => handleFieldChange('compare_at_price', parseFloat(e.target.value) || null)} className="input" />
                   </div>
                   <div>
                     <label className="label">{_('products.inventory_qty', 'Inventory Quantity')}</label>
-                    <input type="number" value={product.inventory_quantity ?? ''} onChange={(e) => handleFieldChange('inventory_quantity', parseInt(e.target.value) || 0)} className="input" disabled={product.variants?.length > 0} placeholder={product.variants?.length > 0 ? _('products.managed_by_variants', 'Managed by variants') : ''} />
+                    <input id="input-inventory-qty" type="number" value={product.inventory_quantity ?? ''} onChange={(e) => handleFieldChange('inventory_quantity', parseInt(e.target.value) || 0)} className="input" disabled={product.variants?.length > 0} placeholder={product.variants?.length > 0 ? _('products.managed_by_variants', 'Managed by variants') : ''} />
                   </div>
                 </div>
                 <div className="mt-4 flex gap-6">
@@ -629,29 +631,30 @@ export default function ProductEditor() {
 
           <div className="card p-6 space-y-4 border-amber-200 bg-amber-50/30">
             <div className="flex items-center gap-2 text-amber-700 font-bold text-xs uppercase"><Globe className="w-4 h-4" /> {_('products.visual_scrape', 'Live Visual Scrape')}</div>
-            <input type="url" placeholder={_('common.url_placeholder', "URL...")} value={scrapeUrl} onChange={e => setScrapeUrl(e.target.value)} className="input text-sm" />
-            <button onClick={() => setShowPicker(true)} className="btn btn-secondary w-full py-2 text-xs"><Maximize2 className="w-3 h-3 mr-2" /> {_('products.visual_scrape_btn', 'Visual Scrape')}</button>
+            <input id="input-scrape-url" type="url" placeholder={_('common.url_placeholder', "URL...")} value={scrapeUrl} onChange={e => setScrapeUrl(e.target.value)} className="input text-sm" />
+            <button id="btn-visual-picker" onClick={() => setShowPicker(true)} className="btn btn-secondary w-full py-2 text-xs"><Maximize2 className="w-3 h-3 mr-2" /> {_('products.visual_scrape_btn', 'Visual Scrape')}</button>
           </div>
 
           <div className="card p-6 space-y-4">
             <div>
               <label className="label">{_('products.status', 'Status')}</label>
-              <select value={product.status || 'draft'} onChange={(e) => handleFieldChange('status', e.target.value)} className="input">
+              <select id="select-status" value={product.status || 'draft'} onChange={(e) => handleFieldChange('status', e.target.value)} className="input">
                 <option value="draft">{_('status.draft', 'Draft')}</option><option value="active">{_('status.active', 'Active')}</option><option value="archived">{_('status.archived', 'Archived')}</option>
               </select>
             </div>
             <div>
               <label className="label">{_('products.template', 'Template')} *</label>
               <div className="flex gap-2">
-                <select value={product.template_id || ''} onChange={(e) => handleTemplateChange(e.target.value)} className="input flex-1">
+                <select id="select-template" value={product.template_id || ''} onChange={(e) => handleTemplateChange(e.target.value)} className="input flex-1">
                   <option value="">{_('products.select_template', 'Select template')}</option>
                   {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                 </select>
-                <button onClick={syncTemplates} className="btn btn-ghost px-3" title={_('common.sync_templates', "Sync templates")}>
+                <button id="btn-sync-templates" onClick={syncTemplates} className="btn btn-ghost px-3" title={_('common.sync_templates', "Sync templates")}>
                   <RefreshCw className="w-4 h-4" />
                 </button>
               </div>
               <button
+                id="btn-ai-autofill"
                 onClick={handleAiGenerate}
                 disabled={generating || !product.template_id}
                 className="btn btn-secondary w-full mt-2 flex items-center justify-center gap-2 text-indigo-600 border-indigo-200"

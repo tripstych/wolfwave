@@ -847,6 +847,7 @@ export default function SiteImporter() {
             <h2 className="font-semibold mb-4">New Crawl</h2>
             <form onSubmit={handleStartCrawl} className="space-y-3">
               <input 
+                id="input-crawl-url"
                 type="text" 
                 value={url} 
                 onChange={e => setUrl(e.target.value)} 
@@ -870,6 +871,7 @@ export default function SiteImporter() {
 
                 <label className="flex items-center gap-2 text-xs font-medium text-gray-600 cursor-pointer">
                   <input 
+                    id="checkbox-auto-detect"
                     type="checkbox" 
                     checked={config.autoDetect}
                     onChange={e => setConfig({...config, autoDetect: e.target.checked})}
@@ -1010,6 +1012,7 @@ export default function SiteImporter() {
                 <div className="flex items-center gap-4">
                   <h2 className="font-bold text-lg">{new URL(selectedSite.root_url).hostname}</h2>
                   <button 
+                    id="btn-ai-generate-menus"
                     onClick={handleGenerateMenus} 
                     disabled={generatingMenus}
                     className="btn btn-secondary btn-xs flex items-center gap-1"
@@ -1020,9 +1023,9 @@ export default function SiteImporter() {
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="flex bg-gray-100 p-1 rounded-lg">
-                    <button onClick={() => setView('rules')} className={`px-3 py-1.5 text-sm rounded-md ${view === 'rules' ? 'bg-white shadow-sm' : 'text-gray-500'}`}>Rules</button>
-                    <button onClick={() => setView('pages')} className={`px-3 py-1.5 text-sm rounded-md ${view === 'pages' ? 'bg-white shadow-sm' : 'text-gray-500'}`}>Pages ({discoveredPages.length})</button>
-                    <button onClick={() => setView('products')} className={`px-3 py-1.5 text-sm rounded-md ${view === 'products' ? 'bg-white shadow-sm' : 'text-gray-500'}`}>Products ({discoveredProducts.length})</button>
+                    <button id="btn-view-rules" onClick={() => setView('rules')} className={`px-3 py-1.5 text-sm rounded-md ${view === 'rules' ? 'bg-white shadow-sm' : 'text-gray-500'}`}>Rules</button>
+                    <button id="btn-view-pages" onClick={() => setView('pages')} className={`px-3 py-1.5 text-sm rounded-md ${view === 'pages' ? 'bg-white shadow-sm' : 'text-gray-500'}`}>Pages ({discoveredPages.length})</button>
+                    <button id="btn-view-products" onClick={() => setView('products')} className={`px-3 py-1.5 text-sm rounded-md ${view === 'products' ? 'bg-white shadow-sm' : 'text-gray-500'}`}>Products ({discoveredProducts.length})</button>
                   </div>
                 </div>
               </div>
@@ -1163,7 +1166,7 @@ export default function SiteImporter() {
                         >
                           <Plus className="w-4 h-4 mr-1" /> Create Rule
                         </button>
-                        <button onClick={handleBulkPageMigrate} disabled={migrating || discoveredPages.length === 0} className="btn btn-primary btn-sm">
+                        <button id="btn-quick-migrate-pages" onClick={handleBulkPageMigrate} disabled={migrating || discoveredPages.length === 0} className="btn btn-primary btn-sm">
                           {migrating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileText className="w-4 h-4 mr-2" />} 
                           {selectedPages.size > 0 ? `Quick Migrate ${selectedPages.size}` : 'Quick Migrate All'}
                         </button>
@@ -1273,7 +1276,7 @@ export default function SiteImporter() {
                         >
                           <Plus className="w-4 h-4 mr-1" /> Create Rule
                         </button>
-                        <button onClick={handleBulkProductMigrate} disabled={migrating || discoveredProducts.length === 0} className="btn btn-primary btn-sm">
+                        <button id="btn-quick-migrate-products" onClick={handleBulkProductMigrate} disabled={migrating || discoveredProducts.length === 0} className="btn btn-primary btn-sm">
                           {migrating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Package className="w-4 h-4 mr-2" />} 
                           {selectedProducts.size > 0 ? `Quick Migrate ${selectedProducts.size}` : 'Quick Migrate All'}
                         </button>

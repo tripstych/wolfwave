@@ -240,6 +240,7 @@ export default function Themes() {
               
               <form onSubmit={handleLiveImport} className="space-y-3">
                 <input 
+                  id="input-live-url"
                   type="text" 
                   className="input text-sm" 
                   placeholder="https://example.com" 
@@ -248,13 +249,14 @@ export default function Themes() {
                   required
                 />
                 <input 
+                  id="input-live-theme-name"
                   type="text" 
                   className="input text-sm" 
                   placeholder="Theme Name (Optional)" 
                   value={liveName}
                   onChange={e => setLiveName(e.target.value)}
                 />
-                <button type="submit" disabled={liveImporting} className="btn btn-primary w-full">
+                <button id="btn-live-import" type="submit" disabled={liveImporting} className="btn btn-primary w-full">
                   {liveImporting ? <><Loader2 className="w-4 h-4 animate-spin mr-2" /> {_('themes.live_import.importing', 'Importing...')}</> : _('themes.live_import.btn', 'Import from URL')}
                 </button>
               </form>
@@ -285,7 +287,7 @@ export default function Themes() {
               <p className="text-sm text-gray-500 mb-4">{_('themes.wp_import.subtitle', 'Upload a WordPress theme ZIP to convert its PHP templates into Nunjucks.')}</p>
 
               <label className="block border-2 border-dashed border-gray-200 rounded-lg p-8 text-center cursor-pointer hover:border-primary-300 hover:bg-primary-50/30 transition-colors">
-                <input type="file" accept=".zip" onChange={handleWpFileSelect} className="hidden" />
+                <input id="input-wp-theme-zip" type="file" accept=".zip" onChange={handleWpFileSelect} className="hidden" />
                 {wpFile ? (
                   <div>
                     <CheckCircle2 className="w-8 h-8 text-green-500 mx-auto mb-2" />
@@ -464,6 +466,7 @@ export default function Themes() {
                         </label>
                       )}
                       <button 
+                        id="btn-wp-convert"
                         onClick={handleWpConvert} 
                         disabled={wpLoading || (wpPreview.templateCount > 0 && wpSelectedFiles.size === 0)} 
                         className="btn btn-primary"

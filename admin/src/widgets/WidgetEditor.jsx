@@ -445,6 +445,7 @@ export default function WidgetEditor() {
             </button>
           )}
           <button
+            id="btn-save-widget"
             onClick={handleSave}
             disabled={saving}
             className="btn btn-primary"
@@ -483,6 +484,7 @@ export default function WidgetEditor() {
             <div>
               <label className="label">Name</label>
               <input
+                id="input-widget-name"
                 type="text"
                 value={widget.name}
                 onChange={(e) => handleNameChange(e.target.value)}
@@ -495,6 +497,7 @@ export default function WidgetEditor() {
             <div>
               <label className="label">Slug / Shortcode ID</label>
               <input
+                id="input-widget-slug"
                 type="text"
                 value={widget.slug}
                 onChange={(e) => setWidget(w => ({ ...w, slug: e.target.value }))}
@@ -512,6 +515,7 @@ export default function WidgetEditor() {
           <div className="border-b border-gray-200">
             <nav className="-mb-px flex space-x-8">
               <button
+                id="tab-editor"
                 onClick={() => setActiveTab('editor')}
                 className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
                   activeTab === 'editor'
@@ -522,6 +526,7 @@ export default function WidgetEditor() {
                 Editor
               </button>
               <button
+                id="tab-history"
                 onClick={() => setActiveTab('history')}
                 className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
                   activeTab === 'history'
@@ -541,6 +546,7 @@ export default function WidgetEditor() {
                 <div className="flex items-center justify-between">
                   <h2 className="font-semibold text-gray-900">Configurable Properties</h2>
                   <button
+                    id="btn-edit-source"
                     type="button"
                     onClick={() => setShowSource(!showSource)}
                     className={`btn btn-sm ${showSource ? 'btn-primary' : 'btn-ghost text-gray-500'} flex items-center gap-2`}
@@ -629,6 +635,7 @@ export default function WidgetEditor() {
               <label className="label">Widget Template</label>
               <div className="flex gap-2">
                 <select
+                  id="select-template"
                   value={widget.template_id || ''}
                   onChange={(e) => handleTemplateChange(e.target.value)}
                   className="input flex-1"
@@ -641,6 +648,7 @@ export default function WidgetEditor() {
                   ))}
                 </select>
                 <button
+                  id="btn-sync-templates"
                   onClick={syncTemplates}
                   disabled={syncing}
                   className="btn btn-ghost px-3"

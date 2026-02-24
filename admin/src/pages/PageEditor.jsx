@@ -243,10 +243,10 @@ export default function PageEditor() {
               <Eye className="w-4 h-4 mr-2" /> View
             </a>
           )}
-          <button onClick={() => handleSave('draft')} disabled={saving} className="btn btn-secondary">
+          <button id="btn-save-draft" onClick={() => handleSave('draft')} disabled={saving} className="btn btn-secondary">
             Save Draft
           </button>
-          <button onClick={() => handleSave('published')} disabled={saving} className="btn btn-primary">
+          <button id="btn-publish" onClick={() => handleSave('published')} disabled={saving} className="btn btn-primary">
             <Save className="w-4 h-4 mr-2" /> {saving ? 'Saving...' : 'Publish'}
           </button>
         </div>
@@ -405,6 +405,7 @@ export default function PageEditor() {
             </h2>
             <div className="space-y-3">
               <input
+                id="input-scrape-url"
                 type="url"
                 value={scrapeUrl}
                 onChange={(e) => setScrapeUrl(e.target.value)}
@@ -414,6 +415,7 @@ export default function PageEditor() {
               />
               <div className="grid grid-cols-2 gap-2">
                 <button
+                  id="btn-scrape"
                   onClick={handleScrape}
                   disabled={scraping || !scrapeUrl.trim()}
                   className="btn btn-secondary flex items-center justify-center gap-2 text-xs"
@@ -422,6 +424,7 @@ export default function PageEditor() {
                   Scrape
                 </button>
                 <button
+                  id="btn-visual-picker"
                   onClick={() => setShowPicker(true)}
                   disabled={scraping || !scrapeUrl.trim()}
                   className="btn btn-secondary flex items-center justify-center gap-2 text-xs"
@@ -438,6 +441,7 @@ export default function PageEditor() {
               <label className="label">Template</label>
               <div className="flex gap-2">
                 <select
+                  id="select-template"
                   value={page.template_id || ''}
                   onChange={(e) => handleTemplateChange(e.target.value)}
                   className="input flex-1"
@@ -447,11 +451,12 @@ export default function PageEditor() {
                     <option key={t.id} value={String(t.id)}>{t.name}</option>
                   ))}
                 </select>
-                <button onClick={syncTemplates} className="btn btn-ghost px-3" title="Sync templates">
+                <button id="btn-sync-templates" onClick={syncTemplates} className="btn btn-ghost px-3" title="Sync templates">
                   <RefreshCw className="w-4 h-4" />
                 </button>
               </div>
               <button
+                id="btn-ai-autofill"
                 onClick={handleAiGenerate}
                 disabled={generating || !page.template_id}
                 className="btn btn-secondary w-full mt-2 flex items-center justify-center gap-2 text-indigo-600 border-indigo-200"
@@ -463,6 +468,7 @@ export default function PageEditor() {
             <div>
               <label className="label">Status</label>
               <select
+                id="select-status"
                 value={page.status}
                 onChange={(e) => handleFieldChange('status', e.target.value)}
                 className="input"

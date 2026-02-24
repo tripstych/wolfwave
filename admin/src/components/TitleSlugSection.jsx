@@ -4,6 +4,7 @@ export default function TitleSlugSection({ title = '', slug = '', onTitleChange,
       <div>
         <label className="label">Title</label>
         <input
+          id="input-title"
           type="text"
           value={title}
           onChange={(e) => onTitleChange(e.target.value)}
@@ -14,6 +15,7 @@ export default function TitleSlugSection({ title = '', slug = '', onTitleChange,
       <div>
         <label className="label">URL Slug</label>
         <input
+          id="input-slug"
           type="text"
           value={slug}
           onChange={(e) => onSlugChange(e.target.value)}

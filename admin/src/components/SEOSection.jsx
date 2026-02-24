@@ -27,6 +27,7 @@ export default function SEOSection({ data, onChange, openMediaPicker = () => {},
           <div>
             <label className="label">Meta Title</label>
             <input
+              id="input-meta-title"
               type="text"
               value={data.meta_title || ''}
               onChange={(e) => handleFieldChange('meta_title', e.target.value)}
@@ -41,6 +42,7 @@ export default function SEOSection({ data, onChange, openMediaPicker = () => {},
           <div>
             <label className="label">Meta Description</label>
             <textarea
+              id="input-meta-description"
               value={data.meta_description || ''}
               onChange={(e) => handleFieldChange('meta_description', e.target.value)}
               className="input"
@@ -59,6 +61,7 @@ export default function SEOSection({ data, onChange, openMediaPicker = () => {},
                 <img src={data.og_image} alt="" className="max-w-full rounded-lg border mb-2 h-32 object-cover" />
               )}
               <button
+                id="btn-select-og-image"
                 type="button"
                 onClick={() => openMediaPicker('og_image')}
                 className="btn btn-secondary w-full"
@@ -72,6 +75,7 @@ export default function SEOSection({ data, onChange, openMediaPicker = () => {},
             <div>
               <label className="label">Robots</label>
               <select
+                id="select-robots"
                 value={data.robots || 'index, follow'}
                 onChange={(e) => handleFieldChange('robots', e.target.value)}
                 className="input"
@@ -87,6 +91,7 @@ export default function SEOSection({ data, onChange, openMediaPicker = () => {},
             <div>
               <label className="label">Canonical URL</label>
               <input
+                id="input-canonical-url"
                 type="text"
                 value={data.canonical_url || ''}
                 onChange={(e) => handleFieldChange('canonical_url', e.target.value)}
