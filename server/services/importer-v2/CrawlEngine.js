@@ -36,16 +36,30 @@ export class CrawlEngine {
   }
 
   calculateHash(strippedHtml) {
-    // Structural hash of the stripped body
     const $ = cheerio.load(strippedHtml);
+    
+    // Tags that don't contribute to layout structure
+    const noiseTags = new Set(['a', 'span', 'i', 'strong', 'em', 'b', 'u', 'br', 'svg', 'path', 'small', 'label', 'button']);
     const tags = [];
-    function traverse(node) {
-      if (node.type === 'tag') {
-        tags.push(node.name);
-        $(node).children().each((i, el) => traverse(el));
-        tags.push(`/${node.name}`);
-      }
+
+    function traverse(node, depth = 0) {
+      if (depth > 15 || node.type !== 'tag' || noiseTags.has(node.name)) return;
+      
+      tags.push(node.name);
+      
+      let lastTagName = '';
+      $(node).children().each((i, el) => {
+        // Deduplication: If we just saw this tag type as a sibling, don't recurse into it
+        // This makes a list of 10 items hash the same as a list of 1 item.
+        if (el.type === 'tag' && el.name !== lastTagName) {
+          traverse(el, depth + 1);
+          lastTagName = el.name;
+        }
+      });
+      
+      tags.push(`/${node.name}`);
     }
+
     const body = $('body')[0];
     if (body) traverse(body);
     return crypto.createHash('sha256').update(tags.join('>')).digest('hex');
