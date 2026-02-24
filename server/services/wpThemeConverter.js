@@ -5,7 +5,6 @@
  * writes them to the templates/ directory, and registers them in the DB.
  */
 
-import AdmZip from 'adm-zip';
 import path from 'path';
 import fs from 'fs/promises';
 import crypto from 'crypto';
@@ -49,6 +48,7 @@ const TEMPLATE_MAP = {
  * Returns metadata, detected files, and a sample conversion.
  */
 export async function previewWpTheme(zipBuffer) {
+  const AdmZip = (await import('adm-zip')).default;
   const zip = new AdmZip(zipBuffer);
   const entries = zip.getEntries();
 
