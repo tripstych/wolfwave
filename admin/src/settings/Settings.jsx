@@ -69,6 +69,9 @@ export default function Settings() {
     ai_simulation_mode: 'false',
     s3_bucket_name: '',
     s3_region: 'us-east-1',
+    s3_auth_method: 'access_key',
+    s3_access_key_id: '',
+    s3_secret_access_key: '',
     s3_role_arn: '',
     s3_external_id: '',
     s3_prefix: '',
@@ -151,6 +154,9 @@ export default function Settings() {
       const res = await api.post('/settings/test-s3', {
         s3_bucket_name: settings.s3_bucket_name,
         s3_region: settings.s3_region,
+        s3_auth_method: settings.s3_auth_method,
+        s3_access_key_id: settings.s3_access_key_id,
+        s3_secret_access_key: settings.s3_secret_access_key,
         s3_role_arn: settings.s3_role_arn,
         s3_external_id: settings.s3_external_id,
       });
@@ -295,17 +301,26 @@ export default function Settings() {
         {/* Storage Tab */}
         {activeTab === 'storage' && (
           <div className="space-y-6">
+            {/* Setup Guide */}
+            <div className="card p-6 space-y-3 bg-blue-50 border-blue-200">
+              <h2 className="font-semibold text-blue-900">How to set up S3 storage</h2>
+              <div className="text-sm text-blue-800 space-y-2">
+                <p>Store your media uploads in Amazon S3 instead of the local server. Follow these steps:</p>
+                <ol className="list-decimal list-inside space-y-1 ml-1">
+                  <li>Log in to the <a href="https://console.aws.amazon.com/s3" target="_blank" rel="noopener noreferrer" className="underline font-medium">AWS S3 Console</a> and create a bucket (or use an existing one).</li>
+                  <li>Choose an authentication method below, then fill in the credentials.</li>
+                  <li>Click <strong>Save Changes</strong>, then <strong>Test Connection</strong> to verify it works.</li>
+                </ol>
+              </div>
+              <p className="text-xs text-blue-600">
+                If left blank, this site will use the default site's S3 configuration. If no S3 is configured anywhere, files are stored locally on the server.
+              </p>
+            </div>
+
+            {/* Bucket & Region */}
             <div className="card p-6 space-y-4">
-              <h2 className="font-semibold text-gray-900 pb-2 border-b border-gray-200">Amazon S3 Storage</h2>
-              <p className="text-sm text-gray-600">
-                Configure S3 to store media uploads in the cloud instead of the local filesystem.
-                Uses IAM role assumption with an external ID for secure cross-account access.
-              </p>
-              <p className="text-xs text-gray-500 bg-gray-50 p-3 rounded-lg">
-                If left blank, the default site's S3 configuration will be used.
-                If no S3 is configured anywhere, files are stored locally.
-              </p>
-              {field('s3_bucket_name', 'S3 Bucket Name', { placeholder: 'my-media-bucket' })}
+              <h2 className="font-semibold text-gray-900 pb-2 border-b border-gray-200">Bucket</h2>
+              {field('s3_bucket_name', 'S3 Bucket Name', { placeholder: 'my-media-bucket', hint: 'The name of your S3 bucket. Find this in the AWS S3 Console under "Buckets".' })}
               <div>
                 <label className="label">AWS Region</label>
                 <select
@@ -317,18 +332,73 @@ export default function Settings() {
                     <option key={r.value} value={r.value}>{r.label} ({r.value})</option>
                   ))}
                 </select>
+                <p className="text-xs text-gray-500 mt-1">Must match the region your bucket was created in. Check the bucket's "Properties" tab in the AWS console.</p>
               </div>
-              {field('s3_role_arn', 'IAM Role ARN', { placeholder: 'arn:aws:iam::123456789012:role/MyS3Role', hint: 'The ARN of the IAM role to assume for S3 access' })}
-              {field('s3_external_id', 'External ID', { placeholder: 'unique-external-id', hint: 'A unique identifier shared between you and the role owner to prevent the confused deputy problem' })}
-              {field('s3_prefix', 'Key Prefix', { placeholder: 'my-tenant', hint: 'Optional. Defaults to the tenant subdomain. Files will be stored under this prefix in the bucket.' })}
+              {field('s3_prefix', 'Key Prefix', { placeholder: 'my-site', hint: 'Optional. A folder prefix for organizing files in the bucket. Defaults to the site subdomain if left blank.' })}
             </div>
 
+            {/* Auth Method Selector */}
+            <div className="card p-6 space-y-4">
+              <h2 className="font-semibold text-gray-900 pb-2 border-b border-gray-200">Authentication</h2>
+              <div>
+                <label className="label">Auth Method</label>
+                <select
+                  value={settings.s3_auth_method}
+                  onChange={(e) => setSettings({ ...settings, s3_auth_method: e.target.value })}
+                  className="input"
+                >
+                  <option value="access_key">Access Key (Recommended for getting started)</option>
+                  <option value="role">IAM Role + External ID (Recommended for production / cross-account)</option>
+                </select>
+              </div>
+
+              {settings.s3_auth_method === 'access_key' && (
+                <div className="space-y-4">
+                  <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg space-y-2">
+                    <p className="font-medium">How to get your Access Keys:</p>
+                    <ol className="list-decimal list-inside space-y-1 text-xs">
+                      <li>Go to the <a href="https://console.aws.amazon.com/iam/home#/users" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">IAM Users page</a> in AWS.</li>
+                      <li>Select your user (or create one), then go to the <strong>"Security credentials"</strong> tab.</li>
+                      <li>Under <strong>"Access keys"</strong>, click <strong>"Create access key"</strong>.</li>
+                      <li>Copy both the <strong>Access Key ID</strong> and <strong>Secret Access Key</strong> and paste them below.</li>
+                    </ol>
+                    <p className="text-xs text-amber-700">Make sure the IAM user has a policy that allows <code className="bg-gray-200 px-1 rounded">s3:PutObject</code>, <code className="bg-gray-200 px-1 rounded">s3:GetObject</code>, and <code className="bg-gray-200 px-1 rounded">s3:DeleteObject</code> on your bucket.</p>
+                  </div>
+                  {field('s3_access_key_id', 'Access Key ID', { placeholder: 'AKIAIOSFODNN7EXAMPLE', hint: 'Starts with "AKIA". Found in IAM > Users > Security credentials > Access keys.' })}
+                  {field('s3_secret_access_key', 'Secret Access Key', { type: 'password', placeholder: 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY', hint: 'Only shown once when created. If lost, create a new access key.' })}
+                </div>
+              )}
+
+              {settings.s3_auth_method === 'role' && (
+                <div className="space-y-4">
+                  <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg space-y-2">
+                    <p className="font-medium">How to set up IAM Role access:</p>
+                    <ol className="list-decimal list-inside space-y-1 text-xs">
+                      <li>Go to <a href="https://console.aws.amazon.com/iam/home#/roles" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">IAM Roles</a> in AWS and create a new role.</li>
+                      <li>Select <strong>"Another AWS account"</strong> as the trusted entity and enter the account ID of the server running this app.</li>
+                      <li>Check <strong>"Require external ID"</strong> and enter a unique string (paste it below too).</li>
+                      <li>Attach a policy granting S3 access to your bucket (PutObject, GetObject, DeleteObject).</li>
+                      <li>Copy the <strong>Role ARN</strong> (looks like <code className="bg-gray-200 px-1 rounded">arn:aws:iam::123456789012:role/MyRole</code>).</li>
+                    </ol>
+                    <p className="text-xs text-amber-700">This method is more secure for production. The external ID prevents unauthorized access even if someone knows the role ARN.</p>
+                  </div>
+                  {field('s3_role_arn', 'IAM Role ARN', { placeholder: 'arn:aws:iam::123456789012:role/MyS3Role', hint: 'Found in IAM > Roles > your role. Copy the "ARN" value.' })}
+                  {field('s3_external_id', 'External ID', { placeholder: 'my-unique-external-id-123', hint: 'A shared secret between you and the role. Must match what you entered when creating the role.' })}
+                </div>
+              )}
+            </div>
+
+            {/* Test Connection */}
             <div className="card p-6 space-y-4">
               <h2 className="font-semibold text-gray-900 pb-2 border-b border-gray-200">Test Connection</h2>
               <p className="text-sm text-gray-500">Save your settings first, then test the connection to verify everything is configured correctly.</p>
               <button
                 onClick={handleTestS3}
-                disabled={testingS3 || !settings.s3_bucket_name || !settings.s3_role_arn || !settings.s3_external_id}
+                disabled={testingS3 || !settings.s3_bucket_name || (
+                  settings.s3_auth_method === 'access_key'
+                    ? (!settings.s3_access_key_id || !settings.s3_secret_access_key)
+                    : (!settings.s3_role_arn || !settings.s3_external_id)
+                )}
                 className="btn btn-secondary"
               >
                 <HardDrive className="w-4 h-4 mr-2" />
