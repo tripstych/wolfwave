@@ -21,11 +21,13 @@ const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
  * Generate text content using an LLM
  */
 export async function generateText(systemPrompt, userPrompt, model = null, req = null) {
-  const isDemo = (!OPENAI_API_KEY || OPENAI_API_KEY === 'demo') && (!ANTHROPIC_API_KEY || ANTHROPIC_API_KEY === 'demo') && (!GEMINI_API_KEY || GEMINI_API_KEY === 'demo');
+  const isSimulationExplicit = process.env.AI_SIMULATION_MODE === 'true';
+  const hasNoKeys = !OPENAI_API_KEY && !ANTHROPIC_API_KEY && !GEMINI_API_KEY;
+  const isDemoKey = OPENAI_API_KEY === 'demo' || ANTHROPIC_API_KEY === 'demo' || GEMINI_API_KEY === 'demo';
 
-  // 1. SIMULATION MODE
-  if (isDemo) {
-    console.log(`[AI-DEBUG] 💡 Running in SIMULATION MODE (No API Keys).`);
+  // 1. SIMULATION MODE (Only if explicitly requested)
+  if (isSimulationExplicit || (hasNoKeys && isDemoKey)) {
+    console.log(`[AI-DEBUG] 💡 Running in SIMULATION MODE (Explicitly Enabled).`);
     await new Promise(resolve => setTimeout(resolve, 1500));
     
     const industry = userPrompt.replace('Create a theme for:', '').trim();
@@ -172,7 +174,8 @@ export async function generateText(systemPrompt, userPrompt, model = null, req =
     }
     throw new Error('Failed to generate text content');
   }
-}
+
+  throw new Error('No valid AI Text Generation provider configured (Missing API Key)');
 }
 
 /**
@@ -239,7 +242,7 @@ export async function generateRawText(systemPrompt, userPrompt, model = null) {
     return response.data.choices[0].message.content;
   }
 
-  return null;
+  throw new Error('No valid AI Text Generation provider configured (Missing API Key)');
 }
 
 /**
@@ -247,30 +250,24 @@ export async function generateRawText(systemPrompt, userPrompt, model = null) {
  * Downloads the image locally and returns the local path.
  */
 export async function generateImage(prompt, size = "1024x1024", userId = null) {
+  const isSimulationExplicit = process.env.AI_SIMULATION_MODE === 'true';
+  const hasNoKeys = !OPENAI_API_KEY && !GEMINI_API_KEY;
+  const isDemoKey = OPENAI_API_KEY === 'demo' || GEMINI_API_KEY === 'demo';
+
   // SIMULATION MODE
-  if ((!OPENAI_API_KEY || OPENAI_API_KEY === 'demo') && (!GEMINI_API_KEY || GEMINI_API_KEY === 'demo') || prompt === 'mock') {
+  if (isSimulationExplicit || (hasNoKeys && isDemoKey) || prompt === 'mock') {
     console.log(`[AI-DEBUG] 🎨 Image Gen: Simulation Mode active.`);
-    return '/images/placeholders/1920x600.svg';
+    return '/images/placeholders/800x450.svg';
   }
 
-  // 1. GEMINI MODE
+  // 1. GEMINI MODE (Vertex / AI Studio Imagen API)
+  // Note: Imagen 3 usually requires specialized access or Google Cloud Vertex AI.
+  // Standard AI Studio models don't always support image generation via generateContent.
   if (GEMINI_API_KEY && GEMINI_API_KEY !== 'demo') {
-    console.log(`[AI-DEBUG] 🎨 Generating image via Gemini: "${prompt}"...`);
-    try {
-      const response = await axios.post(
-        `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:generateContent?key=${GEMINI_API_KEY}`,
-        {
-          contents: [{ parts: [{ text: prompt }] }],
-          // Gemini's specific Imagen parameters would go here if using the dedicated Imagen API
-          // For now, most users use the vertex/cloud version for Imagen. 
-          // If using standard AI Studio, we might stick to DALL-E or wait for full Imagen API rollout.
-        }
-      );
-      // NOTE: Imagen 3 API in AI Studio is currently restricted/different. 
-      // I will fallback to DALL-E 3 if Gemini image fails or is not available.
-    } catch (e) {
-      console.log(`[AI-DEBUG] ⚠️ Gemini Image Gen not available or failed, falling back...`);
-    }
+    // For now, Gemini Image Gen is a placeholder for future implementation 
+    // unless the user has specifically configured Imagen API access.
+    // We fall through to DALL-E if available.
+    console.log(`[AI-DEBUG] ℹ️ Gemini Image Gen integration pending. Falling back to DALL-E...`);
   }
 
   // 2. DALL-E 3 (Primary for now as it's more stable in AI Studio/OpenAI)
@@ -292,35 +289,43 @@ export async function generateImage(prompt, size = "1024x1024", userId = null) {
             'Authorization': `Bearer ${OPENAI_API_KEY}`,
             'Content-Type': 'application/json',
           },
+          timeout: 60000 // Image gen can be slow
         }
       );
 
       const imageUrl = response.data.data[0].url;
       console.log(`[AI-DEBUG] 📥 Image URL received. Downloading via mediaService...`);
 
-      // Use mediaService to download and register in DB
-      const localUrl = await downloadImage(imageUrl, prompt, userId);
+      // Use mediaService to download and register in DB (strict: true)
+      const localUrl = await downloadImage(imageUrl, prompt, userId, true);
       
       console.log(`[AI-DEBUG] ✅ Image processed: ${localUrl}`);
       return localUrl;
 
     } catch (error) {
-      console.error('[AI-DEBUG] ❌ AI Image Generation Error:', error.response?.data || error.message);
+      const errorData = error.response?.data;
+      console.error('[AI-DEBUG] ❌ AI Image Generation Error:', errorData || error.message);
+      
+      if (errorData?.error?.message) {
+        throw new Error(`AI Image Error: ${errorData.error.message}`);
+      }
+      throw new Error(`Failed to generate image: ${error.message}`);
     }
   }
 
-  // Fallback
-  return '/images/placeholders/1024x1024.svg';
+  throw new Error('No valid AI Image Generation provider configured (Missing API Key)');
 }
 
 /**
  * Generate content for a specific set of fields
  */
 export async function generateContentForFields(fields, userContext, model = null, req = null) {
-  const isDemo = (!OPENAI_API_KEY || OPENAI_API_KEY === 'demo') && (!ANTHROPIC_API_KEY || ANTHROPIC_API_KEY === 'demo');
+  const isSimulationExplicit = process.env.AI_SIMULATION_MODE === 'true';
+  const hasNoKeys = !OPENAI_API_KEY && !ANTHROPIC_API_KEY && !GEMINI_API_KEY;
+  const isDemoKey = OPENAI_API_KEY === 'demo' || ANTHROPIC_API_KEY === 'demo' || GEMINI_API_KEY === 'demo';
 
   // SIMULATION MODE
-  if (isDemo) {
+  if (isSimulationExplicit || (hasNoKeys && isDemoKey)) {
     console.log(`[AI-DEBUG] ✍️ Content Gen: Simulation Mode active.`);
     await new Promise(resolve => setTimeout(resolve, 1000));
     

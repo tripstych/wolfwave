@@ -24,7 +24,7 @@ function getTenantUploadsDir() {
  * Download a media file (image or video) from a URL and save it to the local media library.
  * Returns the local URL of the saved file.
  */
-export async function downloadMedia(url, altText = '', userId = null) {
+export async function downloadMedia(url, altText = '', userId = null, strict = false) {
   const dbName = getCurrentDbName();
   try {
     if (!url || typeof url !== 'string' || !url.startsWith('http')) return url;
@@ -96,6 +96,7 @@ export async function downloadMedia(url, altText = '', userId = null) {
       ]);
     } catch (dbErr) {
       console.error('[WebWolf:mediaService] DB insert failed:', dbErr.message);
+      if (strict) throw dbErr;
     }
 
     const localUrl = `/uploads${relativePath}`;
@@ -105,6 +106,7 @@ export async function downloadMedia(url, altText = '', userId = null) {
   } catch (err) {
     console.error(`[WebWolf:mediaService] Failed to download media ${url}:`, err.message);
     logError(dbName, err, 'MEDIA_DOWNLOAD_FAILED', { url });
+    if (strict) throw err;
     return url; // Fallback to original URL
   }
 }
