@@ -92,7 +92,7 @@ ${mermaid}
             e.preventDefault();
             const delta = e.deltaY > 0 ? 1 / scaleFactor : scaleFactor;
             scale = Math.min(Math.max(scale * delta, minScale), maxScale);
-            svg.style.transform = `scale(${scale})`;
+            svg.style.transform = 'scale(' + scale + ')';
             svg.style.transformOrigin = 'center center';
           });
         }
