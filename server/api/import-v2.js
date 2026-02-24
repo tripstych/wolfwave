@@ -138,11 +138,15 @@ router.post('/sites/:id/transform', requireAuth, requireEditor, async (req, res)
     
     // Wrapper to ensure sequence
     const runFullFinalize = async () => {
-      // 1. Ensure templates exist
+      // 1. Ensure rules are generated (needed for selector map)
+      const ruleEngine = new RuleGenerator(siteId, req.tenantDb);
+      await ruleEngine.run();
+
+      // 2. Ensure templates exist (uses rules)
       const tplEngine = new TemplateGenerator(siteId, req.tenantDb);
       await tplEngine.run();
       
-      // 2. Run transformation
+      // 3. Run transformation (uses templates and rules)
       const transEngine = new TransformationEngine(siteId, req.tenantDb);
       await transEngine.run();
     };

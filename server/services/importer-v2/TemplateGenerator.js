@@ -124,6 +124,16 @@ export class TemplateGenerator {
         data: { llm_ruleset: ruleset }
       });
 
+      // Update all staged items in each group with their template_id for the transformation engine
+      for (const [hash, group] of Object.entries(ruleset.types || {})) {
+        if (group.template_id) {
+          await prisma.staged_items.updateMany({
+            where: { site_id: this.siteId, structural_hash: hash },
+            data: { metadata: { ...group, last_updated: new Date() } } // Store template info in metadata
+          });
+        }
+      }
+
       info(this.dbName, 'IMPORT_V2_TEMPLATE_GEN_COMPLETE', `Templates generated and deduplicated`);
 
     } catch (err) {

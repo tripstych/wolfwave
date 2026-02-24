@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WolfWave DB Schema</title>
+    <style>
+      body { font-family: system-ui, -apple-system, sans-serif; background: #f4f4f5; margin: 0; padding: 20px; }
+    </style>
+</head>
+<body>
+    <pre class="mermaid">
+erDiagram
+  addresses {
+    Int id
+    Int customer_id
+    addresses_type type
+    String first_name
+    String last_name
+    String company
+    String address1
+    String address2
+    String city
+    String province
+    String postal_code
+    String country
+    String phone
+    Boolean is_default
+    DateTime created_at
+  }
+
+  blocks {
+    Int id
+    Int template_id
+    Int content_id
+    String name
+    String slug
+    String description
+    String content_type
+    Json access_rules
+    Int created_by
+    Int updated_by
+    DateTime created_at
+    DateTime updated_at
+  }
+
+  content {
+    Int id
+    String module
+    Json data
+    String search_index
+    String source_url
+    DateTime created_at
+    DateTime updated_at
+    String title
+    String slug
+    blocks blocks
+    content_groups content_groups
+    pages pages
+    products products
+    content_history history
+  }
+
+  content_history {
+    Int id
+    Int content_id
+    Int version_number
+    Json data
+    String title
+    String slug
+    DateTime created_at
+  }
+
+  content_groups {
+    Int id
+    Int group_id
+    Int content_id
+    DateTime created_at
+  }
+
+  content_type_extensions {
+    Int id
+    String content_type_name
+    String extension_name
+    Json config
+    Boolean enabled
+    DateTime created_at
+    DateTime updated_at
+  }
+
+  content_types {
+    Int id
+    String name
+    String label
+    String plural_label
+    String icon
+    String color
+    Int menu_order
+    Boolean show_in_menu
+    Boolean has_status
+    Boolean has_seo
+    Boolean is_system
+    DateTime created_at
+    DateTime updated_at
+    content_type_extensions content_type_extensions
+  }
+
+  customers {
+    Int id
+    Int user_id
+    String email
+    String first_name
+    String last_name
+    String phone
+    Int max_sites_override
+    DateTime created_at
+    DateTime updated_at
+    String password
+    Boolean email_verified
+    String verification_token
+    String password_reset_token
+    DateTime password_reset_expires
+    String oauth_provider
+    String oauth_id
+    String stripe_customer_id
+    addresses addresses
+    digital_downloads digital_downloads
+    orders orders
+    customer_subscriptions customer_subscriptions
+    tenants tenants
+    classified_ads classified_ads
+    messages messages
+  }
+
+  digital_downloads {
+    Int id
+    Int order_id
+    Int product_id
+    Int customer_id
+    String download_url
+    Int download_count
+    Int download_limit
+    DateTime expires_at
+    DateTime created_at
+  }
+
+  groups {
+    Int id
+    Int parent_id
+    String name
+    DateTime created_at
+    DateTime updated_at
+    content_groups content_groups
+  }
+
+  media {
+    Int id
+    String filename
+    String original_name
+    String mime_type
+    Int size
+    String path
+    String alt_text
+    String title
+    Int uploaded_by
+    DateTime created_at
+  }
+
+  menu_items {
+    Int id
+    Int menu_id
+    Int parent_id
+    String title
+    String url
+    Int page_id
+    menu_items_target target
+    Int position
+    String description
+    String image
+    Boolean is_mega
+    Int mega_columns
+    String css_class
+    Json display_rules
+    DateTime created_at
+    DateTime updated_at
+  }
+
+  menus {
+    Int id
+    String name
+    String slug
+    String description
+    Json display_rules
+    DateTime created_at
+    DateTime updated_at
+    menu_items menu_items
+  }
+
+  coupons {
+    Int id
+    String code
+    String discount_type
+    Decimal discount_value
+    Decimal min_purchase
+    DateTime starts_at
+    DateTime expires_at
+    Int max_uses
+    Int used_count
+    Boolean is_active
+    Json target_slugs
+    DateTime created_at
+    DateTime updated_at
+    orders orders
+  }
+
+  order_items {
+    Int id
+    Int order_id
+    Int product_id
+    Int variant_id
+    String product_title
+    String variant_title
+    String sku
+    Decimal price
+    Int quantity
+    Decimal subtotal
+    DateTime created_at
+  }
+
+  orders {
+    Int id
+    String order_number
+    Int customer_id
+    Int coupon_id
+    orders_status status
+    orders_payment_status payment_status
+    Decimal subtotal
+    Decimal tax
+    Decimal shipping
+    Decimal discount
+    Decimal total
+    String email
+    Json billing_address
+    Json shipping_address
+    orders_payment_method payment_method
+    String payment_intent_id
+    String paypal_order_id
+    String shipping_method
+    String tracking_number
+    DateTime shipped_at
+    String customer_note
+    String internal_note
+    DateTime created_at
+    DateTime updated_at
+    order_items order_items
+    digital_downloads digital_downloads
+  }
+
+  pages {
+    Int id
+    Int template_id
+    Int content_id
+    String title
+    String content_type
+    pages_status status
+    DateTime published_at
+    String meta_title
+    String meta_description
+    String og_title
+    String og_description
+    String og_image
+    String canonical_url
+    String robots
+    Json schema_markup
+    Json access_rules
+    Int created_by
+    Int updated_by
+    DateTime created_at
+    DateTime updated_at
+    menu_items menu_items
+  }
+
+  product_variants {
+    Int id
+    Int product_id
+    String title
+    String sku
+    Decimal price
+    Decimal compare_at_price
+    Int inventory_quantity
+    String option1_name
+    String option1_value
+    String option2_name
+    String option2_value
+    String option3_name
+    String option3_value
+    String image
+    Int position
+    DateTime created_at
+    DateTime updated_at
+    order_items order_items
+  }
+
+  product_images {
+    Int id
+    Int product_id
+    String url
+    String alt
+    Int position
+    DateTime created_at
+  }
+
+  products {
+    Int id
+    Int content_id
+    Int template_id
+    String title
+    String sku
+    Decimal price
+    Decimal compare_at_price
+    Decimal cost
+    Int inventory_quantity
+    Boolean inventory_tracking
+    Boolean allow_backorder
+    Decimal weight
+    products_weight_unit weight_unit
+    Boolean requires_shipping
+    Boolean taxable
+    Json access_rules
+    Boolean is_digital
+    String image
+    String download_url
+    Int download_limit
+    Int download_expiry_days
+    products_status status
+    String amazon_asin
+    String amazon_fnsku
+    DateTime created_at
+    DateTime updated_at
+    order_items order_items
+    product_variants product_variants
+    product_images product_images
+    digital_downloads digital_downloads
+  }
+
+  amazon_order_sync {
+    Int id
+    String amazon_order_id
+    Int order_id
+    String status
+    Json data
+    DateTime synced_at
+  }
+
+  redirects {
+    Int id
+    String source_path
+    String target_path
+    Int status_code
+    DateTime created_at
+  }
+
+  email_templates {
+    Int id
+    String slug
+    String name
+    String subject
+    String html_body
+    DateTime created_at
+    DateTime updated_at
+  }
+
+  tenants {
+    Int id
+    Int customer_id
+    String name
+    String subdomain
+    String database_name
+    tenants_status status
+    Int original_reseller_id
+    DateTime created_at
+    DateTime updated_at
+  }
+
+  settings {
+    Int id
+    String setting_key
+    String setting_value
+    DateTime updated_at
+  }
+
+  imported_sites {
+    Int id
+    String root_url
+    String status
+    String last_action
+    Int page_count
+    Json config
+    Json platform_info
+    Json llm_ruleset
+    DateTime created_at
+    DateTime updated_at
+    staged_items staged_items
+  }
+
+  ai_cache {
+    Int id
+    String prompt_hash
+    Json response
+    String model
+    DateTime created_at
+  }
+
+  staged_items {
+    Int id
+    Int site_id
+    String url
+    String title
+    String item_type
+    String raw_html
+    String stripped_html
+    String llm_html
+    String structural_hash
+    Json metadata
+    String status
+    DateTime created_at
+  }
+
+  templates {
+    Int id
+    String name
+    String filename
+    String content
+    String description
+    Json regions
+    Json blueprint
+    Json default_content
+    Json options
+    String content_type
+    DateTime created_at
+    DateTime updated_at
+    blocks blocks
+    pages pages
+  }
+
+  users {
+    Int id
+    String email
+    String password
+    String name
+    users_role role
+    DateTime created_at
+    DateTime updated_at
+    customers customers
+    media media
+    api_keys api_keys
+  }
+
+  api_keys {
+    Int id
+    String name
+    String public_key
+    String secret_key_hash
+    api_keys_type type
+    Int user_id
+    Json permissions
+    DateTime last_used_at
+    DateTime expires_at
+    Boolean is_active
+    DateTime created_at
+  }
+
+  subscription_plans {
+    Int id
+    String name
+    String slug
+    String description
+    String stripe_product_id
+    String stripe_price_id
+    String stripe_overage_price_id
+    Decimal price
+    subscription_interval interval
+    Int interval_count
+    Int trial_days
+    Json features
+    Decimal product_discount
+    Int max_sites
+    Int max_customers
+    Decimal overage_price
+    Json target_slugs
+    Boolean is_active
+    Int position
+    DateTime created_at
+    DateTime updated_at
+    customer_subscriptions customer_subscriptions
+  }
+
+  customer_subscriptions {
+    Int id
+    Int customer_id
+    Int plan_id
+    String stripe_subscription_id
+    String stripe_customer_id
+    customer_subscription_status status
+    DateTime current_period_start
+    DateTime current_period_end
+    Boolean cancel_at_period_end
+    DateTime canceled_at
+    DateTime paused_at
+    DateTime created_at
+    DateTime updated_at
+  }
+
+  classified_ads {
+    Int id
+    Int customer_id
+    Int template_id
+    Int content_id
+    Int category_id
+    String title
+    String slug
+    String description
+    Decimal price
+    String currency
+    classified_condition condition
+    String location
+    String contact_info
+    String image
+    Json images
+    classified_status status
+    String rejection_reason
+    Json moderation_flags
+    DateTime expires_at
+    DateTime created_at
+    DateTime updated_at
+    conversations conversations
+  }
+
+  classified_categories {
+    Int id
+    String name
+    String slug
+    Int parent_id
+    Int position
+    DateTime created_at
+    classified_ads classified_ads
+  }
+
+  classified_moderation_rules {
+    Int id
+    String name
+    String rule_type
+    String description
+    Boolean enabled
+    DateTime created_at
+  }
+
+  conversations {
+    Int id
+    Int ad_id
+    Int buyer_id
+    Int seller_id
+    String last_message
+    DateTime created_at
+    DateTime updated_at
+    messages messages
+  }
+
+  messages {
+    Int id
+    Int conversation_id
+    Int sender_id
+    String content
+    String image_url
+    Boolean is_read
+    DateTime read_at
+    DateTime created_at
+  }
+
+  customers ||--o{ addresses : "customer_id"
+  templates ||--o{ blocks : "template_id"
+  content ||--o{ blocks : "content_id"
+  users ||--o{ blocks : "created_by"
+  users ||--o{ blocks : "updated_by"
+  content ||--o{ content_history : "content_id"
+  groups ||--o{ content_groups : "group_id"
+  content ||--o{ content_groups : "content_id"
+  content_types ||--o{ content_type_extensions : "content_type_name"
+  users ||--o{ customers : "user_id"
+  orders ||--o{ digital_downloads : "order_id"
+  products ||--o{ digital_downloads : "product_id"
+  customers ||--o{ digital_downloads : "customer_id"
+  groups ||--o{ groups : "parent_id"
+  users ||--o{ media : "uploaded_by"
+  menus ||--o{ menu_items : "menu_id"
+  menu_items ||--o{ menu_items : "parent_id"
+  pages ||--o{ menu_items : "page_id"
+  orders ||--o{ order_items : "order_id"
+  products ||--o{ order_items : "product_id"
+  product_variants ||--o{ order_items : "variant_id"
+  customers ||--o{ orders : "customer_id"
+  coupons ||--o{ orders : "coupon_id"
+  templates ||--o{ pages : "template_id"
+  content ||--o{ pages : "content_id"
+  users ||--o{ pages : "created_by"
+  users ||--o{ pages : "updated_by"
+  products ||--o{ product_variants : "product_id"
+  products ||--o{ product_images : "product_id"
+  content ||--o{ products : "content_id"
+  customers ||--o{ tenants : "customer_id"
+  imported_sites ||--o{ staged_items : "site_id"
+  users ||--o{ api_keys : "user_id"
+  customers ||--o{ customer_subscriptions : "customer_id"
+  subscription_plans ||--o{ customer_subscriptions : "plan_id"
+  customers ||--o{ classified_ads : "customer_id"
+  classified_categories ||--o{ classified_ads : "category_id"
+  classified_categories ||--o{ classified_categories : "parent_id"
+  classified_ads ||--o{ conversations : "ad_id"
+  customers ||--o{ conversations : "buyer_id"
+  customers ||--o{ conversations : "seller_id"
+  conversations ||--o{ messages : "conversation_id"
+  customers ||--o{ messages : "sender_id"
+
+    </pre>
+    <script type="module">
+      import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+      mermaid.initialize({ 
+        startOnLoad: true, 
+        theme: 'base',
+        themeVariables: {
+          primaryColor: '#fef3c7',
+          primaryTextColor: '#18181b',
+          primaryBorderColor: '#f59e0b',
+          lineColor: '#a1a1aa',
+          secondaryColor: '#f4f4f5',
+          tertiaryColor: '#fff'
+        },
+        maxTextSize: 900000,
+        securityLevel: 'loose'
+      });
+    </script>
+</body>
+</html>
