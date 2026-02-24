@@ -133,15 +133,17 @@ app.use('/', publicRoutes);
 app.use(errorLog);
 
 // Initialize database and start server
-initDb().then(() => {
-  app.listen(PORT, () => {
-    info('system', 'STARTUP', `WolfWave CMS running on http://localhost:${PORT}`);
-    info('system', 'STARTUP', `Admin UI: http://localhost:5173 (dev) or http://localhost:${PORT}/admin (prod)`);
+if (process.env.NODE_ENV !== 'test') {
+  initDb().then(() => {
+    app.listen(PORT, () => {
+      info('system', 'STARTUP', `WolfWave CMS running on http://localhost:${PORT}`);
+      info('system', 'STARTUP', `Admin UI: http://localhost:5173 (dev) or http://localhost:${PORT}/admin (prod)`);
+    });
+  }).catch(err => {
+    logError('system', err, 'DB_INIT');
+    process.exit(1);
   });
-}).catch(err => {
-  logError('system', err, 'DB_INIT');
-  process.exit(1);
-});
+}
 
 // Catch unhandled errors so they go to log files instead of disappearing in pm2
 process.on('uncaughtException', (err) => {
