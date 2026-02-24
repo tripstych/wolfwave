@@ -37,11 +37,6 @@ class DbLoader extends nunjucks.Loader {
   }
 
   getSource(name, callback) {
-    // Only handle 'default' theme for now
-    if (this.themeName !== 'default') {
-      return callback(null, null);
-    }
-
     // Try cache first
     if (this.tplCache.has(name)) {
       return callback(null, this.tplCache.get(name));

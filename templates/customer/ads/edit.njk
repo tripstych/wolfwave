@@ -104,8 +104,8 @@
 
 <script>
   const adId = '{{ adId }}';
-  const templates = {{ templates | dump | safe }};
-  const adContent = {{ ad.content | dump | safe }} || {};
+  const templates = {{ (templates or []) | dump | safe }};
+  const adContent = {{ (ad.content or {}) | dump | safe }};
 
   function renderRegions() {
     const templateId = document.getElementById('template_id').value;

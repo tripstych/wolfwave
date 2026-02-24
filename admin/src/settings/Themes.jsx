@@ -285,9 +285,16 @@ export default function Themes() {
                 <div className="card overflow-hidden">
                   <div className="p-4 border-b flex justify-between items-center bg-gray-50">
                     <h3 className="font-bold text-gray-700">{_('themes.wp_import.template_files', 'Template Files')}</h3>
-                    <button onClick={handleWpConvert} disabled={wpLoading || wpSelectedFiles.size === 0} className="btn btn-primary">
+                    <button 
+                      onClick={handleWpConvert} 
+                      disabled={wpLoading || (wpPreview.templateCount > 0 && wpSelectedFiles.size === 0)} 
+                      className="btn btn-primary"
+                    >
                       {wpLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <ArrowRight className="w-4 h-4 mr-2" />}
-                      {_('themes.wp_import.convert_btn', 'Convert')} {wpSelectedFiles.size} {_('themes.wp_import.convert_btn_suffix', 'Templates')}
+                      {wpSelectedFiles.size > 0 
+                        ? `${_('themes.wp_import.convert_btn', 'Convert')} ${wpSelectedFiles.size} ${_('themes.wp_import.convert_btn_suffix', 'Templates')}`
+                        : _('themes.wp_import.convert_theme_btn', 'Convert Theme')
+                      }
                     </button>
                   </div>
 
@@ -311,6 +318,11 @@ export default function Themes() {
                     <div className="px-4 py-2 bg-gray-50 border-b">
                       <h4 className="text-[10px] uppercase font-bold text-gray-400">{_('themes.wp_import.templates_info', 'Content Templates (select which to convert)')}</h4>
                     </div>
+                    {wpPreview.detectedFiles.filter(f => f.hasMapping && !f.isLayout).length === 0 && (
+                      <div className="px-4 py-8 text-center text-gray-500 italic text-sm">
+                        {_('themes.wp_import.no_content_templates', 'No content templates detected. This is common for child themes.')}
+                      </div>
+                    )}
                     {wpPreview.detectedFiles.filter(f => f.hasMapping && !f.isLayout).map((f, i) => (
                       <div
                         key={i}

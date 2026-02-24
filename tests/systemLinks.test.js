@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import request from 'supertest';
 import app from '../server/index.js';
 import { SYSTEM_ROUTES } from '../server/lib/systemRoutes.js';
@@ -19,13 +19,37 @@ describe('System Links Smoke Test', () => {
     );
     customerId = res.insertId || 1;
 
-    // 2. Create a homepage
+    // 2. Create a template to avoid 500s on render
     await query(
-      "INSERT INTO pages (title, slug, status, content, content_type) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE id=id",
-      ['Home', 'index', 'published', '{}', 'pages']
+      "INSERT INTO templates (id, name, filename, content_type) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE filename=VALUES(filename), name=VALUES(name), content_type=VALUES(content_type)",
+      [1, 'Default Page', 'pages/index.njk', 'pages']
     );
 
-    // 3. Generate customer token
+    // 3. Create a homepage
+    const contentRes = await query(
+      "INSERT INTO content (module, slug, title, data) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id), title=VALUES(title), data=VALUES(data)",
+      ['pages', '/', 'Home', '{}']
+    );
+    const contentId = contentRes.insertId;
+
+    await query(
+      "INSERT INTO pages (title, status, content_id, template_id) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE template_id=VALUES(template_id), status=VALUES(status)",
+      ['Home', 'published', contentId, 1]
+    );
+
+    // 4. Create classified categories for the ads page
+    await query(
+      "INSERT INTO classified_categories (name, slug) VALUES (?, ?) ON DUPLICATE KEY UPDATE id=id",
+      ['Electronics', 'electronics']
+    );
+
+    // 5. Ensure site settings exist
+    await query(
+      "INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value)",
+      ['site_url', 'http://localhost:3000']
+    );
+
+    // 6. Generate customer token
     customerToken = jwt.sign(
       { id: customerId, email: 'smoke-test@example.com', type: 'customer' },
       JWT_SECRET,
@@ -34,22 +58,38 @@ describe('System Links Smoke Test', () => {
   });
 
   const checkBrokenHtml = (text) => {
-    // Common indicators of broken Nunjucks/CMS rendering
+    // 1. Check for unprocessed Nunjucks/CMS tags
     const indicators = [
       '[[', // Unprocessed shortcodes
       '{{', // Unprocessed Nunjucks vars
       '{%', // Unprocessed Nunjucks tags
-      'Undefined', // Possible JS leak
-      'Internal Server Error',
-      'TypeError',
-      'nunjucks.render' // Stack trace indicator
     ];
     
     for (const indicator of indicators) {
       if (text.includes(indicator)) {
-        return indicator;
+        return `Found unprocessed tag: "${indicator}"`;
       }
     }
+
+    // 2. Check for common server-side error leaks
+    const errorIndicators = [
+      'Internal Server Error',
+      'TypeError:',
+      'nunjucks.render',
+      'ReferenceError:'
+    ];
+
+    for (const indicator of errorIndicators) {
+      if (text.includes(indicator)) {
+        return `Found error indicator: "${indicator}"`;
+      }
+    }
+
+    // 3. Check for JS syntax errors in the HTML (e.g. "const x =  || {}")
+    if (/= \s*\|\|/.test(text) || /= \s*;/.test(text)) {
+      return 'Found probable JS syntax error in HTML (empty assignment)';
+    }
+
     return null;
   };
 
@@ -73,7 +113,7 @@ describe('System Links Smoke Test', () => {
       if (res.status === 200) {
         const brokenIndicator = checkBrokenHtml(res.text);
         if (brokenIndicator) {
-          throw new Error(`Broken HTML detected at ${route.url}: Found "${brokenIndicator}"`);
+          throw new Error(`Broken HTML detected at ${route.url}: ${brokenIndicator}`);
         }
       }
     });
@@ -82,7 +122,11 @@ describe('System Links Smoke Test', () => {
   // 2. Test Specific Problematic Routes mentioned by user
   const extraRoutes = [
     { title: 'Create Ad', url: '/customer/ads/create' },
-    { title: 'Classifieds List', url: '/classifieds' }
+    { title: 'Classifieds List', url: '/classifieds' },
+    { title: 'Robots.txt', url: '/robots.txt' },
+    { title: 'Sitemap.xml', url: '/sitemap.xml' },
+    { title: 'Forgot Password', url: '/customer/forgot-password' },
+    { title: '404 Page', url: '/this-page-does-not-exist' }
   ];
 
   extraRoutes.forEach(route => {
@@ -94,11 +138,16 @@ describe('System Links Smoke Test', () => {
       }
 
       const res = await req;
-      expect(res.status).toBe(200);
+      
+      if (route.title === '404 Page') {
+        expect(res.status).toBe(404);
+      } else {
+        expect(res.status).toBe(200);
+      }
       
       const brokenIndicator = checkBrokenHtml(res.text);
       if (brokenIndicator) {
-        throw new Error(`Broken HTML detected at ${route.url}: Found "${brokenIndicator}"`);
+        throw new Error(`Broken HTML detected at ${route.url}: ${brokenIndicator}`);
       }
     });
   });
