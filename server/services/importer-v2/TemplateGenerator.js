@@ -1,5 +1,5 @@
 import prisma from '../../lib/prisma.js';
-import { generateTemplateFromHtml } from '../aiService.js';
+import { generateTemplateFromHtml, comparePageStructures } from '../aiService.js';
 import { info, error as logError } from '../../lib/logger.js';
 import { ImporterServiceV2 } from './ImporterServiceV2.js';
 import path from 'path';
@@ -8,6 +8,7 @@ import fs from 'fs/promises';
 /**
  * TemplateGenerator creates WebWolf-compatible .njk templates
  * based on the LLM analysis of the imported site.
+ * Includes deduplication logic to avoid creating redundant templates.
  */
 export class TemplateGenerator {
   constructor(siteId, dbName) {
@@ -25,14 +26,13 @@ export class TemplateGenerator {
 
       if (!site || !site.llm_ruleset) throw new Error('Ruleset not found');
       const ruleset = site.llm_ruleset;
+      const generatedTemplates = []; // Track { template_id, hash, page_type, llm_html }
 
       const hashes = Object.keys(ruleset.types || {});
       for (let i = 0; i < hashes.length; i++) {
         const hash = hashes[i];
         const group = ruleset.types[hash];
-        info(this.dbName, 'IMPORT_V2_TEMPLATE_GEN_TYPE', `Generating template for ${group.page_type} (${hash})`);
-        await ImporterServiceV2.updateStatus(this.siteId, 'generating_templates', `Creating Nunjucks template ${i + 1}/${hashes.length} (${group.page_type})...`);
-
+        
         // Get the sample item's HTML
         const sample = await prisma.staged_items.findFirst({
           where: { site_id: this.siteId, structural_hash: hash }
@@ -40,7 +40,31 @@ export class TemplateGenerator {
 
         if (!sample || !sample.raw_html) continue;
 
-        // Generate Nunjucks template using AI
+        info(this.dbName, 'IMPORT_V2_TEMPLATE_GEN_TYPE', `Processing ${group.page_type} (${hash})`);
+        await ImporterServiceV2.updateStatus(this.siteId, 'generating_templates', `Analyzing structure ${i + 1}/${hashes.length} (${group.page_type})...`);
+
+        // --- Deduplication Check ---
+        let existingTemplateId = null;
+        const candidates = generatedTemplates.filter(t => t.page_type === group.page_type);
+        
+        for (const candidate of candidates) {
+          const comparison = await comparePageStructures(sample.llm_html, candidate.llm_html);
+          if (comparison.can_share) {
+            info(this.dbName, 'IMPORT_V2_TEMPLATE_DEDUPE', `Group ${hash} will share template with ${candidate.hash} (${comparison.reason})`);
+            existingTemplateId = candidate.template_id;
+            break;
+          }
+        }
+
+        if (existingTemplateId) {
+          ruleset.types[hash].template_id = existingTemplateId;
+          ruleset.types[hash].is_duplicate = true;
+          continue;
+        }
+
+        // --- Generate New Template ---
+        await ImporterServiceV2.updateStatus(this.siteId, 'generating_templates', `Creating unique Nunjucks template for ${group.page_type}...`);
+
         const njkCode = await generateTemplateFromHtml(
           sample.raw_html,
           group.selector_map,
@@ -50,23 +74,28 @@ export class TemplateGenerator {
         const filename = `imported/${this.siteId}/${group.page_type}-${hash.substring(0, 8)}.njk`;
         const fullPath = path.join(process.cwd(), 'templates', filename);
 
-        // Ensure directory exists
         await fs.mkdir(path.dirname(fullPath), { recursive: true });
         await fs.writeFile(fullPath, njkCode);
 
-        // Register template in DB
         const template = await prisma.templates.create({
           data: {
             name: `Imported ${group.page_type} (${hash.substring(0, 8)})`,
             filename: filename,
             content_type: group.page_type === 'product' ? 'products' : 'pages',
             description: group.summary,
-            blueprint: group.selector_map // Use the selector map as initial blueprint
+            blueprint: group.selector_map
           }
         });
 
-        // Store template ID back in ruleset
         ruleset.types[hash].template_id = template.id;
+        
+        // Store for future deduplication checks
+        generatedTemplates.push({
+          template_id: template.id,
+          hash: hash,
+          page_type: group.page_type,
+          llm_html: sample.llm_html
+        });
       }
 
       await prisma.imported_sites.update({
@@ -74,7 +103,7 @@ export class TemplateGenerator {
         data: { llm_ruleset: ruleset }
       });
 
-      info(this.dbName, 'IMPORT_V2_TEMPLATE_GEN_COMPLETE', `Templates generated and saved`);
+      info(this.dbName, 'IMPORT_V2_TEMPLATE_GEN_COMPLETE', `Templates generated and deduplicated`);
 
     } catch (err) {
       logError(this.dbName, err, 'IMPORT_V2_TEMPLATE_GEN_FAILED');

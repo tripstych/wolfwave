@@ -689,6 +689,40 @@ PAGE TYPE: ${pageType}`;
 }
 
 /**
+ * Compare two page structures to see if they can share the same template.
+ */
+export async function comparePageStructures(htmlA, htmlB, model = null) {
+  const systemPrompt = `You are a web architecture expert. 
+Analyze two HTML snippets and determine if they are structurally similar enough to use the same Nunjucks template.
+
+They can share a template if:
+- They have the same primary content areas (e.g. both are standard articles, both are product pages).
+- The location of the main title, body, and sidebar is consistent.
+- Small differences in internal element counts are okay.
+
+They should NOT share a template if:
+- One is a product and the other is a blog post.
+- One is a grid-based listing and the other is a long-form article.
+- They have fundamentally different layout regions.
+
+RESPOND WITH ONLY VALID JSON:
+{
+  "can_share": true|false,
+  "reason": "Brief explanation",
+  "confidence": 0.9
+}`;
+
+  const userPrompt = `HTML A:\n${htmlA.substring(0, 15000)}\n\nHTML B:\n${htmlB.substring(0, 15000)}`;
+
+  try {
+    return await generateText(systemPrompt, userPrompt, model);
+  } catch (err) {
+    console.error('[AI-Compare] Comparison failed:', err.message);
+    return { can_share: false, reason: "Comparison error" };
+  }
+}
+
+/**
  * Analyze a sample page from a structural group and suggest CSS selectors for content extraction.
  * This is the core AI intelligence for the site importer.
  */
