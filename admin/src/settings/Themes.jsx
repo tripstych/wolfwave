@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Check, Palette, Code, Upload, FolderOpen, Loader2, CheckCircle2, AlertCircle, ArrowRight, FileCode, X, Type } from 'lucide-react';
+import { Check, Palette, Code, Upload, FolderOpen, Loader2, CheckCircle2, AlertCircle, ArrowRight, FileCode, X, Type, Zap, Cpu } from 'lucide-react';
 import AiThemeGenerator from './AiThemeGenerator';
 import api from '../lib/api';
 
@@ -192,11 +192,33 @@ export default function Themes() {
                     )}
                   </div>
                 )}
-                <div className="flex gap-2 text-xs text-gray-500 pt-2">
+                <div className="flex gap-2 text-xs text-gray-500 pt-2 flex-wrap">
                   <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium">{wpPreview.templateCount} templates</span>
                   <span className="bg-gray-100 px-2 py-0.5 rounded-full">{wpPreview.partialCount} partials</span>
                   <span className="bg-gray-100 px-2 py-0.5 rounded-full">{wpPreview.layoutCount} layout files</span>
                 </div>
+
+                {wpPreview.plugins?.length > 0 && (
+                  <div className="border-t pt-3 mt-3 space-y-2">
+                    <h4 className="text-xs font-bold uppercase text-gray-400">Detected Plugins</h4>
+                    <div className="flex flex-wrap gap-1.5">
+                      {wpPreview.plugins.map((plugin, i) => (
+                        <span key={i} className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full font-medium bg-purple-50 text-purple-700 border border-purple-200">
+                          <Zap className="w-3 h-3" />
+                          {plugin}
+                        </span>
+                      ))}
+                    </div>
+                    {wpPreview.needsLLM && (
+                      <div className="bg-indigo-50 border border-indigo-200 rounded p-2 text-xs text-indigo-700 flex items-start gap-2 mt-2">
+                        <Cpu className="w-4 h-4 shrink-0 mt-0.5" />
+                        <span>
+                          <strong>{wpPreview.filesNeedingLLM}</strong> file{wpPreview.filesNeedingLLM !== 1 ? 's' : ''} will use AI-assisted conversion for {wpPreview.plugins.filter(p => ['Elementor', 'ACF'].includes(p)).join(' & ')} support.
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>

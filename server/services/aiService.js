@@ -176,6 +176,73 @@ export async function generateText(systemPrompt, userPrompt, model = null, req =
 }
 
 /**
+ * Generate raw text content using an LLM (no JSON parsing).
+ * Used for template conversion where the output is template code, not structured data.
+ */
+export async function generateRawText(systemPrompt, userPrompt, model = null) {
+  // Gemini
+  if (GEMINI_API_KEY && GEMINI_API_KEY !== 'demo') {
+    const geminiModel = model || GEMINI_MODEL;
+    const response = await axios.post(
+      `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        system_instruction: { parts: [{ text: systemPrompt }] },
+        contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+      },
+      { headers: { 'Content-Type': 'application/json' } }
+    );
+    return response.data.candidates[0].content.parts[0].text;
+  }
+
+  // Anthropic
+  if (ANTHROPIC_API_KEY && ANTHROPIC_API_KEY !== 'demo') {
+    const anthropicModel = model || 'claude-3-5-sonnet-20240620';
+    const response = await axios.post(
+      ANTHROPIC_API_URL,
+      {
+        model: anthropicModel,
+        max_tokens: 8192,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userPrompt }]
+      },
+      {
+        headers: {
+          'x-api-key': ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01',
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    return response.data.content[0].text;
+  }
+
+  // OpenAI
+  if (OPENAI_API_KEY && OPENAI_API_KEY !== 'demo') {
+    const openaiModel = model || 'gpt-4o';
+    const response = await axios.post(
+      `${OPENAI_API_URL}/chat/completions`,
+      {
+        model: openaiModel,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        temperature: 0.3,
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${OPENAI_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    return response.data.choices[0].message.content;
+  }
+
+  return null;
+}
+
+/**
  * Generate an image using AI (DALL-E 3 or Gemini)
  * Downloads the image locally and returns the local path.
  */

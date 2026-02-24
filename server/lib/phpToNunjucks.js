@@ -396,4 +396,147 @@ function cleanupLayout(html) {
   return result;
 }
 
-export default { convertPhpToNunjucks, extractBodyContent, buildBaseLayout, wrapAsChildTemplate, parseThemeMetadata, extractThemeStyles };
+// ── PLUGIN DETECTION ──
+
+const ELEMENTOR_PATTERNS = [
+  /\belementor\b/i,
+  /\\Elementor\\/i,
+  /elementor[-_](?:widget|section|column|element)/i,
+  /\bElementor\\Widget_Base\b/,
+  /\$this->add_render_attribute/,
+  /\$this->get_settings_for_display/,
+  /elementor\/widgets/i,
+  /\[elementor-template/i,
+  /data-elementor-type/i,
+  /elementor-element/i,
+];
+
+const ACF_PATTERNS = [
+  /\bget_field\s*\(/,
+  /\bthe_field\s*\(/,
+  /\bhave_rows\s*\(/,
+  /\bthe_row\s*\(/,
+  /\bget_sub_field\s*\(/,
+  /\bthe_sub_field\s*\(/,
+  /\bacf_add_local_field_group\s*\(/,
+  /\bget_field_object\s*\(/,
+  /\bacf_register_block_type\s*\(/,
+];
+
+/**
+ * Detect plugin usage in PHP source code.
+ * Returns { hasElementor, hasACF, hasShortcodes, pluginHints[] }
+ */
+export function detectPluginUsage(phpSource) {
+  const hasElementor = ELEMENTOR_PATTERNS.some(p => p.test(phpSource));
+  const hasACF = ACF_PATTERNS.some(p => p.test(phpSource));
+  const hasShortcodes = /do_shortcode|add_shortcode|\[\w+[^\]]*\]/.test(phpSource);
+
+  const pluginHints = [];
+  if (hasElementor) pluginHints.push('Elementor');
+  if (hasACF) pluginHints.push('ACF');
+  if (hasShortcodes) pluginHints.push('Shortcodes');
+  if (/\bwoocommerce\b/i.test(phpSource)) pluginHints.push('WooCommerce');
+  if (/\byoast\b|wpseo/i.test(phpSource)) pluginHints.push('Yoast SEO');
+  if (/\bwpbakery\b|vc_row|vc_column/i.test(phpSource)) pluginHints.push('WPBakery');
+  if (/\bwpml\b|icl_t/i.test(phpSource)) pluginHints.push('WPML');
+
+  return { hasElementor, hasACF, hasShortcodes, pluginHints, needsLLM: hasElementor || hasACF };
+}
+
+/**
+ * Build the system prompt for LLM-powered PHP→Nunjucks conversion
+ */
+export function buildConversionSystemPrompt() {
+  return `You are a WordPress-to-Nunjucks template converter for the WolfWave CMS.
+
+Your job: convert WordPress PHP template code into clean Nunjucks (Jinja2-style) templates.
+
+## WolfWave CMS Template System
+
+WolfWave uses Nunjucks templates with a CMS region system for editable content.
+Editable regions are declared via data attributes on HTML elements:
+
+- \`data-cms-region="field_name"\` — the field key (snake_case)
+- \`data-cms-type="text|textarea|richtext|image|repeater"\` — the field type
+- \`data-cms-label="Human Label"\` — display label in the admin editor
+
+### Available variables:
+- \`{{ page.title }}\`, \`{{ page.slug }}\`, \`{{ page.id }}\`
+- \`{{ page.published_at | date("F j, Y") }}\`, \`{{ page.updated_at }}\`
+- \`{{ content.field_name }}\` — for CMS region values
+- \`{{ site.site_name }}\`, \`{{ site.site_url }}\`
+- \`{{ seo.title }}\`, \`{{ seo.description }}\`
+- \`{{ menus['menu-name'].items }}\` — navigation menus
+
+### Template inheritance:
+- Layouts: \`{% extends "layouts/base.njk" %}\`
+- Blocks: \`{% block content %}...{% endblock %}\`
+- Includes: \`{% include "components/name.njk" %}\`
+
+## ACF Field Conversion Rules
+
+Convert ACF calls to CMS regions:
+- \`get_field('hero_title')\` → \`{{ content.hero_title }}\` with a \`data-cms-region="hero_title"\` wrapper
+- \`the_field('hero_title')\` → same (outputs directly)
+- \`get_field('hero_image')\` (image) → \`{{ content.hero_image }}\` with \`data-cms-type="image"\`
+- ACF repeater (\`have_rows\`/\`the_row\`/\`get_sub_field\`) → Nunjucks \`{% for %}\` loop with \`data-cms-type="repeater"\`
+- ACF group fields → flatten to \`content.group_fieldname\`
+- ACF true/false → \`{% if content.field_name %}\`
+- ACF select/radio → \`{{ content.field_name }}\`
+- ACF link field → \`<a href="{{ content.field_name.url }}">{{ content.field_name.title }}</a>\`
+
+## Elementor Conversion Rules
+
+Elementor stores page content as serialized data, not in PHP templates.
+When you see Elementor patterns:
+- Elementor sections → convert to semantic HTML sections with CMS regions
+- Elementor widgets (heading, text-editor, image, button, etc.) → convert to appropriate HTML with CMS regions
+- Elementor columns → convert to CSS grid/flexbox layout divs
+- Remove all Elementor-specific PHP, data attributes, and classes
+- Preserve the visual structure/intent but use clean semantic HTML
+
+## Output Rules
+
+1. Return ONLY the converted Nunjucks template code — no explanation, no markdown fences
+2. Remove all PHP tags completely — no remaining \`<?php\` or \`?>\`
+3. Remove WordPress-specific functions (wp_head, wp_footer, etc.)
+4. Convert ALL get_field/the_field calls to CMS regions
+5. Keep the HTML structure and CSS classes where they're meaningful for styling
+6. Add appropriate data-cms-region attributes for every editable content area
+7. Use sensible snake_case names for regions based on the ACF field names or context`;
+}
+
+/**
+ * Convert PHP source to Nunjucks using an LLM.
+ * Falls back to regex conversion if no LLM is available.
+ */
+export async function convertPhpWithLLM(phpSource, context = {}) {
+  const { generateRawText } = await import('../services/aiService.js');
+
+  const systemPrompt = buildConversionSystemPrompt();
+
+  let userPrompt = `Convert this WordPress PHP template to a WolfWave Nunjucks template:\n\n`;
+  if (context.filename) userPrompt += `File: ${context.filename}\n`;
+  if (context.templateType) userPrompt += `Template type: ${context.templateType}\n`;
+  if (context.pluginHints?.length) userPrompt += `Detected plugins: ${context.pluginHints.join(', ')}\n`;
+  userPrompt += `\n\`\`\`php\n${phpSource}\n\`\`\``;
+
+  try {
+    const result = await generateRawText(systemPrompt, userPrompt);
+    if (result) {
+      // Strip markdown fences if the LLM added them despite instructions
+      return result
+        .replace(/^```(?:nunjucks|njk|html|jinja2?)?\s*\n?/i, '')
+        .replace(/\n?```\s*$/i, '')
+        .trim();
+    }
+  } catch (err) {
+    console.error('[phpToNunjucks] LLM conversion failed, falling back to regex:', err.message);
+  }
+
+  // Fallback to regex-based conversion
+  return convertPhpToNunjucks(phpSource);
+}
+
+export default { convertPhpToNunjucks, extractBodyContent, buildBaseLayout, wrapAsChildTemplate, parseThemeMetadata, extractThemeStyles, detectPluginUsage, convertPhpWithLLM };

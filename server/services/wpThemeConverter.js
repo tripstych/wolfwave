@@ -19,7 +19,9 @@ import {
   buildBaseLayout,
   wrapAsChildTemplate,
   parseThemeMetadata,
-  extractThemeStyles
+  extractThemeStyles,
+  detectPluginUsage,
+  convertPhpWithLLM
 } from '../lib/phpToNunjucks.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -96,6 +98,17 @@ export async function previewWpTheme(zipBuffer) {
   // Check if it's a child theme
   const isChildTheme = !!metadata.template;
 
+  // Scan all PHP files for plugin usage
+  const allPhpSource = allPhpFiles.map(e => e.getData().toString('utf-8')).join('\n');
+  const pluginInfo = detectPluginUsage(allPhpSource);
+
+  // Count files that need LLM conversion
+  const filesNeedingLLM = allPhpFiles.filter(e => {
+    const src = e.getData().toString('utf-8');
+    const det = detectPluginUsage(src);
+    return det.needsLLM;
+  }).length;
+
   return {
     metadata,
     isChildTheme,
@@ -109,7 +122,12 @@ export async function previewWpTheme(zipBuffer) {
       primaryColor: themeStyles.colors.primary || null,
       secondaryColor: themeStyles.colors.secondary || null,
       fonts: themeStyles.fonts.slice(0, 3)
-    } : null
+    } : null,
+    plugins: pluginInfo.pluginHints,
+    hasElementor: pluginInfo.hasElementor,
+    hasACF: pluginInfo.hasACF,
+    needsLLM: pluginInfo.needsLLM,
+    filesNeedingLLM
   };
 }
 
@@ -122,6 +140,7 @@ export async function convertWpTheme(zipBuffer, options = {}) {
   const zip = new AdmZip(zipBuffer);
   const entries = zip.getEntries();
   const themeRoot = findThemeRoot(entries);
+  const useLLM = options.useLLM !== false; // default true
 
   // 1. Read metadata
   const styleCssEntry = findEntry(entries, themeRoot, 'style.css');
@@ -220,7 +239,15 @@ export async function convertWpTheme(zipBuffer, options = {}) {
     const partName = sanitizeName(path.basename(relativePath, '.php'));
     const phpSource = entry.getData().toString('utf-8');
 
-    const njk = convertPhpToNunjucks(phpSource);
+    const detection = detectPluginUsage(phpSource);
+    let njk;
+    if (useLLM && detection.needsLLM) {
+      info(dbName, 'WP_CONVERT_LLM', `Using LLM for partial: ${relativePath} (${detection.pluginHints.join(', ')})`);
+      njk = await convertPhpWithLLM(phpSource, { filename: relativePath, templateType: 'component', pluginHints: detection.pluginHints });
+    } else {
+      njk = convertPhpToNunjucks(phpSource);
+    }
+
     const compFilename = `components/wp-${themeName}-${partName}.njk`;
     const compPath = path.join(TEMPLATES_DIR, compFilename);
 
@@ -249,7 +276,15 @@ export async function convertWpTheme(zipBuffer, options = {}) {
 
     const phpSource = entry.getData().toString('utf-8');
     const bodyPhp = extractBodyContent(phpSource);
-    const bodyNjk = convertPhpToNunjucks(bodyPhp);
+
+    const detection = detectPluginUsage(bodyPhp);
+    let bodyNjk;
+    if (useLLM && detection.needsLLM) {
+      info(dbName, 'WP_CONVERT_LLM', `Using LLM for template: ${wpFile} (${detection.pluginHints.join(', ')})`);
+      bodyNjk = await convertPhpWithLLM(bodyPhp, { filename: wpFile, templateType: mapping.contentType, pluginHints: detection.pluginHints });
+    } else {
+      bodyNjk = convertPhpToNunjucks(bodyPhp);
+    }
 
     // Extract any inline <style> blocks for the styles block
     let inlineStyles = '';
@@ -295,7 +330,16 @@ export async function convertWpTheme(zipBuffer, options = {}) {
       const pageName = sanitizeName(customMatch[1]);
       const phpSource = entry.getData().toString('utf-8');
       const bodyPhp = extractBodyContent(phpSource);
-      const bodyNjk = convertPhpToNunjucks(bodyPhp);
+
+      const detection = detectPluginUsage(bodyPhp);
+      let bodyNjk;
+      if (useLLM && detection.needsLLM) {
+        info(dbName, 'WP_CONVERT_LLM', `Using LLM for custom template: ${relativePath} (${detection.pluginHints.join(', ')})`);
+        bodyNjk = await convertPhpWithLLM(bodyPhp, { filename: relativePath, templateType: 'pages', pluginHints: detection.pluginHints });
+      } else {
+        bodyNjk = convertPhpToNunjucks(bodyPhp);
+      }
+
       const templateNjk = wrapAsChildTemplate(bodyNjk, baseLayout);
 
       const filename = `pages/wp-${themeName}-${pageName}.njk`;
