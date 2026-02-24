@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import api from '../lib/api';
+import { toast } from 'sonner';
 import {
   Globe,
   Loader2,
@@ -28,6 +29,7 @@ export default function SiteImporterV2() {
   const [stagedItems, setStagedItems] = useState([]);
   const [view, setView] = useState('overview'); // overview | staged
   const [isStarting, setIsStarting] = useState(false);
+  const lastActionRef = useRef({}); // Track last action per site to avoid duplicate toasts
 
   useEffect(() => {
     loadSites();
@@ -37,6 +39,11 @@ export default function SiteImporterV2() {
     try {
       const data = await api.get('/import-v2/sites');
       setSites(data || []);
+      
+      // Update lastActionRef with current actions to prevent initial toasts
+      const actions = {};
+      data?.forEach(s => { if (s.last_action) actions[s.id] = s.last_action; });
+      lastActionRef.current = actions;
     } catch (err) {
       console.error('Failed to load sites:', err);
     } finally {
@@ -49,6 +56,18 @@ export default function SiteImporterV2() {
     try {
       const updated = await api.get(`/import-v2/sites/${selectedSite.id}`);
       if (updated) {
+        // Handle Toast Notification
+        if (updated.last_action && updated.last_action !== lastActionRef.current[updated.id]) {
+          if (updated.status === 'completed') {
+            toast.success(updated.last_action);
+          } else if (updated.status === 'failed') {
+            toast.error(updated.last_action);
+          } else {
+            toast.info(updated.last_action);
+          }
+          lastActionRef.current[updated.id] = updated.last_action;
+        }
+
         setSelectedSite(updated);
         if (view === 'staged') {
           const items = await api.get(`/import-v2/sites/${selectedSite.id}/staged`);

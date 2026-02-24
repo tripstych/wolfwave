@@ -1,6 +1,7 @@
 import prisma from '../../lib/prisma.js';
 import { generateTemplateFromHtml } from '../aiService.js';
 import { info, error as logError } from '../../lib/logger.js';
+import { ImporterServiceV2 } from './ImporterServiceV2.js';
 import path from 'path';
 import fs from 'fs/promises';
 
@@ -25,8 +26,12 @@ export class TemplateGenerator {
       if (!site || !site.llm_ruleset) throw new Error('Ruleset not found');
       const ruleset = site.llm_ruleset;
 
-      for (const [hash, group] of Object.entries(ruleset.types || {})) {
+      const hashes = Object.keys(ruleset.types || {});
+      for (let i = 0; i < hashes.length; i++) {
+        const hash = hashes[i];
+        const group = ruleset.types[hash];
         info(this.dbName, 'IMPORT_V2_TEMPLATE_GEN_TYPE', `Generating template for ${group.page_type} (${hash})`);
+        await ImporterServiceV2.updateStatus(this.siteId, 'generating_templates', `Creating Nunjucks template ${i + 1}/${hashes.length} (${group.page_type})...`);
 
         // Get the sample item's HTML
         const sample = await prisma.staged_items.findFirst({

@@ -1,6 +1,7 @@
 import prisma from '../../lib/prisma.js';
 import { analyzeSiteImport } from '../aiService.js';
 import { info, error as logError } from '../../lib/logger.js';
+import { ImporterServiceV2 } from './ImporterServiceV2.js';
 
 /**
  * RuleGenerator analyzes the crawled pages and creates fine-grained extraction rules.
@@ -33,8 +34,10 @@ export class RuleGenerator {
 
       info(this.dbName, 'IMPORT_V2_RULEGEN_GROUPS', `Found ${groups.length} unique structural groups`);
 
+      let processedGroups = 0;
       for (const group of groups) {
         if (!group.structural_hash) continue;
+        processedGroups++;
 
         // Take one sample page from this group
         const sample = await prisma.staged_items.findFirst({
@@ -47,6 +50,7 @@ export class RuleGenerator {
         if (!sample || !sample.llm_html) continue;
 
         info(this.dbName, 'IMPORT_V2_RULEGEN_ANALYZE', `Analyzing group ${group.structural_hash} (Sample: ${sample.url})`);
+        await ImporterServiceV2.updateStatus(this.siteId, 'generating_rules', `Analyzing group ${processedGroups}/${groups.length} (${group.structural_hash.substring(0,8)})...`);
 
         // Use LLM to analyze the ultra-clean LLM HTML
         const analysis = await analyzeSiteImport(sample.llm_html, sample.url);

@@ -1,6 +1,7 @@
 import prisma from '../../lib/prisma.js';
 import { structuredScrape } from '../aiService.js';
 import { info, error as logError } from '../../lib/logger.js';
+import { ImporterServiceV2 } from './ImporterServiceV2.js';
 
 /**
  * TransformationEngine applies the generated ruleset to staged items
@@ -28,9 +29,14 @@ export class TransformationEngine {
         where: { site_id: this.siteId, status: 'crawled' }
       });
 
-      for (const item of items) {
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
         const groupRules = ruleset.types?.[item.structural_hash];
         if (!groupRules) continue;
+
+        if (i % 5 === 0) {
+          await ImporterServiceV2.updateStatus(this.siteId, 'transforming', `Migrating items to CMS ${i + 1}/${items.length}...`);
+        }
 
         info(this.dbName, 'IMPORT_V2_TRANSFORM_ITEM', `Transforming ${item.url} using ${groupRules.page_type} rules`);
 

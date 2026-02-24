@@ -3,6 +3,7 @@ import * as cheerio from 'cheerio';
 import crypto from 'crypto';
 import prisma from '../../lib/prisma.js';
 import { info, error as logError } from '../../lib/logger.js';
+import { ImporterServiceV2 } from './ImporterServiceV2.js';
 
 export class CrawlEngine {
   constructor(siteId, rootUrl, dbName, config = {}) {
@@ -149,6 +150,10 @@ export class CrawlEngine {
 
         this.pageCount++;
         
+        if (this.pageCount % 10 === 0) {
+          await ImporterServiceV2.updateStatus(this.siteId, 'crawling', `Crawled ${this.pageCount} pages...`);
+        }
+
         // Discover links
         $('a[href]').each((i, el) => {
           const href = $(el).attr('href');
