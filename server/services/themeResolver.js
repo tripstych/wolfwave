@@ -356,13 +356,14 @@ export function applyNunjucksCustomizations(env) {
  */
 export function getNunjucksEnv(themeName) {
   const dbName = getCurrentDbName();
-  const cacheKey = `${themeName}:${dbName}`;
 
   // Validate theme exists, fall back to default
   const config = getThemeConfig(themeName);
   if (!config) {
     themeName = 'default';
   }
+
+  const cacheKey = `${themeName}:${dbName}`;
 
   if (envCache.has(cacheKey)) {
     return envCache.get(cacheKey);
