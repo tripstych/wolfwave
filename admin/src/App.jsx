@@ -41,6 +41,10 @@ import PlanList from './subscriptions/PlanList';
 import PlanEditor from './subscriptions/PlanEditor';
 import CouponList from './marketing/CouponList';
 import CouponEditor from './marketing/CouponEditor';
+import ClassifiedList from './classifieds/ClassifiedList';
+import ClassifiedDetail from './classifieds/ClassifiedDetail';
+import ClassifiedSettings from './classifieds/ClassifiedSettings';
+import MyClassifieds from './classifieds/MyClassifieds';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -115,6 +119,10 @@ function App() {
                 <Route path="/styles" element={<StyleEditor />} />
                 <Route path="/email-templates" element={<EmailTemplates />} />
                 <Route path="/api-keys" element={<ApiKeys />} />
+                <Route path="/classifieds" element={<ClassifiedList />} />
+                <Route path="/classifieds/settings" element={<ClassifiedSettings />} />
+                <Route path="/classifieds/my-ads" element={<MyClassifieds />} />
+                <Route path="/classifieds/:id" element={<ClassifiedDetail />} />
 
                 {/* Dynamic content type routes */}
                 {contentTypes.map(type => (

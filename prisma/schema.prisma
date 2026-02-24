@@ -151,6 +151,7 @@ model customers {
   orders                 orders[]
   customer_subscriptions customer_subscriptions[]
   tenants                tenants[]
+  classified_ads         classified_ads[]
 
   @@index([email], map: "idx_email")
   @@index([user_id], map: "user_id")
@@ -688,4 +689,72 @@ enum tenants_status {
 enum api_keys_type {
   site
   user
+}
+
+// ---- Classifieds ----
+
+model classified_ads {
+  id               Int                    @id @default(autoincrement())
+  customer_id      Int
+  template_id      Int?
+  content_id       Int?
+  category_id      Int?
+  title            String                 @db.VarChar(255)
+  slug             String                 @unique(map: "slug_ca") @db.VarChar(255)
+  description      String?                @db.Text
+  price            Decimal?               @db.Decimal(10, 2)
+  currency         String?                @default("USD") @db.VarChar(10)
+  condition        classified_condition?  @default(na)
+  location         String?                @db.VarChar(255)
+  contact_info     String?                @db.VarChar(500)
+  images           Json?
+  status           classified_status      @default(pending_review)
+  rejection_reason String?                @db.Text
+  moderation_flags Json?
+  expires_at       DateTime?              @db.Timestamp(0)
+  created_at       DateTime               @default(now()) @db.Timestamp(0)
+  updated_at       DateTime               @default(now()) @db.Timestamp(0)
+  customer         customers              @relation(fields: [customer_id], references: [id], onDelete: Cascade)
+  category         classified_categories? @relation(fields: [category_id], references: [id], onUpdate: Restrict)
+
+  @@index([customer_id], map: "idx_ca_customer")
+  @@index([status], map: "idx_ca_status")
+  @@index([category_id], map: "idx_ca_category")
+  @@index([expires_at], map: "idx_ca_expires")
+}
+
+model classified_categories {
+  id            Int                     @id @default(autoincrement())
+  name          String                  @db.VarChar(100)
+  slug          String                  @unique(map: "slug_cc") @db.VarChar(100)
+  parent_id     Int?
+  position      Int                     @default(0)
+  created_at    DateTime                @default(now()) @db.Timestamp(0)
+  parent        classified_categories?  @relation("CategoryTree", fields: [parent_id], references: [id], onUpdate: Restrict)
+  children      classified_categories[] @relation("CategoryTree")
+  classified_ads classified_ads[]
+}
+
+model classified_moderation_rules {
+  id          Int      @id @default(autoincrement())
+  name        String   @db.VarChar(100)
+  rule_type   String   @db.VarChar(10) // allow or block
+  description String?  @db.Text
+  enabled     Boolean  @default(true)
+  created_at  DateTime @default(now()) @db.Timestamp(0)
+}
+
+enum classified_status {
+  pending_review
+  approved
+  rejected
+  expired
+  sold
+}
+
+enum classified_condition {
+  new_item
+  used
+  refurbished
+  na
 }

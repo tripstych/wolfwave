@@ -1,0 +1,178 @@
+{% extends "layouts/base.njk" %}
+
+{% block content %}
+<div class="account-container">
+  <div class="account-header">
+    <div class="flex items-center gap-4">
+      <a href="/customer/ads" class="btn btn-secondary">Back to My Ads</a>
+      <h1 id="page-title">Create New Ad</h1>
+    </div>
+  </div>
+
+  <div class="account-content">
+    <div class="account-section">
+      <form id="ad-form" class="form">
+        <div class="form-group">
+          <label for="title">Title *</label>
+          <input type="text" id="title" name="title" required class="form-input" placeholder="e.g. 2020 Mountain Bike - Great Condition">
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div class="form-group">
+            <label for="price">Price ($)</label>
+            <input type="number" id="price" name="price" step="0.01" class="form-input" placeholder="0.00">
+          </div>
+          <div class="form-group">
+            <label for="condition">Condition</label>
+            <select id="condition" name="condition" class="form-input">
+              <option value="na">N/A</option>
+              <option value="new_item">New</option>
+              <option value="used">Used</option>
+              <option value="refurbished">Refurbished</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="description">Description *</label>
+          <textarea id="description" name="description" required class="form-input" rows="6" placeholder="Describe what you are selling..."></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="location">Location</label>
+          <input type="text" id="location" name="location" class="form-input" placeholder="e.g. Los Angeles, CA">
+        </div>
+
+        <div class="form-group">
+          <label for="contact_info">Contact Info *</label>
+          <input type="text" id="contact_info" name="contact_info" required class="form-input" placeholder="Phone number or email">
+        </div>
+
+        <div class="form-group">
+          <label>Images (URLs)</label>
+          <div id="image-urls" class="space-y-2">
+            <input type="url" name="image" class="form-input ad-image-input" placeholder="https://...">
+          </div>
+          <button type="button" onclick="addImageInput()" class="btn btn-sm btn-secondary mt-2">Add Another Image</button>
+        </div>
+
+        <div id="form-error" class="error-message hidden"></div>
+        
+        <div class="form-actions mt-6">
+          <button type="submit" id="submit-btn" class="btn btn-primary w-full">Post Ad for Review</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  const adId = '{{ adId }}' === 'new' ? null : '{{ adId }}';
+
+  async function loadAdData() {
+    if (!adId) return;
+
+    document.getElementById('page-title').textContent = 'Edit Classified Ad';
+    document.getElementById('submit-btn').textContent = 'Update Ad';
+
+    try {
+      // We need a way to get ad by ID for editing
+      // Assuming our API supports GET /my-ads which we can filter
+      const response = await fetch('/api/classified-ads/my-ads', { credentials: 'include' });
+      const ads = await response.json();
+      const ad = ads.find(a => a.id == adId);
+
+      if (!ad) throw new Error('Ad not found');
+
+      document.getElementById('title').value = ad.title;
+      document.getElementById('price').value = ad.price;
+      document.getElementById('condition').value = ad.condition;
+      document.getElementById('description').value = ad.description;
+      document.getElementById('location').value = ad.location;
+      document.getElementById('contact_info').value = ad.contact_info;
+
+      if (ad.images && ad.images.length > 0) {
+        const container = document.getElementById('image-urls');
+        container.innerHTML = '';
+        ad.images.forEach(url => {
+          const input = document.createElement('input');
+          input.type = 'url';
+          input.name = 'image';
+          input.className = 'form-input ad-image-input mt-2';
+          input.value = url;
+          container.appendChild(input);
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Failed to load ad data');
+    }
+  }
+
+  function addImageInput() {
+    const container = document.getElementById('image-urls');
+    const input = document.createElement('input');
+    input.type = 'url';
+    input.name = 'image';
+    input.className = 'form-input ad-image-input mt-2';
+    input.placeholder = 'https://...';
+    container.appendChild(input);
+  }
+
+  document.getElementById('ad-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('submit-btn');
+    const errDiv = document.getElementById('form-error');
+    
+    btn.disabled = true;
+    btn.textContent = adId ? 'Updating...' : 'Posting...';
+    errDiv.classList.add('hidden');
+
+    const formData = new FormData(e.target);
+    const data = {
+      title: formData.get('title'),
+      description: formData.get('description'),
+      price: formData.get('price'),
+      condition: formData.get('condition'),
+      location: formData.get('location'),
+      contact_info: formData.get('contact_info'),
+      images: Array.from(document.querySelectorAll('.ad-image-input'))
+        .map(input => input.value.trim())
+        .filter(Boolean)
+    };
+
+    try {
+      const response = await fetch(adId ? `/api/classified-ads/${adId}` : '/api/classified-ads', {
+        method: adId ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(data)
+      });
+
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.error || 'Failed to save ad');
+      }
+
+      window.location.href = '/customer/ads';
+    } catch (err) {
+      errDiv.textContent = err.message;
+      errDiv.classList.remove('hidden');
+      btn.disabled = false;
+      btn.textContent = adId ? 'Update Ad' : 'Post Ad for Review';
+    }
+  });
+
+  document.addEventListener('DOMContentLoaded', loadAdData);
+</script>
+
+<style>
+  .grid { display: grid; }
+  .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .gap-4 { gap: 1rem; }
+  .mt-2 { margin-top: 0.5rem; }
+  .mt-6 { margin-top: 1.5rem; }
+  .space-y-2 > * + * { margin-top: 0.5rem; }
+  .w-full { width: 100%; }
+</style>
+{% endblock %}

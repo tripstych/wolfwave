@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { X, LayoutDashboard, FileText, Boxes, Puzzle, Layers, Image, List, Tag, Package, Briefcase, Users, CreditCard, Palette, Building, Mail, Search, Settings, Download, Globe, Key } from 'lucide-react';
+import { X, LayoutDashboard, FileText, Boxes, Puzzle, Layers, Image, List, Tag, Package, Briefcase, Users, CreditCard, Palette, Building, Mail, Search, Settings, Download, Globe, Key, Megaphone } from 'lucide-react';
 import SidebarItem from './SidebarItem';
 
 const ICON_MAP = {
@@ -33,7 +33,8 @@ export default function Sidebar({ isOpen, onClose, contentTypes = [] }) {
         { name: 'Products', href: '/products', icon: Package },
         { name: 'Orders', href: '/orders', icon: Briefcase },
         { name: 'Customers', href: '/customers', icon: Users },
-        { name: 'Subscriptions', href: '/subscriptions', icon: CreditCard }
+        { name: 'Subscriptions', href: '/subscriptions', icon: CreditCard },
+        { name: 'Classifieds', href: '/classifieds', icon: Megaphone }
       ]
     },
     {
