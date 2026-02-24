@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { X, LayoutDashboard, FileText, Boxes, Puzzle, Layers, Image, List, Tag, Package, Briefcase, Users, CreditCard, Palette, Building, Mail, Search, Settings, Download, Globe, Key, Megaphone, BookOpen } from 'lucide-react';
+import { X, LayoutDashboard, FileText, Boxes, Puzzle, Layers, Image, List, Tag, Package, Briefcase, Users, CreditCard, Palette, Building, Mail, Search, Settings, Download, Globe, Key, Megaphone, BookOpen, Zap } from 'lucide-react';
 import SidebarItem from './SidebarItem';
 import { useTranslation } from '../context/TranslationContext';
 
@@ -66,6 +66,7 @@ export default function Sidebar({ isOpen, onClose, contentTypes = [] }) {
       items: [
         { name: _('nav.themes', 'Themes'), href: '/themes', icon: Palette },
         { name: _('nav.site_importer', 'Site Importer'), href: '/import', icon: Download },
+        { name: 'WolfImporter V2', href: '/import-v2', icon: Zap },
         { name: _('nav.styles', 'Styles'), href: '/styles', icon: Palette },
         { name: _('nav.users', 'Users'), href: '/users', icon: Users },
         { name: _('nav.sites', 'Sites'), href: '/tenants', icon: Globe },
