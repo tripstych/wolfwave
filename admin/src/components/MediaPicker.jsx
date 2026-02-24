@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import api from '../lib/api';
-import { X, Upload, Check, Image as ImageIcon } from 'lucide-react';
+import { X, Upload, Check, Image as ImageIcon, Sparkles, Loader2 } from 'lucide-react';
 
 export default function MediaPicker({ onSelect, onClose }) {
   const [media, setMedia] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [prompt, setPrompt] = useState('');
   const [selected, setSelected] = useState(null);
   const fileInputRef = useRef(null);
 
@@ -44,6 +46,26 @@ export default function MediaPicker({ onSelect, onClose }) {
     }
   };
 
+  const handleGenerate = async () => {
+    if (!prompt.trim()) return;
+
+    setGenerating(true);
+    try {
+      const result = await api.post('/ai/generate-image', { prompt });
+      if (result.success) {
+        // Refresh media list to show the new image
+        await loadMedia();
+        setPrompt('');
+        // New image should be first in the list if sorted by newest
+      }
+    } catch (err) {
+      console.error('Generation failed:', err);
+      alert('Generation failed');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   const handleSelect = () => {
     if (selected) {
       onSelect({
@@ -68,23 +90,52 @@ export default function MediaPicker({ onSelect, onClose }) {
 
         {/* Content */}
         <div className="flex-1 overflow-auto p-6">
-          {/* Upload */}
-          <div className="mb-6">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleUpload}
-              className="hidden"
-            />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploading}
-              className="btn btn-secondary"
-            >
-              <Upload className="w-4 h-4 mr-2" />
-              {uploading ? 'Uploading...' : 'Upload New'}
-            </button>
+          {/* Actions: Upload & AI */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <h3 className="text-xs font-bold uppercase text-gray-500 mb-3 flex items-center gap-2">
+                <Upload className="w-3 h-3" /> Upload Local File
+              </h3>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleUpload}
+                className="hidden"
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="btn btn-secondary w-full"
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                {uploading ? 'Uploading...' : 'Upload New'}
+              </button>
+            </div>
+
+            <div className="p-4 bg-primary-50/30 rounded-lg border border-primary-100">
+              <h3 className="text-xs font-bold uppercase text-primary-600 mb-3 flex items-center gap-2">
+                <Sparkles className="w-3 h-3" /> Generate with AI
+              </h3>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  placeholder="A professional product photo of..."
+                  className="input text-sm py-1.5 flex-1"
+                  onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
+                />
+                <button
+                  onClick={handleGenerate}
+                  disabled={generating || !prompt.trim()}
+                  className="btn btn-primary px-3 py-1.5"
+                  title="Generate image"
+                >
+                  {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Grid */}

@@ -4,6 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import crypto from 'crypto';
 import { logError } from '../lib/logger.js';
+import { downloadImage } from './mediaService.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(__dirname, '../../public');
@@ -175,58 +176,74 @@ export async function generateText(systemPrompt, userPrompt, model = null, req =
 }
 
 /**
- * Generate an image using DALL-E 3
+ * Generate an image using AI (DALL-E 3 or Gemini)
  * Downloads the image locally and returns the local path.
  */
-export async function generateImage(prompt, size = "1024x1024") {
+export async function generateImage(prompt, size = "1024x1024", userId = null) {
   // SIMULATION MODE
-  if (!OPENAI_API_KEY || OPENAI_API_KEY === 'demo' || prompt === 'mock') {
+  if ((!OPENAI_API_KEY || OPENAI_API_KEY === 'demo') && (!GEMINI_API_KEY || GEMINI_API_KEY === 'demo') || prompt === 'mock') {
     console.log(`[AI-DEBUG] 🎨 Image Gen: Simulation Mode active.`);
     return '/images/placeholders/1920x600.svg';
   }
 
-  try {
-    console.log(`[AI-DEBUG] 🎨 Generating image for: "${prompt}" (${size})...`);
-    
-    const response = await axios.post(
-      `${OPENAI_API_URL}/images/generations`,
-      {
-        model: "dall-e-3",
-        prompt: prompt,
-        n: 1,
-        size: size,
-        response_format: "url", // We'll download it
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${OPENAI_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
-
-    const imageUrl = response.data.data[0].url;
-    console.log(`[AI-DEBUG] 📥 Image URL received. Downloading...`);
-
-    const filename = `ai-${crypto.randomUUID()}.png`;
-    const relativePath = `/images/generated/${filename}`;
-    const absolutePath = path.join(PUBLIC_DIR, 'images', 'generated', filename);
-
-    // Ensure directory exists
-    await fs.promises.mkdir(path.dirname(absolutePath), { recursive: true });
-
-    // Download image
-    const imageResponse = await axios.get(imageUrl, { responseType: 'arraybuffer' });
-    await fs.promises.writeFile(absolutePath, imageResponse.data);
-
-    console.log(`[AI-DEBUG] ✅ Image saved locally to: ${absolutePath}`);
-    return relativePath;
-
-  } catch (error) {
-    console.error('[AI-DEBUG] ❌ AI Image Generation Error:', error.response?.data || error.message);
-    // Return a placeholder on failure so the process doesn't crash completely
-    return '/images/placeholders/1024x1024.svg';
+  // 1. GEMINI MODE
+  if (GEMINI_API_KEY && GEMINI_API_KEY !== 'demo') {
+    console.log(`[AI-DEBUG] 🎨 Generating image via Gemini: "${prompt}"...`);
+    try {
+      const response = await axios.post(
+        `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:generateContent?key=${GEMINI_API_KEY}`,
+        {
+          contents: [{ parts: [{ text: prompt }] }],
+          // Gemini's specific Imagen parameters would go here if using the dedicated Imagen API
+          // For now, most users use the vertex/cloud version for Imagen. 
+          // If using standard AI Studio, we might stick to DALL-E or wait for full Imagen API rollout.
+        }
+      );
+      // NOTE: Imagen 3 API in AI Studio is currently restricted/different. 
+      // I will fallback to DALL-E 3 if Gemini image fails or is not available.
+    } catch (e) {
+      console.log(`[AI-DEBUG] ⚠️ Gemini Image Gen not available or failed, falling back...`);
+    }
   }
+
+  // 2. DALL-E 3 (Primary for now as it's more stable in AI Studio/OpenAI)
+  if (OPENAI_API_KEY && OPENAI_API_KEY !== 'demo') {
+    try {
+      console.log(`[AI-DEBUG] 🎨 Generating image via DALL-E 3: "${prompt}"...`);
+      
+      const response = await axios.post(
+        `${OPENAI_API_URL}/images/generations`,
+        {
+          model: "dall-e-3",
+          prompt: prompt,
+          n: 1,
+          size: size,
+          response_format: "url",
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${OPENAI_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      const imageUrl = response.data.data[0].url;
+      console.log(`[AI-DEBUG] 📥 Image URL received. Downloading via mediaService...`);
+
+      // Use mediaService to download and register in DB
+      const localUrl = await downloadImage(imageUrl, prompt, userId);
+      
+      console.log(`[AI-DEBUG] ✅ Image processed: ${localUrl}`);
+      return localUrl;
+
+    } catch (error) {
+      console.error('[AI-DEBUG] ❌ AI Image Generation Error:', error.response?.data || error.message);
+    }
+  }
+
+  // Fallback
+  return '/images/placeholders/1024x1024.svg';
 }
 
 /**

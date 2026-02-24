@@ -88,7 +88,7 @@ router.post('/generate-image', requireAuth, requireAdmin, async (req, res) => {
     const { prompt } = req.body;
     if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
 
-    const imagePath = await generateImage(prompt);
+    const imagePath = await generateImage(prompt, "1024x1024", req.user?.id);
     res.json({ success: true, path: imagePath });
 
   } catch (error) {
