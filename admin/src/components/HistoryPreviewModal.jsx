@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, CheckCircle, RotateCcw, AlertTriangle, Eye, FileText } from 'lucide-react';
+import { X, CheckCircle, RotateCcw, AlertTriangle, Eye, FileText, Database } from 'lucide-react';
 
 export default function HistoryPreviewModal({ 
   isOpen, 
@@ -27,6 +27,10 @@ export default function HistoryPreviewModal({
     selectedFields.forEach(f => {
       fieldsToRestore[f] = versionData[f];
     });
+
+    // Automatically include mixins if present in the version data
+    if (versionData.__product) fieldsToRestore.__product = versionData.__product;
+    if (versionData.__page) fieldsToRestore.__page = versionData.__page;
 
     onRestore({
       content: fieldsToRestore,
@@ -88,6 +92,60 @@ export default function HistoryPreviewModal({
               </div>
             </div>
           </div>
+
+          {/* Product/Page Mixin Preview */}
+          {(versionData.__product || versionData.__page) && (
+            <div className="space-y-4">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-gray-400 flex items-center gap-2">
+                <Database className="w-4 h-4" /> 
+                {versionData.__product ? 'Product Specifications' : 'Page Settings'}
+              </h3>
+              <div className="p-4 rounded-lg border border-primary-100 bg-primary-50/10 grid grid-cols-2 gap-4">
+                {versionData.__product && (
+                  <>
+                    <div>
+                      <label className="text-[10px] uppercase font-bold text-gray-400">Price</label>
+                      <p className="text-sm font-bold text-green-600">${versionData.__product.price}</p>
+                    </div>
+                    <div>
+                      <label className="text-[10px] uppercase font-bold text-gray-400">SKU</label>
+                      <p className="text-sm font-mono">{versionData.__product.sku || '(None)'}</p>
+                    </div>
+                    <div>
+                      <label className="text-[10px] uppercase font-bold text-gray-400">Stock</label>
+                      <p className="text-sm">{versionData.__product.inventory_quantity} in stock</p>
+                    </div>
+                    <div>
+                      <label className="text-[10px] uppercase font-bold text-gray-400">Status</label>
+                      <p className="text-sm capitalize">{versionData.__product.status}</p>
+                    </div>
+                  </>
+                )}
+                {versionData.__page && (
+                  <>
+                    <div>
+                      <label className="text-[10px] uppercase font-bold text-gray-400">Status</label>
+                      <p className="text-sm capitalize">{versionData.__page.status}</p>
+                    </div>
+                    <div>
+                      <label className="text-[10px] uppercase font-bold text-gray-400">Robots</label>
+                      <p className="text-sm">{versionData.__page.robots}</p>
+                    </div>
+                    <div className="col-span-2">
+                      <label className="text-[10px] uppercase font-bold text-gray-400">Meta Description</label>
+                      <p className="text-xs text-gray-600 line-clamp-2">{versionData.__page.meta_description || '(None)'}</p>
+                    </div>
+                  </>
+                )}
+                <div className="col-span-2 pt-2 border-t border-primary-50">
+                  <p className="text-[10px] text-primary-600 italic font-medium flex items-center gap-1">
+                    <CheckCircle className="w-3 h-3" /> 
+                    These core settings will be restored automatically.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Regions Section */}
           <div className="space-y-4 pb-4">

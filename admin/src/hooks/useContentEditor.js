@@ -117,7 +117,14 @@ export default function useContentEditor({ contentType, endpoint, initialData = 
       if (title) next.title = title;
       if (slug) next.slug = slug;
       if (content) {
-        next.content = { ...prev.content, ...content };
+        // Extract mixins if present
+        const { __product, __page, ...restContent } = content;
+        
+        next.content = { ...prev.content, ...restContent };
+        
+        // Spread mixin data back into main data object (where price, sku, robots etc live)
+        if (__product) Object.assign(next, __product);
+        if (__page) Object.assign(next, __page);
       }
       return next;
     });
