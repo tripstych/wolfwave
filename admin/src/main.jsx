@@ -6,6 +6,7 @@ import App from './App';
 import { AuthProvider } from './context/AuthContext';
 import { ContentTypesProvider } from './context/ContentTypesContext';
 import { SettingsProvider } from './context/SettingsContext';
+import { TranslationProvider } from './context/TranslationContext';
 import './index.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -17,14 +18,16 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         v7_relativeSplatPath: true,
       }}
     >
-      <AuthProvider>
-        <SettingsProvider>
-          <ContentTypesProvider>
-            <App />
-            <Toaster position="top-right" richColors />
-          </ContentTypesProvider>
-        </SettingsProvider>
-      </AuthProvider>
+      <TranslationProvider>
+        <AuthProvider>
+          <SettingsProvider>
+            <ContentTypesProvider>
+              <App />
+              <Toaster position="top-right" richColors />
+            </ContentTypesProvider>
+          </SettingsProvider>
+        </AuthProvider>
+      </TranslationProvider>
     </BrowserRouter>
   </React.StrictMode>
 );

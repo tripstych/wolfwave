@@ -10,6 +10,53 @@ import { query } from '../db/connection.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(__dirname, '../../public');
 
+// Cache for discovered Gemini image generation models
+let imagenModelsCache = null;
+let imagenModelsCacheExpiry = 0;
+const IMAGEN_CACHE_TTL = 60 * 60 * 1000; // 1 hour
+
+/**
+ * Discover available Gemini image generation models via ListModels API.
+ * Returns an array of model IDs sorted by preference (newest first).
+ * Results are cached for 1 hour.
+ */
+async function discoverImagenModels(apiKey) {
+  if (imagenModelsCache && Date.now() < imagenModelsCacheExpiry) {
+    return imagenModelsCache;
+  }
+
+  try {
+    const response = await axios.get(
+      `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`
+    );
+
+    const models = response.data.models || [];
+
+    // Filter for image generation models that support generateContent
+    const imagenModels = models
+      .filter(m => {
+        const id = m.name?.replace('models/', '') || '';
+        const methods = m.supportedGenerationMethods || [];
+        // Look for imagen models or models with image generation capability
+        return (id.includes('imagen') || id.includes('image')) &&
+               methods.includes('generateContent');
+      })
+      .map(m => m.name.replace('models/', ''))
+      // Sort: prefer higher version numbers and newer models
+      .sort((a, b) => b.localeCompare(a));
+
+    console.log(`[AI-DEBUG] Discovered Imagen models: ${imagenModels.length > 0 ? imagenModels.join(', ') : 'NONE'}`);
+
+    imagenModelsCache = imagenModels;
+    imagenModelsCacheExpiry = Date.now() + IMAGEN_CACHE_TTL;
+    return imagenModels;
+  } catch (err) {
+    console.error(`[AI-DEBUG] Failed to discover Imagen models: ${err.message}`);
+    // Return empty array so callers can fall back gracefully
+    return [];
+  }
+}
+
 /**
  * Get AI settings from the database with environment fallbacks
  */
@@ -294,39 +341,58 @@ export async function generateImage(prompt, size = "1024x1024", userId = null) {
 
   // 1. GEMINI MODE (Vertex / AI Studio Imagen API)
   if (config.gemini_api_key && config.gemini_api_key !== 'demo') {
-    console.log(`[AI-DEBUG] 🎨 Generating image via Gemini Imagen: "${prompt}"...`);
-    try {
-      const response = await axios.post(
-        `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:generateContent?key=${config.gemini_api_key}`,
-        {
-          contents: [{ parts: [{ text: prompt }] }]
-        },
-        { timeout: 60000 }
-      );
+    // Discover available imagen models dynamically
+    const availableModels = await discoverImagenModels(config.gemini_api_key);
+    const modelsToTry = availableModels.length > 0
+      ? availableModels
+      : ['imagen-4.0-generate-preview-06-06', 'imagen-3.0-generate-002', 'imagen-3.0-generate-001'];
 
-      // Gemini Imagen returns base64 data in the response
-      const imageData = response.data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-      
-      if (imageData) {
-        console.log(`[AI-DEBUG] 📥 Base64 image received from Gemini. Processing...`);
-        const dataUri = `data:image/png;base64,${imageData}`;
-        const localUrl = await downloadMedia(dataUri, prompt, userId, true);
-        
-        console.log(`[AI-DEBUG] ✅ Gemini Image processed: ${localUrl}`);
-        return localUrl;
+    console.log(`[AI-DEBUG] 🎨 Generating image via Gemini Imagen: "${prompt}" (models to try: ${modelsToTry.join(', ')})`);
+
+    let lastError = null;
+    for (const model of modelsToTry) {
+      try {
+        console.log(`[AI-DEBUG] Trying Imagen model: ${model}`);
+        const response = await axios.post(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${config.gemini_api_key}`,
+          {
+            contents: [{ parts: [{ text: prompt }] }]
+          },
+          { timeout: 60000 }
+        );
+
+        // Gemini Imagen returns base64 data in the response
+        const imageData = response.data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+
+        if (imageData) {
+          console.log(`[AI-DEBUG] 📥 Base64 image received from Gemini (model: ${model}). Processing...`);
+          const dataUri = `data:image/png;base64,${imageData}`;
+          const localUrl = await downloadMedia(dataUri, prompt, userId, true);
+
+          console.log(`[AI-DEBUG] ✅ Gemini Image processed: ${localUrl}`);
+          return localUrl;
+        }
+
+        throw new Error('Gemini returned no image data');
+      } catch (e) {
+        const errorMsg = e.response?.data?.error?.message || e.message;
+        console.error(`[AI-DEBUG] ❌ Gemini model ${model} failed: ${errorMsg}`);
+        lastError = errorMsg;
+
+        // If model not found, clear cache so next call re-discovers
+        if (e.response?.status === 404) {
+          imagenModelsCache = null;
+          imagenModelsCacheExpiry = 0;
+        }
+        // Continue to next model
       }
-      
-      throw new Error('Gemini returned no image data');
-    } catch (e) {
-      const errorMsg = e.response?.data?.error?.message || e.message;
-      console.error(`[AI-DEBUG] ❌ Gemini Image Gen failed: ${errorMsg}`);
-      
-      // If this is the only provider, throw immediately
-      if (!config.openai_api_key || config.openai_api_key === 'demo') {
-        throw new Error(`Gemini Imagen Error: ${errorMsg}`);
-      }
-      // Otherwise continue to DALL-E fallback
     }
+
+    // All Gemini models exhausted
+    if (!config.openai_api_key || config.openai_api_key === 'demo') {
+      throw new Error(`Gemini Imagen Error: All models failed. Last error: ${lastError}`);
+    }
+    // Otherwise continue to DALL-E fallback
   }
 
   // 2. DALL-E 3 (Primary for now as it's more stable in AI Studio/OpenAI)

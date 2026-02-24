@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ChevronDown, LogOut, Settings } from 'lucide-react';
+import { useTranslation } from '../context/TranslationContext';
 
 export default function UserMenu({ user, onLogout }) {
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
+  const { _ } = useTranslation();
 
   const handleLogoutClick = async () => {
     await onLogout();
@@ -36,7 +38,7 @@ export default function UserMenu({ user, onLogout }) {
           />
           <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
             <div className="px-4 py-2 border-b border-gray-100">
-              <p className="text-sm font-bold text-gray-900 truncate">{user?.name || 'User'}</p>
+              <p className="text-sm font-bold text-gray-900 truncate">{user?.name || _('user.default_name', 'User')}</p>
               <p className="text-xs text-gray-500 truncate">{user?.email}</p>
             </div>
             <Link
@@ -45,14 +47,14 @@ export default function UserMenu({ user, onLogout }) {
               onClick={() => setIsOpen(false)}
             >
               <Settings className="w-4 h-4" />
-              Settings
+              {_('user.settings', 'Settings')}
             </Link>
             <button
               onClick={handleLogoutClick}
               className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
             >
               <LogOut className="w-4 h-4" />
-              Sign out
+              {_('user.sign_out', 'Sign out')}
             </button>
           </div>
         </>

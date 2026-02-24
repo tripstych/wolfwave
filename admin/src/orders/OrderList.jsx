@@ -1,8 +1,10 @@
 import { useNavigate } from 'react-router-dom';
 import DataTable from '../components/DataTable';
+import { useTranslation } from '../context/TranslationContext';
 
 export default function OrderList() {
   const navigate = useNavigate();
+  const { _ } = useTranslation();
 
   const formatDate = (date) =>
     new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
@@ -21,7 +23,7 @@ export default function OrderList() {
     };
     return (
       <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${colors[value] || 'bg-gray-100 text-gray-800'}`}>
-        {value}
+        {_( `status.${value}`, value)}
       </span>
     );
   };
@@ -35,24 +37,24 @@ export default function OrderList() {
     };
     return (
       <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${colors[value] || 'bg-gray-100 text-gray-800'}`}>
-        {value}
+        {_( `payment_status.${value}`, value)}
       </span>
     );
   };
 
   const columns = [
-    { key: 'order_number', label: 'Order #', render: (v) => <span className="font-medium text-gray-900">{v}</span> },
-    { key: 'email', label: 'Customer' },
-    { key: 'created_at', label: 'Date', render: (v) => formatDate(v) },
-    { key: 'total', label: 'Total', render: (v) => <span className="font-medium text-gray-900">{formatCurrency(v)}</span> },
-    { key: 'status', label: 'Status', render: (v) => statusBadge(v) },
-    { key: 'payment_status', label: 'Payment', render: (v) => paymentBadge(v) },
+    { key: 'order_number', label: _('orders.order_num', 'Order #'), render: (v) => <span className="font-medium text-gray-900">{v}</span> },
+    { key: 'email', label: _('orders.customer', 'Customer') },
+    { key: 'created_at', label: _('orders.date', 'Date'), render: (v) => formatDate(v) },
+    { key: 'total', label: _('orders.total', 'Total'), render: (v) => <span className="font-medium text-gray-900">{formatCurrency(v)}</span> },
+    { key: 'status', label: _('orders.status', 'Status'), render: (v) => statusBadge(v) },
+    { key: 'payment_status', label: _('orders.payment', 'Payment'), render: (v) => paymentBadge(v) },
   ];
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Orders</h1>
+        <h1 className="text-2xl font-bold text-gray-900">{_('orders.title', 'Orders')}</h1>
       </div>
 
       <DataTable
@@ -65,43 +67,43 @@ export default function OrderList() {
         }}
         search={{
           enabled: true,
-          placeholder: 'Search by order number or email...',
+          placeholder: _('orders.search_placeholder', 'Search by order number or email...'),
         }}
         filters={[
           {
             type: 'select',
             key: 'status',
             options: [
-              { value: '', label: 'All Status' },
-              { value: 'pending', label: 'Pending' },
-              { value: 'processing', label: 'Processing' },
-              { value: 'shipped', label: 'Shipped' },
-              { value: 'completed', label: 'Completed' },
-              { value: 'cancelled', label: 'Cancelled' },
+              { value: '', label: _('orders.filter.all_status', 'All Status') },
+              { value: 'pending', label: _('status.pending', 'Pending') },
+              { value: 'processing', label: _('status.processing', 'Processing') },
+              { value: 'shipped', label: _('status.shipped', 'Shipped') },
+              { value: 'completed', label: _('status.completed', 'Completed') },
+              { value: 'cancelled', label: _('status.cancelled', 'Cancelled') },
             ],
           },
           {
             type: 'select',
             key: 'payment_status',
             options: [
-              { value: '', label: 'All Payment Status' },
-              { value: 'pending', label: 'Pending' },
-              { value: 'paid', label: 'Paid' },
-              { value: 'failed', label: 'Failed' },
-              { value: 'refunded', label: 'Refunded' },
+              { value: '', label: _('orders.filter.all_payment_status', 'All Payment Status') },
+              { value: 'pending', label: _('payment_status.pending', 'Pending') },
+              { value: 'paid', label: _('payment_status.paid', 'Paid') },
+              { value: 'failed', label: _('payment_status.failed', 'Failed') },
+              { value: 'refunded', label: _('payment_status.refunded', 'Refunded') },
             ],
           },
         ]}
         actions={[
           {
-            title: 'View',
+            title: _('common.view', 'View'),
             variant: 'blue',
             onClick: (row) => navigate(`/orders/${row.id}`),
           },
         ]}
         emptyState={{
-          message: 'No orders found.',
-          hint: 'Try adjusting your filters.',
+          message: _('orders.empty_message', 'No orders found.'),
+          hint: _('orders.empty_hint', 'Try adjusting your filters.'),
         }}
       />
     </div>

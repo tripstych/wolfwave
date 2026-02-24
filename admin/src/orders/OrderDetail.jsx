@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTranslation } from '../context/TranslationContext';
 
 export default function OrderDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { _ } = useTranslation();
 
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -27,7 +29,7 @@ export default function OrderDetail() {
         }
       });
 
-      if (!response.ok) throw new Error('Failed to load order');
+      if (!response.ok) throw new Error(_('orders.error.load_failed', 'Failed to load order'));
 
       const data = await response.json();
       setOrder(data);
@@ -55,7 +57,7 @@ export default function OrderDetail() {
         body: JSON.stringify({ status })
       });
 
-      if (!response.ok) throw new Error('Failed to update status');
+      if (!response.ok) throw new Error(_('orders.error.status_failed', 'Failed to update status'));
 
       const updated = await response.json();
       setOrder(updated);
@@ -70,7 +72,7 @@ export default function OrderDetail() {
 
   const addTracking = async () => {
     if (!trackingNumber.trim()) {
-      setError('Tracking number is required');
+      setError(_('orders.error.tracking_required', 'Tracking number is required'));
       return;
     }
 
@@ -88,7 +90,7 @@ export default function OrderDetail() {
         })
       });
 
-      if (!response.ok) throw new Error('Failed to add tracking');
+      if (!response.ok) throw new Error(_('orders.error.tracking_failed', 'Failed to add tracking'));
 
       const updated = await response.json();
       setOrder(updated);
@@ -113,11 +115,11 @@ export default function OrderDetail() {
   };
 
   if (loading) {
-    return <div className="content-container">Loading order...</div>;
+    return <div className="content-container">{_('orders.loading', 'Loading order...')}</div>;
   }
 
   if (!order) {
-    return <div className="content-container">Order not found</div>;
+    return <div className="content-container">{_('orders.not_found', 'Order not found')}</div>;
   }
 
   return (
@@ -131,7 +133,7 @@ export default function OrderDetail() {
           className="btn btn-secondary"
           onClick={() => navigate('/orders')}
         >
-          Back to Orders
+          {_('orders.back_to_orders', 'Back to Orders')}
         </button>
       </div>
 
@@ -142,42 +144,42 @@ export default function OrderDetail() {
         <div className="order-main">
           {/* Order Status */}
           <section className="order-section">
-            <h2>Order Status</h2>
+            <h2>{_('orders.order_status', 'Order Status')}</h2>
             <div className="status-controls">
               <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
                 className="select-input"
               >
-                <option value="pending">Pending</option>
-                <option value="processing">Processing</option>
-                <option value="shipped">Shipped</option>
-                <option value="completed">Completed</option>
-                <option value="cancelled">Cancelled</option>
+                <option value="pending">{_('status.pending', 'Pending')}</option>
+                <option value="processing">{_('status.processing', 'Processing')}</option>
+                <option value="shipped">{_('status.shipped', 'Shipped')}</option>
+                <option value="completed">{_('status.completed', 'Completed')}</option>
+                <option value="cancelled">{_('status.cancelled', 'Cancelled')}</option>
               </select>
               <button
                 className="btn btn-primary"
                 onClick={updateStatus}
                 disabled={saving || status === order.status}
               >
-                {saving ? 'Updating...' : 'Update Status'}
+                {saving ? _('common.updating', 'Updating...') : _('orders.update_status', 'Update Status')}
               </button>
             </div>
             <div className={`status-badge badge-${order.status}`}>
-              {order.status}
+              {_( `status.${order.status}`, order.status)}
             </div>
           </section>
 
           {/* Shipping & Tracking */}
           <section className="order-section">
-            <h2>Shipping & Tracking</h2>
+            <h2>{_('orders.shipping_tracking', 'Shipping & Tracking')}</h2>
             <div className="shipping-info">
               {order.tracking_number ? (
                 <div>
-                  <strong>Tracking Number:</strong> {order.tracking_number}
+                  <strong>{_('orders.tracking_number', 'Tracking Number')}:</strong> {order.tracking_number}
                   {order.shipped_at && (
                     <p className="mt-2 text-sm text-gray-500">
-                      Shipped on {formatDate(order.shipped_at)}
+                      {_('orders.shipped_on', 'Shipped on')} {formatDate(order.shipped_at)}
                     </p>
                   )}
                 </div>
@@ -185,7 +187,7 @@ export default function OrderDetail() {
                 <div className="add-tracking">
                   <input
                     type="text"
-                    placeholder="Enter tracking number"
+                    placeholder={_('orders.tracking_placeholder', 'Enter tracking number')}
                     value={trackingNumber}
                     onChange={(e) => setTrackingNumber(e.target.value)}
                     className="text-input"
@@ -195,7 +197,7 @@ export default function OrderDetail() {
                     onClick={addTracking}
                     disabled={saving}
                   >
-                    Add Tracking
+                    {_('orders.add_tracking', 'Add Tracking')}
                   </button>
                 </div>
               )}
@@ -204,15 +206,15 @@ export default function OrderDetail() {
 
           {/* Order Items */}
           <section className="order-section">
-            <h2>Items</h2>
+            <h2>{_('orders.items', 'Items')}</h2>
             <table className="items-table">
               <thead>
                 <tr>
-                  <th>Product</th>
-                  <th>SKU</th>
-                  <th>Price</th>
-                  <th>Qty</th>
-                  <th>Subtotal</th>
+                  <th>{_('orders.item.product', 'Product')}</th>
+                  <th>{_('orders.item.sku', 'SKU')}</th>
+                  <th>{_('orders.item.price', 'Price')}</th>
+                  <th>{_('orders.item.qty', 'Qty')}</th>
+                  <th>{_('orders.item.subtotal', 'Subtotal')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -239,10 +241,10 @@ export default function OrderDetail() {
         <aside className="order-sidebar">
           {/* Customer Info */}
           <section className="order-card">
-            <h3>Customer Information</h3>
+            <h3>{_('orders.customer_info', 'Customer Information')}</h3>
             <div className="customer-info">
               <div>
-                <strong>Email</strong>
+                <strong>{_('common.email', 'Email')}</strong>
                 <p>{order.email}</p>
               </div>
             </div>
@@ -250,7 +252,7 @@ export default function OrderDetail() {
 
           {/* Billing Address */}
           <section className="order-card">
-            <h3>Billing Address</h3>
+            <h3>{_('orders.billing_address', 'Billing Address')}</h3>
             <div className="address-info">
               {order.billing_address ? (
                 <>
@@ -264,14 +266,14 @@ export default function OrderDetail() {
                   <p>{order.billing_address.country}</p>
                 </>
               ) : (
-                <p>No billing address</p>
+                <p>{_('orders.no_billing_address', 'No billing address')}</p>
               )}
             </div>
           </section>
 
           {/* Shipping Address */}
           <section className="order-card">
-            <h3>Shipping Address</h3>
+            <h3>{_('orders.shipping_address', 'Shipping Address')}</h3>
             <div className="address-info">
               {order.shipping_address ? (
                 <>
@@ -285,39 +287,39 @@ export default function OrderDetail() {
                   <p>{order.shipping_address.country}</p>
                 </>
               ) : (
-                <p>No shipping address</p>
+                <p>{_('orders.no_shipping_address', 'No shipping address')}</p>
               )}
             </div>
           </section>
 
           {/* Order Summary */}
           <section className="order-card">
-            <h3>Order Summary</h3>
+            <h3>{_('orders.summary', 'Order Summary')}</h3>
             <div className="summary">
               <div className="summary-row">
-                <span>Subtotal</span>
+                <span>{_('orders.item.subtotal', 'Subtotal')}</span>
                 <span>${parseFloat(order.subtotal).toFixed(2)}</span>
               </div>
               {order.tax > 0 && (
                 <div className="summary-row">
-                  <span>Tax</span>
+                  <span>{_('orders.tax', 'Tax')}</span>
                   <span>${parseFloat(order.tax).toFixed(2)}</span>
                 </div>
               )}
               {order.shipping > 0 && (
                 <div className="summary-row">
-                  <span>Shipping</span>
+                  <span>{_('orders.shipping', 'Shipping')}</span>
                   <span>${parseFloat(order.shipping).toFixed(2)}</span>
                 </div>
               )}
               {order.discount > 0 && (
                 <div className="summary-row">
-                  <span>Discount</span>
+                  <span>{_('orders.discount', 'Discount')}</span>
                   <span>-${parseFloat(order.discount).toFixed(2)}</span>
                 </div>
               )}
               <div className="summary-row total">
-                <span>Total</span>
+                <span>{_('orders.total', 'Total')}</span>
                 <span>${parseFloat(order.total).toFixed(2)}</span>
               </div>
             </div>
@@ -325,19 +327,19 @@ export default function OrderDetail() {
 
           {/* Payment Info */}
           <section className="order-card">
-            <h3>Payment</h3>
+            <h3>{_('orders.payment', 'Payment')}</h3>
             <div className="payment-info">
               <div>
-                <strong>Method</strong>
+                <strong>{_('orders.payment_method', 'Method')}</strong>
                 <p>{order.payment_method}</p>
               </div>
               <div>
-                <strong>Status</strong>
-                <p className={`status-${order.payment_status}`}>{order.payment_status}</p>
+                <strong>{_('orders.payment_status', 'Status')}</strong>
+                <p className={`status-${order.payment_status}`}>{_( `payment_status.${order.payment_status}`, order.payment_status)}</p>
               </div>
               {order.payment_intent_id && (
                 <div>
-                  <strong>Intent ID</strong>
+                  <strong>{_('orders.intent_id', 'Intent ID')}</strong>
                   <code>{order.payment_intent_id}</code>
                 </div>
               )}

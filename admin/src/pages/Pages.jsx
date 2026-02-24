@@ -4,21 +4,23 @@ import { toast } from 'sonner';
 import DataTable from '../components/DataTable';
 import { getSiteUrl } from '../lib/urls';
 import api from '../lib/api';
+import { useTranslation } from '../context/TranslationContext';
 
 export default function Pages() {
   const navigate = useNavigate();
+  const { _ } = useTranslation();
 
   const columns = [
     {
       key: 'title',
-      label: 'Title',
+      label: _('pages.title', 'Title'),
       render: (value, row) => (
         <div className="flex flex-col">
           <button 
             onClick={() => navigate(`/pages/${row.id}`)}
             className="text-left font-medium text-primary-600 hover:text-primary-900 hover:underline transition-colors"
           >
-            {value || '(Untitled)'}
+            {value || _('common.untitled_parens', '(Untitled)')}
           </button>
           {row.slug && (
             <a 
@@ -36,12 +38,12 @@ export default function Pages() {
     },
     {
       key: 'template_name',
-      label: 'Template',
+      label: _('pages.template', 'Template'),
       render: (value) => value || '-',
     },
     {
       key: 'status',
-      label: 'Status',
+      label: _('pages.status', 'Status'),
       render: (value) => (
         <span
           className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -52,13 +54,13 @@ export default function Pages() {
               : 'bg-gray-100 text-gray-700'
           }`}
         >
-          {value}
+          {_( `status.${value}`, value)}
         </span>
       ),
     },
     {
       key: 'updated_at',
-      label: 'Updated',
+      label: _('pages.updated', 'Updated'),
       render: (value) => new Date(value).toLocaleDateString(),
     },
   ];
@@ -66,10 +68,10 @@ export default function Pages() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Pages</h1>
+        <h1 className="text-2xl font-bold text-gray-900">{_('pages.list_title', 'Pages')}</h1>
         <Link to="/pages/new" className="btn btn-primary">
           <Plus className="w-4 h-4 mr-2" />
-          New Page
+          {_('pages.new_page', 'New Page')}
         </Link>
       </div>
 
@@ -81,18 +83,18 @@ export default function Pages() {
           enabled: true,
           bulkActions: [
             {
-              label: 'Delete Selected',
+              label: _('common.delete_selected', 'Delete Selected'),
               icon: Trash2,
               variant: 'danger',
               onAction: async (ids, { refetch }) => {
-                const countStr = ids === 'all' ? 'all results' : `${ids.length} page(s)`;
-                if (!confirm(`Delete ${countStr}? This cannot be undone.`)) return;
+                const countStr = ids === 'all' ? _('common.all_results', 'all results') : `${ids.length} ${_('pages.count', 'page(s)')}`;
+                if (!confirm(`${_('common.confirm_delete', 'Delete')} ${countStr}? ${_('common.cannot_be_undone', 'This cannot be undone.')}`)) return;
                 try {
                   await api.delete('/pages/bulk', { ids });
-                  toast.success(`Deleted ${countStr}`);
+                  toast.success(`${_('common.deleted', 'Deleted')} ${countStr}`);
                   refetch();
                 } catch (err) {
-                  toast.error('Failed to delete some pages');
+                  toast.error(_('pages.error.bulk_delete', 'Failed to delete some pages'));
                 }
               },
             },
@@ -100,7 +102,7 @@ export default function Pages() {
         }}
         search={{
           enabled: true,
-          placeholder: 'Search pages...',
+          placeholder: _('pages.search_placeholder', 'Search pages...'),
           fields: ['title', 'slug'],
         }}
         filters={[
@@ -108,57 +110,57 @@ export default function Pages() {
             type: 'select',
             key: 'status',
             options: [
-              { value: '', label: 'All Status' },
-              { value: 'published', label: 'Published' },
-              { value: 'draft', label: 'Draft' },
-              { value: 'archived', label: 'Archived' },
+              { value: '', label: _('pages.filter.all_status', 'All Status') },
+              { value: 'published', label: _('status.published', 'Published') },
+              { value: 'draft', label: _('status.draft', 'Draft') },
+              { value: 'archived', label: _('status.archived', 'Archived') },
             ],
           },
         ]}
         actions={[
           {
             icon: Edit,
-            title: 'Edit',
+            title: _('common.edit', 'Edit'),
             onClick: (row) => navigate(`/pages/${row.id}`),
           },
           {
             icon: Copy,
-            title: 'Duplicate',
+            title: _('common.duplicate', 'Duplicate'),
             onClick: async (row, { refetch }) => {
               try {
                 const result = await api.post(`/pages/${row.id}/duplicate`);
-                toast.success('Page duplicated');
+                toast.success(_('pages.success.duplicated', 'Page duplicated'));
                 navigate(`/pages/${result.id}`);
               } catch (err) {
-                toast.error('Failed to duplicate page');
+                toast.error(_('pages.error.duplicate', 'Failed to duplicate page'));
               }
             },
           },
           {
             icon: ExternalLink,
-            title: 'View Page',
+            title: _('pages.view_page', 'View Page'),
             show: (row) => row.status === 'published',
             onClick: (row) => window.open(getSiteUrl(row.slug), '_blank'),
           },
           {
             icon: Trash2,
-            title: 'Delete',
+            title: _('common.delete', 'Delete'),
             variant: 'danger',
             onClick: async (row, { refetch }) => {
-              if (!confirm('Are you sure you want to delete this page?')) return;
+              if (!confirm(_('pages.confirm_delete_single', 'Are you sure you want to delete this page?'))) return;
               try {
                 await api.delete(`/pages/${row.id}`);
-                toast.success('Page deleted');
+                toast.success(_('pages.success.deleted', 'Page deleted'));
                 refetch();
               } catch (err) {
-                toast.error('Failed to delete page');
+                toast.error(_('pages.error.delete', 'Failed to delete page'));
               }
             },
           },
         ]}
         emptyState={{
-          message: 'No pages yet. Create your first page!',
-          hint: 'Get started by creating your first page.',
+          message: _('pages.empty_message', 'No pages yet. Create your first page!'),
+          hint: _('pages.empty_hint', 'Get started by creating your first page.'),
         }}
       />
     </div>

@@ -18,8 +18,10 @@ import {
 import api from '../lib/api';
 import { toast } from 'sonner';
 import DataTable from '../components/DataTable';
+import { useTranslation } from '../context/TranslationContext';
 
 export default function Sites() {
+  const { _ } = useTranslation();
   const [view, setView] = useState('grid'); // 'grid' or 'table'
   const [tenants, setTenants] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -44,7 +46,7 @@ export default function Sites() {
       setTenants(res.data || []);
     } catch (err) {
       console.error('Failed to load tenants:', err);
-      setError('Failed to load sites');
+      setError(_('sites.error.load_failed', 'Failed to load sites'));
     } finally {
       setLoading(false);
     }
@@ -74,7 +76,7 @@ export default function Sites() {
       setSubdomainEdited(false);
       setShowCreate(false);
       setRefreshKey(k => k + 1);
-      toast.success('Site launched successfully!');
+      toast.success(_('sites.success.launched', 'Site launched successfully!'));
     } catch (err) {
       setError(err.message);
       toast.error(err.message);
@@ -88,9 +90,9 @@ export default function Sites() {
       const newStatus = tenant.status === 'active' ? 'suspended' : 'active';
       await api.put(`/tenants/${tenant.id}/status`, { status: newStatus });
       setRefreshKey(k => k + 1);
-      toast.success(`Site ${newStatus === 'active' ? 'activated' : 'suspended'}`);
+      toast.success(`${_('common.site', 'Site')} ${newStatus === 'active' ? _('common.activated', 'activated') : _('common.suspended', 'suspended')}`);
     } catch (err) {
-      toast.error('Failed to update status');
+      toast.error(_('sites.error.status_update', 'Failed to update status'));
     }
   };
 
@@ -100,18 +102,18 @@ export default function Sites() {
       const baseUrl = getTenantUrl(tenant.subdomain);
       window.open(`${baseUrl}/api/auth/impersonate?token=${token}`, '_blank');
     } catch (err) {
-      toast.error('Failed to generate login token');
+      toast.error(_('sites.error.login_token', 'Failed to generate login token'));
     }
   };
 
   const handleDelete = async (tenant) => {
-    if (!window.confirm(`Delete site "${tenant.name}"? This will remove the database and all content.`)) return;
+    if (!window.confirm(`${_('sites.confirm_delete_prefix', 'Delete site')} "${tenant.name}"? ${_('sites.confirm_delete_suffix', 'This will remove the database and all content.')}`)) return;
     try {
       await api.delete(`/tenants/${tenant.id}`);
       setRefreshKey(k => k + 1);
-      toast.success('Site deleted');
+      toast.success(_('sites.success.deleted', 'Site deleted'));
     } catch (err) {
-      toast.error('Failed to delete site');
+      toast.error(_('sites.error.delete_failed', 'Failed to delete site'));
     }
   };
 
@@ -123,7 +125,7 @@ export default function Sites() {
   const tableColumns = [
     {
       key: 'name',
-      label: 'Name',
+      label: _('common.name', 'Name'),
       render: (value, row) => (
         <div className="flex flex-col">
           <a href={getTenantUrl(row.subdomain)} target="_blank" rel="noopener noreferrer" className="font-medium text-primary-600 hover:underline">
@@ -134,23 +136,23 @@ export default function Sites() {
     },
     {
       key: 'subdomain',
-      label: 'URL',
+      label: _('sites.url', 'URL'),
       render: (value) => <span className="font-mono text-sm text-gray-500">{value}.wolfwave.com</span>,
     },
     {
       key: 'status',
-      label: 'Status',
+      label: _('common.status', 'Status'),
       render: (value) => (
         <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
           value === 'active' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
         }`}>
-          {value}
+          {_( `status.${value}`, value)}
         </span>
       ),
     },
     {
       key: 'created_at',
-      label: 'Created',
+      label: _('common.created', 'Created'),
       render: (value) => new Date(value).toLocaleDateString(),
     }
   ];
@@ -168,8 +170,8 @@ export default function Sites() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Sites</h1>
-          <p className="text-sm text-gray-500">Manage and monitor all your WolfWave tenant sites.</p>
+          <h1 className="text-2xl font-bold text-gray-900">{_('sites.list_title', 'Sites')}</h1>
+          <p className="text-sm text-gray-500">{_('sites.list_subtitle', 'Manage and monitor all your WolfWave tenant sites.')}</p>
         </div>
         <div className="flex items-center gap-2">
           <div className="flex bg-gray-100 p-1 rounded-lg mr-2">
@@ -188,17 +190,17 @@ export default function Sites() {
           </div>
           <button onClick={() => setShowCreate(!showCreate)} className="btn btn-primary">
             <Plus className="w-4 h-4 mr-2" />
-            Launch New Site
+            {_('sites.launch_new', 'Launch New Site')}
           </button>
         </div>
       </div>
 
       {showCreate && (
         <div className="card p-6 bg-primary-50/30 border-primary-100">
-          <h2 className="text-lg font-bold text-gray-900 mb-4">Launch New Site</h2>
+          <h2 className="text-lg font-bold text-gray-900 mb-4">{_('sites.launch_new', 'Launch New Site')}</h2>
           <form onSubmit={handleCreate} className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1">
-              <label className="text-xs font-bold uppercase text-gray-500">Site Name</label>
+              <label className="text-xs font-bold uppercase text-gray-500">{_('sites.form.site_name', 'Site Name')}</label>
               <input
                 type="text"
                 value={newTenant.name}
@@ -207,13 +209,13 @@ export default function Sites() {
                   name: e.target.value,
                   subdomain: subdomainEdited ? newTenant.subdomain : autoSubdomain(e.target.value),
                 })}
-                placeholder="My Store"
+                placeholder={_('sites.form.site_name_placeholder', "My Store")}
                 className="input"
                 required
               />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-bold uppercase text-gray-500">Subdomain</label>
+              <label className="text-xs font-bold uppercase text-gray-500">{_('sites.form.subdomain', 'Subdomain')}</label>
               <div className="flex items-center">
                 <input
                   type="text"
@@ -227,10 +229,10 @@ export default function Sites() {
               </div>
             </div>
             <div className="md:col-span-2 flex justify-end gap-2 mt-2">
-              <button type="button" className="btn btn-ghost" onClick={() => setShowCreate(false)}>Cancel</button>
+              <button type="button" className="btn btn-ghost" onClick={() => setShowCreate(false)}>{_('common.cancel', 'Cancel')}</button>
               <button type="submit" className="btn btn-primary" disabled={creating}>
                 {creating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Globe className="w-4 h-4 mr-2" />}
-                Launch Site
+                {_('sites.form.launch_btn', 'Launch Site')}
               </button>
             </div>
           </form>
@@ -239,19 +241,19 @@ export default function Sites() {
 
       {/* Search & Stats */}
       <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
-        <div className="relative flex-1 max-w-md w-full">
+        <div className="relative flex-1 max-md w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input 
             type="text" 
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            placeholder="Search sites..." 
+            placeholder={_('sites.search_placeholder', "Search sites...")}
             className="input pl-10 w-full" 
           />
         </div>
         <div className="flex items-center gap-4 text-sm text-gray-500">
-          <span>Total: <strong>{tenants.length}</strong></span>
-          <span>Active: <strong className="text-green-600">{tenants.filter(t => t.status === 'active').length}</strong></span>
+          <span>{_('common.total', 'Total')}: <strong>{tenants.length}</strong></span>
+          <span>{_('common.active', 'Active')}: <strong className="text-green-600">{tenants.filter(t => t.status === 'active').length}</strong></span>
         </div>
       </div>
 
@@ -259,7 +261,7 @@ export default function Sites() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredTenants.length === 0 ? (
             <div className="col-span-full card p-12 text-center text-gray-500 italic">
-              No sites found matching your search.
+              {_('sites.no_results', 'No sites found matching your search.')}
             </div>
           ) : (
             filteredTenants.map(tenant => (
@@ -274,7 +276,7 @@ export default function Sites() {
                     <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
                       tenant.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
                     }`}>
-                      {tenant.status}
+                      {_( `status.${tenant.status}`, tenant.status)}
                     </span>
                   </div>
 
@@ -283,7 +285,7 @@ export default function Sites() {
                       onClick={() => window.open(getTenantUrl(tenant.subdomain), '_blank')}
                       className="btn btn-secondary flex-1 py-1.5 text-xs flex items-center justify-center gap-1.5"
                     >
-                      <Globe className="w-3.5 h-3.5" /> Visit
+                      <Globe className="w-3.5 h-3.5" /> {_('common.visit', 'Visit')}
                     </button>
                     <a 
                       href={`${getTenantUrl(tenant.subdomain)}/admin/`}
@@ -295,7 +297,7 @@ export default function Sites() {
                       }}
                       className="btn btn-primary flex-1 py-1.5 text-xs flex items-center justify-center gap-1.5"
                     >
-                      <LogIn className="w-3.5 h-3.5" /> Admin
+                      <LogIn className="w-3.5 h-3.5" /> {_('common.admin', 'Admin')}
                     </a>
                     
                     <div className="relative inline-block group/menu">
@@ -307,14 +309,14 @@ export default function Sites() {
                           onClick={() => handleStatusToggle(tenant)}
                           className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
                         >
-                          {tenant.status === 'active' ? <><Pause className="w-4 h-4" /> Suspend Site</> : <><Play className="w-4 h-4" /> Activate Site</>}
+                          {tenant.status === 'active' ? <><Pause className="w-4 h-4" /> {_('sites.action.suspend', 'Suspend Site')}</> : <><Play className="w-4 h-4" /> {_('sites.action.activate', 'Activate Site')}</>}
                         </button>
                         <hr className="my-1 border-gray-100" />
                         <button 
                           onClick={() => handleDelete(tenant)}
                           className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
                         >
-                          <Trash2 className="w-4 h-4" /> Delete Permanently
+                          <Trash2 className="w-4 h-4" /> {_('sites.action.delete_permanent', 'Delete Permanently')}
                         </button>
                       </div>
                     </div>
@@ -332,30 +334,30 @@ export default function Sites() {
           actions={[
             {
               icon: Globe,
-              title: 'Visit',
+              title: _('common.visit', 'Visit'),
               onClick: (row) => window.open(getTenantUrl(row.subdomain), '_blank'),
             },
             {
               icon: LogIn,
-              title: 'Admin Login',
+              title: _('sites.admin_login', 'Admin Login'),
               href: (row) => `${getTenantUrl(row.subdomain)}/admin/`,
               onClick: (row) => handleLoginAs(row),
             },
             {
               icon: Pause,
-              title: 'Suspend',
+              title: _('common.suspend', 'Suspend'),
               onClick: (row) => handleStatusToggle(row),
               show: (row) => row.status === 'active',
             },
             {
               icon: Play,
-              title: 'Activate',
+              title: _('common.activate', 'Activate'),
               onClick: (row) => handleStatusToggle(row),
               show: (row) => row.status !== 'active',
             },
             {
               icon: Trash2,
-              title: 'Delete',
+              title: _('common.delete', 'Delete'),
               variant: 'danger',
               onClick: (row) => handleDelete(row),
             }

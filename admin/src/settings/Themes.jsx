@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Check, Palette, Code, Upload, FolderOpen, Loader2, CheckCircle2, AlertCircle, ArrowRight, FileCode, X, Type, Zap, Cpu } from 'lucide-react';
+import { Check, Palette, Code, Upload, FolderOpen, Loader2, CheckCircle2, AlertCircle, ArrowRight, FileCode, X, Type, Zap, Cpu } from 'lucide-center';
 import AiThemeGenerator from './AiThemeGenerator';
 import api from '../lib/api';
+import { useTranslation } from '../context/TranslationContext';
 
 export default function Themes() {
+  const { _ } = useTranslation();
   const [themes, setThemes] = useState([]);
   const [activeTheme, setActiveTheme] = useState('default');
   const [loading, setLoading] = useState(true);
@@ -33,9 +35,9 @@ export default function Themes() {
         setWpPreview(data);
         setWpSelectedFiles(new Set(data.detectedFiles.filter(f => f.hasMapping).map(f => f.basename)));
       } else {
-        alert('Preview failed: ' + (data.error || 'Unknown error'));
+        alert(_('themes.wp_import.preview_failed', 'Preview failed: ') + (data.error || _('common.unknown_error', 'Unknown error')));
       }
-    } catch (err) { alert('Preview failed: ' + err.message); }
+    } catch (err) { alert(_('themes.wp_import.preview_failed', 'Preview failed: ') + err.message); }
     finally { setWpLoading(false); }
   };
 
@@ -51,9 +53,9 @@ export default function Themes() {
         setWpResult(data);
         fetchThemes();
       } else {
-        alert('Conversion failed: ' + (data.error || 'Unknown error'));
+        alert(_('themes.wp_import.conversion_failed', 'Conversion failed: ') + (data.error || _('common.unknown_error', 'Unknown error')));
       }
-    } catch (err) { alert('Conversion failed: ' + err.message); }
+    } catch (err) { alert(_('themes.wp_import.conversion_failed', 'Conversion failed: ') + err.message); }
     finally { setWpLoading(false); }
   };
 
@@ -81,7 +83,7 @@ export default function Themes() {
       const response = await fetch('/api/themes', {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
-      if (!response.ok) throw new Error('Failed to fetch themes');
+      if (!response.ok) throw new Error(_('themes.error.load_failed', 'Failed to fetch themes'));
       const data = await response.json();
       setThemes(data.themes || []);
       setActiveTheme(data.active || 'default');
@@ -106,7 +108,7 @@ export default function Themes() {
       });
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || 'Failed to activate theme');
+        throw new Error(data.error || _('themes.error.activate_failed', 'Failed to activate theme'));
       }
       setActiveTheme(slug);
     } catch (err) {
@@ -119,7 +121,7 @@ export default function Themes() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-900">Themes</h1>
+        <h1 className="text-3xl font-bold text-gray-900">{_('themes.title', 'Themes')}</h1>
       </div>
 
       <AiThemeGenerator onThemeGenerated={() => fetchThemes()} />
@@ -129,9 +131,9 @@ export default function Themes() {
             <div className="card p-6">
               <h2 className="font-semibold mb-4 flex items-center gap-2">
                 <FolderOpen className="w-5 h-5 text-primary-600" />
-                Import WordPress Theme
+                {_('themes.wp_import.title', 'Import WordPress Theme')}
               </h2>
-              <p className="text-sm text-gray-500 mb-4">Upload a WordPress theme ZIP to convert its PHP templates into Nunjucks.</p>
+              <p className="text-sm text-gray-500 mb-4">{_('themes.wp_import.subtitle', 'Upload a WordPress theme ZIP to convert its PHP templates into Nunjucks.')}</p>
 
               <label className="block border-2 border-dashed border-gray-200 rounded-lg p-8 text-center cursor-pointer hover:border-primary-300 hover:bg-primary-50/30 transition-colors">
                 <input type="file" accept=".zip" onChange={handleWpFileSelect} className="hidden" />
@@ -144,51 +146,51 @@ export default function Themes() {
                 ) : (
                   <div>
                     <Upload className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                    <p className="text-sm text-gray-500">Click to select a <strong>.zip</strong> file</p>
-                    <p className="text-xs text-gray-400 mt-1">Max 50MB</p>
+                    <p className="text-sm text-gray-500">{_('themes.wp_import.select_prompt_prefix', 'Click to select a')} <strong>.zip</strong> {_('themes.wp_import.select_prompt_suffix', 'file')}</p>
+                    <p className="text-xs text-gray-400 mt-1">{_('common.max_size', 'Max 50MB')}</p>
                   </div>
                 )}
               </label>
 
               {wpLoading && !wpPreview && (
                 <div className="flex items-center justify-center gap-2 mt-4 text-sm text-gray-500">
-                  <Loader2 className="w-4 h-4 animate-spin" /> Analyzing theme...
+                  <Loader2 className="w-4 h-4 animate-spin" /> {_('themes.wp_import.analyzing', 'Analyzing theme...')}
                 </div>
               )}
             </div>
 
             {wpPreview && wpPreview.metadata && (
               <div className="card p-4 space-y-3">
-                <h3 className="font-bold text-lg">{wpPreview.metadata.theme_name || 'Unknown Theme'}</h3>
-                {wpPreview.metadata.author && <p className="text-sm text-gray-500">By {wpPreview.metadata.author}</p>}
+                <h3 className="font-bold text-lg">{wpPreview.metadata.theme_name || _('themes.wp_import.unknown_theme', 'Unknown Theme')}</h3>
+                {wpPreview.metadata.author && <p className="text-sm text-gray-500">{_('common.by', 'By')} {wpPreview.metadata.author}</p>}
                 {wpPreview.metadata.version && <p className="text-xs text-gray-400">v{wpPreview.metadata.version}</p>}
                 {wpPreview.metadata.description && <p className="text-sm text-gray-600 mt-2">{wpPreview.metadata.description}</p>}
                 {wpPreview.isChildTheme && (
                   <div className={`p-2 rounded border text-xs flex flex-col gap-1 ${wpPreview.parentThemeFound ? 'bg-green-50 border-green-200 text-green-700' : 'bg-amber-50 border-amber-200 text-amber-700'}`}>
                     <div className="flex items-center gap-1 font-bold">
                       <AlertCircle className="w-3 h-3" />
-                      Child theme of: {wpPreview.parentTheme}
+                      {_('themes.wp_import.child_of', 'Child theme of:')} {wpPreview.parentTheme}
                     </div>
                     {wpPreview.parentThemeFound ? (
-                      <p>Parent found! This theme will automatically inherit all parent templates.</p>
+                      <p>{_('themes.wp_import.parent_found', 'Parent found! This theme will automatically inherit all parent templates.')}</p>
                     ) : (
-                      <p>Warning: Parent theme not found in /themes directory. You should import the parent theme first for best results.</p>
+                      <p>{_('themes.wp_import.parent_not_found', 'Warning: Parent theme not found in /themes directory. You should import the parent theme first for best results.')}</p>
                     )}
                   </div>
                 )}
                 {wpPreview.themeStyles && (
                   <div className="border-t pt-3 mt-3 space-y-2">
-                    <h4 className="text-xs font-bold uppercase text-gray-400">Detected Styles</h4>
+                    <h4 className="text-xs font-bold uppercase text-gray-400">{_('themes.wp_import.detected_styles', 'Detected Styles')}</h4>
                     {wpPreview.themeStyles.primaryColor && (
                       <div className="flex items-center gap-2 text-sm">
                         <div className="w-5 h-5 rounded border" style={{ background: wpPreview.themeStyles.primaryColor }}></div>
-                        <span className="text-gray-600">Primary: <code className="text-xs bg-gray-100 px-1 rounded">{wpPreview.themeStyles.primaryColor}</code></span>
+                        <span className="text-gray-600">{_('common.primary', 'Primary')}: <code className="text-xs bg-gray-100 px-1 rounded">{wpPreview.themeStyles.primaryColor}</code></span>
                       </div>
                     )}
                     {wpPreview.themeStyles.secondaryColor && (
                       <div className="flex items-center gap-2 text-sm">
                         <div className="w-5 h-5 rounded border" style={{ background: wpPreview.themeStyles.secondaryColor }}></div>
-                        <span className="text-gray-600">Secondary: <code className="text-xs bg-gray-100 px-1 rounded">{wpPreview.themeStyles.secondaryColor}</code></span>
+                        <span className="text-gray-600">{_('common.secondary', 'Secondary')}: <code className="text-xs bg-gray-100 px-1 rounded">{wpPreview.themeStyles.secondaryColor}</code></span>
                       </div>
                     )}
                     {wpPreview.themeStyles.fonts?.length > 0 && (
@@ -200,14 +202,14 @@ export default function Themes() {
                   </div>
                 )}
                 <div className="flex gap-2 text-xs text-gray-500 pt-2 flex-wrap">
-                  <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium">{wpPreview.templateCount} templates</span>
-                  <span className="bg-gray-100 px-2 py-0.5 rounded-full">{wpPreview.partialCount} partials</span>
-                  <span className="bg-gray-100 px-2 py-0.5 rounded-full">{wpPreview.layoutCount} layout files</span>
+                  <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium">{wpPreview.templateCount} {_('themes.wp_import.templates_count', 'templates')}</span>
+                  <span className="bg-gray-100 px-2 py-0.5 rounded-full">{wpPreview.partialCount} {_('themes.wp_import.partials_count', 'partials')}</span>
+                  <span className="bg-gray-100 px-2 py-0.5 rounded-full">{wpPreview.layoutCount} {_('themes.wp_import.layouts_count', 'layout files')}</span>
                 </div>
 
                 {wpPreview.plugins?.length > 0 && (
                   <div className="border-t pt-3 mt-3 space-y-2">
-                    <h4 className="text-xs font-bold uppercase text-gray-400">Detected Plugins</h4>
+                    <h4 className="text-xs font-bold uppercase text-gray-400">{_('themes.wp_import.detected_plugins', 'Detected Plugins')}</h4>
                     <div className="flex flex-wrap gap-1.5">
                       {wpPreview.plugins.map((plugin, i) => (
                         <span key={i} className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full font-medium bg-purple-50 text-purple-700 border border-purple-200">
@@ -220,7 +222,7 @@ export default function Themes() {
                       <div className="bg-indigo-50 border border-indigo-200 rounded p-2 text-xs text-indigo-700 flex items-start gap-2 mt-2">
                         <Cpu className="w-4 h-4 shrink-0 mt-0.5" />
                         <span>
-                          <strong>{wpPreview.filesNeedingLLM}</strong> file{wpPreview.filesNeedingLLM !== 1 ? 's' : ''} will use AI-assisted conversion for {wpPreview.plugins.filter(p => ['Elementor', 'ACF'].includes(p)).join(' & ')} support.
+                          <strong>{wpPreview.filesNeedingLLM}</strong> {_('themes.wp_import.ai_conversion_prefix', 'file(s) will use AI-assisted conversion for')} {wpPreview.plugins.filter(p => ['Elementor', 'ACF'].includes(p)).join(' & ')} {_('themes.wp_import.ai_conversion_suffix', 'support.')}
                         </span>
                       </div>
                     )}
@@ -234,7 +236,7 @@ export default function Themes() {
             {!wpPreview && !wpResult ? (
               <div className="card h-full flex flex-col items-center justify-center p-12 text-gray-400 border-dashed border-2">
                 <Upload className="w-12 h-12 mb-4 opacity-20" />
-                <p>Upload a WordPress theme ZIP to preview.</p>
+                <p>{_('themes.wp_import.preview_placeholder', 'Upload a WordPress theme ZIP to preview.')}</p>
               </div>
             ) : wpResult ? (
               <div className="space-y-4">
@@ -242,27 +244,27 @@ export default function Themes() {
                   <div className="flex items-center gap-3 mb-4">
                     <CheckCircle2 className="w-8 h-8 text-green-600" />
                     <div>
-                      <h2 className="font-bold text-lg text-green-900">Theme Converted Successfully</h2>
-                      <p className="text-sm text-green-700">{wpResult.templates?.length || 0} templates generated from {wpResult.themeName}</p>
+                      <h2 className="font-bold text-lg text-green-900">{_('themes.wp_import.success_title', 'Theme Converted Successfully')}</h2>
+                      <p className="text-sm text-green-700">{wpResult.templates?.length || 0} {_('themes.wp_import.templates_generated', 'templates generated from')} {wpResult.themeName}</p>
                     </div>
                   </div>
                   {wpResult.warnings?.length > 0 && (
                     <div className="bg-amber-50 border border-amber-200 rounded p-3 mb-4">
-                      <h4 className="text-xs font-bold text-amber-700 mb-1">Warnings</h4>
+                      <h4 className="text-xs font-bold text-amber-700 mb-1">{_('common.warnings', 'Warnings')}</h4>
                       {wpResult.warnings.map((w, i) => <p key={i} className="text-xs text-amber-600">{w}</p>)}
                     </div>
                   )}
                 </div>
                 <div className="card overflow-hidden">
                   <div className="p-3 bg-gray-50 border-b">
-                    <h3 className="font-bold text-sm text-gray-700">Generated Templates</h3>
+                    <h3 className="font-bold text-sm text-gray-700">{_('themes.wp_import.generated_templates', 'Generated Templates')}</h3>
                   </div>
                   <table className="w-full text-sm">
                     <thead className="bg-gray-50 text-xs text-gray-500 uppercase">
                       <tr>
-                        <th className="px-4 py-2 text-left">Source</th>
-                        <th className="px-4 py-2 text-left">Generated File</th>
-                        <th className="px-4 py-2 text-left">Content Type</th>
+                        <th className="px-4 py-2 text-left">{_('common.source', 'Source')}</th>
+                        <th className="px-4 py-2 text-left">{_('themes.wp_import.generated_file', 'Generated File')}</th>
+                        <th className="px-4 py-2 text-left">{_('common.content_type', 'Content Type')}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y">
@@ -276,23 +278,23 @@ export default function Themes() {
                     </tbody>
                   </table>
                 </div>
-                <button onClick={resetWpImport} className="btn btn-secondary">Import Another Theme</button>
+                <button onClick={resetWpImport} className="btn btn-secondary">{_('themes.wp_import.import_another', 'Import Another Theme')}</button>
               </div>
             ) : (
               <div className="space-y-4">
                 <div className="card overflow-hidden">
                   <div className="p-4 border-b flex justify-between items-center bg-gray-50">
-                    <h3 className="font-bold text-gray-700">Template Files</h3>
+                    <h3 className="font-bold text-gray-700">{_('themes.wp_import.template_files', 'Template Files')}</h3>
                     <button onClick={handleWpConvert} disabled={wpLoading || wpSelectedFiles.size === 0} className="btn btn-primary">
                       {wpLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <ArrowRight className="w-4 h-4 mr-2" />}
-                      Convert {wpSelectedFiles.size} Templates
+                      {_('themes.wp_import.convert_btn', 'Convert')} {wpSelectedFiles.size} {_('themes.wp_import.convert_btn_suffix', 'Templates')}
                     </button>
                   </div>
 
                   {wpPreview.detectedFiles.filter(f => f.isLayout).length > 0 && (
                     <div>
                       <div className="px-4 py-2 bg-slate-50 border-b">
-                        <h4 className="text-[10px] uppercase font-bold text-gray-400">Layout Files (auto-merged into base layout)</h4>
+                        <h4 className="text-[10px] uppercase font-bold text-gray-400">{_('themes.wp_import.layouts_info', 'Layout Files (auto-merged into base layout)')}</h4>
                       </div>
                       {wpPreview.detectedFiles.filter(f => f.isLayout).map((f, i) => (
                         <div key={i} className="px-4 py-2.5 flex items-center gap-3 border-b text-sm bg-slate-50/50">
@@ -307,7 +309,7 @@ export default function Themes() {
 
                   <div>
                     <div className="px-4 py-2 bg-gray-50 border-b">
-                      <h4 className="text-[10px] uppercase font-bold text-gray-400">Content Templates (select which to convert)</h4>
+                      <h4 className="text-[10px] uppercase font-bold text-gray-400">{_('themes.wp_import.templates_info', 'Content Templates (select which to convert)')}</h4>
                     </div>
                     {wpPreview.detectedFiles.filter(f => f.hasMapping && !f.isLayout).map((f, i) => (
                       <div
@@ -331,7 +333,7 @@ export default function Themes() {
                   {wpPreview.detectedFiles.filter(f => f.isTemplatePart).length > 0 && (
                     <div>
                       <div className="px-4 py-2 bg-gray-50 border-b">
-                        <h4 className="text-[10px] uppercase font-bold text-gray-400">Template Parts (auto-converted to components)</h4>
+                        <h4 className="text-[10px] uppercase font-bold text-gray-400">{_('themes.wp_import.partials_info', 'Template Parts (auto-converted to components)')}</h4>
                       </div>
                       {wpPreview.detectedFiles.filter(f => f.isTemplatePart).map((f, i) => (
                         <div key={i} className="px-4 py-2 flex items-center gap-3 border-b text-sm opacity-60">
@@ -347,7 +349,7 @@ export default function Themes() {
                   {wpPreview.detectedFiles.filter(f => !f.hasMapping && !f.isTemplatePart && !f.isLayout).length > 0 && (
                     <div>
                       <div className="px-4 py-2 bg-gray-50 border-b">
-                        <h4 className="text-[10px] uppercase font-bold text-gray-400">Other PHP files (skipped)</h4>
+                        <h4 className="text-[10px] uppercase font-bold text-gray-400">{_('themes.wp_import.skipped_info', 'Other PHP files (skipped)')}</h4>
                       </div>
                       {wpPreview.detectedFiles.filter(f => !f.hasMapping && !f.isTemplatePart && !f.isLayout).map((f, i) => (
                         <div key={i} className="px-4 py-2 flex items-center gap-2 border-b text-xs text-gray-400 opacity-50">
@@ -375,11 +377,11 @@ export default function Themes() {
           <div className="inline-block">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
           </div>
-          <p className="mt-4 text-gray-600">Loading themes...</p>
+          <p className="mt-4 text-gray-600">{_('themes.loading', 'Loading themes...')}</p>
         </div>
       ) : themes.length === 0 ? (
         <div className="bg-white border border-gray-200 rounded-lg p-12 text-center">
-          <p className="text-gray-600">No themes found. Add theme directories to the /themes folder.</p>
+          <p className="text-gray-600">{_('themes.no_themes', 'No themes found. Add theme directories to the /themes folder.')}</p>
         </div>
       ) : (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-6">
@@ -404,19 +406,19 @@ export default function Themes() {
                   {theme.slug === activeTheme && (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                       <Check className="w-3 h-3" />
-                      Active
+                      {_('common.active', 'Active')}
                     </span>
                   )}
                 </div>
 
                 <p className="text-sm text-gray-500 mb-3">
-                  {theme.description || 'No description'}
+                  {theme.description || _('common.no_description', 'No description')}
                 </p>
 
                 <div className="text-xs text-gray-400 mb-4">
                   <span>v{theme.version}</span>
                   {theme.inherits && (
-                    <span> &middot; extends <strong>{theme.inherits}</strong></span>
+                    <span> &middot; {_('themes.extends', 'extends')} <strong>{theme.inherits}</strong></span>
                   )}
                 </div>
 
@@ -427,7 +429,7 @@ export default function Themes() {
                       onClick={() => handleActivate(theme.slug)}
                       disabled={activating === theme.slug}
                     >
-                      {activating === theme.slug ? 'Activating...' : 'Activate'}
+                      {activating === theme.slug ? _('common.activating', 'Activating...') : _('common.activate', 'Activate')}
                     </button>
                   )}
                 </div>

@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { X, LayoutDashboard, FileText, Boxes, Puzzle, Layers, Image, List, Tag, Package, Briefcase, Users, CreditCard, Palette, Building, Mail, Search, Settings, Download, Globe, Key, Megaphone, BookOpen } from 'lucide-react';
 import SidebarItem from './SidebarItem';
+import { useTranslation } from '../context/TranslationContext';
 
 const ICON_MAP = {
   'LayoutDashboard': LayoutDashboard,
@@ -20,55 +21,57 @@ const ICON_MAP = {
 };
 
 export default function Sidebar({ isOpen, onClose, contentTypes = [] }) {
+  const { _ } = useTranslation();
+
   const navigationSections = [
     {
       section: null,
-      items: [{ name: 'Dashboard', href: '/', icon: LayoutDashboard }]
+      items: [{ name: _('nav.dashboard', 'Dashboard'), href: '/', icon: LayoutDashboard }]
     },
     {
-      section: 'Store',
+      section: _('nav.section.store', 'Store'),
       items: [
-        { name: 'My Sites', href: '/my-sites', icon: Globe },
-        { name: 'Products', href: '/products', icon: Package },
-        { name: 'Orders', href: '/orders', icon: Briefcase },
-        { name: 'Customers', href: '/customers', icon: Users },
-        { name: 'Subscriptions', href: '/subscriptions', icon: CreditCard },
-        { name: 'Classifieds', href: '/classifieds', icon: Megaphone }
+        { name: _('nav.my_sites', 'My Sites'), href: '/my-sites', icon: Globe },
+        { name: _('nav.products', 'Products'), href: '/products', icon: Package },
+        { name: _('nav.orders', 'Orders'), href: '/orders', icon: Briefcase },
+        { name: _('nav.customers', 'Customers'), href: '/customers', icon: Users },
+        { name: _('nav.subscriptions', 'Subscriptions'), href: '/subscriptions', icon: CreditCard },
+        { name: _('nav.classifieds', 'Classifieds'), href: '/classifieds', icon: Megaphone }
       ]
     },
     {
-      section: 'Marketing',
-      items: [{ name: 'Coupons', href: '/marketing/coupons', icon: Tag }]
+      section: _('nav.section.marketing', 'Marketing'),
+      items: [{ name: _('nav.coupons', 'Coupons'), href: '/marketing/coupons', icon: Tag }]
     },
     {
-      section: 'Content',
+      section: _('nav.section.content', 'Content'),
       items: [
-        { name: 'Media', href: '/media', icon: Image },
+        { name: _('nav.media', 'Media'), href: '/media', icon: Image },
         ...contentTypes
           .filter(type => !['products', 'blocks', 'widgets', 'shop', 'shops', 'blog', 'components', 'partials', 'customer'].includes(type.name))
           .map(type => ({
-            name: type.plural_label,
+            name: _(`content_type.${type.name}.plural`, type.plural_label),
             href: `/${type.name}`,
             icon: ICON_MAP[type.icon] || FileText
           })),
-        { name: 'Blocks', href: '/blocks', icon: Boxes },
-        { name: 'Widgets', href: '/widgets', icon: Puzzle },
-        { name: 'Templates', href: '/templates', icon: Layers },
-        { name: 'Menus', href: '/menus', icon: List },
-        { name: 'Groups', href: '/groups', icon: Tag },
+        { name: _('nav.blocks', 'Blocks'), href: '/blocks', icon: Boxes },
+        { name: _('nav.widgets', 'Widgets'), href: '/widgets', icon: Puzzle },
+        { name: _('nav.templates', 'Templates'), href: '/templates', icon: Layers },
+        { name: _('nav.menus', 'Menus'), href: '/menus', icon: List },
+        { name: _('nav.groups', 'Groups'), href: '/groups', icon: Tag },
       ]
     },
     {
-      section: 'Settings',
+      section: _('nav.section.settings', 'Settings'),
       items: [
-        { name: 'Themes', href: '/themes', icon: Palette },
-        { name: 'Styles', href: '/styles', icon: Palette },
-        { name: 'Users', href: '/users', icon: Users },
-        { name: 'Sites', href: '/tenants', icon: Globe },
-        { name: 'Email Templates', href: '/email-templates', icon: Mail },
-        { name: 'SEO', href: '/seo', icon: Search },
-        { name: 'API Keys', href: '/api-keys', icon: Key },
-        { name: 'Configuration', href: '/settings', icon: Settings }
+        { name: _('nav.themes', 'Themes'), href: '/themes', icon: Palette },
+        { name: _('nav.styles', 'Styles'), href: '/styles', icon: Palette },
+        { name: _('nav.users', 'Users'), href: '/users', icon: Users },
+        { name: _('nav.sites', 'Sites'), href: '/tenants', icon: Globe },
+        { name: _('nav.email_templates', 'Email Templates'), href: '/email-templates', icon: Mail },
+        { name: _('nav.seo', 'SEO'), href: '/seo', icon: Search },
+        { name: _('nav.api_keys', 'API Keys'), href: '/api-keys', icon: Key },
+        { name: _('nav.configuration', 'Configuration'), href: '/settings', icon: Settings }
       ]
     }
   ];

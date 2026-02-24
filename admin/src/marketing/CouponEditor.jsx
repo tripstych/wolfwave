@@ -4,10 +4,12 @@ import { Save, ArrowLeft, Calendar, Tag } from 'lucide-react';
 import api from '../lib/api';
 import { toast } from 'sonner';
 import SlugAutocomplete from '../components/SlugAutocomplete';
+import { useTranslation } from '../context/TranslationContext';
 
 export default function CouponEditor() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { _ } = useTranslation();
   const isNew = !id || id === 'new';
 
   const [coupon, setCoupon] = useState({
@@ -34,7 +36,7 @@ export default function CouponEditor() {
       setLoading(true);
       const data = await api.get(`/coupons`);
       const found = data.find(c => String(c.id) === String(id));
-      if (!found) throw new Error('Coupon not found');
+      if (!found) throw new Error(_('coupons.error.not_found', 'Coupon not found'));
       
       setCoupon({
         ...found,
@@ -46,7 +48,7 @@ export default function CouponEditor() {
         target_slugs: Array.isArray(found.target_slugs) ? found.target_slugs : []
       });
     } catch (err) {
-      toast.error('Failed to load coupon');
+      toast.error(_('coupons.error.load_failed', 'Failed to load coupon'));
       navigate('/marketing/coupons');
     } finally {
       setLoading(false);
@@ -55,7 +57,7 @@ export default function CouponEditor() {
 
   const handleSave = async () => {
     if (!coupon.code || !coupon.discount_value) {
-      toast.error('Code and value are required');
+      toast.error(_('coupons.error.code_value_required', 'Code and value are required'));
       return;
     }
 
@@ -71,14 +73,14 @@ export default function CouponEditor() {
 
       if (isNew) {
         await api.post('/coupons', payload);
-        toast.success('Coupon created');
+        toast.success(_('coupons.success.created', 'Coupon created'));
       } else {
         await api.put(`/coupons/${id}`, payload);
-        toast.success('Coupon updated');
+        toast.success(_('coupons.success.updated', 'Coupon updated'));
       }
       navigate('/marketing/coupons');
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Failed to save coupon');
+      toast.error(err.response?.data?.error || _('coupons.error.save_failed', 'Failed to save coupon'));
     } finally {
       setSaving(false);
     }
@@ -100,7 +102,7 @@ export default function CouponEditor() {
             <ArrowLeft className="w-4 h-4" />
           </button>
           <h1 className="text-2xl font-bold text-gray-900">
-            {isNew ? 'New Coupon' : `Edit: ${coupon.code}`}
+            {isNew ? _('coupons.new_coupon_title', 'New Coupon') : `${_('common.edit', 'Edit')}: ${coupon.code}`}
           </h1>
         </div>
         <button
@@ -109,18 +111,18 @@ export default function CouponEditor() {
           className="btn btn-primary"
         >
           <Save className="w-4 h-4 mr-2" />
-          {saving ? 'Saving...' : 'Save Coupon'}
+          {saving ? _('common.saving', 'Saving...') : _('coupons.save_coupon', 'Save Coupon')}
         </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="card p-6 space-y-4">
           <h2 className="font-semibold flex items-center gap-2">
-            <Tag className="w-4 h-4" /> Basics
+            <Tag className="w-4 h-4" /> {_('coupons.basics', 'Basics')}
           </h2>
           
           <div>
-            <label className="label">Coupon Code</label>
+            <label className="label">{_('coupons.code', 'Coupon Code')}</label>
             <input
               type="text"
               value={coupon.code}
@@ -132,18 +134,18 @@ export default function CouponEditor() {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="label">Type</label>
+              <label className="label">{_('common.type', 'Type')}</label>
               <select
                 value={coupon.discount_type}
                 onChange={(e) => setCoupon({ ...coupon, discount_type: e.target.value })}
                 className="input"
               >
-                <option value="percentage">Percentage (%)</option>
-                <option value="fixed">Fixed Amount ($)</option>
+                <option value="percentage">{_('coupons.type.percentage', 'Percentage (%)')}</option>
+                <option value="fixed">{_('coupons.type.fixed', 'Fixed Amount ($)')}</option>
               </select>
             </div>
             <div>
-              <label className="label">Value</label>
+              <label className="label">{_('common.value', 'Value')}</label>
               <input
                 type="number"
                 value={coupon.discount_value}
@@ -155,7 +157,7 @@ export default function CouponEditor() {
           </div>
 
           <div>
-            <label className="label">Min. Purchase Amount ($)</label>
+            <label className="label">{_('coupons.min_purchase', 'Min. Purchase Amount ($)')}</label>
             <input
               type="number"
               value={coupon.min_purchase}
@@ -166,23 +168,23 @@ export default function CouponEditor() {
           </div>
 
           <div>
-            <label className="label">Target Product Slugs</label>
+            <label className="label">{_('coupons.target_slugs', 'Target Product Slugs')}</label>
             <SlugAutocomplete 
               value={coupon.target_slugs}
               onChange={(slugs) => setCoupon({ ...coupon, target_slugs: slugs })}
-              placeholder="Search for products or enter wildcards..."
+              placeholder={_('coupons.target_slugs_placeholder', "Search for products or enter wildcards...")}
             />
           </div>
         </div>
 
         <div className="card p-6 space-y-4">
           <h2 className="font-semibold flex items-center gap-2">
-            <Calendar className="w-4 h-4" /> Limits & Dates
+            <Calendar className="w-4 h-4" /> {_('coupons.limits_dates', 'Limits & Dates')}
           </h2>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="label">Starts At</label>
+              <label className="label">{_('coupons.starts_at', 'Starts At')}</label>
               <input
                 type="date"
                 value={coupon.starts_at}
@@ -191,7 +193,7 @@ export default function CouponEditor() {
               />
             </div>
             <div>
-              <label className="label">Expires At</label>
+              <label className="label">{_('coupons.expires_at', 'Expires At')}</label>
               <input
                 type="date"
                 value={coupon.expires_at}
@@ -202,13 +204,13 @@ export default function CouponEditor() {
           </div>
 
           <div>
-            <label className="label">Max. Total Uses</label>
+            <label className="label">{_('coupons.max_uses', 'Max. Total Uses')}</label>
             <input
               type="number"
               value={coupon.max_uses}
               onChange={(e) => setCoupon({ ...coupon, max_uses: e.target.value })}
               className="input"
-              placeholder="Leave blank for unlimited"
+              placeholder={_('coupons.unlimited_placeholder', "Leave blank for unlimited")}
             />
           </div>
 
@@ -221,7 +223,7 @@ export default function CouponEditor() {
               className="w-4 h-4 rounded border-gray-300 text-primary-600"
             />
             <label htmlFor="is_active" className="text-sm font-medium text-gray-700">
-              Coupon is active
+              {_('coupons.is_active', 'Coupon is active')}
             </label>
           </div>
         </div>

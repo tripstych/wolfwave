@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../lib/api';
+import { useTranslation } from '../context/TranslationContext';
 import { 
   FileText, 
   Layers, 
@@ -15,6 +16,7 @@ import {
 } from 'lucide-react';
 
 export default function Dashboard() {
+  const { _ } = useTranslation();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -47,17 +49,17 @@ export default function Dashboard() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-sm text-gray-500">Welcome back to your WolfWave store overview.</p>
+          <h1 className="text-2xl font-bold text-gray-900">{_('dashboard.title', 'Dashboard')}</h1>
+          <p className="text-sm text-gray-500">{_('dashboard.welcome', 'Welcome back to your WolfWave store overview.')}</p>
         </div>
         <div className="flex gap-2">
           <Link to="/products/new" className="btn btn-secondary">
             <ShoppingBag className="w-4 h-4 mr-2" />
-            New Product
+            {_('dashboard.new_product', 'New Product')}
           </Link>
           <Link to="/pages/new" className="btn btn-primary">
             <Plus className="w-4 h-4 mr-2" />
-            New Page
+            {_('dashboard.new_page', 'New Page')}
           </Link>
         </div>
       </div>
@@ -70,9 +72,9 @@ export default function Dashboard() {
               <DollarSign className="w-6 h-6 text-green-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-600">Revenue (30d)</p>
+              <p className="text-sm text-gray-600">{_('dashboard.revenue_30d', 'Revenue (30d)')}</p>
               <p className="text-2xl font-bold text-gray-900">${revenue.amount.toFixed(2)}</p>
-              <p className="text-xs text-gray-500">{revenue.count} paid orders</p>
+              <p className="text-xs text-gray-500">{revenue.count} {_('dashboard.paid_orders', 'paid orders')}</p>
             </div>
           </div>
         </div>
@@ -83,9 +85,9 @@ export default function Dashboard() {
               <Users className="w-6 h-6 text-blue-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-600">Active Members</p>
+              <p className="text-sm text-gray-600">{_('dashboard.active_members', 'Active Members')}</p>
               <p className="text-2xl font-bold text-gray-900">{subscriptions.active_subscribers}</p>
-              <p className="text-xs text-gray-500">Recurring subscribers</p>
+              <p className="text-xs text-gray-500">{_('dashboard.recurring_subscribers', 'Recurring subscribers')}</p>
             </div>
           </div>
         </div>
@@ -96,9 +98,9 @@ export default function Dashboard() {
               <ShoppingBag className="w-6 h-6 text-purple-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-600">Total Products</p>
+              <p className="text-sm text-gray-600">{_('dashboard.total_products', 'Total Products')}</p>
               <p className="text-2xl font-bold text-gray-900">{content.total_products}</p>
-              <p className="text-xs text-gray-500">In your catalog</p>
+              <p className="text-xs text-gray-500">{_('dashboard.in_catalog', 'In your catalog')}</p>
             </div>
           </div>
         </div>
@@ -109,9 +111,9 @@ export default function Dashboard() {
               <FileText className="w-6 h-6 text-orange-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-600">Total Pages</p>
+              <p className="text-sm text-gray-600">{_('dashboard.total_pages', 'Total Pages')}</p>
               <p className="text-2xl font-bold text-gray-900">{content.total_pages}</p>
-              <p className="text-xs text-gray-500">Published content</p>
+              <p className="text-xs text-gray-500">{_('dashboard.published_content', 'Published content')}</p>
             </div>
           </div>
         </div>
@@ -124,17 +126,17 @@ export default function Dashboard() {
             <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <h2 className="font-semibold text-gray-900 flex items-center gap-2">
                 <Clock className="w-4 h-4 text-gray-500" />
-                Recent Orders
+                {_('dashboard.recent_orders', 'Recent Orders')}
               </h2>
               <Link to="/orders" className="text-sm text-primary-600 hover:text-primary-700 flex items-center gap-1">
-                View all
+                {_('common.view_all', 'View all')}
                 <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
             <div className="divide-y divide-gray-200">
               {recentOrders.length === 0 ? (
                 <div className="px-6 py-8 text-center text-gray-500">
-                  No orders yet.
+                  {_('dashboard.no_orders', 'No orders yet.')}
                 </div>
               ) : (
                 recentOrders.map((order) => (
@@ -170,17 +172,17 @@ export default function Dashboard() {
             <div className="card border-orange-200 bg-orange-50/30">
               <div className="px-6 py-4 border-b border-orange-100 flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 text-orange-600" />
-                <h2 className="font-semibold text-orange-900 text-sm uppercase tracking-wider">Low Stock Alerts</h2>
+                <h2 className="font-semibold text-orange-900 text-sm uppercase tracking-wider">{_('dashboard.low_stock_alerts', 'Low Stock Alerts')}</h2>
               </div>
               <div className="p-4 space-y-3">
                 {lowStock.map(item => (
                   <Link key={item.id} to={`/products/${item.id}`} className="flex items-center justify-between p-2 rounded hover:bg-orange-100/50 transition-colors">
                     <div>
                       <p className="text-sm font-medium text-gray-900">{item.title}</p>
-                      <p className="text-xs text-gray-500">SKU: {item.sku}</p>
+                      <p className="text-xs text-gray-500">{_('common.sku', 'SKU')}: {item.sku}</p>
                     </div>
                     <span className="text-sm font-bold text-orange-600">
-                      {item.inventory_quantity} left
+                      {item.inventory_quantity} {_('dashboard.left', 'left')}
                     </span>
                   </Link>
                 ))}
@@ -189,19 +191,19 @@ export default function Dashboard() {
           )}
 
           <div className="card p-6 space-y-4">
-            <h3 className="font-semibold text-gray-900 text-sm uppercase tracking-wider">Quick Links</h3>
+            <h3 className="font-semibold text-gray-900 text-sm uppercase tracking-wider">{_('common.quick_links', 'Quick Links')}</h3>
             <div className="grid grid-cols-1 gap-2">
               <Link to="/marketing/coupons" className="text-sm text-primary-600 hover:underline flex items-center gap-2">
                 <div className="w-1.5 h-1.5 bg-primary-600 rounded-full" />
-                Manage Coupons
+                {_('dashboard.manage_coupons', 'Manage Coupons')}
               </Link>
               <Link to="/media" className="text-sm text-primary-600 hover:underline flex items-center gap-2">
                 <div className="w-1.5 h-1.5 bg-primary-600 rounded-full" />
-                Media Library ({content.total_media})
+                {_('dashboard.media_library', 'Media Library')} ({content.total_media})
               </Link>
               <Link to="/settings" className="text-sm text-primary-600 hover:underline flex items-center gap-2">
                 <div className="w-1.5 h-1.5 bg-primary-600 rounded-full" />
-                Store Settings
+                {_('dashboard.store_settings', 'Store Settings')}
               </Link>
             </div>
           </div>
