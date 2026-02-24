@@ -251,29 +251,32 @@ export async function generateRawText(systemPrompt, userPrompt, model = null) {
  * Downloads the image locally and returns the local path.
  */
 export async function generateImage(prompt, size = "1024x1024", userId = null) {
+  const gApiKey = process.env.GEMINI_API_KEY;
+  const oApiKey = process.env.OPENAI_API_KEY;
+  
   const isSimulationExplicit = process.env.AI_SIMULATION_MODE === 'true';
-  const hasNoKeys = !OPENAI_API_KEY && !GEMINI_API_KEY;
-  const isDemoKey = OPENAI_API_KEY === 'demo' || GEMINI_API_KEY === 'demo';
+  const hasNoKeys = !oApiKey && !gApiKey;
+  const isDemoKey = oApiKey === 'demo' || gApiKey === 'demo';
 
   console.log(`[AI-DEBUG] generateImage keys check:`, { 
-    hasGemini: !!GEMINI_API_KEY, 
-    hasOpenAI: !!OPENAI_API_KEY, 
+    hasGemini: !!gApiKey, 
+    hasOpenAI: !!oApiKey, 
     isDemo: isDemoKey,
     hasNoKeys
   });
 
   // SIMULATION MODE
-  if (isSimulationExplicit || (hasNoKeys && isDemoKey) || prompt === 'mock') {
+  if (isSimulationExplicit || isDemoKey || prompt === 'mock') {
     console.log(`[AI-DEBUG] 🎨 Image Gen: Simulation Mode active.`);
     return '/images/placeholders/800x450.svg';
   }
 
   // 1. GEMINI MODE (Vertex / AI Studio Imagen API)
-  if (GEMINI_API_KEY && GEMINI_API_KEY !== 'demo') {
+  if (gApiKey && gApiKey !== 'demo') {
     console.log(`[AI-DEBUG] 🎨 Generating image via Gemini Imagen: "${prompt}"...`);
     try {
       const response = await axios.post(
-        `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:generateContent?key=${GEMINI_API_KEY}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:generateContent?key=${gApiKey}`,
         {
           contents: [{ parts: [{ text: prompt }] }]
         },
@@ -298,7 +301,7 @@ export async function generateImage(prompt, size = "1024x1024", userId = null) {
       console.error(`[AI-DEBUG] ❌ Gemini Image Gen failed: ${errorMsg}`);
       
       // If this is the only provider, throw immediately
-      if (!OPENAI_API_KEY || OPENAI_API_KEY === 'demo') {
+      if (!oApiKey || oApiKey === 'demo') {
         throw new Error(`Gemini Imagen Error: ${errorMsg}`);
       }
       // Otherwise continue to DALL-E fallback
@@ -306,7 +309,7 @@ export async function generateImage(prompt, size = "1024x1024", userId = null) {
   }
 
   // 2. DALL-E 3 (Primary for now as it's more stable in AI Studio/OpenAI)
-  if (OPENAI_API_KEY && OPENAI_API_KEY !== 'demo') {
+  if (oApiKey && oApiKey !== 'demo') {
     try {
       console.log(`[AI-DEBUG] 🎨 Generating image via DALL-E 3: "${prompt}"...`);
       
@@ -321,7 +324,7 @@ export async function generateImage(prompt, size = "1024x1024", userId = null) {
         },
         {
           headers: {
-            'Authorization': `Bearer ${OPENAI_API_KEY}`,
+            'Authorization': `Bearer ${oApiKey}`,
             'Content-Type': 'application/json',
           },
           timeout: 60000 // Image gen can be slow
@@ -348,7 +351,7 @@ export async function generateImage(prompt, size = "1024x1024", userId = null) {
     }
   }
 
-  throw new Error('No valid AI Image Generation provider configured (Missing API Key)');
+  throw new Error(`No valid AI Image Generation provider configured. Gemini: ${gApiKey ? 'Present' : 'Missing'}, OpenAI: ${oApiKey ? 'Present' : 'Missing'}, Anthropic: ${ANTHROPIC_API_KEY ? 'Present' : 'Missing'}`);
 }
 
 /**
