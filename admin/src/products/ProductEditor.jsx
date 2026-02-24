@@ -19,7 +19,7 @@ import useContentEditor from '../hooks/useContentEditor';
 
 // Icons
 import { 
-  Save, ArrowLeft, ExternalLink, Plus, X, Trash2, DownloadCloud, Loader2, Globe, Maximize2, Image as ImageIcon, Code, Eye
+  Save, ArrowLeft, ExternalLink, Plus, X, Trash2, DownloadCloud, Loader2, Globe, Maximize2, Image as ImageIcon, Code, Eye, Sparkles, RefreshCw
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -42,6 +42,7 @@ export default function ProductEditor() {
     handleContentChange,
     handleTemplateChange,
     handleSave,
+    syncTemplates,
     restoreVersion,
     partialRestore
   } = useContentEditor({
@@ -69,6 +70,9 @@ export default function ProductEditor() {
   const [showPicker, setShowPicker] = useState(false);
   const [scrapeUrl, setScrapeUrl] = useState('');
   const [selectorMap, setSelectorMap] = useState({});
+  const [generating, setGenerating] = useState(false);
+  const [aiPrompts, setAiPrompts] = useState({});
+  const [imageGenerating, setImageGenerating] = useState(null);
 
   useEffect(() => {
     if (!loading && product.variants?.length > 0 && options.length === 0) {
@@ -222,6 +226,50 @@ export default function ProductEditor() {
       toast.error('Import failed: ' + err.message);
     } finally {
       setImporting(false);
+    }
+  };
+
+  const handleAiGenerate = async () => {
+    if (!product.template_id) return toast.error('Select a template first');
+    const prompt = window.prompt('What content should we generate?', product.title);
+    if (!prompt) return;
+
+    setGenerating(true);
+    try {
+      const response = await api.post('/ai/generate-content', { templateId: product.template_id, prompt });
+      if (response.success && response.data) {
+        const textContent = {};
+        const newAiPrompts = {};
+        Object.keys(response.data).forEach(key => {
+          const region = regions.find(r => r.name === key);
+          if (region?.type === 'image') newAiPrompts[key] = response.data[key];
+          else textContent[key] = response.data[key];
+        });
+        setProduct(p => ({ ...p, content: { ...p.content, ...textContent } }));
+        setAiPrompts(prev => ({ ...prev, ...newAiPrompts }));
+        toast.success('Content generated!');
+      }
+    } catch (err) {
+      toast.error('Generation failed');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handleImageGenerate = async (regionName) => {
+    const prompt = window.prompt('Describe the image:', aiPrompts[regionName] || `Image for ${product.title}`);
+    if (!prompt) return;
+    setImageGenerating(regionName);
+    try {
+      const response = await api.post('/ai/generate-image', { prompt });
+      if (response.success && response.path) {
+        handleContentChange(regionName, response.path);
+        toast.success('Image generated!');
+      }
+    } catch (err) {
+      toast.error('Image generation failed');
+    } finally {
+      setImageGenerating(null);
     }
   };
 
@@ -416,6 +464,9 @@ export default function ProductEditor() {
                             value={product.content[region.name]}
                             onChange={handleContentChange}
                             openMediaPicker={openMediaPicker}
+                            onImageGenerate={handleImageGenerate}
+                            imageGenerating={imageGenerating}
+                            aiPrompt={aiPrompts[region.name]}
                           />
                         </div>
                       ))}
@@ -577,10 +628,23 @@ export default function ProductEditor() {
             </div>
             <div>
               <label className="label">Template *</label>
-              <select value={product.template_id || ''} onChange={(e) => handleTemplateChange(e.target.value)} className="input">
-                <option value="">Select template</option>
-                {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-              </select>
+              <div className="flex gap-2">
+                <select value={product.template_id || ''} onChange={(e) => handleTemplateChange(e.target.value)} className="input flex-1">
+                  <option value="">Select template</option>
+                  {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+                <button onClick={syncTemplates} className="btn btn-ghost px-3" title="Sync templates">
+                  <RefreshCw className="w-4 h-4" />
+                </button>
+              </div>
+              <button
+                onClick={handleAiGenerate}
+                disabled={generating || !product.template_id}
+                className="btn btn-secondary w-full mt-2 flex items-center justify-center gap-2 text-indigo-600 border-indigo-200"
+              >
+                {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                Auto-Fill Content
+              </button>
             </div>
           </div>
 

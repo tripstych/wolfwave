@@ -13,12 +13,13 @@ const OPENAI_API_URL = process.env.OPENAI_API_URL || 'https://api.openai.com/v1'
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 /**
  * Generate text content using an LLM
  */
 export async function generateText(systemPrompt, userPrompt, model = null, req = null) {
-  const isDemo = (!OPENAI_API_KEY || OPENAI_API_KEY === 'demo') && (!ANTHROPIC_API_KEY || ANTHROPIC_API_KEY === 'demo');
+  const isDemo = (!OPENAI_API_KEY || OPENAI_API_KEY === 'demo') && (!ANTHROPIC_API_KEY || ANTHROPIC_API_KEY === 'demo') && (!GEMINI_API_KEY || GEMINI_API_KEY === 'demo');
 
   // 1. SIMULATION MODE
   if (isDemo) {
