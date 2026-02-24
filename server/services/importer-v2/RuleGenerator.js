@@ -44,13 +44,12 @@ export class RuleGenerator {
           }
         });
 
-        if (!sample || !sample.stripped_html) continue;
+        if (!sample || !sample.llm_html) continue;
 
         info(this.dbName, 'IMPORT_V2_RULEGEN_ANALYZE', `Analyzing group ${group.structural_hash} (Sample: ${sample.url})`);
 
-        // Use LLM to analyze the stripped HTML
-        // We use stripped HTML to save tokens and focus on the mapping
-        const analysis = await analyzeSiteImport(sample.stripped_html, sample.url);
+        // Use LLM to analyze the ultra-clean LLM HTML
+        const analysis = await analyzeSiteImport(sample.llm_html, sample.url);
 
         ruleset.types[group.structural_hash] = {
           page_type: analysis.page_type,

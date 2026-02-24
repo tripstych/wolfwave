@@ -502,7 +502,8 @@ model staged_items {
   title           String?        @db.VarChar(255)
   item_type       String         @default("page") @db.VarChar(50)
   raw_html        String?        @db.LongText
-  stripped_html   String?        @db.LongText  // Added for V2: Headless, scriptless, styleless HTML
+  stripped_html   String?        @db.LongText  // Level 2: Headless, scriptless, styleless
+  llm_html        String?        @db.LongText  // Level 3: Ultra-clean for LLM context (Skeleton + Content only)
   structural_hash String?        @db.VarChar(64)
   metadata        Json?
   status          String         @default("pending") @db.VarChar(50)

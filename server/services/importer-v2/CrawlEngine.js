@@ -35,6 +35,33 @@ export class CrawlEngine {
     return $.html();
   }
 
+  /**
+   * Level 3: Ultra-clean for LLM Rule Generation
+   * Strips everything except the core structure and text content.
+   */
+  generateLlmHtml(html) {
+    const $ = cheerio.load(html);
+    
+    // 1. Remove non-visible/non-structural metadata
+    $('head, script, style, noscript, iframe, svg, path, symbol, canvas, link, meta, comment').remove();
+    
+    // 2. Remove purely decorative or non-content elements
+    $('header, footer, nav, aside, .sidebar, .menu, .nav, .footer, .header, #header, #footer, #nav').remove();
+
+    // 3. Clean attributes (Keep only ID and Class for selector mapping)
+    $('*').each((i, el) => {
+      const attribs = el.attribs || {};
+      for (const key in attribs) {
+        if (!['class', 'id', 'src', 'href', 'alt'].includes(key)) {
+          $(el).removeAttr(key);
+        }
+      }
+    });
+
+    // 4. Collapse whitespace for token efficiency
+    return ($('body').html() || '').replace(/\s+/g, ' ').trim();
+  }
+
   calculateHash(strippedHtml) {
     const $ = cheerio.load(strippedHtml);
     
@@ -93,6 +120,7 @@ export class CrawlEngine {
         });
 
         const strippedHtml = this.stripHtml(html);
+        const llmHtml = this.generateLlmHtml(html);
         const structuralHash = this.calculateHash(strippedHtml);
         const $ = cheerio.load(html);
         const title = $('title').text() || url;
@@ -103,6 +131,7 @@ export class CrawlEngine {
             title: title.substring(0, 255),
             raw_html: html,
             stripped_html: strippedHtml,
+            llm_html: llmHtml,
             structural_hash: structuralHash,
             status: 'crawled'
           },
@@ -112,6 +141,7 @@ export class CrawlEngine {
             title: title.substring(0, 255),
             raw_html: html,
             stripped_html: strippedHtml,
+            llm_html: llmHtml,
             structural_hash: structuralHash,
             status: 'crawled'
           }
