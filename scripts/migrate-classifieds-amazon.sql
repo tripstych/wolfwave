@@ -1,10 +1,12 @@
 -- Migration: Add Amazon SP-API + Classifieds tables
 -- Run this on your production database if `prisma db push` isn't an option
 
--- Amazon: Add columns to products table
-ALTER TABLE `products` ADD COLUMN `amazon_asin` VARCHAR(20) NULL;
-ALTER TABLE `products` ADD COLUMN `amazon_fnsku` VARCHAR(20) NULL;
-ALTER TABLE `products` ADD INDEX `idx_amazon_asin` (`amazon_asin`);
+-- Amazon: Add columns to products table (skip if already exist)
+SET @col_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'products' AND COLUMN_NAME = 'amazon_asin');
+SET @sql = IF(@col_exists = 0, 'ALTER TABLE `products` ADD COLUMN `amazon_asin` VARCHAR(20) NULL, ADD COLUMN `amazon_fnsku` VARCHAR(20) NULL, ADD INDEX `idx_amazon_asin` (`amazon_asin`)', 'SELECT 1');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
 -- Amazon: Order sync table
 CREATE TABLE IF NOT EXISTS `amazon_order_sync` (
