@@ -33,6 +33,7 @@ import aiRoutes from './ai.js';
 import importRoutes from './import.js';
 import dashboardRoutes from './dashboard.js';
 import apiKeysRoutes from './api-keys.js';
+import amazonRoutes from './amazon.js';
 
 const router = Router();
 
@@ -70,6 +71,7 @@ router.use('/ai', aiRoutes);
 router.use('/import', importRoutes);
 router.use('/dashboard', dashboardRoutes);
 router.use('/api-keys', apiKeysRoutes);
+router.use('/amazon', amazonRoutes);
 
 // Health check
 router.get('/health', (req, res) => {

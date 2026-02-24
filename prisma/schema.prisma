@@ -410,6 +410,8 @@ model products {
   download_limit       Int?                  @default(5)
   download_expiry_days Int?                  @default(30)
   status               products_status?      @default(draft)
+  amazon_asin          String?               @db.VarChar(20)
+  amazon_fnsku         String?               @db.VarChar(20)
   created_at           DateTime              @default(now()) @db.Timestamp(0)
   updated_at           DateTime              @default(now()) @db.Timestamp(0)
   order_items          order_items[]
@@ -421,6 +423,16 @@ model products {
   @@index([content_id], map: "content_id")
   @@index([sku], map: "idx_sku")
   @@index([status], map: "idx_status")
+  @@index([amazon_asin], map: "idx_amazon_asin")
+}
+
+model amazon_order_sync {
+  id              Int      @id @default(autoincrement())
+  amazon_order_id String   @unique(map: "amazon_order_id") @db.VarChar(50)
+  order_id        Int?
+  status          String   @db.VarChar(30)
+  data            Json?
+  synced_at       DateTime @default(now()) @db.Timestamp(0)
 }
 
 model redirects {
