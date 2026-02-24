@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import crypto from 'crypto';
-import { logError } from '../lib/logger.js';
+import { logError, info } from '../lib/logger.js';
 import { downloadImage } from './mediaService.js';
 import { query } from '../db/connection.js';
 
@@ -126,7 +126,7 @@ export async function generateText(systemPrompt, userPrompt, model = null, req =
   // 2. GEMINI MODE (AI Studio)
   if (config.gemini_api_key && config.gemini_api_key !== 'demo') {
     const geminiModel = model || config.gemini_model;
-    console.log(`[AI-DEBUG] 🔑 Gemini Key present. Sending request to ${geminiModel}...`);
+    info(req || 'system', 'AI_GEN_GEMINI', `Model: ${geminiModel}\nSystem: ${systemPrompt}\nUser: ${userPrompt.substring(0, 1000)}${userPrompt.length > 1000 ? '...' : ''}`);
 
     try {
       const response = await axios.post(
@@ -166,7 +166,7 @@ export async function generateText(systemPrompt, userPrompt, model = null, req =
   // 3. ANTHROPIC MODE (Prioritized if key exists)
   if (config.anthropic_api_key && config.anthropic_api_key !== 'demo') {
     const anthropicModel = model || 'claude-3-5-sonnet-20240620';
-    console.log(`[AI-DEBUG] 🔑 Anthropic Key present. Sending request to ${anthropicModel}...`);
+    info(req || 'system', 'AI_GEN_ANTHROPIC', `Model: ${anthropicModel}\nSystem: ${systemPrompt}\nUser: ${userPrompt.substring(0, 1000)}${userPrompt.length > 1000 ? '...' : ''}`);
 
     try {
       const response = await axios.post(
@@ -205,7 +205,7 @@ export async function generateText(systemPrompt, userPrompt, model = null, req =
   // 3. OPENAI MODE (Fallback)
   if (config.openai_api_key && config.openai_api_key !== 'demo') {
     const openaiModel = model || 'gpt-4o';
-    console.log(`[AI-DEBUG] 🔑 OpenAI Key present. Sending request to ${openaiModel}...`);
+    info(req || 'system', 'AI_GEN_OPENAI', `Model: ${openaiModel}\nSystem: ${systemPrompt}\nUser: ${userPrompt.substring(0, 1000)}${userPrompt.length > 1000 ? '...' : ''}`);
 
     try {
       const response = await axios.post(
@@ -257,6 +257,7 @@ export async function generateRawText(systemPrompt, userPrompt, model = null) {
   // Gemini
   if (config.gemini_api_key && config.gemini_api_key !== 'demo') {
     const geminiModel = model || config.gemini_model;
+    info('system', 'AI_GEN_RAW_GEMINI', `Model: ${geminiModel}\nSystem: ${systemPrompt}\nUser: ${userPrompt.substring(0, 500)}...`);
     const response = await axios.post(
       `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${config.gemini_api_key}`,
       {
@@ -271,6 +272,7 @@ export async function generateRawText(systemPrompt, userPrompt, model = null) {
   // Anthropic
   if (config.anthropic_api_key && config.anthropic_api_key !== 'demo') {
     const anthropicModel = model || 'claude-3-5-sonnet-20240620';
+    info('system', 'AI_GEN_RAW_ANTHROPIC', `Model: ${anthropicModel}\nSystem: ${systemPrompt}\nUser: ${userPrompt.substring(0, 500)}...`);
     const response = await axios.post(
       config.anthropic_api_url,
       {
@@ -293,6 +295,7 @@ export async function generateRawText(systemPrompt, userPrompt, model = null) {
   // OpenAI
   if (config.openai_api_key && config.openai_api_key !== 'demo') {
     const openaiModel = model || 'gpt-4o';
+    info('system', 'AI_GEN_RAW_OPENAI', `Model: ${openaiModel}\nSystem: ${systemPrompt}\nUser: ${userPrompt.substring(0, 500)}...`);
     const response = await axios.post(
       `${config.openai_api_url}/chat/completions`,
       {
