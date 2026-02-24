@@ -17,7 +17,6 @@ export default function Themes() {
   const [wpLoading, setWpLoading] = useState(false);
   const [wpResult, setWpResult] = useState(null);
   const [wpSelectedFiles, setWpSelectedFiles] = useState(new Set());
-  const [showWpImport, setShowWpImport] = useState(false);
 
   const handleWpFileSelect = async (e) => {
     const file = e.target.files?.[0];
@@ -121,19 +120,11 @@ export default function Themes() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-gray-900">Themes</h1>
-        <button
-          onClick={() => setShowWpImport(!showWpImport)}
-          className={`btn ${showWpImport ? 'btn-secondary' : 'btn-ghost border border-gray-200'} flex items-center gap-2`}
-        >
-          <Upload className="w-4 h-4" />
-          {showWpImport ? 'Hide WP Import' : 'Import WP Theme'}
-        </button>
       </div>
 
       <AiThemeGenerator onThemeGenerated={() => fetchThemes()} />
 
-      {showWpImport && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="space-y-4">
             <div className="card p-6">
               <h2 className="font-semibold mb-4 flex items-center gap-2">
@@ -342,7 +333,6 @@ export default function Themes() {
             )}
           </div>
         </div>
-      )}
 
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
