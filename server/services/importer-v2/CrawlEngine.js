@@ -21,10 +21,22 @@ export class CrawlEngine {
     try {
       const nUrl = new URL(url, this.rootUrl);
       nUrl.hash = '';
-      const stripParams = ['utm_source', 'utm_medium', 'utm_campaign', 'fbclid', 'gclid'];
+      
+      // Force lowercase hostname for consistency
+      nUrl.hostname = nUrl.hostname.toLowerCase();
+      
+      // Strip common noisy parameters that create duplicate URLs
+      const stripParams = [
+        'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 
+        'fbclid', 'gclid', 'ref', 'variant', 'view', '_ss', '_v', '_pos'
+      ];
       stripParams.forEach(p => nUrl.searchParams.delete(p));
+      
       let cleaned = nUrl.toString();
+      
+      // Ensure consistent trailing slash: strip if it's not the root path
       if (cleaned.endsWith('/') && nUrl.pathname !== '/') cleaned = cleaned.slice(0, -1);
+      
       return cleaned;
     } catch { return null; }
   }
