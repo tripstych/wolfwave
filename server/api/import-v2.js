@@ -30,6 +30,20 @@ router.post('/', requireAuth, requireEditor, async (req, res) => {
 });
 
 /**
+ * Get all V2 sites
+ */
+router.get('/sites', requireAuth, async (req, res) => {
+  try {
+    const sites = await prisma.imported_sites.findMany({
+      orderBy: { created_at: 'desc' }
+    });
+    res.json(sites);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
  * Get site details including LLM ruleset
  */
 router.get('/sites/:id', requireAuth, async (req, res) => {

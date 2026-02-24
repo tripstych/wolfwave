@@ -36,11 +36,7 @@ export default function SiteImporterV2() {
   const loadSites = async () => {
     try {
       const data = await api.get('/import-v2/sites');
-      // For now, let's use the standard sites list if v2 list isn't ready,
-      // but ideally this would be a filtered or specific v2 list.
-      // Since we updated the schema for all imported_sites, they are all "v2 compatible" now.
-      const updatedSites = await api.get('/import/sites');
-      setSites(updatedSites || []);
+      setSites(data || []);
     } catch (err) {
       console.error('Failed to load sites:', err);
     } finally {
