@@ -255,6 +255,13 @@ export async function generateImage(prompt, size = "1024x1024", userId = null) {
   const hasNoKeys = !OPENAI_API_KEY && !GEMINI_API_KEY;
   const isDemoKey = OPENAI_API_KEY === 'demo' || GEMINI_API_KEY === 'demo';
 
+  console.log(`[AI-DEBUG] generateImage keys check:`, { 
+    hasGemini: !!GEMINI_API_KEY, 
+    hasOpenAI: !!OPENAI_API_KEY, 
+    isDemo: isDemoKey,
+    hasNoKeys
+  });
+
   // SIMULATION MODE
   if (isSimulationExplicit || (hasNoKeys && isDemoKey) || prompt === 'mock') {
     console.log(`[AI-DEBUG] 🎨 Image Gen: Simulation Mode active.`);
