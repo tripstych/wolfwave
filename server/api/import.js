@@ -33,7 +33,6 @@ const router = Router();
 
 // Progress Tracking
 router.get('/progress/:taskId', requireAuth, (req, res) => {
-  const { getTask } = import('../lib/progressStore.js'); // dynamic or move to top
   const task = getTask(req.params.taskId);
   if (!task) return res.status(404).json({ error: 'Task not found' });
   res.json(task);
