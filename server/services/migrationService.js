@@ -70,26 +70,31 @@ export async function migratePage(importedPageId, templateId, selectorMap = { 'm
     const title = (importedPage.title || $('title').text() || '').trim() || 
                   (() => { try { return new URL(importedPage.url).pathname; } catch { return 'Imported Page'; } })();
 
-    // Check if a page with THIS EXACT TITLE already exists to avoid duplication
-    // We only merge if the content is significantly longer/better
+    const template = await prisma.templates.findUnique({ where: { id: templateId } });
+    const contentType = template?.content_type || 'pages';
+
+    // Check if a record with THIS EXACT TITLE already exists to avoid duplication
     const existingContent = await prisma.content.findFirst({
-      where: { module: 'pages', title: title }
+      where: { module: contentType, title: title }
     });
 
     if (existingContent) {
-      const existingData = JSON.parse(existingContent.data || '{}');
-      const existingLen = (existingData.main || '').length;
-      const newLen = (extractedData.main || '').length;
+      const existingData = typeof existingContent.data === 'string' ? JSON.parse(existingContent.data) : (existingContent.data || {});
+      // Use the first available key for length check
+      const mainKey = Object.keys(extractedData)[0] || 'main';
+      const existingLen = (existingData[mainKey] || '').length;
+      const newLen = (extractedData[mainKey] || '').length;
 
       // Only overwrite if the new content seems significantly better/longer
       if (newLen > existingLen) {
         await updateContent(existingContent.id, {
           data: extractedData,
-          search_index: generateSearchIndex(title, extractedData)
+          search_index: generateSearchIndex(title, extractedData),
+          source_url: importedPage.url
         });
-        info(dbName, 'PAGE_MERGE_UPDATE', `Updated existing page "${title}" with better content (${newLen} chars vs ${existingLen})`);
+        info(dbName, 'PAGE_MERGE_UPDATE', `Updated existing ${contentType} "${title}" with better content (${newLen} chars vs ${existingLen})`);
       } else {
-        info(dbName, 'PAGE_MERGE_SKIP', `Preserved existing page "${title}" (existing content was better)`);
+        info(dbName, 'PAGE_MERGE_SKIP', `Preserved existing ${contentType} "${title}" (existing content was better)`);
       }
       
       // Update metadata with rule ID if provided
@@ -99,7 +104,10 @@ export async function migratePage(importedPageId, templateId, selectorMap = { 'm
       // Mark as migrated regardless so it stops showing up in the importer
       await prisma.staged_items.update({ where: { id: importedPageId }, data: { status: 'migrated', metadata: currentMeta } });
       
-      return await prisma.pages.findFirst({ where: { content_id: existingContent.id } });
+      const record = contentType === 'products' 
+        ? await prisma.products.findFirst({ where: { content_id: existingContent.id } })
+        : await prisma.pages.findFirst({ where: { content_id: existingContent.id } });
+      return record;
     }
 
     const pageSlug = await generateUniqueSlug(title, 'pages');
