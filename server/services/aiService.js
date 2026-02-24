@@ -5,29 +5,50 @@ import { fileURLToPath } from 'url';
 import crypto from 'crypto';
 import { logError } from '../lib/logger.js';
 import { downloadImage } from './mediaService.js';
+import { query } from '../db/connection.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(__dirname, '../../public');
 
-// Configuration
-const OPENAI_API_URL = process.env.OPENAI_API_URL || 'https://api.openai.com/v1';
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+/**
+ * Get AI settings from the database with environment fallbacks
+ */
+async function getAiSettings() {
+  const rows = await query(
+    `SELECT setting_key, setting_value FROM settings
+     WHERE setting_key IN (
+       'openai_api_key', 'openai_api_url', 
+       'anthropic_api_key', 'gemini_api_key', 
+       'gemini_model', 'ai_simulation_mode'
+     )`
+  );
+  
+  const settings = {};
+  rows.forEach(r => { settings[r.setting_key] = r.setting_value; });
+
+  return {
+    openai_api_key: settings.openai_api_key || process.env.OPENAI_API_KEY,
+    openai_api_url: settings.openai_api_url || process.env.OPENAI_API_URL || 'https://api.openai.com/v1',
+    anthropic_api_key: settings.anthropic_api_key || process.env.ANTHROPIC_API_KEY,
+    anthropic_api_url: 'https://api.anthropic.com/v1/messages',
+    gemini_api_key: settings.gemini_api_key || process.env.GEMINI_API_KEY,
+    gemini_model: settings.gemini_model || process.env.GEMINI_MODEL || 'gemini-1.5-flash',
+    ai_simulation_mode: settings.ai_simulation_mode === 'true' || process.env.AI_SIMULATION_MODE === 'true'
+  };
+}
 
 /**
  * Generate text content using an LLM
  */
 export async function generateText(systemPrompt, userPrompt, model = null, req = null) {
-  const isSimulationExplicit = process.env.AI_SIMULATION_MODE === 'true';
-  const hasNoKeys = !OPENAI_API_KEY && !ANTHROPIC_API_KEY && !GEMINI_API_KEY;
-  const isDemoKey = OPENAI_API_KEY === 'demo' || ANTHROPIC_API_KEY === 'demo' || GEMINI_API_KEY === 'demo';
+  const config = await getAiSettings();
+  
+  const hasNoKeys = !config.openai_api_key && !config.anthropic_api_key && !config.gemini_api_key;
+  const isDemoKey = config.openai_api_key === 'demo' || config.anthropic_api_key === 'demo' || config.gemini_api_key === 'demo';
 
   // 1. SIMULATION MODE (Only if explicitly requested)
-  if (isSimulationExplicit || (hasNoKeys && isDemoKey)) {
-    console.log(`[AI-DEBUG] 💡 Running in SIMULATION MODE (Explicitly Enabled).`);
+  if (config.ai_simulation_mode || (hasNoKeys && isDemoKey)) {
+    console.log(`[AI-DEBUG] 💡 Running in SIMULATION MODE.`);
     await new Promise(resolve => setTimeout(resolve, 1500));
     
     const industry = userPrompt.replace('Create a theme for:', '').trim();
@@ -56,13 +77,13 @@ export async function generateText(systemPrompt, userPrompt, model = null, req =
   }
 
   // 2. GEMINI MODE (AI Studio)
-  if (GEMINI_API_KEY && GEMINI_API_KEY !== 'demo') {
-    const geminiModel = model || GEMINI_MODEL;
+  if (config.gemini_api_key && config.gemini_api_key !== 'demo') {
+    const geminiModel = model || config.gemini_model;
     console.log(`[AI-DEBUG] 🔑 Gemini Key present. Sending request to ${geminiModel}...`);
 
     try {
       const response = await axios.post(
-        `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${GEMINI_API_KEY}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${config.gemini_api_key}`,
         {
           system_instruction: {
             parts: [{ text: systemPrompt + "\n\nCRITICAL: Return ONLY a valid JSON object. No preamble, no explanation." }]
@@ -96,13 +117,13 @@ export async function generateText(systemPrompt, userPrompt, model = null, req =
   }
 
   // 3. ANTHROPIC MODE (Prioritized if key exists)
-  if (ANTHROPIC_API_KEY && ANTHROPIC_API_KEY !== 'demo') {
+  if (config.anthropic_api_key && config.anthropic_api_key !== 'demo') {
     const anthropicModel = model || 'claude-3-5-sonnet-20240620';
     console.log(`[AI-DEBUG] 🔑 Anthropic Key present. Sending request to ${anthropicModel}...`);
 
     try {
       const response = await axios.post(
-        ANTHROPIC_API_URL,
+        config.anthropic_api_url,
         {
           model: anthropicModel,
           max_tokens: 4096,
@@ -113,7 +134,7 @@ export async function generateText(systemPrompt, userPrompt, model = null, req =
         },
         {
           headers: {
-            'x-api-key': ANTHROPIC_API_KEY,
+            'x-api-key': config.anthropic_api_key,
             'anthropic-version': '2023-06-01',
             'Content-Type': 'application/json',
           },
@@ -135,13 +156,13 @@ export async function generateText(systemPrompt, userPrompt, model = null, req =
   }
 
   // 3. OPENAI MODE (Fallback)
-  if (OPENAI_API_KEY && OPENAI_API_KEY !== 'demo') {
+  if (config.openai_api_key && config.openai_api_key !== 'demo') {
     const openaiModel = model || 'gpt-4o';
     console.log(`[AI-DEBUG] 🔑 OpenAI Key present. Sending request to ${openaiModel}...`);
 
     try {
       const response = await axios.post(
-        `${OPENAI_API_URL}/chat/completions`,
+        `${config.openai_api_url}/chat/completions`,
       {
         model: openaiModel,
         messages: [
@@ -153,7 +174,7 @@ export async function generateText(systemPrompt, userPrompt, model = null, req =
       },
       {
         headers: {
-          'Authorization': `Bearer ${OPENAI_API_KEY}`,
+          'Authorization': `Bearer ${config.openai_api_key}`,
           'Content-Type': 'application/json',
         },
       }
@@ -184,11 +205,13 @@ export async function generateText(systemPrompt, userPrompt, model = null, req =
  * Used for template conversion where the output is template code, not structured data.
  */
 export async function generateRawText(systemPrompt, userPrompt, model = null) {
+  const config = await getAiSettings();
+
   // Gemini
-  if (GEMINI_API_KEY && GEMINI_API_KEY !== 'demo') {
-    const geminiModel = model || GEMINI_MODEL;
+  if (config.gemini_api_key && config.gemini_api_key !== 'demo') {
+    const geminiModel = model || config.gemini_model;
     const response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${config.gemini_api_key}`,
       {
         system_instruction: { parts: [{ text: systemPrompt }] },
         contents: [{ role: "user", parts: [{ text: userPrompt }] }],
@@ -199,10 +222,10 @@ export async function generateRawText(systemPrompt, userPrompt, model = null) {
   }
 
   // Anthropic
-  if (ANTHROPIC_API_KEY && ANTHROPIC_API_KEY !== 'demo') {
+  if (config.anthropic_api_key && config.anthropic_api_key !== 'demo') {
     const anthropicModel = model || 'claude-3-5-sonnet-20240620';
     const response = await axios.post(
-      ANTHROPIC_API_URL,
+      config.anthropic_api_url,
       {
         model: anthropicModel,
         max_tokens: 8192,
@@ -211,7 +234,7 @@ export async function generateRawText(systemPrompt, userPrompt, model = null) {
       },
       {
         headers: {
-          'x-api-key': ANTHROPIC_API_KEY,
+          'x-api-key': config.anthropic_api_key,
           'anthropic-version': '2023-06-01',
           'Content-Type': 'application/json',
         },
@@ -221,10 +244,10 @@ export async function generateRawText(systemPrompt, userPrompt, model = null) {
   }
 
   // OpenAI
-  if (OPENAI_API_KEY && OPENAI_API_KEY !== 'demo') {
+  if (config.openai_api_key && config.openai_api_key !== 'demo') {
     const openaiModel = model || 'gpt-4o';
     const response = await axios.post(
-      `${OPENAI_API_URL}/chat/completions`,
+      `${config.openai_api_url}/chat/completions`,
       {
         model: openaiModel,
         messages: [
@@ -235,7 +258,7 @@ export async function generateRawText(systemPrompt, userPrompt, model = null) {
       },
       {
         headers: {
-          'Authorization': `Bearer ${OPENAI_API_KEY}`,
+          'Authorization': `Bearer ${config.openai_api_key}`,
           'Content-Type': 'application/json',
         },
       }
@@ -251,32 +274,30 @@ export async function generateRawText(systemPrompt, userPrompt, model = null) {
  * Downloads the image locally and returns the local path.
  */
 export async function generateImage(prompt, size = "1024x1024", userId = null) {
-  const gApiKey = process.env.GEMINI_API_KEY;
-  const oApiKey = process.env.OPENAI_API_KEY;
+  const config = await getAiSettings();
   
-  const isSimulationExplicit = process.env.AI_SIMULATION_MODE === 'true';
-  const hasNoKeys = !oApiKey && !gApiKey;
-  const isDemoKey = oApiKey === 'demo' || gApiKey === 'demo';
+  const hasNoKeys = !config.openai_api_key && !config.gemini_api_key;
+  const isDemoKey = config.openai_api_key === 'demo' || config.gemini_api_key === 'demo';
 
   console.log(`[AI-DEBUG] generateImage keys check:`, { 
-    hasGemini: !!gApiKey, 
-    hasOpenAI: !!oApiKey, 
+    hasGemini: !!config.gemini_api_key, 
+    hasOpenAI: !!config.openai_api_key, 
     isDemo: isDemoKey,
     hasNoKeys
   });
 
   // SIMULATION MODE
-  if (isSimulationExplicit || isDemoKey || prompt === 'mock') {
+  if (config.ai_simulation_mode || isDemoKey || prompt === 'mock') {
     console.log(`[AI-DEBUG] 🎨 Image Gen: Simulation Mode active.`);
     return '/images/placeholders/800x450.svg';
   }
 
   // 1. GEMINI MODE (Vertex / AI Studio Imagen API)
-  if (gApiKey && gApiKey !== 'demo') {
+  if (config.gemini_api_key && config.gemini_api_key !== 'demo') {
     console.log(`[AI-DEBUG] 🎨 Generating image via Gemini Imagen: "${prompt}"...`);
     try {
       const response = await axios.post(
-        `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:generateContent?key=${gApiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:generateContent?key=${config.gemini_api_key}`,
         {
           contents: [{ parts: [{ text: prompt }] }]
         },
@@ -301,7 +322,7 @@ export async function generateImage(prompt, size = "1024x1024", userId = null) {
       console.error(`[AI-DEBUG] ❌ Gemini Image Gen failed: ${errorMsg}`);
       
       // If this is the only provider, throw immediately
-      if (!oApiKey || oApiKey === 'demo') {
+      if (!config.openai_api_key || config.openai_api_key === 'demo') {
         throw new Error(`Gemini Imagen Error: ${errorMsg}`);
       }
       // Otherwise continue to DALL-E fallback
@@ -309,12 +330,12 @@ export async function generateImage(prompt, size = "1024x1024", userId = null) {
   }
 
   // 2. DALL-E 3 (Primary for now as it's more stable in AI Studio/OpenAI)
-  if (oApiKey && oApiKey !== 'demo') {
+  if (config.openai_api_key && config.openai_api_key !== 'demo') {
     try {
       console.log(`[AI-DEBUG] 🎨 Generating image via DALL-E 3: "${prompt}"...`);
       
       const response = await axios.post(
-        `${OPENAI_API_URL}/images/generations`,
+        `${config.openai_api_url}/images/generations`,
         {
           model: "dall-e-3",
           prompt: prompt,
@@ -324,7 +345,7 @@ export async function generateImage(prompt, size = "1024x1024", userId = null) {
         },
         {
           headers: {
-            'Authorization': `Bearer ${oApiKey}`,
+            'Authorization': `Bearer ${config.openai_api_key}`,
             'Content-Type': 'application/json',
           },
           timeout: 60000 // Image gen can be slow
@@ -351,19 +372,20 @@ export async function generateImage(prompt, size = "1024x1024", userId = null) {
     }
   }
 
-  throw new Error(`No valid AI Image Generation provider configured. Gemini: ${gApiKey ? 'Present' : 'Missing'}, OpenAI: ${oApiKey ? 'Present' : 'Missing'}, Anthropic: ${ANTHROPIC_API_KEY ? 'Present' : 'Missing'}`);
+  throw new Error(`No valid AI Image Generation provider configured. Gemini: ${config.gemini_api_key ? 'Present' : 'Missing'}, OpenAI: ${config.openai_api_key ? 'Present' : 'Missing'}, Anthropic: ${config.anthropic_api_key ? 'Present' : 'Missing'}`);
 }
 
 /**
  * Generate content for a specific set of fields
  */
 export async function generateContentForFields(fields, userContext, model = null, req = null) {
-  const isSimulationExplicit = process.env.AI_SIMULATION_MODE === 'true';
-  const hasNoKeys = !OPENAI_API_KEY && !ANTHROPIC_API_KEY && !GEMINI_API_KEY;
-  const isDemoKey = OPENAI_API_KEY === 'demo' || ANTHROPIC_API_KEY === 'demo' || GEMINI_API_KEY === 'demo';
+  const config = await getAiSettings();
+  
+  const hasNoKeys = !config.openai_api_key && !config.anthropic_api_key && !config.gemini_api_key;
+  const isDemoKey = config.openai_api_key === 'demo' || config.anthropic_api_key === 'demo' || config.gemini_api_key === 'demo';
 
   // SIMULATION MODE
-  if (isSimulationExplicit || (hasNoKeys && isDemoKey)) {
+  if (config.ai_simulation_mode || (hasNoKeys && isDemoKey)) {
     console.log(`[AI-DEBUG] ✍️ Content Gen: Simulation Mode active.`);
     await new Promise(resolve => setTimeout(resolve, 1000));
     
@@ -408,7 +430,8 @@ export async function generateContentForFields(fields, userContext, model = null
  * Suggest CSS selectors for a set of fields based on HTML content
  */
 export async function suggestSelectors(fields, html, model = null, req = null) {
-  const isDemo = (!OPENAI_API_KEY || OPENAI_API_KEY === 'demo') && (!ANTHROPIC_API_KEY || ANTHROPIC_API_KEY === 'demo');
+  const config = await getAiSettings();
+  const isDemo = (!config.openai_api_key || config.openai_api_key === 'demo') && (!config.anthropic_api_key || config.anthropic_api_key === 'demo');
 
   if (isDemo) {
     const mock = {};

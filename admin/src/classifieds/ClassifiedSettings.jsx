@@ -199,7 +199,7 @@ export default function ClassifiedSettings() {
           <span className="text-sm text-gray-700">Enable AI-powered moderation</span>
         </label>
         <p className="text-xs text-gray-500">
-          When enabled, ads are reviewed by AI against the rules below. Requires an OpenAI or Anthropic API key in your environment.
+          When enabled, ads are reviewed by AI against the rules below. Requires an AI API key (Gemini, OpenAI, or Anthropic) in your <strong>Settings</strong>.
         </p>
 
         {/* Rules */}

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../lib/api';
-import { Save, AlertCircle, CheckCircle, Send, Settings as SettingsIcon, Search, CreditCard, Mail, ShoppingCart } from 'lucide-react';
+import { Save, AlertCircle, CheckCircle, Send, Settings as SettingsIcon, Search, CreditCard, Mail, ShoppingCart, Cpu } from 'lucide-react';
 import { useSettings } from '../context/SettingsContext';
 import { toast } from 'sonner';
 import AmazonDashboard from './AmazonDashboard';
@@ -11,6 +11,7 @@ const TABS = [
   { id: 'payments', label: 'Payments', icon: CreditCard },
   { id: 'email', label: 'Email', icon: Mail },
   { id: 'amazon', label: 'Amazon', icon: ShoppingCart },
+  { id: 'ai', label: 'AI Services', icon: Cpu },
 ];
 
 export default function Settings() {
@@ -44,6 +45,12 @@ export default function Settings() {
     amazon_client_secret: '',
     amazon_refresh_token: '',
     amazon_region: 'na',
+    openai_api_key: '',
+    openai_api_url: '',
+    anthropic_api_key: '',
+    gemini_api_key: '',
+    gemini_model: '',
+    ai_simulation_mode: 'false',
   });
   const [pages, setPages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -343,6 +350,52 @@ export default function Settings() {
         {/* Amazon Tab */}
         {activeTab === 'amazon' && (
           <AmazonDashboard settings={settings} setSettings={setSettings} onSave={handleSave} saving={saving} />
+        )}
+
+        {/* AI Tab */}
+        {activeTab === 'ai' && (
+          <div className="space-y-6">
+            <div className="card p-6 space-y-4">
+              <h2 className="font-semibold text-gray-900 pb-2 border-b border-gray-200">AI Configuration</h2>
+              <div>
+                <label className="label">Simulation Mode</label>
+                <select
+                  value={settings.ai_simulation_mode}
+                  onChange={(e) => setSettings({ ...settings, ai_simulation_mode: e.target.value })}
+                  className="input"
+                >
+                  <option value="false">Off (Use Real APIs)</option>
+                  <option value="true">On (Mock Responses)</option>
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  When enabled, AI features will return mock data instead of calling external APIs. Useful for testing or when no keys are provided.
+                </p>
+              </div>
+            </div>
+
+            <div className="card p-6 space-y-4">
+              <h2 className="font-semibold text-gray-900 pb-2 border-b border-gray-200 flex items-center gap-2">
+                Google Gemini (Preferred)
+              </h2>
+              {field('gemini_api_key', 'Gemini API Key', { type: 'password', placeholder: 'AIza...', hint: 'Get from Google AI Studio' })}
+              {field('gemini_model', 'Gemini Model', { placeholder: 'gemini-1.5-flash', hint: 'Default: gemini-1.5-flash' })}
+            </div>
+
+            <div className="card p-6 space-y-4">
+              <h2 className="font-semibold text-gray-900 pb-2 border-b border-gray-200 flex items-center gap-2">
+                Anthropic
+              </h2>
+              {field('anthropic_api_key', 'Anthropic API Key', { type: 'password', placeholder: 'sk-ant-api03-...', hint: 'Used for Claude models' })}
+            </div>
+
+            <div className="card p-6 space-y-4">
+              <h2 className="font-semibold text-gray-900 pb-2 border-b border-gray-200 flex items-center gap-2">
+                OpenAI
+              </h2>
+              {field('openai_api_key', 'OpenAI API Key', { type: 'password', placeholder: 'sk-...', hint: 'Used for GPT models and DALL-E' })}
+              {field('openai_api_url', 'API URL Override', { placeholder: 'https://api.openai.com/v1', hint: 'Useful for proxies or Azure OpenAI' })}
+            </div>
+          </div>
         )}
       </div>
     </div>
