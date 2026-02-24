@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import api from '../lib/api';
 import { X, Upload, Check, Image as ImageIcon, Sparkles, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function MediaPicker({ onSelect, onClose }) {
   const [media, setMedia] = useState([]);
@@ -50,17 +51,19 @@ export default function MediaPicker({ onSelect, onClose }) {
     if (!prompt.trim()) return;
 
     setGenerating(true);
+    const toastId = toast.loading('Generating image, please wait...');
     try {
       const result = await api.post('/ai/generate-image', { prompt });
       if (result.success) {
         // Refresh media list to show the new image
         await loadMedia();
         setPrompt('');
+        toast.success('Image generated!', { id: toastId });
         // New image should be first in the list if sorted by newest
       }
     } catch (err) {
       console.error('Generation failed:', err);
-      alert('Generation failed');
+      toast.error('Generation failed', { id: toastId });
     } finally {
       setGenerating(false);
     }

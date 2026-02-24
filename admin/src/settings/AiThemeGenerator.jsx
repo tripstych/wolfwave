@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Sparkles, Loader2, Image as ImageIcon } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function AiThemeGenerator({ onThemeGenerated }) {
   const [industry, setIndustry] = useState('');
@@ -14,6 +15,7 @@ export default function AiThemeGenerator({ onThemeGenerated }) {
     setGenerating(true);
     setError(null);
     setStatus('text'); // "Drafting content..."
+    const toastId = toast.loading('Architecting your theme, please wait...');
 
     try {
       const response = await fetch('/api/ai/generate-theme', {
@@ -38,14 +40,16 @@ export default function AiThemeGenerator({ onThemeGenerated }) {
       
       // Feedback for cache hits
       if (data.cached) {
-        // You could use a toast here, but for now we'll just clear the generating state
-        console.log('Theme loaded from cache');
+        toast.success('Theme loaded instantly from library!', { id: toastId });
+      } else {
+        toast.success('Theme generated successfully!', { id: toastId });
       }
       
       setIndustry('');
     } catch (err) {
       console.error(err);
       setError(err.message);
+      toast.error('Generation failed: ' + err.message, { id: toastId });
     } finally {
       setGenerating(false);
       setStatus('');

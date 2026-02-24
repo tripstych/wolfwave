@@ -157,6 +157,7 @@ export default function ProductEditor() {
   const handleExtractContent = async () => {
     if (!scrapeUrl || Object.keys(selectorMap).length === 0) return;
     setImporting(true);
+    const toastId = toast.loading('Extracting content from live site...');
     try {
       const field_types = Object.fromEntries(regions.map(r => [r.name, r.type]));
       field_types.title = 'text';
@@ -192,10 +193,10 @@ export default function ProductEditor() {
           });
           return { ...prev, ...updates, content: newContent, images: newImages };
         });
-        toast.success('Content extracted!');
+        toast.success('Content extracted!', { id: toastId });
       }
     } catch (err) {
-      toast.error('Extraction failed: ' + err.message);
+      toast.error('Extraction failed: ' + err.message, { id: toastId });
     } finally {
       setImporting(false);
       setShowPicker(false);
@@ -235,6 +236,7 @@ export default function ProductEditor() {
     if (!prompt) return;
 
     setGenerating(true);
+    const toastId = toast.loading('Generating content, please wait...');
     try {
       const response = await api.post('/ai/generate-content', { templateId: product.template_id, prompt });
       if (response.success && response.data) {
@@ -247,10 +249,10 @@ export default function ProductEditor() {
         });
         setProduct(p => ({ ...p, content: { ...p.content, ...textContent } }));
         setAiPrompts(prev => ({ ...prev, ...newAiPrompts }));
-        toast.success('Content generated!');
+        toast.success('Content generated!', { id: toastId });
       }
     } catch (err) {
-      toast.error('Generation failed');
+      toast.error('Generation failed', { id: toastId });
     } finally {
       setGenerating(false);
     }
@@ -260,14 +262,15 @@ export default function ProductEditor() {
     const prompt = window.prompt('Describe the image:', aiPrompts[regionName] || `Image for ${product.title}`);
     if (!prompt) return;
     setImageGenerating(regionName);
+    const toastId = toast.loading('Generating image, please wait...');
     try {
       const response = await api.post('/ai/generate-image', { prompt });
       if (response.success && response.path) {
         handleContentChange(regionName, response.path);
-        toast.success('Image generated!');
+        toast.success('Image generated!', { id: toastId });
       }
     } catch (err) {
-      toast.error('Image generation failed');
+      toast.error('Image generation failed', { id: toastId });
     } finally {
       setImageGenerating(null);
     }

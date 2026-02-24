@@ -99,6 +99,7 @@ export default function PageEditor() {
   const handleExtractContent = async () => {
     if (!scrapeUrl || Object.keys(selectorMap).length === 0) return;
     setScraping(true);
+    const toastId = toast.loading('Extracting content from live site...');
     try {
       const field_types = Object.fromEntries(regions.map(r => [r.name, r.type]));
       field_types.title = 'text'; // title is always text
@@ -120,10 +121,10 @@ export default function PageEditor() {
           });
           return { ...prev, ...updates, content: newContent };
         });
-        toast.success('Live content extracted!');
+        toast.success('Live content extracted!', { id: toastId });
       }
     } catch (err) {
-      toast.error('Extraction failed: ' + err.message);
+      toast.error('Extraction failed: ' + err.message, { id: toastId });
     } finally {
       setScraping(false);
       setShowPicker(false);
@@ -133,6 +134,7 @@ export default function PageEditor() {
   const handleScrape = async () => {
     if (!scrapeUrl.trim()) return toast.error('Please enter a URL');
     setScraping(true);
+    const toastId = toast.loading('Scraping URL...');
     try {
       const response = await api.post('/import/url', { url: scrapeUrl });
       if (response.success && response.data) {
@@ -149,11 +151,11 @@ export default function PageEditor() {
             )
           }
         }));
-        toast.success('Content scraped!');
+        toast.success('Content scraped!', { id: toastId });
         setScrapeUrl('');
       }
     } catch (err) {
-      toast.error(err.message || 'Scrape failed');
+      toast.error(err.message || 'Scrape failed', { id: toastId });
     } finally {
       setScraping(false);
     }
@@ -165,6 +167,7 @@ export default function PageEditor() {
     if (!prompt) return;
 
     setGenerating(true);
+    const toastId = toast.loading('Generating content, please wait...');
     try {
       const response = await api.post('/ai/generate-content', { templateId: page.template_id, prompt });
       if (response.success && response.data) {
@@ -177,10 +180,10 @@ export default function PageEditor() {
         });
         setPage(p => ({ ...p, content: { ...p.content, ...textContent } }));
         setAiPrompts(prev => ({ ...prev, ...newAiPrompts }));
-        toast.success('Content generated!');
+        toast.success('Content generated!', { id: toastId });
       }
     } catch (err) {
-      toast.error('Generation failed');
+      toast.error('Generation failed', { id: toastId });
     } finally {
       setGenerating(false);
     }
@@ -190,14 +193,15 @@ export default function PageEditor() {
     const prompt = window.prompt('Describe the image:', aiPrompts[regionName] || `Image for ${page.title}`);
     if (!prompt) return;
     setImageGenerating(regionName);
+    const toastId = toast.loading('Generating image, please wait...');
     try {
       const response = await api.post('/ai/generate-image', { prompt });
       if (response.success && response.path) {
         handleContentChange(regionName, response.path);
-        toast.success('Image generated!');
+        toast.success('Image generated!', { id: toastId });
       }
     } catch (err) {
-      toast.error('Image generation failed');
+      toast.error('Image generation failed', { id: toastId });
     } finally {
       setImageGenerating(null);
     }
