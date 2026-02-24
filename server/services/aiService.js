@@ -517,29 +517,47 @@ export async function suggestSelectors(fields, html, model = null, req = null) {
  */
 export async function structuredScrape(fields, html, model = null, req = null) {
   const config = await getAiSettings();
+  const $ = (await import('cheerio')).load(html);
   
-  const systemPrompt = `You are a web extraction expert. 
-Your goal is to extract content from a provided HTML snippet and structure it into a JSON object matching the requested fields.
+  // 1. SURGICAL CLEANING: Nuke the high-token junk
+  $('head, script, style, noscript, svg, iframe, canvas, link, meta').remove();
+  
+  // 2. SEMANTIC CLEANING: Remove structural noise that isn't "content"
+  $('header, footer, nav, aside, .sidebar, .menu, .nav, .footer, .header, #header, #footer, #nav').remove();
 
-FIELDS TO EXTRACT:
+  // 3. ATTRIBUTE CLEANING: Remove noisy attributes that don't help mapping
+  $('*').each((i, el) => {
+    const attribs = el.attribs || {};
+    for (const key in attribs) {
+      // Keep ID and Class as they often have semantic meaning (e.g. class="product-description")
+      // But strip everything else (data-v-xyz, style, event handlers, etc)
+      if (key !== 'class' && key !== 'id' && key !== 'src' && key !== 'href') {
+        $(el).removeAttr(key);
+      }
+    }
+  });
+
+  // 4. PREFER THE MAIN MEAT: If there's a main or article tag, focus on that
+  const $main = $('main, [role="main"], article, .content, #content').first();
+  const cleanHtml = ($main.length > 0 ? $main.html() : $('body').html())
+    .replace(/\s+/g, ' ') // Collapse whitespace
+    .substring(0, 60000); // Doubled limit of high-quality content
+
+  const systemPrompt = `You are a professional content extraction AI. 
+Your goal is to extract content from HTML and structure it into a JSON object.
+
+TARGET FIELDS:
 ${JSON.stringify(fields)}
 
-RULES:
-- Return ONLY a valid JSON object.
-- Keys must match the 'name' of the fields.
-- For 'richtext' fields, preserve basic semantic HTML (p, strong, ul, li). Remove all classes, IDs, and inline styles.
-- For 'image' fields, extract the primary image URL.
-- For 'text' or 'textarea', strip all HTML tags.
-- If a field is not found in the HTML, return an empty string or null.
-- Be very careful to only include the relevant content, skipping navigation, sidebars, and footers.
-`;
+EXTRACTION RULES:
+- Return ONLY valid JSON.
+- If a field is 'richtext', preserve <h2>, <p>, <ul>, <li>. REMOVE all classes/IDs from these tags.
+- If a field is 'image', find the most relevant primary image URL.
+- If a field is 'text' or 'textarea', return plain text only.
+- DO NOT be lazy. If the content is in the HTML, find it and extract it fully.
+- If you absolutely cannot find a field, return null for that key.`;
 
-  // Strip scripts/styles to save tokens
-  const cleanHtml = html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-                        .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
-                        .substring(0, 30000); 
-
-  const userPrompt = `HTML CONTENT:\n${cleanHtml}`;
+  const userPrompt = `SOURCE HTML:\n${cleanHtml}`;
 
   try {
     return await generateText(systemPrompt, userPrompt, model, req);
