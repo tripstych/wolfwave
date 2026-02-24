@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../lib/api';
-import { Save, AlertCircle, CheckCircle, Send, Settings as SettingsIcon, Search, CreditCard, Mail, ShoppingCart, Cpu } from 'lucide-react';
+import { Save, AlertCircle, CheckCircle, Send, Settings as SettingsIcon, Search, CreditCard, Mail, ShoppingCart, Cpu, HardDrive } from 'lucide-react';
 import { useSettings } from '../context/SettingsContext';
 import { toast } from 'sonner';
 import AmazonDashboard from './AmazonDashboard';
@@ -8,10 +8,26 @@ import AmazonDashboard from './AmazonDashboard';
 const TABS = [
   { id: 'general', label: 'General', icon: SettingsIcon },
   { id: 'seo', label: 'SEO & Analytics', icon: Search },
+  { id: 'storage', label: 'Storage', icon: HardDrive },
   { id: 'payments', label: 'Payments', icon: CreditCard },
   { id: 'email', label: 'Email', icon: Mail },
   { id: 'amazon', label: 'Amazon', icon: ShoppingCart },
   { id: 'ai', label: 'AI Services', icon: Cpu },
+];
+
+const AWS_REGIONS = [
+  { value: 'us-east-1', label: 'US East (N. Virginia)' },
+  { value: 'us-east-2', label: 'US East (Ohio)' },
+  { value: 'us-west-1', label: 'US West (N. California)' },
+  { value: 'us-west-2', label: 'US West (Oregon)' },
+  { value: 'eu-west-1', label: 'EU (Ireland)' },
+  { value: 'eu-west-2', label: 'EU (London)' },
+  { value: 'eu-central-1', label: 'EU (Frankfurt)' },
+  { value: 'ap-southeast-1', label: 'Asia Pacific (Singapore)' },
+  { value: 'ap-southeast-2', label: 'Asia Pacific (Sydney)' },
+  { value: 'ap-northeast-1', label: 'Asia Pacific (Tokyo)' },
+  { value: 'ca-central-1', label: 'Canada (Central)' },
+  { value: 'sa-east-1', label: 'South America (São Paulo)' },
 ];
 
 export default function Settings() {
@@ -51,6 +67,11 @@ export default function Settings() {
     gemini_api_key: '',
     gemini_model: '',
     ai_simulation_mode: 'false',
+    s3_bucket_name: '',
+    s3_region: 'us-east-1',
+    s3_role_arn: '',
+    s3_external_id: '',
+    s3_prefix: '',
   });
   const [pages, setPages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -59,6 +80,7 @@ export default function Settings() {
   const [success, setSuccess] = useState('');
   const [testEmail, setTestEmail] = useState('');
   const [sendingTest, setSendingTest] = useState(false);
+  const [testingS3, setTestingS3] = useState(false);
 
   useEffect(() => {
     loadSettings();
@@ -119,6 +141,24 @@ export default function Settings() {
       toast.error(err.response?.data?.error || err.message || 'Failed to send test email', { id: toastId });
     } finally {
       setSendingTest(false);
+    }
+  };
+
+  const handleTestS3 = async () => {
+    setTestingS3(true);
+    const toastId = toast.loading('Testing S3 connection...');
+    try {
+      const res = await api.post('/settings/test-s3', {
+        s3_bucket_name: settings.s3_bucket_name,
+        s3_region: settings.s3_region,
+        s3_role_arn: settings.s3_role_arn,
+        s3_external_id: settings.s3_external_id,
+      });
+      toast.success(res.message || 'S3 connection successful!', { id: toastId });
+    } catch (err) {
+      toast.error(err.response?.data?.error || err.message || 'S3 connection failed', { id: toastId });
+    } finally {
+      setTestingS3(false);
     }
   };
 
@@ -248,6 +288,52 @@ export default function Settings() {
               <h2 className="font-semibold text-gray-900 pb-2 border-b border-gray-200">Analytics</h2>
               {field('google_analytics_id', 'Google Analytics ID', { placeholder: 'G-XXXXXXXXXX or UA-XXXXXXXX-X', hint: 'Leave empty to disable Google Analytics' })}
               {field('google_maps_api_key', 'Google Maps API Key', { type: 'password', placeholder: 'AIza...', hint: 'Required for the Google Maps block' })}
+            </div>
+          </div>
+        )}
+
+        {/* Storage Tab */}
+        {activeTab === 'storage' && (
+          <div className="space-y-6">
+            <div className="card p-6 space-y-4">
+              <h2 className="font-semibold text-gray-900 pb-2 border-b border-gray-200">Amazon S3 Storage</h2>
+              <p className="text-sm text-gray-600">
+                Configure S3 to store media uploads in the cloud instead of the local filesystem.
+                Uses IAM role assumption with an external ID for secure cross-account access.
+              </p>
+              <p className="text-xs text-gray-500 bg-gray-50 p-3 rounded-lg">
+                If left blank, the default site's S3 configuration will be used.
+                If no S3 is configured anywhere, files are stored locally.
+              </p>
+              {field('s3_bucket_name', 'S3 Bucket Name', { placeholder: 'my-media-bucket' })}
+              <div>
+                <label className="label">AWS Region</label>
+                <select
+                  value={settings.s3_region}
+                  onChange={(e) => setSettings({ ...settings, s3_region: e.target.value })}
+                  className="input"
+                >
+                  {AWS_REGIONS.map(r => (
+                    <option key={r.value} value={r.value}>{r.label} ({r.value})</option>
+                  ))}
+                </select>
+              </div>
+              {field('s3_role_arn', 'IAM Role ARN', { placeholder: 'arn:aws:iam::123456789012:role/MyS3Role', hint: 'The ARN of the IAM role to assume for S3 access' })}
+              {field('s3_external_id', 'External ID', { placeholder: 'unique-external-id', hint: 'A unique identifier shared between you and the role owner to prevent the confused deputy problem' })}
+              {field('s3_prefix', 'Key Prefix', { placeholder: 'my-tenant', hint: 'Optional. Defaults to the tenant subdomain. Files will be stored under this prefix in the bucket.' })}
+            </div>
+
+            <div className="card p-6 space-y-4">
+              <h2 className="font-semibold text-gray-900 pb-2 border-b border-gray-200">Test Connection</h2>
+              <p className="text-sm text-gray-500">Save your settings first, then test the connection to verify everything is configured correctly.</p>
+              <button
+                onClick={handleTestS3}
+                disabled={testingS3 || !settings.s3_bucket_name || !settings.s3_role_arn || !settings.s3_external_id}
+                className="btn btn-secondary"
+              >
+                <HardDrive className="w-4 h-4 mr-2" />
+                {testingS3 ? 'Testing...' : 'Test S3 Connection'}
+              </button>
             </div>
           </div>
         )}

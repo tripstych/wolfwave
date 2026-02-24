@@ -7,6 +7,7 @@ import * as cheerio from 'cheerio';
 import { query } from '../db/connection.js';
 import { getCurrentDbName } from '../lib/tenantContext.js';
 import { info, error as logError } from '../lib/logger.js';
+import { getS3Config, uploadToS3 } from './s3Service.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const UPLOADS_ROOT = path.join(__dirname, '../../uploads');
@@ -34,29 +35,36 @@ export async function downloadMedia(url, altText = '', userId = null, strict = f
     if (url.startsWith('data:')) {
       const match = url.match(/^data:([^;]+);base64,(.+)$/);
       if (!match) throw new Error('Invalid data URI');
-      
+
       const contentType = match[1];
       const base64Data = match[2];
       const buffer = Buffer.from(base64Data, 'base64');
-      
-      const tenantDir = getTenantUploadsDir();
-      const date = new Date();
-      const subdir = `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}`;
-      const fullPath = path.join(tenantDir, subdir);
-      await fs.mkdir(fullPath, { recursive: true });
 
       const ext = '.' + (contentType.split('/')[1] || 'png');
       const filename = `${uuidv4()}${ext}`;
-      const filePath = path.join(fullPath, filename);
-      await fs.writeFile(filePath, buffer);
-
+      const date = new Date();
+      const subdir = `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}`;
       const relativePath = `/${subdir}/${filename}`.replace(/\\/g, '/');
+
+      // Try S3 first, fall back to local
+      const s3Config = await getS3Config();
+      let fileUrl;
+      if (s3Config) {
+        fileUrl = await uploadToS3(s3Config, buffer, `${subdir}/${filename}`, contentType);
+      } else {
+        const tenantDir = getTenantUploadsDir();
+        const fullPath = path.join(tenantDir, subdir);
+        await fs.mkdir(fullPath, { recursive: true });
+        await fs.writeFile(path.join(fullPath, filename), buffer);
+        fileUrl = `/uploads${relativePath}`;
+      }
+
       await query(`
         INSERT INTO media (filename, original_name, mime_type, size, path, alt_text, title, uploaded_by)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `, [filename, 'ai-generated' + ext, contentType, buffer.length, relativePath, altText, 'AI Generated', userId]);
 
-      return `/uploads${relativePath}`;
+      return fileUrl;
     }
 
     // Normalize URL
@@ -90,26 +98,29 @@ export async function downloadMedia(url, altText = '', userId = null, strict = f
       }
     }
 
-    // 3. Prepare storage path
-    const tenantDir = getTenantUploadsDir();
+    // 3. Prepare storage
     const date = new Date();
     const subdir = `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}`;
-    const fullPath = path.join(tenantDir, subdir);
-    await fs.mkdir(fullPath, { recursive: true });
-
-    // 4. Generate filename
     const urlObj = new URL(mediaUrl);
     const originalFilename = path.basename(urlObj.pathname) || 'imported-media';
     const ext = path.extname(originalFilename) || ('.' + (contentType ? contentType.split('/')[1] : 'dat'));
     const filename = `${uuidv4()}${ext}`;
-    const filePath = path.join(fullPath, filename);
-
-    // 5. Write to disk
-    await fs.writeFile(filePath, response.data);
-
-    // 6. Save to database
     const relativePath = `/${subdir}/${filename}`.replace(/\\/g, '/');
-    
+
+    // 4. Upload to S3 or write to local disk
+    const s3Config = await getS3Config();
+    let fileUrl;
+    if (s3Config) {
+      fileUrl = await uploadToS3(s3Config, Buffer.from(response.data), `${subdir}/${filename}`, contentType || (isImage ? 'image/jpeg' : 'video/mp4'));
+    } else {
+      const tenantDir = getTenantUploadsDir();
+      const fullPath = path.join(tenantDir, subdir);
+      await fs.mkdir(fullPath, { recursive: true });
+      await fs.writeFile(path.join(fullPath, filename), response.data);
+      fileUrl = `/uploads${relativePath}`;
+    }
+
+    // 5. Save to database
     try {
       await query(`
         INSERT INTO media (filename, original_name, mime_type, size, path, alt_text, title, uploaded_by)
@@ -129,10 +140,9 @@ export async function downloadMedia(url, altText = '', userId = null, strict = f
       if (strict) throw dbErr;
     }
 
-    const localUrl = `/uploads${relativePath}`;
-    info(dbName, 'MEDIA_DOWNLOADED', `Downloaded ${mediaUrl} to ${localUrl}`);
-    
-    return localUrl;
+    info(dbName, 'MEDIA_DOWNLOADED', `Downloaded ${mediaUrl} to ${fileUrl}`);
+
+    return fileUrl;
   } catch (err) {
     console.error(`[WebWolf:mediaService] Failed to download media ${url}:`, err.message);
     logError(dbName, err, 'MEDIA_DOWNLOAD_FAILED', { url });

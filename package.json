@@ -20,6 +20,8 @@
     "postinstall": "cd admin && npm install"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.996.0",
+    "@aws-sdk/client-sts": "^3.996.0",
     "@prisma/client": "^6.19.2",
     "adm-zip": "^0.5.16",
     "axios": "^1.13.4",

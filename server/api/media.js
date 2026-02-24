@@ -7,6 +7,16 @@ import { v4 as uuidv4 } from 'uuid';
 import { query } from '../db/connection.js';
 import { requireAuth, requireEditor } from '../middleware/auth.js';
 import { getCurrentDbName } from '../lib/tenantContext.js';
+import { getS3Config, uploadToS3, deleteFromS3, buildS3Key } from '../services/s3Service.js';
+
+/**
+ * Build an S3 key from a media record's relative path (e.g. /2026/02/uuid.jpg).
+ */
+function buildS3KeyFromPath(s3Config, mediaPath) {
+  // mediaPath is stored as e.g. /2026/02/uuid.jpg — strip leading slash
+  const cleaned = mediaPath.replace(/^\//, '');
+  return buildS3Key(s3Config, cleaned);
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const UPLOADS_ROOT = path.join(__dirname, '../../uploads');
@@ -24,25 +34,8 @@ function getTenantUploadsDir() {
   return path.join(UPLOADS_ROOT, subdomain);
 }
 
-// Configure multer storage
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    // Organize by tenant/year/month
-    const tenantDir = getTenantUploadsDir();
-    const date = new Date();
-    const subdir = `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}`;
-    const fullPath = path.join(tenantDir, subdir);
-
-    fs.mkdir(fullPath, { recursive: true })
-      .then(() => cb(null, fullPath))
-      .catch(err => cb(err));
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    const name = `${uuidv4()}${ext}`;
-    cb(null, name);
-  }
-});
+// Use memory storage so we can upload to S3 or write to disk
+const storage = multer.memoryStorage();
 
 // File filter
 const fileFilter = (req, file, cb) => {
@@ -172,15 +165,32 @@ router.post('/upload', requireAuth, requireEditor, upload.single('file'), async 
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
     }
-    
+
     const { alt_text, title } = req.body;
-    const relativePath = req.file.path.replace(getTenantUploadsDir(), '').replace(/\\/g, '/');
-    
+    const ext = path.extname(req.file.originalname);
+    const filename = `${uuidv4()}${ext}`;
+    const date = new Date();
+    const subdir = `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}`;
+    const relativePath = `/${subdir}/${filename}`.replace(/\\/g, '/');
+
+    // Upload to S3 or write to local disk
+    const s3Config = await getS3Config();
+    let fileUrl;
+    if (s3Config) {
+      fileUrl = await uploadToS3(s3Config, req.file.buffer, `${subdir}/${filename}`, req.file.mimetype);
+    } else {
+      const tenantDir = getTenantUploadsDir();
+      const fullPath = path.join(tenantDir, subdir);
+      await fs.mkdir(fullPath, { recursive: true });
+      await fs.writeFile(path.join(fullPath, filename), req.file.buffer);
+      fileUrl = `/uploads${relativePath}`;
+    }
+
     const result = await query(`
       INSERT INTO media (filename, original_name, mime_type, size, path, alt_text, title, uploaded_by)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `, [
-      req.file.filename,
+      filename,
       req.file.originalname,
       req.file.mimetype,
       req.file.size,
@@ -189,12 +199,12 @@ router.post('/upload', requireAuth, requireEditor, upload.single('file'), async 
       title || req.file.originalname,
       req.user.id
     ]);
-    
+
     res.status(201).json({
       id: result.insertId,
-      filename: req.file.filename,
-      path: `/uploads${relativePath}`,
-      url: `/uploads${relativePath}`
+      filename,
+      path: fileUrl,
+      url: fileUrl
     });
   } catch (err) {
     console.error('Upload error:', err);
@@ -208,32 +218,48 @@ router.post('/upload/multiple', requireAuth, requireEditor, upload.array('files'
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ error: 'No files uploaded' });
     }
-    
+
+    const s3Config = await getS3Config();
     const results = [];
-    
+
     for (const file of req.files) {
-      const relativePath = file.path.replace(getTenantUploadsDir(), '').replace(/\\/g, '/');
-      
+      const ext = path.extname(file.originalname);
+      const filename = `${uuidv4()}${ext}`;
+      const date = new Date();
+      const subdir = `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}`;
+      const relativePath = `/${subdir}/${filename}`.replace(/\\/g, '/');
+
+      let fileUrl;
+      if (s3Config) {
+        fileUrl = await uploadToS3(s3Config, file.buffer, `${subdir}/${filename}`, file.mimetype);
+      } else {
+        const tenantDir = getTenantUploadsDir();
+        const fullPath = path.join(tenantDir, subdir);
+        await fs.mkdir(fullPath, { recursive: true });
+        await fs.writeFile(path.join(fullPath, filename), file.buffer);
+        fileUrl = `/uploads${relativePath}`;
+      }
+
       const result = await query(`
         INSERT INTO media (filename, original_name, mime_type, size, path, uploaded_by)
         VALUES (?, ?, ?, ?, ?, ?)
       `, [
-        file.filename,
+        filename,
         file.originalname,
         file.mimetype,
         file.size,
         relativePath,
         req.user.id
       ]);
-      
+
       results.push({
         id: result.insertId,
-        filename: file.filename,
-        path: `/uploads${relativePath}`,
-        url: `/uploads${relativePath}`
+        filename,
+        path: fileUrl,
+        url: fileUrl
       });
     }
-    
+
     res.status(201).json(results);
   } catch (err) {
     console.error('Multiple upload error:', err);
@@ -262,22 +288,33 @@ router.put('/:id', requireAuth, requireEditor, async (req, res) => {
 router.delete('/:id', requireAuth, requireEditor, async (req, res) => {
   try {
     const media = await query('SELECT * FROM media WHERE id = ?', [req.params.id]);
-    
+
     if (!media[0]) {
       return res.status(404).json({ error: 'Media not found' });
     }
-    
-    // Delete file from filesystem
-    const filePath = path.join(getTenantUploadsDir(), media[0].path);
-    try {
-      await fs.unlink(filePath);
-    } catch (err) {
-      console.warn('Could not delete file:', err.message);
+
+    // Delete file from S3 or local filesystem
+    const s3Config = await getS3Config();
+    if (s3Config) {
+      // Try to extract S3 key — check if we stored the path as a relative path
+      const s3Key = buildS3KeyFromPath(s3Config, media[0].path);
+      try {
+        await deleteFromS3(s3Config, s3Key);
+      } catch (err) {
+        console.warn('Could not delete from S3:', err.message);
+      }
+    } else {
+      const filePath = path.join(getTenantUploadsDir(), media[0].path);
+      try {
+        await fs.unlink(filePath);
+      } catch (err) {
+        console.warn('Could not delete file:', err.message);
+      }
     }
-    
+
     // Delete from database
     await query('DELETE FROM media WHERE id = ?', [req.params.id]);
-    
+
     res.json({ success: true });
   } catch (err) {
     console.error('Delete media error:', err);

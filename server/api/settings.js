@@ -4,6 +4,7 @@ import { requireAuth, requireAdmin } from '../middleware/auth.js';
 import { logInfo, logError } from '../lib/logger.js';
 import axios from 'axios';
 import { SYSTEM_ROUTES } from '../lib/systemRoutes.js';
+import { testS3Connection } from '../services/s3Service.js';
 
 const router = Router();
 
@@ -221,6 +222,32 @@ router.put('/:key', requireAuth, requireAdmin, async (req, res) => {
   } catch (err) {
     console.error('Update setting error:', err);
     res.status(500).json({ error: 'Failed to update setting' });
+  }
+});
+
+// Test S3 connection
+router.post('/test-s3', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { s3_bucket_name, s3_region, s3_role_arn, s3_external_id } = req.body;
+
+    if (!s3_bucket_name || !s3_role_arn || !s3_external_id) {
+      return res.status(400).json({ error: 'Bucket name, Role ARN, and External ID are required.' });
+    }
+
+    const config = {
+      bucket: s3_bucket_name,
+      region: s3_region || 'us-east-1',
+      roleArn: s3_role_arn,
+      externalId: s3_external_id,
+    };
+
+    await testS3Connection(config);
+    res.json({ success: true, message: 'Successfully connected to S3 bucket.' });
+  } catch (err) {
+    const message = err.name === 'AccessDenied'
+      ? 'Access denied. Check your Role ARN, External ID, and bucket permissions.'
+      : err.message || 'Failed to connect to S3.';
+    res.status(400).json({ success: false, error: message });
   }
 });
 

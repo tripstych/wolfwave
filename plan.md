@@ -1,166 +1,121 @@
-# Plan: WordPress Theme ZIP Converter
+# Plan: S3 Media Storage with IAM Role + External ID (Per-Tenant)
 
-## Goal
-Add a feature that accepts a WordPress theme ZIP file, parses the PHP template files, and converts them into working Nunjucks templates that integrate with the existing WebWolf template system.
+## Overview
 
----
-
-## How It Works (User Flow)
-
-1. Admin goes to **Site Importer** page → new "Import WP Theme" tab/button
-2. Uploads a `.zip` file (a standard WP theme export)
-3. System extracts the ZIP, scans for PHP template files
-4. Displays a preview: detected templates, theme name, screenshot (if present)
-5. User clicks "Convert" → system generates `.njk` files and registers them in DB
-6. Templates appear in the normal template list, ready for use
+Replace local filesystem media storage with S3, using AWS IAM role assumption with external IDs for secure access. Each tenant can configure their own S3 bucket/role, falling back to the default/admin tenant's S3 config if unconfigured.
 
 ---
 
-## Implementation
+## 1. Install AWS SDK
 
-### 1. New Service: `server/services/wpThemeConverter.js`
-
-The core conversion engine. Handles:
-
-**A. ZIP Extraction & Theme Detection**
-- Extract ZIP to a temp directory
-- Find `style.css` to read theme metadata (Theme Name, Author, Version, Description)
-- Identify the template hierarchy: `index.php`, `single.php`, `page.php`, `archive.php`, `header.php`, `footer.php`, `sidebar.php`, `functions.php`, `front-page.php`, `home.php`, `search.php`, `404.php`, `category.php`, `tag.php`
-- Detect child theme (`Template:` header in style.css)
-
-**B. PHP-to-Nunjucks Conversion**
-
-Core tag mapping:
-
-| WordPress PHP | Nunjucks Equivalent |
-|---|---|
-| `<?php get_header(); ?>` | `{% extends "layouts/base.njk" %}` (absorbed into base) |
-| `<?php get_footer(); ?>` | (absorbed into base layout) |
-| `<?php get_sidebar(); ?>` | `{% include "components/sidebar.njk" %}` |
-| `<?php the_title(); ?>` | `{{ page.title }}` |
-| `<?php the_content(); ?>` | `{{ content.main \| safe }}` with `data-cms-region="main"` |
-| `<?php the_excerpt(); ?>` | `{{ content.excerpt }}` |
-| `<?php the_permalink(); ?>` | `{{ page.slug }}` |
-| `<?php the_post_thumbnail(); ?>` | `{{ content.featured_image }}` |
-| `<?php bloginfo('name'); ?>` | `{{ site.site_name }}` |
-| `<?php bloginfo('description'); ?>` | `{{ site.default_meta_description }}` |
-| `<?php the_date(); ?>` / `the_time()` | `{{ page.published_at \| date("F j, Y") }}` |
-| `<?php the_author(); ?>` | `{{ content.author }}` |
-| `<?php the_category(); ?>` | `{{ content.category }}` |
-| `<?php the_tags(); ?>` | `{{ content.tags }}` |
-| `<?php comments_template(); ?>` | (omitted or placeholder comment) |
-| `<?php wp_head(); ?>` | (absorbed into base `<head>`) |
-| `<?php wp_footer(); ?>` | (absorbed into base footer) |
-| `<?php wp_nav_menu(...); ?>` | `{% include "components/nav.njk" %}` (uses existing menu system) |
-| `<?php if (have_posts()) : while (have_posts()) : the_post(); ?>` | `{% for post in posts %}` |
-| `<?php endwhile; endif; ?>` | `{% endfor %}` |
-| `<?php get_template_part('content', get_post_format()); ?>` | `{% include "components/content.njk" %}` |
-| `<?php dynamic_sidebar('sidebar-1'); ?>` | `{{ renderBlock('sidebar') \| safe }}` |
-| `<?php if (is_single()) : ?>` | `{% if page.type == 'post' %}` |
-| `<?php if (is_page()) : ?>` | `{% if page.type == 'page' %}` |
-| `<?php echo esc_html(...); ?>` | `{{ ... }}` (auto-escaped by Nunjucks) |
-| `<?php echo esc_url(...); ?>` | `{{ ... }}` |
-| Generic `<?php echo $var; ?>` | `{{ var }}` |
-| `<?php if (...) : ?>` | `{% if ... %}` |
-| `<?php else : ?>` | `{% else %}` |
-| `<?php endif; ?>` | `{% endif %}` |
-| `<?php foreach ($items as $item) : ?>` | `{% for item in items %}` |
-| `<?php endforeach; ?>` | `{% endfor %}` |
-
-**C. CSS Extraction**
-- Parse `style.css` and any enqueued stylesheets referenced in `functions.php`
-- Extract color values, font families, sizing → map to WebWolf CSS custom properties (`--cms-primary-color`, `--cms-font-body`, etc.)
-- Inline the theme's custom CSS into the `{% block styles %}` section of each template
-- Copy referenced assets (images, fonts) to `/uploads/theme-assets/`
-
-**D. Template File Mapping**
-
-| WP File | Generated WebWolf File | Content Type |
-|---|---|---|
-| `header.php` + `footer.php` | `layouts/wp-{theme-name}.njk` (new base layout) | layout |
-| `page.php` | `pages/wp-{theme-name}-page.njk` | pages |
-| `single.php` | `posts/wp-{theme-name}-post.njk` | posts |
-| `archive.php` / `category.php` | `posts/wp-{theme-name}-archive.njk` | posts |
-| `front-page.php` / `home.php` | `pages/wp-{theme-name}-home.njk` | pages |
-| `search.php` | `pages/wp-{theme-name}-search.njk` | pages |
-| `404.php` | `pages/wp-{theme-name}-404.njk` | pages |
-| `sidebar.php` | `components/wp-{theme-name}-sidebar.njk` | (partial) |
-| Template parts (`template-parts/*.php`) | `components/wp-{theme-name}-{part}.njk` | (partial) |
-
-**E. Region Auto-Detection**
-- When converting `the_content()` → add `data-cms-region="main" data-cms-type="richtext"`
-- When converting `the_title()` → add `data-cms-region="page_title" data-cms-type="text"`
-- When converting `the_excerpt()` → add `data-cms-region="excerpt" data-cms-type="textarea"`
-- When converting `the_post_thumbnail()` → add `data-cms-region="featured_image" data-cms-type="image"`
-- Any custom fields from `get_post_meta()` → add as additional regions
-
-### 2. New API Endpoint: Add to `server/api/import.js`
-
+```bash
+npm install @aws-sdk/client-s3 @aws-sdk/client-sts
 ```
-POST /import/wp-theme
-```
-- Accepts multipart form upload (ZIP file)
-- Extracts, converts, writes `.njk` files to `templates/` directory
-- Registers templates in DB via `prisma.templates.upsert()`
-- Triggers `syncTemplatesToDb()` to register content types
-- Returns list of generated templates
 
-```
-GET /import/wp-theme/preview
-```
-- Accepts ZIP, returns analysis without writing anything (theme name, detected files, preview of conversion)
-
-### 3. Admin UI: Update `admin/src/pages/SiteImporter.jsx`
-
-Add a new section/tab "Import WP Theme":
-- File upload dropzone for `.zip`
-- Preview panel showing:
-  - Theme name, author, version
-  - List of detected PHP templates with → arrow showing target Nunjucks file
-  - Checkbox to select which templates to convert
-  - Theme colors/fonts detected
-- "Convert & Import" button
-- Progress indicator
-- Success view with links to the new templates
-
-### 4. Files to Create
-- `server/services/wpThemeConverter.js` — Core converter logic
-- `server/lib/phpToNunjucks.js` — PHP→Nunjucks transpilation rules (regex-based, not a full PHP parser)
-
-### 5. Files to Modify
-- `server/api/import.js` — Add the two new endpoints
-- `admin/src/pages/SiteImporter.jsx` — Add WP Theme upload UI tab
-- `package.json` — Add `adm-zip` dependency (or use `unzipper`)
+- `@aws-sdk/client-s3` — S3 operations (PutObject, DeleteObject, HeadBucket)
+- `@aws-sdk/client-sts` — AssumeRole with external ID
 
 ---
 
-## Technical Approach for PHP Conversion
+## 2. New Service: `server/services/s3Service.js`
 
-The converter is **regex/pattern-based**, not a full PHP AST parser. WordPress themes follow very predictable patterns. The strategy:
+Responsible for all S3 interactions with IAM role assumption.
 
-1. Read each PHP file as a string
-2. Apply conversion rules in order (most specific first → most generic last)
-3. Handle `get_header()` / `get_footer()` by compositing `header.php` + template + `footer.php` into a base layout
-4. Strip PHP that has no Nunjucks equivalent (plugin hooks like `do_action()`, `wp_enqueue_script()`, etc.)
-5. Preserve all HTML/CSS structure intact — only the PHP interpolation changes
-6. Add `data-cms-region` attributes to converted content areas
+**Key functions:**
 
-This approach handles 80-90% of standard WP themes cleanly. Edge cases (complex PHP logic, plugin shortcodes, custom queries) get converted to comments like `{# WP: unsupported — original: <?php complex_function(); ?> #}` so the user can manually address them.
+- `getS3Config(tenantDbName)` — Reads the tenant's S3 settings from their DB. If not configured, reads from `wolfwave_default` DB instead (the fallback).
+- `getS3Client(config)` — Uses STS `AssumeRole` with the provided role ARN + external ID to get temporary credentials, then returns an S3 client. Caches credentials until near expiry.
+- `uploadToS3(buffer, key, contentType)` — PutObject to the configured bucket.
+- `deleteFromS3(key)` — DeleteObject from S3.
+- `getS3Url(key, config)` — Returns the public URL (`https://{bucket}.s3.{region}.amazonaws.com/{key}`).
+- `testS3Connection(config)` — HeadBucket call to verify access.
+
+**Settings keys (stored in tenant's `settings` table):**
+- `s3_bucket_name` — The S3 bucket name
+- `s3_region` — AWS region (e.g. `us-east-1`)
+- `s3_role_arn` — The IAM role ARN to assume
+- `s3_external_id` — The external ID for role assumption
+- `s3_prefix` — Optional key prefix (defaults to tenant subdomain)
+
+**Fallback logic:**
+```
+1. Read s3_bucket_name from current tenant's settings
+2. If empty → read all s3_* settings from wolfwave_default DB
+3. If still empty → fall back to local filesystem (existing behavior unchanged)
+```
 
 ---
 
-## Conversion Pipeline (Order of Operations)
+## 3. Modify `server/services/mediaService.js`
 
-1. Extract ZIP → temp dir
-2. Read `style.css` → theme metadata
-3. Read `header.php` + `footer.php` → generate base layout
-4. For each content template (`page.php`, `single.php`, etc.):
-   a. Read PHP source
-   b. Remove `get_header()` / `get_footer()` calls
-   c. Apply PHP→Nunjucks conversion rules
-   d. Wrap in `{% extends "layouts/wp-{theme}.njk" %}` + `{% block content %}`
-   e. Auto-detect and add `data-cms-region` attributes
-   f. Write to `templates/{content_type}/wp-{theme}-{name}.njk`
-5. Extract and process CSS → generate template options
-6. Register all templates in DB
-7. Cleanup temp dir
+Update `downloadMedia()`:
+
+- After downloading/receiving the file buffer, check if S3 is configured via `getS3Config()`
+- If S3 configured: upload buffer via `uploadToS3()`, store S3 key in `media.path`, return full S3 URL
+- If not configured: keep existing local filesystem behavior (no breaking change)
+
+---
+
+## 4. Modify `server/api/media.js`
+
+Update upload endpoints:
+
+- Change multer from `diskStorage` to `memoryStorage` (gives us a buffer)
+- After multer processes the file, check if S3 is configured
+- If yes: upload `req.file.buffer` to S3, store S3 key in DB, return S3 URL
+- If no: write to local disk as before (recreate the local write logic)
+- Update delete endpoint: if path looks like an S3 key, call `deleteFromS3()`; otherwise `fs.unlink()` as before
+
+---
+
+## 5. Modify `server/index.js` — Upload Serving
+
+Since S3 media will use full absolute URLs (e.g. `https://bucket.s3.us-east-1.amazonaws.com/...`), the existing `/uploads` static middleware continues working for legacy local files. No changes needed here — new S3 media simply won't hit this route.
+
+---
+
+## 6. Add Storage Tab to Admin UI — `admin/src/settings/Settings.jsx`
+
+Add a new **"Storage"** tab with a cloud/hard-drive icon:
+
+**Fields:**
+- S3 Bucket Name (`s3_bucket_name`) — text
+- AWS Region (`s3_region`) — dropdown with common regions
+- IAM Role ARN (`s3_role_arn`) — text, placeholder: `arn:aws:iam::123456789012:role/...`
+- External ID (`s3_external_id`) — text
+- Key Prefix (`s3_prefix`) — text, optional, hint: "defaults to tenant name"
+- **"Test Connection"** button — calls `POST /api/settings/test-s3`
+
+**Info text:** Explain that if left blank, the default/admin tenant's S3 config is used. If the admin also has no S3 config, files are stored locally.
+
+---
+
+## 7. New API Endpoint: `POST /api/settings/test-s3`
+
+Add to `server/api/settings.js`:
+
+- Accepts S3 settings in request body
+- Attempts `AssumeRole` with the provided ARN + external ID
+- Attempts `HeadBucket` to verify bucket access
+- Returns `{ success: true }` or `{ success: false, error: "..." }`
+- Protected by `requireAuth + requireAdmin`
+
+---
+
+## Files Changed
+
+| File | Change |
+|------|--------|
+| `package.json` | Add `@aws-sdk/client-s3`, `@aws-sdk/client-sts` |
+| `server/services/s3Service.js` | **NEW** — S3 client, role assumption, upload/delete/URL |
+| `server/services/mediaService.js` | Use S3 when configured, local fallback |
+| `server/api/media.js` | memoryStorage, S3 upload/delete with local fallback |
+| `server/api/settings.js` | Add `POST /test-s3` endpoint |
+| `admin/src/settings/Settings.jsx` | Add Storage tab with S3 fields + test button |
+
+## Not in Scope
+
+- No CloudFront/CDN setup (can be layered on later)
+- No migration of existing local files to S3
+- No presigned upload (files still go through our server)
+- No Prisma schema changes (settings table handles key-value pairs already)
