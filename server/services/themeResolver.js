@@ -42,10 +42,15 @@ class DbLoader extends nunjucks.Loader {
       return callback(null, this.tplCache.get(name));
     }
 
-    // Normalized name might have leading slash or be relative to search path
-    // Template parser usually gives relative paths like 'pages/home.liquid'
-    prisma.templates.findUnique({
-      where: { filename: name }
+    // Try exact name, then normalized path
+    const searchNames = [name];
+    if (name.startsWith('/')) searchNames.push(name.substring(1));
+    else searchNames.push('/' + name);
+
+    prisma.templates.findFirst({
+      where: { 
+        filename: { in: searchNames }
+      }
     }).then(template => {
       if (template && template.content) {
         const source = {

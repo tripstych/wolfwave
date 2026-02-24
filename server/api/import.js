@@ -10,7 +10,7 @@ import { migratePage, bulkMigrate, bulkMigrateAll } from '../services/migrationS
 import { migrateProduct, bulkMigrateProducts } from '../services/productMigrationService.js';
 import { previewWpTheme, convertWpTheme } from '../services/wpThemeConverter.js';
 import { importLiveTheme } from '../services/liveThemeService.js';
-import { extractMenusFromHTML } from '../services/aiService.js';
+import { extractMenusFromHTML, analyzeSiteImport, analyzeSiteAssets } from '../services/aiService.js';
 import * as menuService from '../services/menuService.js';
 import prisma from '../lib/prisma.js';
 import { getTask } from '../lib/progressStore.js';
@@ -218,6 +218,51 @@ router.post('/sites/:id/generate-menus', requireAuth, requireEditor, async (req,
     }
 
     res.json({ success: true, menus: results });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// AI: Analyze a structural group's sample page to suggest CSS selectors
+router.post('/sites/:id/analyze-group', requireAuth, requireEditor, async (req, res) => {
+  try {
+    const siteId = parseInt(req.params.id);
+    const { structural_hash } = req.body;
+    if (!structural_hash) return res.status(400).json({ error: 'structural_hash required' });
+
+    const sample = await prisma.staged_items.findFirst({
+      where: { site_id: siteId, structural_hash, status: 'completed' },
+      select: { raw_html: true, url: true }
+    });
+    if (!sample || !sample.raw_html) return res.status(404).json({ error: 'No sample page found for this group' });
+
+    const analysis = await analyzeSiteImport(sample.raw_html, sample.url);
+    res.json({ success: true, analysis });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// AI: Analyze the site's homepage for platform, assets, fonts, colors
+router.post('/sites/:id/analyze-site', requireAuth, requireEditor, async (req, res) => {
+  try {
+    const siteId = parseInt(req.params.id);
+    const site = await prisma.imported_sites.findUnique({ where: { id: siteId } });
+    if (!site) return res.status(404).json({ error: 'Site not found' });
+
+    // Grab homepage (root URL page)
+    const homepage = await prisma.staged_items.findFirst({
+      where: { site_id: siteId, url: { contains: site.root_url.replace(/\/$/, '') } },
+      select: { raw_html: true, url: true }
+    });
+
+    // Fallback to first crawled page if homepage not found
+    const sample = homepage || await prisma.staged_items.findFirst({
+      where: { site_id: siteId, status: 'completed' },
+      orderBy: { created_at: 'asc' },
+      select: { raw_html: true, url: true }
+    });
+
+    if (!sample || !sample.raw_html) return res.status(404).json({ error: 'No crawled pages found' });
+
+    const analysis = await analyzeSiteAssets(sample.raw_html, sample.url);
+    res.json({ success: true, analysis });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

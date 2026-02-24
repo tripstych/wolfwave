@@ -132,16 +132,48 @@ function discoverLinks($, currentUrl, rootDomain, visited, queue, config = {}) {
   });
 }
 
-function calculateStructuralHash(html) {
+/**
+ * Calculate a structural hash of the page's DOM skeleton.
+ * Options (all optional, from config.hashOptions):
+ *   stripTags:       Array of tag names to remove before hashing (default: ['script','style','noscript'])
+ *   ignoreTags:      Array of inline/leaf tags to skip during traversal (default: ['a','span','i','strong','em','b','u','br','svg','path','script','style','noscript'])
+ *   stripAttributes: Array of attributes to remove (default: [] — attributes aren't used in hash, but stripping them cleans the DOM for cleaner cheerio parsing)
+ *   includeHead:     Boolean — include <head> in the hash (default: false, uses <body> only)
+ *   maxDepth:        Number — max DOM depth to traverse (default: 10)
+ *   stripSelectors:  Array of CSS selectors to remove before hashing (e.g. ['header','footer','nav','.sidebar'])
+ */
+function calculateStructuralHash(html, options = {}) {
   try {
     const $ = cheerio.load(html);
-    $('script, style, noscript').remove();
-    const body = $('body')[0];
-    if (!body) return null;
+
+    const stripTags = options.stripTags || ['script', 'style', 'noscript'];
+    const ignoreTags = new Set(options.ignoreTags || ['a', 'span', 'i', 'strong', 'em', 'b', 'u', 'br', 'svg', 'path', 'script', 'style', 'noscript']);
+    const maxDepth = options.maxDepth || 10;
+    const stripSelectors = options.stripSelectors || [];
+
+    // Strip tags
+    $(stripTags.join(', ')).remove();
+
+    // Strip by CSS selector
+    if (stripSelectors.length > 0) {
+      $(stripSelectors.join(', ')).remove();
+    }
+
+    // Strip attributes if requested
+    if (options.stripAttributes && options.stripAttributes.length > 0) {
+      $('*').each((i, el) => {
+        for (const attr of options.stripAttributes) {
+          $(el).removeAttr(attr);
+        }
+      });
+    }
+
+    const root = options.includeHead ? $('html')[0] : $('body')[0];
+    if (!root) return null;
+
     const tags = [];
-    const IGNORED = new Set(['a', 'span', 'i', 'strong', 'em', 'b', 'u', 'br', 'svg', 'path', 'script', 'style', 'noscript']);
     function traverse(node, depth = 0) {
-      if (depth > 10 || node.type !== 'tag' || IGNORED.has(node.name)) return;
+      if (depth > maxDepth || node.type !== 'tag' || ignoreTags.has(node.name)) return;
       tags.push(node.name);
       let last = '';
       $(node).children().each((i, el) => {
@@ -149,7 +181,7 @@ function calculateStructuralHash(html) {
       });
       tags.push(`/${node.name}`);
     }
-    traverse(body);
+    traverse(root);
     return crypto.createHash('sha256').update(tags.join('>')).digest('hex');
   } catch { return null; }
 }
@@ -374,7 +406,7 @@ async function traditionalCrawl(siteId, rootUrl, config, dbName, feedSynced = fa
       const { data: html } = await axios.get(normalizedUrl, { headers: { 'User-Agent': 'WebWolf-Crawler/1.0' }, timeout: 10000, validateStatus: (status) => status < 400 });
 
       const $ = cheerio.load(html);
-      const structuralHash = calculateStructuralHash(html);
+      const structuralHash = calculateStructuralHash(html, config.hashOptions);
       const meta = extractMetadata($, config.rules || [], normalizedUrl);
 
       // REDIRECT TO CANONICAL: If the page has a canonical link, we should use that as the primary URL

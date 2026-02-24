@@ -657,6 +657,147 @@ RULES:
   }
 }
 /**
+ * Analyze a sample page from a structural group and suggest CSS selectors for content extraction.
+ * This is the core AI intelligence for the site importer.
+ */
+export async function analyzeSiteImport(html, url = '', model = null, req = null) {
+  const $ = (await import('cheerio')).load(html);
+
+  // Clean like structuredScrape but keep class/id info (critical for selector suggestions)
+  $('script, style, noscript, svg, iframe, canvas, link[rel="stylesheet"], meta').remove();
+  $('header, footer, nav, aside, .sidebar, .menu, .nav, .footer, .header, #header, #footer, #nav').remove();
+
+  $('*').each((i, el) => {
+    const attribs = el.attribs || {};
+    for (const key in attribs) {
+      if (key !== 'class' && key !== 'id' && key !== 'src' && key !== 'href' && key !== 'alt') {
+        $(el).removeAttr(key);
+      }
+    }
+  });
+
+  const $main = $('main, [role="main"], article, .content, #content').first();
+  const cleanHtml = ($main.length > 0 ? $main.html() : $('body').html())
+    .replace(/\s+/g, ' ')
+    .substring(0, 40000);
+
+  const systemPrompt = `You are a web content analysis expert. You analyze HTML to identify content structure and recommend CSS selectors for automated content extraction.
+
+Given a page's HTML, determine:
+1. What TYPE of page this is
+2. What CSS selectors should be used to extract each content field
+3. How confident you are in your analysis
+
+RESPOND WITH ONLY VALID JSON in this exact format:
+{
+  "page_type": "product|article|blog_post|listing|contact|about|homepage|gallery|other",
+  "selector_map": {
+    "title": "CSS selector for the page/product title (e.g. h1.product-title)",
+    "description": "CSS selector for main description/body content",
+    "price": "CSS selector for price (if product, otherwise omit)",
+    "images": "CSS selector for content images (e.g. .gallery img)",
+    "main": "CSS selector for the main content container"
+  },
+  "confidence": 0.85,
+  "summary": "Brief 1-sentence description of what this page is and its layout structure"
+}
+
+RULES:
+- Use the MOST SPECIFIC selector that reliably targets the content (prefer .class-name over tag alone)
+- For "main", choose the tightest container that wraps all the actual page content
+- Only include "price", "sku", "images" fields if this is clearly a product page
+- For articles/blog posts, include "author", "date", "category" selectors if visible
+- The selectors MUST exist in the provided HTML — do not guess selectors that aren't there
+- Confidence should reflect how clear the page structure is (0.0 to 1.0)
+- If you cannot determine a reliable selector for a field, omit that field entirely`;
+
+  const userPrompt = `URL: ${url}\n\nHTML:\n${cleanHtml}`;
+
+  try {
+    return await generateText(systemPrompt, userPrompt, model, req);
+  } catch (err) {
+    console.error('[AI-Analyze] Site import analysis failed:', err.message);
+    throw err;
+  }
+}
+
+/**
+ * Analyze a site's homepage to identify platform, recommend CSS/JS assets to import,
+ * detect fonts, and extract color palette.
+ */
+export async function analyzeSiteAssets(html, url = '', model = null, req = null) {
+  const $ = (await import('cheerio')).load(html);
+
+  // Extract raw asset references from <head> before cleaning
+  const stylesheets = [];
+  $('link[rel="stylesheet"]').each((i, el) => {
+    const href = $(el).attr('href');
+    if (href) stylesheets.push(href);
+  });
+
+  const scripts = [];
+  $('script[src]').each((i, el) => {
+    const src = $(el).attr('src');
+    if (src) scripts.push(src);
+  });
+
+  // Extract inline style blocks for color analysis
+  const inlineStyles = [];
+  $('style').each((i, el) => {
+    const css = $(el).html();
+    if (css) inlineStyles.push(css.substring(0, 2000));
+  });
+
+  const systemPrompt = `You are a web technology analyst. Analyze a website's assets and technology stack.
+
+Given a list of stylesheets, scripts, and HTML structure, determine:
+1. What platform/CMS powers this site
+2. Which CSS/JS files are worth importing (theme files vs third-party junk)
+3. What fonts and colors the site uses
+
+RESPOND WITH ONLY VALID JSON:
+{
+  "platform": "shopify|wordpress|woocommerce|squarespace|webflow|wix|magento|custom|unknown",
+  "theme_name": "Name of the theme if identifiable, or null",
+  "stylesheets": [
+    { "url": "/path/to/file.css", "purpose": "Main theme styles", "recommend": true },
+    { "url": "/path/to/vendor.css", "purpose": "Third-party library (Bootstrap etc)", "recommend": false }
+  ],
+  "scripts": [
+    { "url": "/path/to/theme.js", "purpose": "Theme interaction/UI", "recommend": true }
+  ],
+  "fonts": ["Font Name 1", "Font Name 2"],
+  "color_palette": ["#hex1", "#hex2", "#hex3"],
+  "summary": "Brief description of the site's tech stack and design approach"
+}
+
+RULES:
+- ONLY recommend CSS/JS that contains actual theme/design code — skip analytics, tracking, CDN libraries (jQuery, etc), chat widgets
+- For Shopify: recommend theme CSS but NOT Shopify platform JS
+- For WordPress: recommend theme CSS but NOT wp-includes or plugin boilerplate
+- Identify Google Fonts, Adobe Fonts, or self-hosted fonts from stylesheet URLs and @font-face rules
+- Extract dominant colors from inline CSS :root variables or common color declarations
+- Be practical: fewer high-quality recommendations > long lists of everything`;
+
+  const userPrompt = `URL: ${url}
+
+STYLESHEETS:\n${stylesheets.map((s, i) => `${i + 1}. ${s}`).join('\n')}
+
+SCRIPTS:\n${scripts.map((s, i) => `${i + 1}. ${s}`).join('\n')}
+
+INLINE CSS (excerpts):\n${inlineStyles.join('\n---\n').substring(0, 5000)}
+
+HTML STRUCTURE (head + body classes):\n${$('head').html()?.substring(0, 3000) || ''}\n<body class="${$('body').attr('class') || ''}">`;
+
+  try {
+    return await generateText(systemPrompt, userPrompt, model, req);
+  } catch (err) {
+    console.error('[AI-Analyze] Site asset analysis failed:', err.message);
+    throw err;
+  }
+}
+
+/**
  * Generate Theme (Existing)
  */
 export async function generateThemeFromIndustry(industry) {

@@ -110,7 +110,7 @@ export default function SiteImporter() {
   // Crawl form state
   const [url, setUrl] = useState('');
   const [showOptions, setShowOptions] = useState(false);
-  const [config, setConfig] = useState({ maxPages: 500, feedUrl: '', priorityPatterns: '/products/', excludePatterns: '/tagged/, /search, sort_by=', rules: [], autoDetect: true });
+  const [config, setConfig] = useState({ maxPages: 500, feedUrl: '', priorityPatterns: '/products/', excludePatterns: '/tagged/, /search, sort_by=', rules: [], autoDetect: true, hashOptions: {} });
 
   // Data
   const [systemRoutes, setSystemRoutes] = useState([]);
@@ -137,6 +137,12 @@ export default function SiteImporter() {
   const [migrating, setMigrating] = useState(false);
   const [generatingTemplate, setGeneratingTemplate] = useState(false);
   const [generatingMenus, setGeneratingMenus] = useState(false);
+
+  // AI Analysis
+  const [analyzingGroup, setAnalyzingGroup] = useState(null); // structural_hash being analyzed
+  const [groupAnalysis, setGroupAnalysis] = useState({}); // { [hash]: analysis }
+  const [analyzingSite, setAnalyzingSite] = useState(false);
+  const [siteAnalysis, setSiteAnalysis] = useState(null);
 
   // Visual Picker
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
@@ -276,7 +282,9 @@ export default function SiteImporter() {
       setLoading(true);
       let finalFeedUrl = config.feedUrl;
       if (finalFeedUrl && finalFeedUrl.startsWith('/')) finalFeedUrl = new URL(finalFeedUrl, targetUrl).toString();
-      await api.post('/import/crawl', { url: targetUrl, config: { maxPages: parseInt(config.maxPages) || 500, feedUrl: finalFeedUrl, priorityPatterns: config.priorityPatterns.split(',').map(p => p.trim()).filter(Boolean), excludePatterns: config.excludePatterns.split(',').map(p => p.trim()).filter(Boolean), rules: config.rules, autoDetect: config.autoDetect } });
+      const hashOpts = config.hashOptions || {};
+      const cleanHashOptions = Object.fromEntries(Object.entries(hashOpts).filter(([, v]) => v !== undefined && v !== false && !(Array.isArray(v) && v.length === 0)));
+      await api.post('/import/crawl', { url: targetUrl, config: { maxPages: parseInt(config.maxPages) || 500, feedUrl: finalFeedUrl, priorityPatterns: config.priorityPatterns.split(',').map(p => p.trim()).filter(Boolean), excludePatterns: config.excludePatterns.split(',').map(p => p.trim()).filter(Boolean), rules: config.rules, autoDetect: config.autoDetect, ...(Object.keys(cleanHashOptions).length > 0 ? { hashOptions: cleanHashOptions } : {}) } });
       loadSites();
     } catch (err) { alert(err.message); }
     finally { setLoading(false); }
@@ -346,6 +354,30 @@ export default function SiteImporter() {
       }
     } catch (err) { alert(err.message); }
     finally { setGeneratingTemplate(false); }
+  };
+
+  // ── AI Analysis ──
+
+  const analyzeGroup = async (hash) => {
+    if (!selectedSite) return;
+    try {
+      setAnalyzingGroup(hash);
+      const res = await api.post(`/import/sites/${selectedSite.id}/analyze-group`, { structural_hash: hash });
+      if (res.success && res.analysis) {
+        setGroupAnalysis(prev => ({ ...prev, [hash]: res.analysis }));
+      }
+    } catch (err) { alert('Analysis failed: ' + err.message); }
+    finally { setAnalyzingGroup(null); }
+  };
+
+  const analyzeSite = async () => {
+    if (!selectedSite) return;
+    try {
+      setAnalyzingSite(true);
+      const res = await api.post(`/import/sites/${selectedSite.id}/analyze-site`);
+      if (res.success && res.analysis) setSiteAnalysis(res.analysis);
+    } catch (err) { alert('Site analysis failed: ' + err.message); }
+    finally { setAnalyzingSite(false); }
   };
 
   // ── Visual Picker ──
@@ -530,6 +562,33 @@ export default function SiteImporter() {
                     <input type="text" value={config.excludePatterns} onChange={e => setConfig({...config, excludePatterns: e.target.value})} className="input py-1 text-sm" placeholder={systemRoutes.length > 0 ? systemRoutes.map(r => r.url).slice(0, 5).join(', ') + '...' : '/tagged/, /search'} />
                   </div>
                   <div className="pt-2 border-t border-gray-200">
+                    <label className="text-[10px] uppercase font-bold text-gray-500 block mb-2">Layout Grouping</label>
+                    <div className="space-y-2 mb-3">
+                      <div>
+                        <label className="text-[9px] uppercase font-bold text-gray-400 block mb-0.5">Strip Tags (comma separated)</label>
+                        <input type="text" value={(config.hashOptions?.stripTags || []).join(', ')} onChange={e => setConfig({...config, hashOptions: { ...config.hashOptions, stripTags: e.target.value.split(',').map(s => s.trim()).filter(Boolean) }})} className="input py-1 text-[10px]" placeholder="script, style, noscript (defaults)" />
+                      </div>
+                      <div>
+                        <label className="text-[9px] uppercase font-bold text-gray-400 block mb-0.5">Ignore Tags — skip during traversal (comma separated)</label>
+                        <input type="text" value={(config.hashOptions?.ignoreTags || []).join(', ')} onChange={e => setConfig({...config, hashOptions: { ...config.hashOptions, ignoreTags: e.target.value.split(',').map(s => s.trim()).filter(Boolean) }})} className="input py-1 text-[10px]" placeholder="a, span, i, strong, em, b, u, br, svg, path (defaults)" />
+                      </div>
+                      <div>
+                        <label className="text-[9px] uppercase font-bold text-gray-400 block mb-0.5">Strip Selectors — remove elements by CSS selector before hashing</label>
+                        <input type="text" value={(config.hashOptions?.stripSelectors || []).join(', ')} onChange={e => setConfig({...config, hashOptions: { ...config.hashOptions, stripSelectors: e.target.value.split(',').map(s => s.trim()).filter(Boolean) }})} className="input py-1 text-[10px]" placeholder="header, footer, nav, .sidebar" />
+                      </div>
+                      <div className="flex gap-4">
+                        <div>
+                          <label className="text-[9px] uppercase font-bold text-gray-400 block mb-0.5">Max Depth</label>
+                          <input type="number" value={config.hashOptions?.maxDepth || ''} onChange={e => setConfig({...config, hashOptions: { ...config.hashOptions, maxDepth: parseInt(e.target.value) || undefined }})} className="input py-1 text-[10px] w-20" placeholder="10" />
+                        </div>
+                        <label className="flex items-center gap-1.5 text-[10px] text-gray-600 cursor-pointer mt-3">
+                          <input type="checkbox" checked={config.hashOptions?.includeHead || false} onChange={e => setConfig({...config, hashOptions: { ...config.hashOptions, includeHead: e.target.checked }})} className="rounded border-gray-300 text-primary-600 focus:ring-primary-600 w-3 h-3" />
+                          Include &lt;head&gt; in hash
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="pt-2 border-t border-gray-200">
                     <label className="text-[10px] uppercase font-bold text-gray-500 block mb-2">Structural Signals</label>
                     <div className="space-y-2">
                       {config.rules.map((rule, idx) => (<SignalRuleItem key={idx} rule={rule} onChange={(r) => updateSignalRule(idx, r)} onRemove={() => removeSignalRule(idx)} />))}
@@ -625,6 +684,74 @@ export default function SiteImporter() {
                     </div>
                   </div>
 
+                  {/* Site Analysis */}
+                  {siteAnalysis ? (
+                    <div className="card overflow-hidden border-indigo-200">
+                      <div className="p-4 bg-indigo-50 border-b border-indigo-100 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Sparkles className="w-4 h-4 text-indigo-600" />
+                          <h3 className="font-bold text-indigo-800 text-sm">Site Intelligence</h3>
+                          {siteAnalysis.platform && <span className="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-bold uppercase">{siteAnalysis.platform}</span>}
+                          {siteAnalysis.theme_name && <span className="text-[10px] text-indigo-500">Theme: {siteAnalysis.theme_name}</span>}
+                        </div>
+                        <button onClick={() => setSiteAnalysis(null)} className="text-indigo-300 hover:text-indigo-600"><X className="w-4 h-4" /></button>
+                      </div>
+                      <div className="p-4 space-y-3">
+                        {siteAnalysis.summary && <p className="text-xs text-gray-600">{siteAnalysis.summary}</p>}
+
+                        {siteAnalysis.stylesheets?.filter(s => s.recommend).length > 0 && (
+                          <div>
+                            <h4 className="text-[10px] font-bold uppercase text-gray-400 mb-1">Recommended CSS</h4>
+                            <div className="space-y-1">
+                              {siteAnalysis.stylesheets.filter(s => s.recommend).map((s, i) => (
+                                <div key={i} className="flex items-center gap-2 text-xs bg-green-50 border border-green-100 rounded px-2 py-1">
+                                  <CheckCircle2 className="w-3 h-3 text-green-500 shrink-0" />
+                                  <span className="font-mono text-green-800 truncate flex-1">{s.url}</span>
+                                  <span className="text-green-600 text-[10px] shrink-0">{s.purpose}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {siteAnalysis.scripts?.filter(s => s.recommend).length > 0 && (
+                          <div>
+                            <h4 className="text-[10px] font-bold uppercase text-gray-400 mb-1">Recommended JS</h4>
+                            <div className="space-y-1">
+                              {siteAnalysis.scripts.filter(s => s.recommend).map((s, i) => (
+                                <div key={i} className="flex items-center gap-2 text-xs bg-blue-50 border border-blue-100 rounded px-2 py-1">
+                                  <FileCode className="w-3 h-3 text-blue-500 shrink-0" />
+                                  <span className="font-mono text-blue-800 truncate flex-1">{s.url}</span>
+                                  <span className="text-blue-600 text-[10px] shrink-0">{s.purpose}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="flex gap-4">
+                          {siteAnalysis.fonts?.length > 0 && (
+                            <div>
+                              <h4 className="text-[10px] font-bold uppercase text-gray-400 mb-1">Fonts</h4>
+                              <div className="flex gap-1 flex-wrap">{siteAnalysis.fonts.map((f, i) => <span key={i} className="text-[10px] bg-gray-100 px-1.5 py-0.5 rounded">{f}</span>)}</div>
+                            </div>
+                          )}
+                          {siteAnalysis.color_palette?.length > 0 && (
+                            <div>
+                              <h4 className="text-[10px] font-bold uppercase text-gray-400 mb-1">Colors</h4>
+                              <div className="flex gap-1">{siteAnalysis.color_palette.map((c, i) => <div key={i} className="w-6 h-6 rounded border shadow-sm" style={{backgroundColor: c}} title={c} />)}</div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <button onClick={analyzeSite} disabled={analyzingSite} className="card p-4 w-full flex items-center justify-center gap-2 text-sm text-indigo-600 hover:bg-indigo-50 border-dashed border-2 border-indigo-200 transition-colors">
+                      {analyzingSite ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                      {analyzingSite ? 'Analyzing site...' : 'AI Site Analysis — Detect platform, CSS/JS assets, fonts & colors'}
+                    </button>
+                  )}
+
                   {/* Layout Groups */}
                   <div className="space-y-3">
                     <h3 className="text-xs font-bold uppercase text-gray-400 px-1">Layout Groups</h3>
@@ -677,6 +804,15 @@ export default function SiteImporter() {
                               ) : (
                                 <div className="flex gap-1.5">
                                   <button
+                                    onClick={() => analyzeGroup(g.structural_hash)}
+                                    disabled={analyzingGroup === g.structural_hash}
+                                    className="btn btn-secondary btn-sm border-indigo-200 text-indigo-700 bg-indigo-50"
+                                    title="AI will analyze this group and suggest CSS selectors"
+                                  >
+                                    {analyzingGroup === g.structural_hash ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <Sparkles className="w-3.5 h-3.5 mr-1" />}
+                                    AI Analyze
+                                  </button>
+                                  <button
                                     onClick={() => openVisualPicker(g.sample_url, { hash: g.structural_hash, name: `${g.sample_title?.substring(0,30) || g.structural_hash.substring(0,8)} mapping` })}
                                     className="btn btn-secondary btn-sm"
                                     title="Open visual picker to create a mapping"
@@ -684,7 +820,7 @@ export default function SiteImporter() {
                                     <Maximize2 className="w-3.5 h-3.5 mr-1" /> Map Fields
                                   </button>
                                   <button
-                                    onClick={() => handleGenerateTemplate(g.structural_hash, g.type)}
+                                    onClick={() => handleGenerateTemplate(g.structural_hash)}
                                     disabled={generatingTemplate}
                                     className="btn btn-primary btn-sm"
                                     title="Auto-generate a template and mapping"
@@ -737,6 +873,49 @@ export default function SiteImporter() {
                                 <button onClick={() => openVisualPicker(g.sample_url, { mapping, hash: g.structural_hash, name: mapping.name, templateId: mapping.template_id })} className="text-[10px] text-primary-600 hover:underline">Edit</button>
                                 <button onClick={() => deleteMapping(mapping.id)} className="text-[10px] text-red-400 hover:underline">Delete</button>
                               </div>
+                            </div>
+                          )}
+
+                          {/* AI Analysis Results */}
+                          {groupAnalysis[g.structural_hash] && (
+                            <div className="px-4 py-3 bg-indigo-50 border-t border-indigo-100">
+                              <div className="flex items-start justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                  <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                                  <span className="text-xs font-bold text-indigo-700">AI Analysis</span>
+                                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${groupAnalysis[g.structural_hash].page_type === 'product' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
+                                    {groupAnalysis[g.structural_hash].page_type}
+                                  </span>
+                                  {groupAnalysis[g.structural_hash].confidence && (
+                                    <span className="text-[10px] text-indigo-400">{Math.round(groupAnalysis[g.structural_hash].confidence * 100)}% confidence</span>
+                                  )}
+                                </div>
+                                <button onClick={() => setGroupAnalysis(prev => { const n = {...prev}; delete n[g.structural_hash]; return n; })} className="text-indigo-300 hover:text-indigo-600"><X className="w-3.5 h-3.5" /></button>
+                              </div>
+                              {groupAnalysis[g.structural_hash].summary && (
+                                <p className="text-[11px] text-indigo-600 mb-2">{groupAnalysis[g.structural_hash].summary}</p>
+                              )}
+                              <div className="flex gap-1.5 flex-wrap mb-2">
+                                {Object.entries(groupAnalysis[g.structural_hash].selector_map || {}).map(([field, selector]) => (
+                                  <span key={field} className="text-[10px] bg-white border border-indigo-200 px-1.5 py-0.5 rounded text-indigo-700 font-mono">
+                                    <span className="font-bold">{field}</span>: {selector}
+                                  </span>
+                                ))}
+                              </div>
+                              <button
+                                onClick={() => {
+                                  const analysis = groupAnalysis[g.structural_hash];
+                                  openVisualPicker(g.sample_url, {
+                                    hash: g.structural_hash,
+                                    name: `${g.sample_title?.substring(0,30) || g.structural_hash.substring(0,8)} mapping`
+                                  });
+                                  // Pre-populate the selector map with AI suggestions
+                                  setSelectorMap(analysis.selector_map || {});
+                                }}
+                                className="btn btn-sm bg-indigo-600 text-white hover:bg-indigo-700"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Use These Selectors
+                              </button>
                             </div>
                           )}
                         </div>

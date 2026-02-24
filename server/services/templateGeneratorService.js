@@ -23,18 +23,18 @@ export async function generateTemplateFromGroup(siteId, structuralHash, template
     body.append('{% endblock %}');
     templateHtml = firstDOM.html();
 
-    const filename = `imported-${siteId}-${structuralHash.substring(0, 8)}.njk`;
+    const filename = `pages/imported-${siteId}-${structuralHash.substring(0, 8)}.njk`;
     const template = await prisma.templates.create({
       data: {
         name: templateName || `Imported ${structuralHash.substring(0, 8)}`,
         filename: filename,
         content_type: 'pages',
-        regions: JSON.stringify(['main']),
+        regions: JSON.stringify([{ name: 'main', type: 'richtext', label: 'Main Content' }]),
         blueprint: JSON.stringify({ main: { type: 'richtext', label: 'Main Content' } })
       }
     });
 
-    const templatePath = path.join(process.cwd(), 'templates', 'pages', filename);
+    const templatePath = path.join(process.cwd(), 'templates', filename);
     await fs.writeFile(templatePath, templateHtml);
     return template;
   } catch (err) {
