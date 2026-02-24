@@ -72,8 +72,8 @@ export class ImporterServiceV2 {
         await ImporterServiceV2.updateStatus(siteId, 'crawling', 'Starting site crawl...');
 
         // Phase 2: Crawl
-        const site = await prisma.imported_sites.findUnique({ where: { id: siteId } });
-        const config = site.config || {};
+        const refreshedSite = await prisma.imported_sites.findUnique({ where: { id: siteId } });
+        const config = refreshedSite.config || {};
         const crawler = new CrawlEngine(siteId, rootUrl, dbName, config);
         await crawler.run();
 
