@@ -387,7 +387,7 @@ export default function SiteImporterV2() {
                     <div className="p-4">
                       {selectedSite.llm_ruleset ? (
                         <div className="space-y-4">
-                          <div id="structural_groups" className="text-xs text-gray-600 leading-relaxed bg-amber-50 p-3 rounded border border-amber-100 italic">
+                          <div id="admin-site-importer-v2-structural-groups" className="text-xs text-gray-600 leading-relaxed bg-amber-50 p-3 rounded border border-amber-100 italic">
                             "{selectedSite.llm_ruleset.discovery_info}"
                           </div>
                           <div className="space-y-2">
@@ -456,7 +456,7 @@ export default function SiteImporterV2() {
                     </div>
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400" />
-                      <input type="text" placeholder="Search items..." className="input py-1 pl-8 text-xs w-48" />
+                      <input type="text" placeholder="Search items..." id="admin-site-importer-v2-search-input" className="input py-1 pl-8 text-xs w-48" />
                     </div>
                   </div>
                   <div className="overflow-x-auto">
