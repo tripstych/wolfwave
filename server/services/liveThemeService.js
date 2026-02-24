@@ -65,8 +65,7 @@ export async function importLiveTheme(url, options = {}) {
     const inlineStyles = $('style');
     let mergedInlineCss = '';
     inlineStyles.each((i, el) => {
-      mergedInlineCss += $(el).html() + '
-';
+      mergedInlineCss += $(el).html() + '\n';
       $(el).remove();
     });
     if (mergedInlineCss) {
@@ -128,9 +127,7 @@ RULES:
 - Return ONLY the Nunjucks code. No markdown fences.`;
 
     const layoutNjk = await generateRawText(layoutPrompt, layoutInputHtml);
-    await fs.writeFile(path.join(themePath, 'layouts/main.njk'), layoutNjk.replace(/^```[a-z]*
-/i, '').replace(/
-```$/i, ''));
+    await fs.writeFile(path.join(themePath, 'layouts/main.njk'), layoutNjk.replace(/^```[a-z]*\n/i, '').replace(/\n```$/i, ''));
 
     // 8. LLM: Generate Homepage Template
     const templatePrompt = `Generate a homepage template (pages/home.njk) based on this HTML.
@@ -139,9 +136,7 @@ Identify logical sections and use 'data-cms-region' attributes for editable area
 Return ONLY Nunjucks code. No markdown fences.`;
 
     const homeNjk = await generateRawText(templatePrompt, layoutInputHtml);
-    await fs.writeFile(path.join(themePath, 'pages/home.njk'), homeNjk.replace(/^```[a-z]*
-/i, '').replace(/
-```$/i, ''));
+    await fs.writeFile(path.join(themePath, 'pages/home.njk'), homeNjk.replace(/^```[a-z]*\n/i, '').replace(/\n```$/i, ''));
 
     // 9. Create theme.json
     const themeJson = {
