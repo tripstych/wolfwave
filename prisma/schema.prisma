@@ -42,7 +42,6 @@ model blocks {
   created_at                     DateTime  @default(now()) @db.Timestamp(0)
   updated_at                     DateTime  @default(now()) @db.Timestamp(0)
   templates                      templates @relation(fields: [template_id], references: [id], onUpdate: Restrict, map: "blocks_ibfk_1")
-  content                        content?  @relation(fields: [content_id], references: [id], onUpdate: Restrict, map: "blocks_ibfk_2")
   users_blocks_created_byTousers users?    @relation("blocks_created_byTousers", fields: [created_by], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "blocks_ibfk_3")
   users_blocks_updated_byTousers users?    @relation("blocks_updated_byTousers", fields: [updated_by], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "blocks_ibfk_4")
 
@@ -63,10 +62,7 @@ model content {
   updated_at     DateTime         @default(now()) @db.Timestamp(0)
   title          String?          @db.VarChar(255)
   slug           String?          @unique(map: "slug") @db.VarChar(255)
-  blocks         blocks[]
   content_groups content_groups[]
-  pages          pages[]
-  products       products[]
   history        content_history[]
 
   @@index([module], map: "idx_type")
@@ -345,7 +341,6 @@ model pages {
   updated_at                    DateTime      @default(now()) @db.Timestamp(0)
   menu_items                    menu_items[]
   templates                     templates     @relation(fields: [template_id], references: [id], onUpdate: Restrict, map: "pages_ibfk_1")
-  content                       content?      @relation(fields: [content_id], references: [id], onUpdate: Restrict, map: "pages_ibfk_2")
   users_pages_created_byTousers users?        @relation("pages_created_byTousers", fields: [created_by], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "pages_ibfk_3")
   users_pages_updated_byTousers users?        @relation("pages_updated_byTousers", fields: [updated_by], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "pages_ibfk_4")
 
@@ -423,7 +418,6 @@ model products {
   product_variants     product_variants[]
   product_images       product_images[]
   digital_downloads    digital_downloads[]
-  content              content?              @relation(fields: [content_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "products_ibfk_2")
 
   @@index([content_id], map: "content_id")
   @@index([sku], map: "idx_sku")

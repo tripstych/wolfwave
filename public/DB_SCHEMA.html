@@ -638,6 +638,25 @@ erDiagram
         maxTextSize: 900000,
         securityLevel: 'loose'
       });
+
+      // Add mouse wheel zoom after Mermaid renders
+      document.addEventListener('DOMContentLoaded', () => {
+        const svg = document.querySelector('svg');
+        if (svg) {
+          let scale = 1;
+          const minScale = 0.1;
+          const maxScale = 5;
+          const scaleFactor = 1.1;
+
+          svg.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const delta = e.deltaY > 0 ? 1 / scaleFactor : scaleFactor;
+            scale = Math.min(Math.max(scale * delta, minScale), maxScale);
+            svg.style.transform = 'scale(' + scale + ')';
+            svg.style.transformOrigin = 'center center';
+          });
+        }
+      });
     </script>
 </body>
 </html>

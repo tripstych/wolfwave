@@ -97,8 +97,7 @@ export class TransformationEngine {
             slug: slug,
             data: extractedContent,
             source_url: item.url
-          },
-          include: { pages: true }
+          }
         });
 
         // --- Create/Update Module Specific Record ---
@@ -111,8 +110,13 @@ export class TransformationEngine {
         }
         
         if (moduleName === 'pages') {
+          // Find existing page manually since relation is removed
+          const existingPage = await prisma.pages.findFirst({
+            where: { content_id: content.id }
+          });
+
           await prisma.pages.upsert({
-            where: { id: content.pages?.[0]?.id || -1 },
+            where: { id: existingPage?.id || -1 },
             update: { title: content.title, template_id: templateId, status: 'published' },
             create: { content_id: content.id, title: content.title, template_id: templateId, status: 'published' }
           });
