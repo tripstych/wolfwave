@@ -185,7 +185,7 @@ router.get('/active', requireAuth, async (req, res) => {
 // Set active theme
 router.put('/active', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const { theme } = req.body;
+    const { theme, flushContent } = req.body;
 
     if (!theme) {
       return res.status(400).json({ error: 'Theme slug is required' });
@@ -196,6 +196,26 @@ router.put('/active', requireAuth, requireAdmin, async (req, res) => {
     const exists = available.find(t => t.slug === theme);
     if (!exists) {
       return res.status(404).json({ error: `Theme "${theme}" not found` });
+    }
+
+    // ── OPTIONAL CONTENT FLUSH ──
+    if (flushContent === true) {
+      log('INFO', req, 'THEME_FLUSH', `Flushing all content for new theme: ${theme}`);
+      
+      // 1. Delete specialized content records
+      await prisma.pages.deleteMany({});
+      await prisma.blocks.deleteMany({});
+      await prisma.products.deleteMany({});
+      
+      // 2. Clear history and the main content table
+      await prisma.content_history.deleteMany({});
+      await prisma.content.deleteMany({});
+      
+      // 3. Reset related settings
+      await query(
+        'UPDATE settings SET setting_value = "" WHERE setting_key = ?',
+        ['home_page_id']
+      );
     }
 
     // Upsert the setting
@@ -211,10 +231,10 @@ router.put('/active', requireAuth, requireAdmin, async (req, res) => {
     // Sync templates for the new theme
     await syncTemplatesToDb(prisma, theme);
 
-    res.json({ success: true, active: theme });
+    res.json({ success: true, active: theme, contentFlushed: !!flushContent });
   } catch (err) {
-    console.error('Failed to set active theme:', err);
-    res.status(500).json({ error: 'Failed to set active theme' });
+    logError(req, err, 'THEME_ACTIVATE');
+    res.status(500).json({ error: 'Failed to set active theme', message: err.message });
   }
 });
 

@@ -192,20 +192,21 @@ async function syncFromFeed(siteId, feedUrl, dbName) {
           })) || []
         };
 
-        const existing = await prisma.imported_pages.findFirst({
+        const existing = await prisma.staged_items.findFirst({
           where: { site_id: siteId, url: productUrl }
         });
         if (existing) {
-          await prisma.imported_pages.update({
+          await prisma.staged_items.update({
             where: { id: existing.id },
-            data: { title: p.title.substring(0, 255), raw_html: p.body_html, metadata: meta, status: 'completed' }
+            data: { title: p.title.substring(0, 255), item_type: 'product', raw_html: p.body_html, metadata: meta, status: 'completed' }
           });
         } else {
-          await prisma.imported_pages.create({
+          await prisma.staged_items.create({
             data: {
               site_id: siteId,
               url: productUrl,
               title: p.title.substring(0, 255),
+              item_type: 'product',
               raw_html: p.body_html,
               structural_hash: 'feed-item',
               metadata: meta,
@@ -337,7 +338,7 @@ async function traditionalCrawl(siteId, rootUrl, config, dbName, feedSynced = fa
   });
 
   // Pre-populate visited set with URLs already imported (e.g. from feed sync)
-  const existingPages = await prisma.imported_pages.findMany({
+  const existingPages = await prisma.staged_items.findMany({
     where: { site_id: siteId },
     select: { url: true }
   });
@@ -389,10 +390,11 @@ async function traditionalCrawl(siteId, rootUrl, config, dbName, feedSynced = fa
         } catch {}
       }
 
-      await prisma.imported_pages.upsert({
+      await prisma.staged_items.upsert({
         where: { unique_site_url: { site_id: siteId, url: targetUrl } },
         update: {
           title: (meta.title || 'Untitled').substring(0, 255),
+          item_type: meta.type || 'page',
           raw_html: html,
           structural_hash: structuralHash,
           metadata: meta,
@@ -402,6 +404,7 @@ async function traditionalCrawl(siteId, rootUrl, config, dbName, feedSynced = fa
           site_id: siteId,
           url: targetUrl,
           title: (meta.title || 'Untitled').substring(0, 255),
+          item_type: meta.type || 'page',
           raw_html: html,
           structural_hash: structuralHash,
           metadata: meta,

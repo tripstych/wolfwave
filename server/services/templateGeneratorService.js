@@ -8,7 +8,7 @@ import { info, error as logError } from '../lib/logger.js';
 export async function generateTemplateFromGroup(siteId, structuralHash, templateName) {
   const dbName = getCurrentDbName();
   try {
-    const pages = await prisma.imported_pages.findMany({
+    const pages = await prisma.staged_items.findMany({
       where: { site_id: siteId, structural_hash: structuralHash, status: 'completed' },
       take: 1
     });
@@ -46,7 +46,7 @@ export async function generateTemplateFromGroup(siteId, structuralHash, template
 export async function analyzeSiteGroups(siteId) {
   const dbName = getCurrentDbName();
   
-  const groups = await prisma.imported_pages.groupBy({
+  const groups = await prisma.staged_items.groupBy({
     by: ['structural_hash'],
     where: { site_id: siteId, status: 'completed' },
     _count: { id: true }
@@ -54,7 +54,7 @@ export async function analyzeSiteGroups(siteId) {
 
   return Promise.all(groups.map(async (group) => {
     // 1. Get all pages in this group to determine the dominant type
-    const pages = await prisma.imported_pages.findMany({
+    const pages = await prisma.staged_items.findMany({
       where: { site_id: siteId, structural_hash: group.structural_hash, status: 'completed' },
       select: { url: true, title: true, metadata: true }
     });

@@ -12,6 +12,7 @@ export default function Themes() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activating, setActivating] = useState(null);
+  const [flushContent, setFlushContent] = useState(false);
 
   // WP Theme Import state
   const [wpFile, setWpFile] = useState(null);
@@ -207,13 +208,14 @@ export default function Themes() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
-        body: JSON.stringify({ theme: slug })
+        body: JSON.stringify({ theme: slug, flushContent })
       });
       if (!response.ok) {
         const data = await response.json();
         throw new Error(data.error || _('themes.error.activate_failed', 'Failed to activate theme'));
       }
       setActiveTheme(slug);
+      setFlushContent(false); // Reset after use
     } catch (err) {
       setError(err.message);
     } finally {
@@ -225,6 +227,18 @@ export default function Themes() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-gray-900">{_('themes.title', 'Themes')}</h1>
+        <label className="flex items-center gap-2 cursor-pointer bg-white px-4 py-2 rounded-lg border border-gray-200 shadow-sm hover:border-red-300 transition-colors group">
+          <input 
+            type="checkbox" 
+            className="rounded border-gray-300 text-red-600 focus:ring-red-600"
+            checked={flushContent}
+            onChange={(e) => setFlushContent(e.target.checked)}
+          />
+          <div className="flex flex-col">
+            <span className="text-sm font-bold text-gray-700 group-hover:text-red-700">{_('themes.flush_content', 'Flush Content on Activation')}</span>
+            <span className="text-[10px] text-gray-400 leading-none">{_('themes.flush_content_hint', 'Wipes all pages, products, blocks and history')}</span>
+          </div>
+        </label>
       </div>
 
       <AiThemeGenerator onThemeGenerated={() => fetchThemes()} />

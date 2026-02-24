@@ -9,10 +9,10 @@ import { processHtmlImages } from './mediaService.js';
 import { updateContent } from './contentService.js';
 import { structuredScrape } from './aiService.js';
 
-export async function migratePage(importedPageId, templateId, selectorMap = { 'main': 'body' }, useAI = false) {
+export async function migratePage(importedPageId, templateId, selectorMap = { 'main': 'body' }, useAI = false, ruleId = null) {
   const dbName = getCurrentDbName();
   try {
-    const importedPage = await prisma.imported_pages.findUnique({ where: { id: importedPageId } });
+    const importedPage = await prisma.staged_items.findUnique({ where: { id: importedPageId } });
     if (!importedPage || !importedPage.raw_html) throw new Error('Invalid page');
 
     let extractedData = {};
@@ -92,8 +92,12 @@ export async function migratePage(importedPageId, templateId, selectorMap = { 'm
         info(dbName, 'PAGE_MERGE_SKIP', `Preserved existing page "${title}" (existing content was better)`);
       }
       
+      // Update metadata with rule ID if provided
+      const currentMeta = typeof importedPage.metadata === 'string' ? JSON.parse(importedPage.metadata) : (importedPage.metadata || {});
+      if (ruleId) currentMeta.migration_rule_id = ruleId;
+
       // Mark as migrated regardless so it stops showing up in the importer
-      await prisma.imported_pages.update({ where: { id: importedPageId }, data: { status: 'migrated' } });
+      await prisma.staged_items.update({ where: { id: importedPageId }, data: { status: 'migrated', metadata: currentMeta } });
       
       return await prisma.pages.findFirst({ where: { content_id: existingContent.id } });
     }
@@ -115,7 +119,11 @@ export async function migratePage(importedPageId, templateId, selectorMap = { 'm
       data: { template_id: templateId, content_id: content.id, title: title, status: 'draft' }
     });
 
-    await prisma.imported_pages.update({ where: { id: importedPageId }, data: { status: 'migrated' } });
+    // Update metadata with rule ID if provided
+    const currentMeta = typeof importedPage.metadata === 'string' ? JSON.parse(importedPage.metadata) : (importedPage.metadata || {});
+    if (ruleId) currentMeta.migration_rule_id = ruleId;
+
+    await prisma.staged_items.update({ where: { id: importedPageId }, data: { status: 'migrated', metadata: currentMeta } });
     return page;
   } catch (err) {
     logError(dbName, err, 'PAGE_MIGRATION_FAILED');
@@ -123,14 +131,14 @@ export async function migratePage(importedPageId, templateId, selectorMap = { 'm
   }
 }
 
-export async function bulkMigrate(siteId, structuralHash, templateId, selectorMap, useAI = false) {
-  const pages = await prisma.imported_pages.findMany({
+export async function bulkMigrate(siteId, structuralHash, templateId, selectorMap, useAI = false, ruleId = null) {
+  const pages = await prisma.staged_items.findMany({
     where: { site_id: siteId, structural_hash: structuralHash, status: 'completed' }
   });
   const results = [];
   for (const page of pages) {
     try {
-      const migrated = await migratePage(page.id, templateId, selectorMap, useAI);
+      const migrated = await migratePage(page.id, templateId, selectorMap, useAI, ruleId);
       results.push({ id: page.id, success: true, pageId: migrated.id });
     } catch (err) {
       results.push({ id: page.id, success: false, error: err.message });
@@ -139,7 +147,7 @@ export async function bulkMigrate(siteId, structuralHash, templateId, selectorMa
   return results;
 }
 
-export async function bulkMigrateAll(siteId, templateId, selectorMap, pageIds = null, useAI = false) {
+export async function bulkMigrateAll(siteId, templateId, selectorMap, pageIds = null, useAI = false, ruleId = null) {
   const whereClause = { site_id: siteId };
   if (pageIds && Array.isArray(pageIds)) {
     // Ensure all IDs are integers for Prisma
@@ -149,13 +157,13 @@ export async function bulkMigrateAll(siteId, templateId, selectorMap, pageIds = 
     whereClause.status = 'completed';
   }
 
-  const pages = await prisma.imported_pages.findMany({
+  const pages = await prisma.staged_items.findMany({
     where: whereClause
   });
   const results = [];
   for (const page of pages) {
     try {
-      const migrated = await migratePage(page.id, templateId, selectorMap, useAI);
+      const migrated = await migratePage(page.id, templateId, selectorMap, useAI, ruleId);
       results.push({ id: page.id, success: true, pageId: migrated.id });
     } catch (err) {
       results.push({ id: page.id, success: false, error: err.message });

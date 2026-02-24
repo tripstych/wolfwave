@@ -157,7 +157,7 @@ router.get('/sites/:id', requireAuth, async (req, res) => {
   try {
     const site = await prisma.imported_sites.findUnique({
       where: { id: parseInt(req.params.id) },
-      include: { imported_pages: { select: { id: true, url: true, title: true, structural_hash: true, metadata: true, status: true, created_at: true }, orderBy: { url: 'asc' } } }
+      include: { staged_items: { select: { id: true, url: true, title: true, item_type: true, structural_hash: true, metadata: true, status: true, created_at: true }, orderBy: { url: 'asc' } } }
     });
     if (!site) return res.status(404).json({ error: 'Not found' });
     res.json(site);
@@ -181,11 +181,11 @@ router.post('/sites/:id/generate-menus', requireAuth, requireEditor, async (req,
     const siteId = parseInt(req.params.id);
     const site = await prisma.imported_sites.findUnique({
       where: { id: siteId },
-      include: { imported_pages: { where: { url: { contains: '/' } }, take: 1 } }
+      include: { staged_items: { where: { url: { contains: '/' } }, take: 1 } }
     });
 
     if (!site) return res.status(404).json({ error: 'Site not found' });
-    const homepage = site.imported_pages[0];
+    const homepage = site.staged_items[0];
     if (!homepage || !homepage.raw_html) return res.status(400).json({ error: 'Homepage HTML not found' });
 
     const aiData = await extractMenusFromHTML(homepage.raw_html);
@@ -238,7 +238,7 @@ router.post('/sites/:id/restart', requireAuth, requireEditor, async (req, res) =
     if (!site) return res.status(404).json({ error: 'Not found' });
 
     // Clear old pages
-    await prisma.imported_pages.deleteMany({ where: { site_id: siteId } });
+    await prisma.staged_items.deleteMany({ where: { site_id: siteId } });
     
     // Reset site status
     await prisma.imported_sites.update({
@@ -253,10 +253,11 @@ router.post('/sites/:id/restart', requireAuth, requireEditor, async (req, res) =
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Mappings (stored as "migration_rules" in config for backward compat)
 router.post('/sites/:id/rules', requireAuth, requireEditor, async (req, res) => {
   try {
     const siteId = parseInt(req.params.id);
-    const { name, template_id, selector_map, id } = req.body;
+    const { name, template_id, selector_map, id, structural_hash } = req.body;
     
     const site = await prisma.imported_sites.findUnique({ where: { id: siteId } });
     if (!site) return res.status(404).json({ error: 'Site not found' });
@@ -269,6 +270,7 @@ router.post('/sites/:id/rules', requireAuth, requireEditor, async (req, res) => 
       name: name || 'New Rule',
       template_id: parseInt(template_id),
       selector_map: selector_map || { main: 'main' },
+      structural_hash: structural_hash || null,
       updated_at: new Date()
     };
 
@@ -285,6 +287,7 @@ router.post('/sites/:id/rules', requireAuth, requireEditor, async (req, res) => 
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Migrate items using a saved mapping
 router.post('/sites/:id/migrate-with-rule', requireAuth, requireEditor, async (req, res) => {
   try {
     const siteId = parseInt(req.params.id);
@@ -297,11 +300,14 @@ router.post('/sites/:id/migrate-with-rule', requireAuth, requireEditor, async (r
     const rule = (config.migration_rules || []).find(r => r.id === rule_id);
     if (!rule) return res.status(404).json({ error: 'Rule not found' });
 
-    const results = await bulkMigrateAll(siteId, rule.template_id, rule.selector_map, page_ids, useAI);
+    const results = rule.content_type === 'products' 
+      ? await bulkMigrateProducts(siteId, rule.template_id, page_ids, rule_id)
+      : await bulkMigrateAll(siteId, rule.template_id, rule.selector_map, page_ids, useAI, rule_id);
     res.json({ success: true, results });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Delete a mapping
 router.delete('/sites/:id/rules/:ruleId', requireAuth, requireEditor, async (req, res) => {
   try {
     const siteId = parseInt(req.params.id);
@@ -349,7 +355,7 @@ router.delete('/sites/:id', requireAuth, requireEditor, async (req, res) => {
 
 router.get('/pages/:id', requireAuth, async (req, res) => {
   try {
-    const page = await prisma.imported_pages.findUnique({ where: { id: parseInt(req.params.id) } });
+    const page = await prisma.staged_items.findUnique({ where: { id: parseInt(req.params.id) } });
     if (!page) return res.status(404).json({ error: 'Not found' });
     res.json(page);
   } catch (err) { res.status(500).json({ error: 'Failed' }); }

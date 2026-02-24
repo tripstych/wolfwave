@@ -7,10 +7,10 @@ import { generateSearchIndex } from '../lib/searchIndexer.js';
 import { downloadMedia } from './mediaService.js';
 import { updateContent } from './contentService.js';
 
-export async function migrateProduct(importedPageId, templateId) {
+export async function migrateProduct(importedPageId, templateId, ruleId = null) {
   const dbName = getCurrentDbName();
   try {
-    const importedPage = await prisma.imported_pages.findUnique({ where: { id: importedPageId } });
+    const importedPage = await prisma.staged_items.findUnique({ where: { id: importedPageId } });
     if (!importedPage) throw new Error('Not found');
     const meta = typeof importedPage.metadata === 'string' ? JSON.parse(importedPage.metadata) : importedPage.metadata;
     if (!meta || meta.type !== 'product') {
@@ -101,7 +101,11 @@ export async function migrateProduct(importedPageId, templateId) {
         }
       }
 
-      await prisma.imported_pages.update({ where: { id: importedPageId }, data: { status: 'migrated' } });
+      // Update metadata with rule ID if provided
+      const currentMeta = typeof importedPage.metadata === 'string' ? JSON.parse(importedPage.metadata) : (importedPage.metadata || {});
+      if (ruleId) currentMeta.migration_rule_id = ruleId;
+
+      await prisma.staged_items.update({ where: { id: importedPageId }, data: { status: 'migrated', metadata: currentMeta } });
       return product;
     }
 
@@ -154,7 +158,11 @@ export async function migrateProduct(importedPageId, templateId) {
       }
     }
 
-    await prisma.imported_pages.update({ where: { id: importedPageId }, data: { status: 'migrated' } });
+    // Update metadata with rule ID if provided
+    const currentMeta = typeof importedPage.metadata === 'string' ? JSON.parse(importedPage.metadata) : (importedPage.metadata || {});
+    if (ruleId) currentMeta.migration_rule_id = ruleId;
+
+    await prisma.staged_items.update({ where: { id: importedPageId }, data: { status: 'migrated', metadata: currentMeta } });
     return product;
   } catch (err) {
     logError(dbName, err, 'PRODUCT_MIGRATION_FAILED');
@@ -162,7 +170,7 @@ export async function migrateProduct(importedPageId, templateId) {
   }
 }
 
-export async function bulkMigrateProducts(siteId, templateId, productIds = null) {
+export async function bulkMigrateProducts(siteId, templateId, productIds = null, ruleId = null) {
   const dbName = getCurrentDbName();
   const whereClause = { site_id: siteId };
   if (productIds && Array.isArray(productIds)) {
@@ -171,7 +179,7 @@ export async function bulkMigrateProducts(siteId, templateId, productIds = null)
     whereClause.status = { in: ['completed', 'migrated'] };
   }
 
-  const pages = await prisma.imported_pages.findMany({ 
+  const pages = await prisma.staged_items.findMany({ 
     where: whereClause
   });
 
@@ -185,7 +193,7 @@ export async function bulkMigrateProducts(siteId, templateId, productIds = null)
   const results = [];
   for (const page of productPages) {
     try {
-      const product = await migrateProduct(page.id, templateId);
+      const product = await migrateProduct(page.id, templateId, ruleId);
       results.push({ id: page.id, success: true, productId: product.id });
     } catch (err) {
       console.error(`[PRODUCT_MIGRATE] Failed for ${page.url}:`, err.message);

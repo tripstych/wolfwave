@@ -490,14 +490,15 @@ model imported_sites {
   config         Json?            // Stores crawl options (limits, filters, priorities)
   created_at     DateTime         @default(now()) @db.Timestamp(0)
   updated_at     DateTime         @default(now()) @db.Timestamp(0)
-  imported_pages imported_pages[]
+  staged_items   staged_items[]
 }
 
-model imported_pages {
+model staged_items {
   id              Int            @id @default(autoincrement())
   site_id         Int
   url             String         @db.VarChar(255)
   title           String?        @db.VarChar(255)
+  item_type       String         @default("page") @db.VarChar(50)
   raw_html        String?        @db.LongText
   structural_hash String?        @db.VarChar(64)
   metadata        Json?
@@ -508,6 +509,7 @@ model imported_pages {
   @@unique([site_id, url], name: "unique_site_url")
   @@index([site_id], map: "idx_site_id")
   @@index([structural_hash], map: "idx_structural_hash")
+  @@index([item_type], map: "idx_item_type")
 }
 
 model templates {
