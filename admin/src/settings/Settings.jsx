@@ -32,18 +32,11 @@ export default function Settings() {
     paypal_client_id: '',
     paypal_client_secret: '',
     paypal_mode: 'sandbox',
-    smtp_host: '',
-    smtp_port: '587',
-    smtp_user: '',
-    smtp_pass: '',
-    smtp_from: '',
-    smtp_secure: 'false',
-    emailjs_service_id: '',
-    emailjs_template_id: '',
-    emailjs_public_key: '',
-    emailjs_private_key: '',
+    email_provider: 'mailersend',
     resend_api_key: '',
     resend_from: '',
+    mailersend_api_key: '',
+    mailersend_from: '',
     admin_page_size: '25',
     amazon_seller_id: '',
     amazon_marketplace_id: '',
@@ -58,11 +51,7 @@ export default function Settings() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [testEmail, setTestEmail] = useState('');
-  const [testResendEmail, setTestResendEmail] = useState('');
-  const [testEmailJS, setTestEmailJS] = useState('');
   const [sendingTest, setSendingTest] = useState(false);
-  const [sendingResendTest, setSendingResendTest] = useState(false);
-  const [sendingEmailJSTest, setSendingEmailJSTest] = useState(false);
 
   useEffect(() => {
     loadSettings();
@@ -115,42 +104,14 @@ export default function Settings() {
   const handleTestEmail = async () => {
     if (!testEmail) return;
     setSendingTest(true);
-    const toastId = toast.loading(`Sending SMTP test to ${testEmail}...`);
+    const toastId = toast.loading(`Sending test email to ${testEmail}...`);
     try {
-      await api.post('/email-templates/test', { to: testEmail, provider: 'smtp' });
-      toast.success(`SMTP test email sent!`, { id: toastId });
+      await api.post('/email-templates/test', { to: testEmail });
+      toast.success('Test email sent!', { id: toastId });
     } catch (err) {
       toast.error(err.response?.data?.error || err.message || 'Failed to send test email', { id: toastId });
     } finally {
       setSendingTest(false);
-    }
-  };
-
-  const handleTestResend = async () => {
-    if (!testResendEmail) return;
-    setSendingResendTest(true);
-    const toastId = toast.loading(`Sending Resend test to ${testResendEmail}...`);
-    try {
-      await api.post('/email-templates/test', { to: testResendEmail, provider: 'resend' });
-      toast.success(`Resend test email sent!`, { id: toastId });
-    } catch (err) {
-      toast.error(err.response?.data?.error || err.message || 'Failed to send Resend test email', { id: toastId });
-    } finally {
-      setSendingResendTest(false);
-    }
-  };
-
-  const handleTestEmailJS = async () => {
-    if (!testEmailJS) return;
-    setSendingEmailJSTest(true);
-    const toastId = toast.loading(`Sending EmailJS test to ${testEmailJS}...`);
-    try {
-      await api.post('/email-templates/test', { to: testEmailJS, provider: 'emailjs' });
-      toast.success(`EmailJS test email sent!`, { id: toastId });
-    } catch (err) {
-      toast.error(err.response?.data?.error || err.message || 'Failed to send EmailJS test email', { id: toastId });
-    } finally {
-      setSendingEmailJSTest(false);
     }
   };
 
@@ -322,85 +283,59 @@ export default function Settings() {
         {activeTab === 'email' && (
           <div className="space-y-6">
             <div className="card p-6 space-y-4">
-              <h2 className="font-semibold text-gray-900 pb-2 border-b border-gray-200">Email / SMTP</h2>
-              <div className="grid grid-cols-2 gap-4">
-                {field('smtp_host', 'SMTP Host', { placeholder: 'smtp.example.com' })}
-                {field('smtp_port', 'SMTP Port', { placeholder: '587' })}
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                {field('smtp_user', 'SMTP Username', { placeholder: 'user@example.com' })}
-                {field('smtp_pass', 'SMTP Password', { type: 'password', placeholder: '••••••••' })}
-              </div>
-              {field('smtp_from', 'From Address', { type: 'email', placeholder: 'noreply@example.com', hint: 'The email address that notifications are sent from' })}
+              <h2 className="font-semibold text-gray-900 pb-2 border-b border-gray-200">Email Provider</h2>
               <div>
-                <label className="label">
-                  <input
-                    type="checkbox"
-                    checked={settings.smtp_secure === 'true'}
-                    onChange={(e) => setSettings({ ...settings, smtp_secure: e.target.checked ? 'true' : 'false' })}
-                    className="mr-2"
-                  />
-                  Use SSL/TLS (port 465)
-                </label>
-              </div>
-              <div className="border-t border-gray-200 pt-4">
-                <label className="label">Send Test Email</label>
-                <div className="flex gap-2">
-                  <input type="email" value={testEmail} onChange={(e) => setTestEmail(e.target.value)} className="input flex-1" placeholder="test@example.com" />
-                  <button onClick={handleTestEmail} disabled={sendingTest || !testEmail} className="btn btn-secondary whitespace-nowrap">
-                    <Send className="w-4 h-4 mr-2" />
-                    {sendingTest ? 'Sending...' : 'Send Test'}
-                  </button>
-                </div>
+                <label className="label">Active Provider</label>
+                <select
+                  value={settings.email_provider}
+                  onChange={(e) => setSettings({ ...settings, email_provider: e.target.value })}
+                  className="input"
+                >
+                  <option value="mailersend">MailerSend</option>
+                  <option value="resend">Resend</option>
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  All transactional emails (order confirmations, password resets, etc.) will use the selected provider.
+                  If unconfigured, the other provider is used as fallback.
+                </p>
               </div>
             </div>
 
-            <div className="card p-6 space-y-4 border-indigo-100 bg-indigo-50/10">
-              <h2 className="font-semibold text-gray-900 pb-2 border-b border-gray-200">Resend Integration</h2>
-              <p className="text-sm text-gray-500">Modern email API. If configured, Resend will be the primary email provider.</p>
-              {field('resend_api_key', 'Resend API Key', { type: 'password', placeholder: 're_...' })}
+            <div className={`card p-6 space-y-4 ${settings.email_provider === 'mailersend' ? 'ring-2 ring-primary-200' : ''}`}>
+              <h2 className="font-semibold text-gray-900 pb-2 border-b border-gray-200">
+                MailerSend
+                {settings.email_provider === 'mailersend' && <span className="ml-2 text-xs font-normal text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full">Active</span>}
+              </h2>
+              {field('mailersend_api_key', 'API Key', { type: 'password', placeholder: 'mlsn.xxx...' })}
+              {field('mailersend_from', 'From Email', { placeholder: 'Name <hello@yourdomain.com>', hint: 'Must be a verified domain in your MailerSend account.' })}
+              <p className="text-xs text-gray-500">
+                Get your key from <a href="https://app.mailersend.com/api-tokens" target="_blank" className="text-blue-600 hover:underline">MailerSend Dashboard</a>.
+                Templates from the <strong>Email Templates</strong> section will be used.
+              </p>
+            </div>
+
+            <div className={`card p-6 space-y-4 ${settings.email_provider === 'resend' ? 'ring-2 ring-primary-200' : ''}`}>
+              <h2 className="font-semibold text-gray-900 pb-2 border-b border-gray-200">
+                Resend
+                {settings.email_provider === 'resend' && <span className="ml-2 text-xs font-normal text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full">Active</span>}
+              </h2>
+              {field('resend_api_key', 'API Key', { type: 'password', placeholder: 're_...' })}
               {field('resend_from', 'From Email', { placeholder: 'Name <hello@yourdomain.com>', hint: 'Must be a verified domain in your Resend account.' })}
               <p className="text-xs text-gray-500">
                 Get your key from <a href="https://resend.com/api-keys" target="_blank" className="text-blue-600 hover:underline">Resend Dashboard</a>.
-                Templates from the <strong>Email Templates</strong> section will be used.
               </p>
-              <div className="border-t border-gray-200 pt-4">
-                <label className="label">Send Test Email (via Resend)</label>
-                <div className="flex gap-2">
-                  <input type="email" value={testResendEmail} onChange={(e) => setTestResendEmail(e.target.value)} className="input flex-1" placeholder="test@example.com" />
-                  <button onClick={handleTestResend} disabled={sendingResendTest || !testResendEmail} className="btn btn-secondary whitespace-nowrap">
-                    <Send className="w-4 h-4 mr-2" />
-                    {sendingResendTest ? 'Sending...' : 'Send Test'}
-                  </button>
-                </div>
-              </div>
             </div>
 
             <div className="card p-6 space-y-4">
-              <h2 className="font-semibold text-gray-900 pb-2 border-b border-gray-200">EmailJS Integration</h2>
-              <p className="text-sm text-gray-500">Alternative to SMTP. If configured, EmailJS will be used as the primary email provider.</p>
-              <div className="grid grid-cols-2 gap-4">
-                {field('emailjs_service_id', 'Service ID', { placeholder: 'service_...' })}
-                {field('emailjs_template_id', 'Default Template ID', { placeholder: 'template_...' })}
+              <h2 className="font-semibold text-gray-900 pb-2 border-b border-gray-200">Test Email</h2>
+              <div className="flex gap-2">
+                <input type="email" value={testEmail} onChange={(e) => setTestEmail(e.target.value)} className="input flex-1" placeholder="test@example.com" />
+                <button onClick={handleTestEmail} disabled={sendingTest || !testEmail} className="btn btn-secondary whitespace-nowrap">
+                  <Send className="w-4 h-4 mr-2" />
+                  {sendingTest ? 'Sending...' : 'Send Test'}
+                </button>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                {field('emailjs_public_key', 'Public Key', { placeholder: 'user_...' })}
-                {field('emailjs_private_key', 'Private Key', { type: 'password', placeholder: '••••••••' })}
-              </div>
-              <p className="text-xs text-gray-500">
-                Get these from your <a href="https://dashboard.emailjs.com/" target="_blank" className="text-blue-600 hover:underline">EmailJS Dashboard</a>.
-                The template variables passed will include all standard CMS fields plus <code>message</code> and <code>subject</code>.
-              </p>
-              <div className="border-t border-gray-200 pt-4">
-                <label className="label">Send Test Email (via EmailJS)</label>
-                <div className="flex gap-2">
-                  <input type="email" value={testEmailJS} onChange={(e) => setTestEmailJS(e.target.value)} className="input flex-1" placeholder="test@example.com" />
-                  <button onClick={handleTestEmailJS} disabled={sendingEmailJSTest || !testEmailJS} className="btn btn-secondary whitespace-nowrap">
-                    <Send className="w-4 h-4 mr-2" />
-                    {sendingEmailJSTest ? 'Sending...' : 'Send Test'}
-                  </button>
-                </div>
-              </div>
+              <p className="text-xs text-gray-500">Save settings first, then send a test to verify your configuration.</p>
             </div>
           </div>
         )}

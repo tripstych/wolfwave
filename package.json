@@ -20,7 +20,6 @@
     "postinstall": "cd admin && npm install"
   },
   "dependencies": {
-    "@emailjs/nodejs": "^5.0.2",
     "@prisma/client": "^6.19.2",
     "axios": "^1.13.4",
     "bcryptjs": "^2.4.3",
@@ -31,10 +30,10 @@
     "express": "^4.18.2",
     "express-session": "^1.17.3",
     "jsonwebtoken": "^9.0.2",
+    "mailersend": "^2.6.0",
     "moment": "^2.30.1",
     "multer": "^1.4.5-lts.1",
     "mysql2": "^3.6.5",
-    "nodemailer": "^8.0.1",
     "nunjucks": "^3.2.4",
     "pluralize": "^8.0.0",
     "pm2": "^6.0.14",
