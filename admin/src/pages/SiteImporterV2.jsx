@@ -138,6 +138,17 @@ export default function SiteImporterV2() {
     }
   };
 
+  const triggerTemplateGen = async () => {
+    if (!selectedSite) return;
+    try {
+      await api.post(`/import-v2/sites/${selectedSite.id}/generate-templates`);
+      toast.success('Templates generated successfully!');
+      refreshSite();
+    } catch (err) {
+      alert('Template generation failed: ' + err.message);
+    }
+  };
+
   const triggerTransform = async () => {
     if (!selectedSite) return;
     if (!confirm('This will use the AI rules to migrate all staged content into your CMS tables. Continue?')) return;
@@ -300,6 +311,11 @@ export default function SiteImporterV2() {
                   {selectedSite.status === 'crawled' && (
                     <button onClick={triggerRuleGen} className="btn btn-primary btn-sm bg-amber-500 hover:bg-amber-600 border-none">
                       Generate Rules
+                    </button>
+                  )}
+                  {selectedSite.status === 'rules_generated' && (
+                    <button onClick={triggerTemplateGen} className="btn btn-primary btn-sm bg-blue-500 hover:bg-blue-600 border-none">
+                      Generate Templates
                     </button>
                   )}
                   {selectedSite.llm_ruleset && selectedSite.status !== 'completed' && (

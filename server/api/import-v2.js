@@ -3,6 +3,7 @@ import { requireAuth, requireEditor } from '../middleware/auth.js';
 import prisma from '../lib/prisma.js';
 import { ImporterServiceV2 } from '../services/importer-v2/ImporterServiceV2.js';
 import { RuleGenerator } from '../services/importer-v2/RuleGenerator.js';
+import { TemplateGenerator } from '../services/importer-v2/TemplateGenerator.js';
 import { TransformationEngine } from '../services/importer-v2/TransformationEngine.js';
 
 const router = Router();
@@ -115,19 +116,42 @@ router.post('/sites/:id/generate-rules', requireAuth, requireEditor, async (req,
 });
 
 /**
+ * Manually trigger template generation
+ */
+router.post('/sites/:id/generate-templates', requireAuth, requireEditor, async (req, res) => {
+  try {
+    const siteId = parseInt(req.params.id);
+    const engine = new TemplateGenerator(siteId, req.tenantDb);
+    const ruleset = await engine.run();
+    res.json({ success: true, ruleset });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
  * Manually trigger transformation
  */
 router.post('/sites/:id/transform', requireAuth, requireEditor, async (req, res) => {
   try {
     const siteId = parseInt(req.params.id);
-    const engine = new TransformationEngine(siteId, req.tenantDb);
     
-    // Run in background to avoid timeout
-    engine.run().catch(err => {
-      console.error('[IMPORT-V2] Background Transformation Failed:', err);
+    // Wrapper to ensure sequence
+    const runFullFinalize = async () => {
+      // 1. Ensure templates exist
+      const tplEngine = new TemplateGenerator(siteId, req.tenantDb);
+      await tplEngine.run();
+      
+      // 2. Run transformation
+      const transEngine = new TransformationEngine(siteId, req.tenantDb);
+      await transEngine.run();
+    };
+
+    runFullFinalize().catch(err => {
+      console.error('[IMPORT-V2] Background Finalize Failed:', err);
     });
 
-    res.json({ success: true, message: 'Transformation started in background' });
+    res.json({ success: true, message: 'Finalization and Migration started in background' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
