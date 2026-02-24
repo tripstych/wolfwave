@@ -19,41 +19,50 @@ async function replaceAsync(str, regex, asyncFn) {
   return str.replace(regex, () => data.shift());
 }
 
-export async function processShortcodes(html, env, blocksData, context = {}) {
-  if (!html) return html;
+export async function processShortcodes(html, env, blocksData, context = {}, depth = 0) {
+  if (!html || depth > 5) return html;
   
-  // Replace [[widget:slug]] with rendered widget
-  return replaceAsync(html, /\[\[widget:([a-zA-Z0-9_-]+)\]\]/g, async (match, slug) => {
-    const widget = blocksData.find(b => b.slug === slug && b.content_type === 'widgets');
-    if (!widget) return `<!-- Widget not found: ${slug} -->`;
+  // Replace [[type:slug]] with rendered content (blocks or widgets)
+  let result = await replaceAsync(html, /\[\[(widget|block):([a-zA-Z0-9_-]+)\]\]/g, async (match, type, slug) => {
+    const contentType = type === 'block' ? 'blocks' : 'widgets';
+    const item = blocksData.find(b => b.slug === slug && b.content_type === contentType);
+    if (!item) return `<!-- ${type} not found: ${slug} -->`;
 
     // Permission Check
-    const rules = typeof widget.access_rules === 'string' ? JSON.parse(widget.access_rules) : widget.access_rules;
+    const rules = typeof item.access_rules === 'string' ? JSON.parse(item.access_rules) : item.access_rules;
     if (!canAccess(rules, context)) return `<!-- Access denied: ${slug} -->`;
 
     try {
-      const widgetContent = typeof widget.content === 'string' ? JSON.parse(widget.content) : widget.content;
+      const itemContent = typeof item.content === 'string' ? JSON.parse(item.content) : item.content;
       
       return new Promise((resolve) => {
-        env.render(widget.template_filename, {
-          content: widgetContent || {},
-          widget,
+        env.render(item.template_filename, {
+          ...env.opts.site_locals, // global locals
+          content: itemContent || {},
+          [type]: item, // pass block or widget
           site: env.opts.site,
-          blocks: blocksData // pass all blocks context
+          blocks: blocksData // pass all blocks context for nested calls
         }, (err, rendered) => {
           if (err) {
-            console.error(`Error rendering shortcode widget ${slug}:`, err);
-            resolve(`<!-- Error rendering widget ${slug}: ${err.message} -->`);
+            console.error(`Error rendering ${type} ${slug}:`, err);
+            resolve(`<!-- Error rendering ${type} ${slug}: ${err.message} -->`);
           } else {
             resolve(rendered);
           }
         });
       });
     } catch (err) {
-      console.error(`Error processing shortcode widget ${slug}:`, err);
-      return `<!-- Error rendering widget ${slug}: ${err.message} -->`;
+      console.error(`Error processing ${type} ${slug}:`, err);
+      return `<!-- Error rendering ${type} ${slug}: ${err.message} -->`;
     }
   });
+
+  // Recursion: Check if the rendered output contains more shortcodes
+  if (result.includes('[[widget:') || result.includes('[[block:')) {
+    return processShortcodes(result, env, blocksData, context, depth + 1);
+  }
+
+  return result;
 }
 
 export function themeRender(req, res, templateFilename, context = {}) {
@@ -72,8 +81,9 @@ export function themeRender(req, res, templateFilename, context = {}) {
   const env = getNunjucksEnv(themeName);
   const assets = getThemeAssets(themeName);
 
-  // Store site in env for access in globals
+  // Store site and full context in env for access in globals and recursive shortcodes
   env.opts.site = site;
+  env.opts.site_locals = res.locals;
 
   const parseJsonField = (value) => {
     if (value === null || value === undefined) return null;

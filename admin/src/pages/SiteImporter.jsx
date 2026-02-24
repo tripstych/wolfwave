@@ -1004,6 +1004,27 @@ export default function SiteImporter() {
               </div>
               {view === 'rules' && (
                 <div className="space-y-4">
+                  <div className="flex justify-between items-center px-1">
+                    <h3 className="font-bold text-gray-700">Migration Rules</h3>
+                    <label className="flex items-center gap-2 cursor-pointer select-none bg-white px-2 py-1 rounded border border-gray-200 shadow-sm" title="AI will intelligently extract content from HTML, ignoring CSS selectors in rules.">
+                      <Sparkles className={`w-3.5 h-3.5 ${useAI ? 'text-primary-600' : 'text-gray-400'}`} />
+                      <span className={`text-[10px] font-bold uppercase ${useAI ? 'text-primary-700' : 'text-gray-500'}`}>AI Smart Mapping</span>
+                      <input 
+                        type="checkbox" 
+                        className="toggle toggle-primary toggle-xs"
+                        checked={useAI}
+                        onChange={(e) => setUseAI(e.target.checked)}
+                      />
+                    </label>
+                  </div>
+                  {useAI && (
+                    <div className="bg-indigo-50 border border-indigo-100 rounded p-2 text-[10px] text-indigo-700 flex items-start gap-2">
+                      <Sparkles className="w-3 h-3 mt-0.5 shrink-0" />
+                      <span>
+                        <strong>AI Smart Mapping Active:</strong> Custom rules and CSS selectors will be ignored. The AI will automatically identify and map content to your template regions.
+                      </span>
+                    </div>
+                  )}
                   <div className="grid grid-cols-1 gap-4">
                     {(selectedSite.config?.migration_rules || []).map((rule, i) => (
                       <div key={i} className="card p-4 flex items-center justify-between">

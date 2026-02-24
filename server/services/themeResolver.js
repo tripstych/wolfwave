@@ -261,87 +261,14 @@ export function applyNunjucksCustomizations(env) {
   registerTemplateExtensions(env, query);
 
   // Global: renderBlock
-  env.addGlobal('renderBlock', function(slug, callback) {
-    const context = this.ctx;
-    const blocksData = context.blocks || [];
-    const block = blocksData.find(b => b.slug === slug && b.content_type === 'blocks');
-    
-    if (!block) {
-      console.warn(`Block not found: ${slug}`);
-      return callback(null, '');
-    }
-
-    const permissionContext = {
-      isLoggedIn: !!context.customer,
-      hasActiveSubscription: !!context.hasActiveSubscription,
-      customer: context.customer
-    };
-
-    const rules = typeof block.access_rules === 'string' ? JSON.parse(block.access_rules) : block.access_rules;
-    if (!canAccess(rules, permissionContext)) return callback(null, '');
-
-    try {
-      const blockContent = parseJsonField(block.content) || {};
-      env.render(block.template_filename, {
-        ...context,
-        content: blockContent,
-        block,
-        site: env.opts.site
-      }, (err, html) => {
-        if (err) {
-          console.error(`Error rendering block ${slug}:`, err);
-          callback(null, '');
-        } else {
-          callback(null, html);
-        }
-      });
-    } catch (err) {
-      console.error(`Error rendering block ${slug}:`, err);
-      callback(null, '');
-    }
-  }, true);
+  env.addGlobal('renderBlock', function(slug) {
+    return `[[block:${slug}]]`;
+  });
 
   // Global: renderWidget
-  env.addGlobal('renderWidget', function(slug, callback) {
-    const context = this.ctx;
-    const blocksData = context.blocks || [];
-    const widget = blocksData.find(b => b.slug === slug && b.content_type === 'widgets');
-    
-    if (!widget) {
-      console.warn(`Widget not found: ${slug}`);
-      return callback(null, `<!-- Widget not found: ${slug} -->`);
-    }
-
-    const permissionContext = {
-      isLoggedIn: !!context.customer,
-      hasActiveSubscription: !!context.hasActiveSubscription,
-      customer: context.customer
-    };
-
-    const rules = typeof widget.access_rules === 'string' ? JSON.parse(widget.access_rules) : widget.access_rules;
-    if (!canAccess(rules, permissionContext)) return callback(null, '');
-
-    try {
-      const widgetContent = parseJsonField(widget.content) || {};
-      env.render(widget.template_filename, {
-        ...context,
-        content: widgetContent,
-        widget,
-        site: env.opts.site,
-        blocks: blocksData
-      }, (err, html) => {
-        if (err) {
-          console.error(`Error rendering widget ${slug}:`, err);
-          callback(null, `<!-- Error rendering widget ${slug}: ${err.message} -->`);
-        } else {
-          callback(null, html);
-        }
-      });
-    } catch (err) {
-      console.error(`Error rendering widget ${slug}:`, err);
-      callback(null, `<!-- Error rendering widget ${slug}: ${err.message} -->`);
-    }
-  }, true);
+  env.addGlobal('renderWidget', function(slug) {
+    return `[[widget:${slug}]]`;
+  });
 }
 
 /**
