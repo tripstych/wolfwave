@@ -63,17 +63,23 @@ export function patchConsole() {
 
   // Patch console.error -> error
   console.error = function(...args) {
-    const message = args.map(arg => 
-      typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
-    ).join(' ');
-    
+    // Check if any arg is an Error object (e.g. Prisma errors) — preserve its stack
+    const realError = args.find(arg => arg instanceof Error);
+
+    const message = args.map(arg => {
+      if (arg instanceof Error) return arg.stack || arg.message;
+      if (typeof arg === 'object') return JSON.stringify(arg, null, 2);
+      return String(arg);
+    }).join(' ');
+
     const caller = getCallerInfo();
     const context = `CONSOLE:${caller.split('/').pop().split(':')[0]}`;
-    
-    // Create error object for proper error logging
-    const err = new Error(message);
-    err.stack = `Error: ${message}\n${caller}`;
-    
+
+    const err = realError || new Error(message);
+    if (!realError) {
+      err.stack = `Error: ${message}\n${caller}`;
+    }
+
     try {
       // Call logger directly without going through patched console
       error(null, err, context);
@@ -82,7 +88,7 @@ export function patchConsole() {
       originalConsole.error('Console patch error:', e.message);
       originalConsole.error(...args);
     }
-    
+
     // Also output to original console in development
     if (process.env.NODE_ENV !== 'production') {
       originalConsole.error(...args);

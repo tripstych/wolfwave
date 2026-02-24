@@ -14,6 +14,10 @@ import { closeAllPools } from './lib/poolManager.js';
 import { closePrisma } from './lib/prisma.js';
 import { getNunjucksEnv, getThemesDir } from './services/themeResolver.js';
 import { accessLog, errorLog, closeLogs, info, error as logError } from './lib/logger.js';
+import { maybePatchConsole } from './lib/consolePatch.js';
+
+// Patch console FIRST so all console.log/error/warn calls go to log files
+maybePatchConsole();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -137,6 +141,18 @@ initDb().then(() => {
 }).catch(err => {
   logError('system', err, 'DB_INIT');
   process.exit(1);
+});
+
+// Catch unhandled errors so they go to log files instead of disappearing in pm2
+process.on('uncaughtException', (err) => {
+  logError('system', err, 'UNCAUGHT_EXCEPTION');
+  // Give the log stream time to flush before exiting
+  setTimeout(() => process.exit(1), 500);
+});
+
+process.on('unhandledRejection', (reason) => {
+  const err = reason instanceof Error ? reason : new Error(String(reason));
+  logError('system', err, 'UNHANDLED_REJECTION');
 });
 
 // Graceful shutdown

@@ -5,6 +5,14 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const logsRoot = path.join(__dirname, '../../logs');
 
+// Store original console methods BEFORE any patching happens
+// so the logger never triggers the consolePatch (infinite recursion)
+const _console = {
+  log: console.log.bind(console),
+  warn: console.warn.bind(console),
+  error: console.error.bind(console),
+};
+
 // Log Levels
 export const Levels = {
   DEBUG: 0,
@@ -69,11 +77,11 @@ export function log(level, reqOrTenant, context, msg) {
   
   const line = formatMsg(level, context, msg, req);
   
-  // Write to console in dev or for high levels
+  // Write to console in dev or for high levels (use original console to avoid recursion with consolePatch)
   if (process.env.NODE_ENV !== 'production' || numericLevel >= Levels.INFO) {
-    if (numericLevel >= Levels.ERROR) console.error(line.trim());
-    else if (numericLevel >= Levels.WARN) console.warn(line.trim());
-    else console.log(line.trim());
+    if (numericLevel >= Levels.ERROR) _console.error(line.trim());
+    else if (numericLevel >= Levels.WARN) _console.warn(line.trim());
+    else _console.log(line.trim());
   }
 
   // Error and higher go to error.log, others to access.log or combined
