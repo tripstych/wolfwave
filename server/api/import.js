@@ -232,7 +232,7 @@ router.post('/sites/:id/rules', requireAuth, requireEditor, async (req, res) => 
 router.post('/sites/:id/migrate-with-rule', requireAuth, requireEditor, async (req, res) => {
   try {
     const siteId = parseInt(req.params.id);
-    const { rule_id, page_ids } = req.body;
+    const { rule_id, page_ids, useAI } = req.body;
     
     const site = await prisma.imported_sites.findUnique({ where: { id: siteId } });
     if (!site) return res.status(404).json({ error: 'Site not found' });
@@ -241,7 +241,7 @@ router.post('/sites/:id/migrate-with-rule', requireAuth, requireEditor, async (r
     const rule = (config.migration_rules || []).find(r => r.id === rule_id);
     if (!rule) return res.status(404).json({ error: 'Rule not found' });
 
-    const results = await bulkMigrateAll(siteId, rule.template_id, rule.selector_map, page_ids);
+    const results = await bulkMigrateAll(siteId, rule.template_id, rule.selector_map, page_ids, useAI);
     res.json({ success: true, results });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -268,7 +268,7 @@ router.delete('/sites/:id/rules/:ruleId', requireAuth, requireEditor, async (req
 });
 
 router.post('/sites/:id/bulk-migrate', requireAuth, requireEditor, async (req, res) => {
-  try { res.json({ success: true, results: await bulkMigrate(parseInt(req.params.id), req.body.structural_hash, req.body.template_id, req.body.selector_map) }); }
+  try { res.json({ success: true, results: await bulkMigrate(parseInt(req.params.id), req.body.structural_hash, req.body.template_id, req.body.selector_map, req.body.useAI) }); }
   catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -278,7 +278,7 @@ router.post('/sites/:id/bulk-migrate-products', requireAuth, requireEditor, asyn
 });
 
 router.post('/sites/:id/bulk-migrate-all', requireAuth, requireEditor, async (req, res) => {
-  try { res.json({ success: true, results: await bulkMigrateAll(parseInt(req.params.id), req.body.template_id, req.body.selector_map, req.body.page_ids) }); }
+  try { res.json({ success: true, results: await bulkMigrateAll(parseInt(req.params.id), req.body.template_id, req.body.selector_map, req.body.page_ids, req.body.useAI) }); }
   catch (err) { res.status(500).json({ error: err.message }); }
 });
 

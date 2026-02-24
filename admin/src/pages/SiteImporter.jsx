@@ -215,6 +215,7 @@ export default function SiteImporter() {
   const [editingRuleName, setEditingRuleName] = useState('');
   const [pagesSearch, setPagesSearch] = useState('');
   const [productsSearch, setProductsSearch] = useState('');
+  const [useAI, setUseAI] = useState(false);
   
   const navigate = useNavigate();
 
@@ -327,13 +328,14 @@ export default function SiteImporter() {
     const selection = rule.content_type === 'products' ? Array.from(selectedProducts) : Array.from(selectedPages);
     if (selection.length === 0) return alert('Select items to migrate first');
 
-    if (!confirm(`Migrate ${selection.length} items using rule "${rule.name}"?`)) return;
+    if (!confirm(`Migrate ${selection.length} items using rule "${rule.name}"${useAI ? ' with AI Smart Mapping (ignoring rule selectors)' : ''}?`)) return;
 
     try {
       setMigrating(true);
       const res = await api.post(`/import/sites/${selectedSite.id}/migrate-with-rule`, {
         rule_id: rule.id,
-        page_ids: selection
+        page_ids: selection,
+        useAI
       });
       
       const successCount = (res.results || []).filter(r => r.success).length;
@@ -784,12 +786,13 @@ export default function SiteImporter() {
 
       const finalSelectorMap = Object.keys(selectorMap).length > 0 ? selectorMap : { main: 'main' };
       
-      if (!confirm(`Ready to migrate ${targetIds.length} pages using template "${templates.find(t => t.id === parseInt(targetTemplateId))?.name}"?`)) return;
+      if (!confirm(`Ready to migrate ${targetIds.length} pages using template "${templates.find(t => t.id === parseInt(targetTemplateId))?.name}"${useAI ? ' with AI Smart Mapping' : ''}?`)) return;
       setMigrating(true);
       await api.post(`/import/sites/${selectedSite.id}/bulk-migrate-all`, { 
         template_id: parseInt(targetTemplateId), 
         selector_map: finalSelectorMap,
-        page_ids: targetIds
+        page_ids: targetIds,
+        useAI
       });
       alert('Selected pages queued for migration!');
       navigate('/pages');
@@ -1082,7 +1085,17 @@ export default function SiteImporter() {
                         />
                         <h3 className="font-bold text-gray-700">Discovered Pages ({discoveredPages.length})</h3>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 items-center">
+                        <label className="flex items-center gap-2 mr-4 cursor-pointer select-none bg-white px-2 py-1 rounded border border-gray-200">
+                          <Sparkles className={`w-3.5 h-3.5 ${useAI ? 'text-primary-600' : 'text-gray-400'}`} />
+                          <span className={`text-[10px] font-bold uppercase ${useAI ? 'text-primary-700' : 'text-gray-500'}`}>AI Smart Mapping</span>
+                          <input 
+                            type="checkbox" 
+                            className="toggle toggle-primary toggle-xs"
+                            checked={useAI}
+                            onChange={(e) => setUseAI(e.target.checked)}
+                          />
+                        </label>
                         <select 
                           onChange={(e) => {
                             const rule = (selectedSite.config?.migration_rules || []).find(r => r.id === e.target.value);
@@ -1182,7 +1195,17 @@ export default function SiteImporter() {
                         />
                         <h3 className="font-bold text-gray-700">Discovered Products ({discoveredProducts.length})</h3>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 items-center">
+                        <label className="flex items-center gap-2 mr-4 cursor-pointer select-none bg-white px-2 py-1 rounded border border-gray-200">
+                          <Sparkles className={`w-3.5 h-3.5 ${useAI ? 'text-primary-600' : 'text-gray-400'}`} />
+                          <span className={`text-[10px] font-bold uppercase ${useAI ? 'text-primary-700' : 'text-gray-500'}`}>AI Smart Mapping</span>
+                          <input 
+                            type="checkbox" 
+                            className="toggle toggle-primary toggle-xs"
+                            checked={useAI}
+                            onChange={(e) => setUseAI(e.target.checked)}
+                          />
+                        </label>
                         <select 
                           onChange={(e) => {
                             const rule = (selectedSite.config?.migration_rules || []).find(r => r.id === e.target.value);

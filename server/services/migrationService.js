@@ -7,35 +7,54 @@ import { generateSearchIndex } from '../lib/searchIndexer.js';
 import { automaticallyDetectContent } from './scraperService.js';
 import { processHtmlImages } from './mediaService.js';
 import { updateContent } from './contentService.js';
+import { structuredScrape } from './aiService.js';
 
-export async function migratePage(importedPageId, templateId, selectorMap = { 'main': 'body' }) {
+export async function migratePage(importedPageId, templateId, selectorMap = { 'main': 'body' }, useAI = false) {
   const dbName = getCurrentDbName();
   try {
     const importedPage = await prisma.imported_pages.findUnique({ where: { id: importedPageId } });
     if (!importedPage || !importedPage.raw_html) throw new Error('Invalid page');
 
-    const $ = cheerio.load(importedPage.raw_html);
-    const extractedData = {};
-    
-    for (const [key, selector] of Object.entries(selectorMap)) {
-      // If the user hasn't specified a specific class (defaulting to body or main), use auto-detect
-      if (key === 'main' && (selector === 'body' || selector === 'main' || !selector)) {
-        extractedData[key] = automaticallyDetectContent($);
-      } else {
-        const $el = $(selector);
-        if ($el.length > 0) {
-          const tagName = $el.get(0).tagName.toLowerCase();
-          if (tagName === 'img') {
-            extractedData[key] = $el.attr('src') || $el.attr('data-src') || $el.attr('srcset');
-          } else {
-            extractedData[key] = $el.html().trim();
+    let extractedData = {};
+
+    if (useAI) {
+      info(dbName, 'PAGE_MIGRATE_AI', `Using AI Smart Mapping for page ${importedPageId}`);
+      const template = await prisma.templates.findUnique({ where: { id: templateId } });
+      const fields = template?.regions || [{ name: 'main', label: 'Main Content', type: 'richtext' }];
+      
+      try {
+        extractedData = await structuredScrape(fields, importedPage.raw_html);
+      } catch (aiErr) {
+        console.warn(`[MigrationService] AI Smart Mapping failed, falling back to selector map:`, aiErr.message);
+        useAI = false; // Trigger fallback
+      }
+    }
+
+    if (!useAI) {
+      const $ = cheerio.load(importedPage.raw_html);
+      for (const [key, selector] of Object.entries(selectorMap)) {
+        // If the user hasn't specified a specific class (defaulting to body or main), use auto-detect
+        if (key === 'main' && (selector === 'body' || selector === 'main' || !selector)) {
+          extractedData[key] = automaticallyDetectContent($);
+        } else {
+          const $el = $(selector);
+          if ($el.length > 0) {
+            const tagName = $el.get(0).tagName.toLowerCase();
+            if (tagName === 'img') {
+              extractedData[key] = $el.attr('src') || $el.attr('data-src') || $el.attr('srcset');
+            } else {
+              extractedData[key] = $el.html().trim();
+            }
           }
         }
       }
     }
 
     // Fallback if still empty
-    if (!extractedData.main) extractedData.main = $('body').html();
+    if (!extractedData.main && !extractedData.main_content) {
+      const $ = cheerio.load(importedPage.raw_html);
+      extractedData.main = automaticallyDetectContent($) || $('body').html();
+    }
 
     // ── LOCALISE IMAGES ──
     for (const key in extractedData) {
@@ -103,14 +122,14 @@ export async function migratePage(importedPageId, templateId, selectorMap = { 'm
   }
 }
 
-export async function bulkMigrate(siteId, structuralHash, templateId, selectorMap) {
+export async function bulkMigrate(siteId, structuralHash, templateId, selectorMap, useAI = false) {
   const pages = await prisma.imported_pages.findMany({
     where: { site_id: siteId, structural_hash: structuralHash, status: 'completed' }
   });
   const results = [];
   for (const page of pages) {
     try {
-      const migrated = await migratePage(page.id, templateId, selectorMap);
+      const migrated = await migratePage(page.id, templateId, selectorMap, useAI);
       results.push({ id: page.id, success: true, pageId: migrated.id });
     } catch (err) {
       results.push({ id: page.id, success: false, error: err.message });
@@ -119,7 +138,7 @@ export async function bulkMigrate(siteId, structuralHash, templateId, selectorMa
   return results;
 }
 
-export async function bulkMigrateAll(siteId, templateId, selectorMap, pageIds = null) {
+export async function bulkMigrateAll(siteId, templateId, selectorMap, pageIds = null, useAI = false) {
   const whereClause = { site_id: siteId };
   if (pageIds && Array.isArray(pageIds)) {
     // Ensure all IDs are integers for Prisma
@@ -135,7 +154,7 @@ export async function bulkMigrateAll(siteId, templateId, selectorMap, pageIds = 
   const results = [];
   for (const page of pages) {
     try {
-      const migrated = await migratePage(page.id, templateId, selectorMap);
+      const migrated = await migratePage(page.id, templateId, selectorMap, useAI);
       results.push({ id: page.id, success: true, pageId: migrated.id });
     } catch (err) {
       results.push({ id: page.id, success: false, error: err.message });
