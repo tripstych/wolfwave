@@ -1,0 +1,134 @@
+import axios from 'axios';
+import * as cheerio from 'cheerio';
+import crypto from 'crypto';
+import prisma from '../../lib/prisma.js';
+import { info, error as logError } from '../../lib/logger.js';
+
+export class CrawlEngine {
+  constructor(siteId, rootUrl, dbName, config = {}) {
+    this.siteId = siteId;
+    this.rootUrl = rootUrl;
+    this.dbName = dbName;
+    this.config = config;
+    this.visited = new Set();
+    this.queue = [];
+    this.maxPages = config.maxPages || 500;
+    this.pageCount = 0;
+  }
+
+  normalizeUrl(url) {
+    try {
+      const nUrl = new URL(url, this.rootUrl);
+      nUrl.hash = '';
+      const stripParams = ['utm_source', 'utm_medium', 'utm_campaign', 'fbclid', 'gclid'];
+      stripParams.forEach(p => nUrl.searchParams.delete(p));
+      let cleaned = nUrl.toString();
+      if (cleaned.endsWith('/') && nUrl.pathname !== '/') cleaned = cleaned.slice(0, -1);
+      return cleaned;
+    } catch { return null; }
+  }
+
+  stripHtml(html) {
+    const $ = cheerio.load(html);
+    $('head').empty();
+    $('script, style, noscript, iframe').remove();
+    return $.html();
+  }
+
+  calculateHash(strippedHtml) {
+    // Structural hash of the stripped body
+    const $ = cheerio.load(strippedHtml);
+    const tags = [];
+    function traverse(node) {
+      if (node.type === 'tag') {
+        tags.push(node.name);
+        $(node).children().each((i, el) => traverse(el));
+        tags.push(`/${node.name}`);
+      }
+    }
+    const body = $('body')[0];
+    if (body) traverse(body);
+    return crypto.createHash('sha256').update(tags.join('>')).digest('hex');
+  }
+
+  async run() {
+    this.queue.push(this.normalizeUrl(this.rootUrl));
+    const rootHostname = new URL(this.rootUrl).hostname;
+
+    info(this.dbName, 'IMPORT_V2_CRAWL_START', `Crawling up to ${this.maxPages} pages`);
+
+    while (this.queue.length > 0 && this.pageCount < this.maxPages) {
+      const url = this.queue.shift();
+      if (!url || this.visited.has(url)) continue;
+      this.visited.add(url);
+
+      try {
+        info(this.dbName, 'IMPORT_V2_CRAWL_PAGE', `Fetching: ${url}`);
+        const { data: html } = await axios.get(url, {
+          headers: { 'User-Agent': 'WebWolf-Importer-V2/1.0' },
+          timeout: 10000,
+          validateStatus: s => s < 400
+        });
+
+        const strippedHtml = this.stripHtml(html);
+        const structuralHash = this.calculateHash(strippedHtml);
+        const $ = cheerio.load(html);
+        const title = $('title').text() || url;
+
+        await prisma.staged_items.upsert({
+          where: { unique_site_url: { site_id: this.siteId, url } },
+          update: {
+            title: title.substring(0, 255),
+            raw_html: html,
+            stripped_html: strippedHtml,
+            structural_hash: structuralHash,
+            status: 'crawled'
+          },
+          create: {
+            site_id: this.siteId,
+            url,
+            title: title.substring(0, 255),
+            raw_html: html,
+            stripped_html: strippedHtml,
+            structural_hash: structuralHash,
+            status: 'crawled'
+          }
+        });
+
+        this.pageCount++;
+        
+        // Discover links
+        $('a[href]').each((i, el) => {
+          const href = $(el).attr('href');
+          if (!href) return;
+          try {
+            const abs = new URL(href, url);
+            if (abs.hostname === rootHostname && !abs.pathname.match(/\.(jpg|jpeg|png|gif|pdf|zip|css|js)$/i)) {
+              const norm = this.normalizeUrl(abs.toString());
+              if (norm && !this.visited.has(norm) && !this.queue.includes(norm)) {
+                this.queue.push(norm);
+              }
+            }
+          } catch {}
+        });
+
+        await prisma.imported_sites.update({
+          where: { id: this.siteId },
+          data: { page_count: this.pageCount }
+        });
+
+        // Delay to be polite
+        await new Promise(r => setTimeout(r, 100));
+      } catch (err) {
+        logError(this.dbName, err, 'IMPORT_V2_CRAWL_PAGE_FAILED', { url });
+      }
+    }
+
+    await prisma.imported_sites.update({
+      where: { id: this.siteId },
+      data: { status: 'crawled' }
+    });
+    
+    info(this.dbName, 'IMPORT_V2_CRAWL_COMPLETE', `Finished with ${this.pageCount} pages`);
+  }
+}

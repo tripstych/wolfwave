@@ -656,6 +656,38 @@ RULES:
     throw err;
   }
 }
+
+/**
+ * Generate a Nunjucks template from HTML and a selector map.
+ */
+export async function generateTemplateFromHtml(html, selectorMap, pageType, model = null, req = null) {
+  const systemPrompt = `You are a Nunjucks template expert for the WebWolf CMS.
+Your goal is to convert a static HTML page into a dynamic Nunjucks template (.njk).
+
+RULES:
+- Wrap the main content area in {% block content %}{% endblock %}.
+- Replace static content with dynamic tags based on the provided selector map.
+- Use {{ data.field_name }} for dynamic fields.
+- For images, use <img src="{{ data.image_field | default('/placeholder.png') }}">.
+- Maintain the original CSS structure and classes.
+- If the HTML contains a header or footer that should be shared, identify them and suggest where to split.
+- Return ONLY the Nunjucks code. No explanation.
+
+SELECTOR MAP:
+${JSON.stringify(selectorMap, null, 2)}
+
+PAGE TYPE: ${pageType}`;
+
+  const userPrompt = `SOURCE HTML:\n${html.substring(0, 40000)}`;
+
+  try {
+    return await generateRawText(systemPrompt, userPrompt, model);
+  } catch (err) {
+    console.error('[AI-Template] Template generation failed:', err.message);
+    throw err;
+  }
+}
+
 /**
  * Analyze a sample page from a structural group and suggest CSS selectors for content extraction.
  * This is the core AI intelligence for the site importer.

@@ -1,3 +1,4 @@
+import * as cheerio from 'cheerio';
 import prisma from '../lib/prisma.js';
 import slugify from 'slugify';
 import { generateUniqueSlug } from '../lib/slugify.js';
@@ -6,19 +7,77 @@ import { info, error as logError } from '../lib/logger.js';
 import { generateSearchIndex } from '../lib/searchIndexer.js';
 import { downloadMedia } from './mediaService.js';
 import { updateContent } from './contentService.js';
+import { structuredScrape } from './aiService.js';
 
-export async function migrateProduct(importedPageId, templateId, ruleId = null) {
+export async function migrateProduct(importedPageId, templateId, selectorMap = {}, useAI = false, ruleId = null) {
   const dbName = getCurrentDbName();
   try {
     const importedPage = await prisma.staged_items.findUnique({ where: { id: importedPageId } });
     if (!importedPage) throw new Error('Not found');
-    const meta = typeof importedPage.metadata === 'string' ? JSON.parse(importedPage.metadata) : importedPage.metadata;
-    if (!meta || meta.type !== 'product') {
+    
+    let meta = typeof importedPage.metadata === 'string' ? JSON.parse(importedPage.metadata) : (importedPage.metadata || {});
+    
+    // If not identified as product during crawl, but we're here via a product rule, force it
+    if (meta.type !== 'product' && !ruleId) {
       console.log(`[PRODUCT_MIGRATE] Skipping ${importedPage.url} - Not identified as product.`);
       throw new Error('Not a product');
     }
 
-    const title = meta.title || importedPage.title || 'Product';
+    let extractedData = {};
+
+    // 1. EXTRACT FROM RAW HTML IF AVAILABLE
+    if (importedPage.raw_html) {
+      if (useAI) {
+        info(dbName, 'PRODUCT_MIGRATE_AI', `Using AI Smart Mapping for product ${importedPageId}`);
+        const fields = [
+          { name: 'title', label: 'Product Title', type: 'text' },
+          { name: 'description', label: 'Description', type: 'richtext' },
+          { name: 'price', label: 'Price', type: 'text' },
+          { name: 'sku', label: 'SKU', type: 'text' },
+          { name: 'images', label: 'Images', type: 'image' }
+        ];
+        try {
+          extractedData = await structuredScrape(fields, importedPage.raw_html);
+        } catch (aiErr) {
+          console.warn(`[ProductMigration] AI Smart Mapping failed, falling back to selectors:`, aiErr.message);
+          useAI = false;
+        }
+      }
+
+      if (!useAI && selectorMap && Object.keys(selectorMap).length > 0) {
+        const $ = cheerio.load(importedPage.raw_html);
+        for (const [key, selector] of Object.entries(selectorMap)) {
+          const $el = $(selector);
+          if ($el.length > 0) {
+            const tagName = $el.get(0).tagName.toLowerCase();
+            if (tagName === 'img') {
+              extractedData[key] = $el.map((i, el) => $(el).attr('src') || $(el).attr('data-src') || $(el).attr('srcset')).get().filter(Boolean);
+            } else if (key === 'images') {
+               // If it's the images field but not targeting an img tag directly, find imgs within
+               extractedData[key] = $el.find('img').map((i, el) => $(el).attr('src') || $(el).attr('data-src') || $(el).attr('srcset')).get().filter(Boolean);
+            } else {
+              extractedData[key] = $el.html()?.trim() || $el.text().trim();
+            }
+          }
+        }
+      }
+    }
+
+    // Merge extracted data into meta (extracted takes priority)
+    if (extractedData.title) meta.title = String(extractedData.title).trim();
+    if (extractedData.description) meta.description = extractedData.description;
+    if (extractedData.price) {
+      const cleanedPrice = String(extractedData.price).replace(/[^\d.]/g, '');
+      meta.price = cleanedPrice ? parseFloat(cleanedPrice) : meta.price;
+    }
+    if (extractedData.sku) meta.sku = String(extractedData.sku).trim();
+    if (extractedData.images) {
+      let newImages = Array.isArray(extractedData.images) ? extractedData.images : [extractedData.images];
+      newImages = newImages.filter(img => typeof img === 'string' && img.length > 0);
+      if (newImages.length > 0) meta.images = newImages;
+    }
+
+    const title = (meta.title || importedPage.title || 'Product').trim();
     
     // Check if product with THIS EXACT TITLE already exists
     const existingContent = await prisma.content.findFirst({
@@ -30,8 +89,10 @@ export async function migrateProduct(importedPageId, templateId, ruleId = null) 
     if (meta.images && Array.isArray(meta.images)) {
       for (const imgUrl of meta.images) {
         if (imgUrl && typeof imgUrl === 'string') {
-          const localImg = await downloadMedia(imgUrl, title);
-          localImages.push(localImg);
+          try {
+            const localImg = await downloadMedia(imgUrl, title);
+            localImages.push(localImg);
+          } catch (e) { console.warn(`[PRODUCT_MIGRATE] Failed to download image ${imgUrl}:`, e.message); }
         }
       }
     }
@@ -40,8 +101,10 @@ export async function migrateProduct(importedPageId, templateId, ruleId = null) 
     if (meta.videos && Array.isArray(meta.videos)) {
       for (const vidUrl of meta.videos) {
         if (vidUrl && typeof vidUrl === 'string') {
-          const localVid = await downloadMedia(vidUrl, title);
-          localVideos.push(localVid);
+          try {
+            const localVid = await downloadMedia(vidUrl, title);
+            localVideos.push(localVid);
+          } catch (e) { console.warn(`[PRODUCT_MIGRATE] Failed to download video ${vidUrl}:`, e.message); }
         }
       }
     }
@@ -170,11 +233,12 @@ export async function migrateProduct(importedPageId, templateId, ruleId = null) 
   }
 }
 
-export async function bulkMigrateProducts(siteId, templateId, productIds = null, ruleId = null) {
+export async function bulkMigrateProducts(siteId, templateId, productIds = null, selectorMap = {}, useAI = false, ruleId = null) {
   const dbName = getCurrentDbName();
   const whereClause = { site_id: siteId };
   if (productIds && Array.isArray(productIds)) {
-    whereClause.id = { in: productIds };
+    const intIds = productIds.map(id => parseInt(id)).filter(id => !isNaN(id));
+    whereClause.id = { in: intIds };
   } else {
     whereClause.status = { in: ['completed', 'migrated'] };
   }
@@ -185,7 +249,8 @@ export async function bulkMigrateProducts(siteId, templateId, productIds = null,
 
   const productPages = pages.filter(p => {
     const meta = typeof p.metadata === 'string' ? JSON.parse(p.metadata) : p.metadata;
-    return meta && meta.type === 'product';
+    // Allow migration if it's explicitly identified as product, or if we have a rule targeting it
+    return (meta && meta.type === 'product') || ruleId;
   });
 
   console.log(`[PRODUCT_MIGRATE] Site ${siteId}: Found ${productPages.length} products to migrate out of ${pages.length} total pages.`);
@@ -193,7 +258,7 @@ export async function bulkMigrateProducts(siteId, templateId, productIds = null,
   const results = [];
   for (const page of productPages) {
     try {
-      const product = await migrateProduct(page.id, templateId, ruleId);
+      const product = await migrateProduct(page.id, templateId, selectorMap, useAI, ruleId);
       results.push({ id: page.id, success: true, productId: product.id });
     } catch (err) {
       console.error(`[PRODUCT_MIGRATE] Failed for ${page.url}:`, err.message);

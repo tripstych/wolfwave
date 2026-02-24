@@ -252,7 +252,11 @@ export default function SiteImporter() {
         const tpl = templates.find(t => t.id === parseInt(selectedTemplateId));
         const regions = tpl ? (typeof tpl.regions === 'string' ? JSON.parse(tpl.regions) : tpl.regions) : [];
         const field_types = Object.fromEntries(regions.map(r => [r.name, r.type]));
-        const res = await api.post('/import/extract', { url: pickerUrl.replace('/api/import/proxy?url=', ''), selector_map: selectorMap, field_types });
+        const res = await api.post('/import/extract', { 
+          url: decodeURIComponent(pickerUrl.replace('/api/import/proxy?url=', '')), 
+          selector_map: selectorMap, 
+          field_types 
+        });
         if (res.success) setPreviews(res.data || {});
       } catch {}
     }, 500);
@@ -416,7 +420,10 @@ export default function SiteImporter() {
     setSuggesting(true);
     try {
       const regions = typeof tpl.regions === 'string' ? JSON.parse(tpl.regions) : tpl.regions;
-      const res = await api.post('/ai/suggest-selectors', { url: pickerUrl.replace('/api/import/proxy?url=', ''), fields: regions });
+      const res = await api.post('/ai/suggest-selectors', { 
+        url: decodeURIComponent(pickerUrl.replace('/api/import/proxy?url=', '')), 
+        fields: regions 
+      });
       if (res.suggestions) setSelectorMap(res.suggestions);
       else alert('AI could not find confident matches.');
     } catch (err) { alert('AI suggestion failed: ' + err.message); }
@@ -456,10 +463,10 @@ export default function SiteImporter() {
     if (isProducts) {
       const pt = templates.find(t => t.filename === 'products/product-single.njk' || t.filename === 'products/single.njk');
       if (!pt) return alert('Single Product template not found. Create one first.');
-      if (!confirm(`Migrate ${items.length} products?`)) return;
+      if (!confirm(`Migrate ${items.length} products${useAI ? ' with AI Smart Mapping' : ''}?`)) return;
       try {
         setMigrating(true);
-        await api.post(`/import/sites/${selectedSite.id}/bulk-migrate-products`, { template_id: pt.id, product_ids: Array.from(selectedItems) });
+        await api.post(`/import/sites/${selectedSite.id}/bulk-migrate-products`, { template_id: pt.id, product_ids: Array.from(selectedItems), useAI });
         const updated = await api.get(`/import/sites/${selectedSite.id}`);
         if (updated) { setSelectedSite(updated); refreshGroupsAndItems(updated); }
       } catch (err) { alert(err.message); }

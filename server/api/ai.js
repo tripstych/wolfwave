@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import axios from 'axios';
 import { requireAuth, requireAdmin } from '../middleware/auth.js';
 import { generateThemeFromIndustry, generateImage, generateText, generateContentForFields, suggestSelectors } from '../services/aiService.js';
 import { downloadImage } from '../services/mediaService.js';
@@ -177,13 +178,29 @@ router.post('/suggest-selectors', requireAuth, requireAdmin, async (req, res) =>
 
     console.log(`[AI-DEBUG] 🔍 Suggesting selectors for URL: ${url}`);
 
-    // 1. Fetch HTML
-    const { data: html } = await axios.get(url, {
-      timeout: 10000,
-      headers: { 'User-Agent': 'WebWolf-AI-Discovery/1.0' }
+    // 1. Try to find the HTML in our database first
+    const staged = await prisma.staged_items.findFirst({
+      where: { url },
+      select: { raw_html: true }
     });
 
-    // 2. Call AI Service
+    let html = staged?.raw_html;
+
+    if (!html) {
+      console.log(`[AI-DEBUG] 🌐 HTML not found in DB, fetching fresh: ${url}`);
+      // 2. Fetch HTML if not in DB
+      const response = await axios.get(url, {
+        timeout: 10000,
+        headers: { 'User-Agent': 'WebWolf-AI-Discovery/1.0' }
+      });
+      html = response.data;
+    } else {
+      console.log(`[AI-DEBUG] 📦 Using HTML from database cache.`);
+    }
+
+    if (!html) throw new Error('Could not retrieve HTML for analysis.');
+
+    // 3. Call AI Service
     const suggestions = await suggestSelectors(fields, html, null, req);
     
     res.json({ success: true, suggestions });

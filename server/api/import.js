@@ -88,10 +88,23 @@ router.post('/extract', requireAuth, requireEditor, async (req, res) => {
     const { url, selector_map, field_types = {} } = req.body;
     if (!url || !selector_map) return res.status(400).json({ error: 'URL and selector map required' });
 
-    const { data: html } = await axios.get(url, {
-      headers: { 'User-Agent': 'WebWolf-Extractor/1.0' },
-      timeout: 10000
+    // Try to find the HTML in our database first
+    const staged = await prisma.staged_items.findFirst({
+      where: { url },
+      select: { raw_html: true }
     });
+
+    let html = staged?.raw_html;
+
+    if (!html) {
+      const { data: fetchedHtml } = await axios.get(url, {
+        headers: { 'User-Agent': 'WebWolf-Extractor/1.0' },
+        timeout: 10000
+      });
+      html = fetchedHtml;
+    }
+
+    if (!html) throw new Error('Could not retrieve HTML');
 
     const $ = cheerio.load(html);
     const results = {};
@@ -346,7 +359,7 @@ router.post('/sites/:id/migrate-with-rule', requireAuth, requireEditor, async (r
     if (!rule) return res.status(404).json({ error: 'Rule not found' });
 
     const results = rule.content_type === 'products' 
-      ? await bulkMigrateProducts(siteId, rule.template_id, page_ids, rule_id)
+      ? await bulkMigrateProducts(siteId, rule.template_id, page_ids, rule.selector_map, useAI, rule_id)
       : await bulkMigrateAll(siteId, rule.template_id, rule.selector_map, page_ids, useAI, rule_id);
     res.json({ success: true, results });
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -380,7 +393,7 @@ router.post('/sites/:id/bulk-migrate', requireAuth, requireEditor, async (req, r
 });
 
 router.post('/sites/:id/bulk-migrate-products', requireAuth, requireEditor, async (req, res) => {
-  try { res.json({ success: true, results: await bulkMigrateProducts(parseInt(req.params.id), req.body.template_id, req.body.product_ids) }); }
+  try { res.json({ success: true, results: await bulkMigrateProducts(parseInt(req.params.id), req.body.template_id, req.body.product_ids, req.body.selector_map || {}, req.body.useAI || false) }); }
   catch (err) { res.status(500).json({ error: err.message }); }
 });
 
