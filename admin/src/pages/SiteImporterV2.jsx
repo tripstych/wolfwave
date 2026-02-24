@@ -18,7 +18,8 @@ import {
   Code,
   Zap,
   Cpu,
-  RefreshCw
+  RefreshCw,
+  ChevronRight
 } from 'lucide-react';
 
 export default function SiteImporterV2() {
@@ -30,11 +31,19 @@ export default function SiteImporterV2() {
   const [stagedItems, setStagedItems] = useState([]);
   const [view, setView] = useState('overview'); // overview | staged
   const [isStarting, setIsStarting] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState(new Set());
   const lastActionRef = useRef({}); // Track last action per site to avoid duplicate toasts
 
   useEffect(() => {
     loadSites();
   }, []);
+
+  const toggleGroup = (hash) => {
+    const next = new Set(expandedGroups);
+    if (next.has(hash)) next.delete(hash);
+    else next.add(hash);
+    setExpandedGroups(next);
+  };
 
   const loadSites = async () => {
     try {
@@ -357,25 +366,51 @@ export default function SiteImporterV2() {
                     <div className="p-4">
                       {selectedSite.llm_ruleset ? (
                         <div className="space-y-4">
-                          <div className="text-xs text-gray-600 leading-relaxed bg-amber-50 p-3 rounded border border-amber-100 italic">
+                          <div id="structural_groups" className="text-xs text-gray-600 leading-relaxed bg-amber-50 p-3 rounded border border-amber-100 italic">
                             "{selectedSite.llm_ruleset.discovery_info}"
                           </div>
                           <div className="space-y-2">
                             <h4 className="text-[10px] font-bold text-gray-400 uppercase">Structural Groups</h4>
                             <div className="divide-y border rounded overflow-hidden">
                               {Object.entries(selectedSite.llm_ruleset.types || {}).map(([hash, type]) => (
-                                <div key={hash} className="p-3 hover:bg-gray-50 flex items-center justify-between">
-                                  <div>
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-xs font-bold text-gray-800 uppercase">{type.page_type}</span>
-                                      <span className="text-[10px] font-mono text-gray-400">#{hash.substring(0,8)}</span>
+                                <div key={hash} className="group">
+                                  <div 
+                                    className="p-3 hover:bg-gray-50 flex items-center justify-between cursor-pointer"
+                                    onClick={() => toggleGroup(hash)}
+                                  >
+                                    <div>
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-xs font-bold text-gray-800 uppercase">{type.page_type}</span>
+                                        <span className="text-[10px] font-mono text-gray-400">#{hash.substring(0,8)}</span>
+                                      </div>
+                                      <div className="text-[10px] text-gray-400 truncate max-w-[200px] mt-0.5">{type.summary}</div>
                                     </div>
-                                    <div className="text-[10px] text-gray-400 truncate max-w-[200px] mt-0.5">{type.summary}</div>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-[10px] font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full">{Math.round(type.confidence * 100)}%</span>
+                                      {type.template_id && <Layers className="w-3.5 h-3.5 text-blue-500" title="Template Generated" />}
+                                      <ChevronRight className={`w-4 h-4 text-gray-300 transition-transform ${expandedGroups.has(hash) ? 'rotate-90' : ''}`} />
+                                    </div>
                                   </div>
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-[10px] font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full">{Math.round(type.confidence * 100)}%</span>
-                                    {type.template_id && <Layers className="w-3.5 h-3.5 text-blue-500" title="Template Generated" />}
-                                  </div>
+                                  
+                                  {expandedGroups.has(hash) && (
+                                    <div className="bg-gray-50 p-3 border-t border-gray-100">
+                                      <h5 className="text-[9px] font-bold text-gray-400 uppercase mb-2">Selector Mapping</h5>
+                                      <div className="space-y-1">
+                                        {Object.entries(type.selector_map || {}).map(([field, selector]) => (
+                                          <div key={field} className="flex items-center gap-2 text-[10px]">
+                                            <span className="font-bold text-primary-700 min-w-[60px]">{field}:</span>
+                                            <code className="bg-white border rounded px-1.5 py-0.5 text-gray-600 font-mono flex-1">{selector}</code>
+                                          </div>
+                                        ))}
+                                      </div>
+                                      {type.is_duplicate && (
+                                        <div className="mt-3 flex items-center gap-1.5 text-[9px] text-amber-600 font-medium bg-amber-50 p-1.5 rounded border border-amber-100">
+                                          <RefreshCw className="w-3 h-3" />
+                                          Deduplicated: Shared template used.
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
                               ))}
                             </div>
