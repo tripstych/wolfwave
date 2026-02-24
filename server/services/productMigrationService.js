@@ -4,7 +4,7 @@ import { generateUniqueSlug } from '../lib/slugify.js';
 import { getCurrentDbName } from '../lib/tenantContext.js';
 import { info, error as logError } from '../lib/logger.js';
 import { generateSearchIndex } from '../lib/searchIndexer.js';
-import { downloadImage } from './mediaService.js';
+import { downloadMedia } from './mediaService.js';
 import { updateContent } from './contentService.js';
 
 export async function migrateProduct(importedPageId, templateId) {
@@ -25,18 +25,32 @@ export async function migrateProduct(importedPageId, templateId) {
       where: { module: 'products', title: title }
     });
 
-    // ── LOCALISE IMAGES ──
+    // ── LOCALISE MEDIA ──
     const localImages = [];
     if (meta.images && Array.isArray(meta.images)) {
       for (const imgUrl of meta.images) {
         if (imgUrl && typeof imgUrl === 'string') {
-          const localImg = await downloadImage(imgUrl, title);
+          const localImg = await downloadMedia(imgUrl, title);
           localImages.push(localImg);
         }
       }
     }
 
-    const contentData = { description: meta.description || '', images: localImages };
+    const localVideos = [];
+    if (meta.videos && Array.isArray(meta.videos)) {
+      for (const vidUrl of meta.videos) {
+        if (vidUrl && typeof vidUrl === 'string') {
+          const localVid = await downloadMedia(vidUrl, title);
+          localVideos.push(localVid);
+        }
+      }
+    }
+
+    const contentData = { 
+      description: meta.description || '', 
+      images: localImages,
+      videos: localVideos 
+    };
 
     if (existingContent) {
       // 1. Update base product content if needed
@@ -63,7 +77,7 @@ export async function migrateProduct(importedPageId, templateId) {
             );
 
             if (!exists) {
-              const localVariantImg = v.image ? await downloadImage(v.image, v.title || title) : null;
+              const localVariantImg = v.image ? await downloadMedia(v.image, v.title || title) : null;
               
               const variantData = {
                 product_id: product.id,
@@ -115,7 +129,7 @@ export async function migrateProduct(importedPageId, templateId) {
     if (meta.variants && meta.variants.length > 0 && meta.options) {
       const optionNames = meta.options.map(o => o.name);
       for (const v of meta.variants) {
-        const localVariantImg = v.image ? await downloadImage(v.image, v.title || title) : null;
+        const localVariantImg = v.image ? await downloadMedia(v.image, v.title || title) : null;
 
         const variantData = {
           product_id: product.id,

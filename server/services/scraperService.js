@@ -10,6 +10,7 @@ export function extractMetadata($, rules = [], url = '') {
     title: '',
     description: '',
     images: [],
+    videos: [],
     price: null,
     sku: '',
     canonical: '',
@@ -115,17 +116,22 @@ export function extractMetadata($, rules = [], url = '') {
         switch (act) {
           case 'setType': result.type = val; break;
           case 'setField':
-            if (['price', 'sku', 'title', 'description', 'image', 'images'].includes(val)) {
+            if (['price', 'sku', 'title', 'description', 'image', 'images', 'video', 'videos'].includes(val)) {
               if ($localMatch && $localMatch.length > 0) {
-                if (val === 'image' || val === 'images') {
-                  const imgUrls = $localMatch.map((i, el) => {
+                if (['image', 'images', 'video', 'videos'].includes(val)) {
+                  const mediaUrls = $localMatch.map((i, el) => {
                     let src = context$(el).attr('src') || context$(el).attr('data-src') || context$(el).attr('data-lazy-src') || context$(el).attr('srcset');
+                    if (!src && context$(el).get(0).tagName === 'video') {
+                       src = context$(el).find('source').first().attr('src');
+                    }
                     if (src && src.includes(' ')) src = src.split(' ')[0];
                     return src;
                   }).get().filter(Boolean);
                   
-                  if (val === 'images') result.images.push(...imgUrls);
-                  else result.images.unshift(imgUrls[0]);
+                  if (val === 'images') result.images.push(...mediaUrls);
+                  else if (val === 'image') result.images.unshift(mediaUrls[0]);
+                  else if (val === 'videos') result.videos.push(...mediaUrls);
+                  else if (val === 'video') result.videos.unshift(mediaUrls[0]);
                 } else {
                   result[val] = $localMatch.first().text().trim();
                 }
@@ -211,13 +217,33 @@ export function extractMetadata($, rules = [], url = '') {
     });
   }
 
+  // 7. Video Extraction
+  if (result.videos.length === 0) {
+    $('video, source').each((i, el) => {
+      const src = $(el).attr('src') || $(el).attr('data-src');
+      if (src) result.videos.push(src);
+    });
+    
+    // Look for iframes (Vimeo/YouTube)
+    $('iframe').each((i, el) => {
+      const src = $(el).attr('src');
+      if (src && src.match(/vimeo\.com|youtube\.com|youtu\.be/i)) {
+        result.videos.push(src);
+      }
+    });
+  }
+
   // Final cleanup and URL normalization
   const origin = url ? new URL(url).origin : '';
-  result.images = [...new Set(result.images)].filter(Boolean).map(img => {
-    if (img.startsWith('//')) return 'https:' + img;
-    if (img.startsWith('/') && origin) return origin + img;
-    return img;
-  });
+  const normalizeUrl = (u) => {
+    if (!u) return null;
+    if (u.startsWith('//')) return 'https:' + u;
+    if (u.startsWith('/') && origin) return origin + u;
+    return u;
+  };
+
+  result.images = [...new Set(result.images)].map(normalizeUrl).filter(Boolean);
+  result.videos = [...new Set(result.videos)].map(normalizeUrl).filter(Boolean);
 
   // Clean numeric fields
   const numericFields = ['price', 'compare_at_price', 'cost', 'inventory_quantity', 'weight'];
@@ -230,6 +256,7 @@ export function extractMetadata($, rules = [], url = '') {
 
   result.title = result.title.trim();
   result.images = [...new Set(result.images)].filter(Boolean);
+  result.videos = [...new Set(result.videos)].filter(Boolean);
   return result;
 }
 

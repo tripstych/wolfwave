@@ -1,5 +1,6 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
+import multer from 'multer';
 import { Router } from 'express';
 import { requireAuth, requireEditor } from '../middleware/auth.js';
 import { scrapeUrl } from '../services/scraperService.js';
@@ -7,8 +8,22 @@ import { crawlSite } from '../services/crawlerService.js';
 import { analyzeSiteGroups, generateTemplateFromGroup } from '../services/templateGeneratorService.js';
 import { migratePage, bulkMigrate, bulkMigrateAll } from '../services/migrationService.js';
 import { migrateProduct, bulkMigrateProducts } from '../services/productMigrationService.js';
+import { previewWpTheme, convertWpTheme } from '../services/wpThemeConverter.js';
 import prisma from '../lib/prisma.js';
 import { CRAWLER_PRESETS } from '../lib/crawlerPresets.js';
+
+// Multer for WP theme ZIP uploads (memory storage, 50MB limit)
+const wpUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 50 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === 'application/zip' || file.mimetype === 'application/x-zip-compressed' || file.originalname.endsWith('.zip')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only ZIP files are accepted'));
+    }
+  }
+});
 
 const router = Router();
 
@@ -282,6 +297,32 @@ router.get('/pages/:id', requireAuth, async (req, res) => {
     if (!page) return res.status(404).json({ error: 'Not found' });
     res.json(page);
   } catch (err) { res.status(500).json({ error: 'Failed' }); }
+});
+
+// ── WordPress Theme Import ──
+
+router.post('/wp-theme/preview', requireAuth, requireEditor, wpUpload.single('theme'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'ZIP file required' });
+    const preview = await previewWpTheme(req.file.buffer);
+    res.json({ success: true, ...preview });
+  } catch (err) {
+    res.status(500).json({ error: `Preview failed: ${err.message}` });
+  }
+});
+
+router.post('/wp-theme/convert', requireAuth, requireEditor, wpUpload.single('theme'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'ZIP file required' });
+    const options = {};
+    if (req.body.selectedFiles) {
+      try { options.selectedFiles = JSON.parse(req.body.selectedFiles); } catch {}
+    }
+    const result = await convertWpTheme(req.file.buffer, options);
+    res.json({ success: true, ...result });
+  } catch (err) {
+    res.status(500).json({ error: `Conversion failed: ${err.message}` });
+  }
 });
 
 export default router;

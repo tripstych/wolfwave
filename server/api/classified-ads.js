@@ -4,6 +4,7 @@ import { requireAuth, optionalAuth } from '../middleware/auth.js';
 import slugify from 'slugify';
 import { generateSearchIndex } from '../lib/searchIndexer.js';
 import { updateContent } from '../services/contentService.js';
+import { downloadMedia, processHtmlMedia } from '../services/mediaService.js';
 
 const router = Router();
 
@@ -138,14 +139,40 @@ router.post('/', requireAuth, async (req, res) => {
     const existingSlug = await prisma.content.findUnique({ where: { slug } });
     if (existingSlug) slug += `-${Date.now()}`;
 
+    // Process and localize media
+    const userId = req.user?.id;
+    const processedImage = image ? await downloadMedia(image, title, userId) : null;
+    const processedImages = images ? await Promise.all(images.map(img => downloadMedia(img.url || img, title, userId).then(url => ({ url, alt: img.alt || '', position: img.position })))) : [];
+    
+    const processContentMedia = async (obj) => {
+      if (!obj || typeof obj !== 'object') return obj;
+      if (Array.isArray(obj)) return Promise.all(obj.map(item => processContentMedia(item)));
+      
+      const newObj = { ...obj };
+      for (const [key, val] of Object.entries(newObj)) {
+        if (typeof val === 'string') {
+          if (val.startsWith('http') && (val.match(/\.(jpg|jpeg|png|webp|gif|svg|mp4|webm|ogg|mov)/i))) {
+            newObj[key] = await downloadMedia(val, title, userId);
+          } else if (val.includes('<img') || val.includes('<video')) {
+            newObj[key] = await processHtmlMedia(val, userId);
+          }
+        } else if (typeof val === 'object') {
+          newObj[key] = await processContentMedia(val);
+        }
+      }
+      return newObj;
+    };
+
+    const processedContent = await processContentMedia(content || {});
+
     // 1. Create content record
     const contentRecord = await prisma.content.create({
       data: {
         module: 'classifieds',
         title,
         slug,
-        data: content || {},
-        search_index: generateSearchIndex(title, content || {})
+        data: processedContent,
+        search_index: generateSearchIndex(title, processedContent)
       }
     });
 
@@ -163,8 +190,8 @@ router.post('/', requireAuth, async (req, res) => {
         condition,
         location,
         contact_info,
-        image,
-        images: images || [],
+        image: processedImage,
+        images: processedImages,
         status: 'pending_review'
       },
       include: { content: true }
@@ -213,11 +240,37 @@ router.put('/:id', requireAuth, async (req, res) => {
       content
     } = req.body;
 
+    // Process and localize media
+    const userId = req.user?.id;
+    const processedImage = image ? await downloadMedia(image, title || existing.title, userId) : existing.image;
+    const processedImages = images ? await Promise.all(images.map(img => downloadMedia(img.url || img, title || existing.title, userId).then(url => ({ url, alt: img.alt || '', position: img.position })))) : existing.images;
+    
+    const processContentMedia = async (obj) => {
+      if (!obj || typeof obj !== 'object') return obj;
+      if (Array.isArray(obj)) return Promise.all(obj.map(item => processContentMedia(item)));
+      
+      const newObj = { ...obj };
+      for (const [key, val] of Object.entries(newObj)) {
+        if (typeof val === 'string') {
+          if (val.startsWith('http') && (val.match(/\.(jpg|jpeg|png|webp|gif|svg|mp4|webm|ogg|mov)/i))) {
+            newObj[key] = await downloadMedia(val, title || existing.title, userId);
+          } else if (val.includes('<img') || val.includes('<video')) {
+            newObj[key] = await processHtmlMedia(val, userId);
+          }
+        } else if (typeof val === 'object') {
+          newObj[key] = await processContentMedia(val);
+        }
+      }
+      return newObj;
+    };
+
+    const processedContent = await processContentMedia(content || existing.content?.data || {});
+
     // 1. Update content record if needed
     if (existing.content_id) {
       await updateContent(existing.content_id, {
         title: title || existing.title,
-        data: content || existing.content?.data || {}
+        data: processedContent
       });
     }
 
@@ -232,8 +285,8 @@ router.put('/:id', requireAuth, async (req, res) => {
         condition,
         location,
         contact_info,
-        image,
-        images,
+        image: processedImage,
+        images: processedImages,
         status: status === 'sold' ? 'sold' : existing.status
       },
       include: { content: true }

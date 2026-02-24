@@ -188,6 +188,10 @@ export default function ProductEditor() {
                 updates.image = mapped[0].url;
               }
             }
+            else if (key === 'videos') {
+              const urls = Array.isArray(extracted[key]) ? extracted[key] : [extracted[key]];
+              newContent.videos = [...(newContent.videos || []), ...urls];
+            }
             else if (key === 'description') newContent.description = extracted[key];
             else newContent[key] = extracted[key];
           });
@@ -676,6 +680,7 @@ export default function ProductEditor() {
         fields={[
           { id: 'title', label: 'Title' }, { id: 'price', label: 'Price' }, { id: 'sku', label: 'SKU' },
           { id: 'images', label: 'Gallery Images' },
+          { id: 'videos', label: 'Gallery Videos' },
           ...regions.map(r => ({ id: r.name, label: r.label || r.name }))
         ]}
         selectorMap={selectorMap}

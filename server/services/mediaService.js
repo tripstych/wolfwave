@@ -21,38 +21,42 @@ function getTenantUploadsDir() {
 }
 
 /**
- * Download an image from a URL and save it to the local media library.
- * Returns the local URL of the saved image.
+ * Download a media file (image or video) from a URL and save it to the local media library.
+ * Returns the local URL of the saved file.
  */
-export async function downloadImage(url, altText = '', userId = null) {
+export async function downloadMedia(url, altText = '', userId = null) {
   const dbName = getCurrentDbName();
   try {
     if (!url || typeof url !== 'string' || !url.startsWith('http')) return url;
 
     // Normalize URL
-    const imageUrl = new URL(url).toString();
+    const mediaUrl = new URL(url).toString();
 
     // 1. Check if we already have this original URL to avoid duplicates
-    // Using LIKE to handle potential truncation in DB
-    const existing = await query('SELECT path FROM media WHERE original_name = ? OR original_name LIKE ? LIMIT 1', [imageUrl, imageUrl.substring(0, 250) + '%']);
+    const existing = await query('SELECT path FROM media WHERE original_name = ? OR original_name LIKE ? LIMIT 1', [mediaUrl, mediaUrl.substring(0, 250) + '%']);
     if (existing && existing.length > 0) {
       return `/uploads${existing[0].path}`;
     }
     
-    // 2. Fetch the image
-    const response = await axios.get(imageUrl, {
+    // 2. Fetch the media
+    const response = await axios.get(mediaUrl, {
       responseType: 'arraybuffer',
-      timeout: 10000,
+      timeout: 30000, // Increased timeout for videos
+      maxContentLength: 50 * 1024 * 1024, // 50MB limit
       headers: { 
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
       }
     });
 
     const contentType = response.headers['content-type'];
-    if (!contentType || !contentType.startsWith('image/')) {
-      const ext = path.extname(new URL(imageUrl).pathname).toLowerCase();
-      if (!['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg'].includes(ext)) {
-        throw new Error(`URL is not an image: ${contentType}`);
+    const isImage = contentType?.startsWith('image/');
+    const isVideo = contentType?.startsWith('video/');
+
+    if (!isImage && !isVideo) {
+      const ext = path.extname(new URL(mediaUrl).pathname).toLowerCase();
+      const validExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.mp4', '.webm', '.ogg', '.mov'];
+      if (!validExts.includes(ext)) {
+        throw new Error(`URL is not a supported media type: ${contentType}`);
       }
     }
 
@@ -64,9 +68,9 @@ export async function downloadImage(url, altText = '', userId = null) {
     await fs.mkdir(fullPath, { recursive: true });
 
     // 4. Generate filename
-    const urlObj = new URL(imageUrl);
-    const originalFilename = path.basename(urlObj.pathname) || 'imported-image';
-    const ext = path.extname(originalFilename) || ('.' + (contentType ? contentType.split('/')[1] : 'jpg'));
+    const urlObj = new URL(mediaUrl);
+    const originalFilename = path.basename(urlObj.pathname) || 'imported-media';
+    const ext = path.extname(originalFilename) || ('.' + (contentType ? contentType.split('/')[1] : 'dat'));
     const filename = `${uuidv4()}${ext}`;
     const filePath = path.join(fullPath, filename);
 
@@ -82,8 +86,8 @@ export async function downloadImage(url, altText = '', userId = null) {
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `, [
         filename.substring(0, 255),
-        imageUrl.substring(0, 255),
-        (contentType || 'image/jpeg').substring(0, 100),
+        mediaUrl.substring(0, 255),
+        (contentType || (isImage ? 'image/jpeg' : 'video/mp4')).substring(0, 100),
         response.data.length,
         relativePath.substring(0, 500),
         (altText || '').substring(0, 255),
@@ -95,27 +99,31 @@ export async function downloadImage(url, altText = '', userId = null) {
     }
 
     const localUrl = `/uploads${relativePath}`;
-    info(dbName, 'IMAGE_DOWNLOADED', `Downloaded ${imageUrl} to ${localUrl}`);
+    info(dbName, 'MEDIA_DOWNLOADED', `Downloaded ${mediaUrl} to ${localUrl}`);
     
     return localUrl;
   } catch (err) {
-    console.error(`[WebWolf:mediaService] Failed to download image ${url}:`, err.message);
-    logError(dbName, err, 'IMAGE_DOWNLOAD_FAILED', { url });
+    console.error(`[WebWolf:mediaService] Failed to download media ${url}:`, err.message);
+    logError(dbName, err, 'MEDIA_DOWNLOAD_FAILED', { url });
     return url; // Fallback to original URL
   }
 }
 
+// Alias for backward compatibility
+export const downloadImage = downloadMedia;
+
 /**
- * Process HTML content to find all <img> tags, download the images, 
- * and rewrite the src attributes to point to the local copies.
+ * Process HTML content to find all <img> and <video> tags, download the media, 
+ * and rewrite the attributes to point to the local copies.
  */
-export async function processHtmlImages(html, userId = null) {
+export async function processHtmlMedia(html, userId = null) {
   if (!html) return html;
   
-  const $ = cheerio.load(html, null, false); // null, false means do not wrap in body/html
+  const $ = cheerio.load(html, null, false);
   const images = $('img');
+  const videos = $('video, source');
   
-  if (images.length === 0) return html;
+  if (images.length === 0 && videos.length === 0) return html;
 
   const downloadPromises = [];
   
@@ -124,12 +132,20 @@ export async function processHtmlImages(html, userId = null) {
     if (src && src.startsWith('http')) {
       const alt = $(el).attr('alt') || '';
       downloadPromises.push(
-        downloadImage(src, alt, userId).then(localUrl => {
+        downloadMedia(src, alt, userId).then(localUrl => {
           $(el).attr('src', localUrl);
-          // Also handle srcset if present
-          if ($(el).attr('srcset')) {
-            $(el).removeAttr('srcset'); // Simplest approach: remove srcset as we only have one local size
-          }
+          if ($(el).attr('srcset')) $(el).removeAttr('srcset');
+        })
+      );
+    }
+  });
+
+  videos.each((i, el) => {
+    const src = $(el).attr('src');
+    if (src && src.startsWith('http')) {
+      downloadPromises.push(
+        downloadMedia(src, '', userId).then(localUrl => {
+          $(el).attr('src', localUrl);
         })
       );
     }
@@ -142,3 +158,6 @@ export async function processHtmlImages(html, userId = null) {
   
   return html;
 }
+
+// Alias for backward compatibility
+export const processHtmlImages = processHtmlMedia;

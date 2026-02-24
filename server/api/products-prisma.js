@@ -4,7 +4,7 @@ import { requireAuth, requireEditor } from '../middleware/auth.js';
 import prisma from '../lib/prisma.js';
 import { generateSearchIndex } from '../lib/searchIndexer.js';
 import { updateContent } from '../services/contentService.js';
-import { downloadImage, processHtmlImages } from '../services/mediaService.js';
+import { downloadImage, processHtmlMedia } from '../services/mediaService.js';
 
 const router = Router();
 
@@ -187,7 +187,7 @@ router.post('/', requireAuth, requireEditor, async (req, res) => {
     // Process HTML content for images
     const processedContent = content || {};
     if (processedContent.description) {
-      processedContent.description = await processHtmlImages(processedContent.description, userId);
+      processedContent.description = await processHtmlMedia(processedContent.description, userId);
     }
 
     // Create content record first
@@ -359,7 +359,7 @@ router.put('/:id', requireAuth, requireEditor, async (req, res) => {
         contentData = { ...contentData, ...content };
         // Process images in description
         if (contentData.description) {
-          contentData.description = await processHtmlImages(contentData.description, userId);
+          contentData.description = await processHtmlMedia(contentData.description, userId);
         }
       }
       if (content !== undefined) {

@@ -4,6 +4,7 @@ import { requireAuth, requireEditor } from '../middleware/auth.js';
 import prisma from '../lib/prisma.js';
 import { generateSearchIndex } from '../lib/searchIndexer.js';
 import { updateContent } from '../services/contentService.js';
+import { downloadMedia, processHtmlMedia } from '../services/mediaService.js';
 
 const router = Router();
 
@@ -179,6 +180,32 @@ router.post('/', requireAuth, requireEditor, async (req, res) => {
       slug = `/${content_type}/` + slug;
     }
 
+    // Process and localize media
+    const userId = req.user?.id;
+    const processedOgImage = og_image ? await downloadMedia(og_image, title, userId) : null;
+    
+    // Deeply process content for media URLs
+    const processContentMedia = async (obj) => {
+      if (!obj || typeof obj !== 'object') return obj;
+      if (Array.isArray(obj)) return Promise.all(obj.map(item => processContentMedia(item)));
+      
+      const newObj = { ...obj };
+      for (const [key, val] of Object.entries(newObj)) {
+        if (typeof val === 'string') {
+          if (val.startsWith('http') && (val.match(/\.(jpg|jpeg|png|webp|gif|svg|mp4|webm|ogg|mov)/i))) {
+            newObj[key] = await downloadMedia(val, title, userId);
+          } else if (val.includes('<img') || val.includes('<video')) {
+            newObj[key] = await processHtmlMedia(val, userId);
+          }
+        } else if (typeof val === 'object') {
+          newObj[key] = await processContentMedia(val);
+        }
+      }
+      return newObj;
+    };
+
+    const processedContent = await processContentMedia(content || {});
+
     // Use transaction to ensure both records are created
     const result = await prisma.$transaction(async (tx) => {
       // Create content record first
@@ -187,8 +214,8 @@ router.post('/', requireAuth, requireEditor, async (req, res) => {
           module: content_type,
           title,
           slug,
-          data: content || {},
-          search_index: generateSearchIndex(title, content)
+          data: processedContent,
+          search_index: generateSearchIndex(title, processedContent)
         }
       });
 
@@ -204,7 +231,7 @@ router.post('/', requireAuth, requireEditor, async (req, res) => {
           meta_description: meta_description || '',
           og_title: og_title || '',
           og_description: og_description || '',
-          og_image: og_image || '',
+          og_image: processedOgImage || '',
           canonical_url: canonical_url || '',
           robots: robots || 'index, follow',
           schema_markup: schema_markup ? JSON.stringify(schema_markup) : null,
@@ -268,6 +295,32 @@ router.put('/:id', requireAuth, requireEditor, async (req, res) => {
       }
     }
 
+    // Process and localize media
+    const userId = req.user?.id;
+    let processedOgImage = og_image;
+    if (og_image && og_image.startsWith('http')) {
+      processedOgImage = await downloadMedia(og_image, title || existingPage.title, userId);
+    }
+
+    const processContentMedia = async (obj) => {
+      if (!obj || typeof obj !== 'object') return obj;
+      if (Array.isArray(obj)) return Promise.all(obj.map(item => processContentMedia(item)));
+      
+      const newObj = { ...obj };
+      for (const [key, val] of Object.entries(newObj)) {
+        if (typeof val === 'string') {
+          if (val.startsWith('http') && (val.match(/\.(jpg|jpeg|png|webp|gif|svg|mp4|webm|ogg|mov)/i))) {
+            newObj[key] = await downloadMedia(val, title || existingPage.title, userId);
+          } else if (val.includes('<img') || val.includes('<video')) {
+            newObj[key] = await processHtmlMedia(val, userId);
+          }
+        } else if (typeof val === 'object') {
+          newObj[key] = await processContentMedia(val);
+        }
+      }
+      return newObj;
+    };
+
     // Update page
     const updateData = {};
     if (template_id !== undefined) updateData.template_id = parseInt(template_id);
@@ -277,7 +330,7 @@ router.put('/:id', requireAuth, requireEditor, async (req, res) => {
     if (meta_description !== undefined) updateData.meta_description = meta_description;
     if (og_title !== undefined) updateData.og_title = og_title;
     if (og_description !== undefined) updateData.og_description = og_description;
-    if (og_image !== undefined) updateData.og_image = og_image;
+    if (og_image !== undefined) updateData.og_image = processedOgImage;
     if (canonical_url !== undefined) updateData.canonical_url = canonical_url;
     if (robots !== undefined) updateData.robots = robots;
     if (schema_markup !== undefined) updateData.schema_markup = schema_markup ? JSON.stringify(schema_markup) : null;
@@ -303,11 +356,13 @@ router.put('/:id', requireAuth, requireEditor, async (req, res) => {
           }
         }
 
+        const processedContent = await processContentMedia(mergedContent || {});
+
         const contentUpdates = {
-          ...(mergedContent && { data: mergedContent }),
+          ...(processedContent && { data: processedContent }),
           ...(title && { title }),
           ...(slug && { slug }),
-          search_index: generateSearchIndex(title || existingPage.title, mergedContent)
+          search_index: generateSearchIndex(title || existingPage.title, processedContent)
         };
 
         await updateContent(existingPage.content_id, contentUpdates);

@@ -117,6 +117,14 @@ export default function PostEditor() {
           Object.keys(extracted).forEach(key => {
             if (key === 'title') updates.title = extracted[key];
             else if (key === 'description') newContent.description = extracted[key];
+            else if (key === 'images') {
+              const urls = Array.isArray(extracted[key]) ? extracted[key] : [extracted[key]];
+              newContent.images = [...(newContent.images || []), ...urls];
+            }
+            else if (key === 'videos') {
+              const urls = Array.isArray(extracted[key]) ? extracted[key] : [extracted[key]];
+              newContent.videos = [...(newContent.videos || []), ...urls];
+            }
             else newContent[key] = extracted[key];
           });
           return { ...prev, ...updates, content: newContent };
@@ -491,6 +499,8 @@ export default function PostEditor() {
         fields={[
           { id: 'title', label: 'Title' },
           { id: 'description', label: 'Description' },
+          { id: 'images', label: 'Gallery Images' },
+          { id: 'videos', label: 'Gallery Videos' },
           ...regions.map(r => ({ id: r.name, label: r.label || r.name }))
         ]}
         selectorMap={selectorMap}

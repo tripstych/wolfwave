@@ -1,14 +1,13 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { X, LayoutDashboard, FileText, Boxes, Puzzle, Layers, Image, List, Tag, Package, Briefcase, Users, CreditCard, Palette, Building, Mail, Search, Settings, Download, Globe, Key, Megaphone } from 'lucide-react';
+import { X, LayoutDashboard, FileText, Boxes, Puzzle, Layers, Image, List, Tag, Package, Briefcase, Users, CreditCard, Palette, Building, Mail, Search, Settings, Download, Globe, Key, Megaphone, BookOpen } from 'lucide-react';
 import SidebarItem from './SidebarItem';
 
 const ICON_MAP = {
   'LayoutDashboard': LayoutDashboard,
   'FileText': FileText,
+  'BookOpen': BookOpen,
   'Boxes': Boxes,
-  'BookOpen': FileText, // Default fallbacks
-  'Newspaper': FileText,
   'Package': Package,
   'Users': Users,
   'Briefcase': Briefcase,
@@ -45,7 +44,7 @@ export default function Sidebar({ isOpen, onClose, contentTypes = [] }) {
       section: 'Content',
       items: [
         { name: 'Pages', href: '/pages', icon: FileText },
-        { name: 'Posts', href: '/posts', icon: FileText },
+        { name: 'Posts', href: '/posts', icon: BookOpen },
         { name: 'Blocks', href: '/blocks', icon: Boxes },
         { name: 'Widgets', href: '/widgets', icon: Puzzle },
         { name: 'Templates', href: '/templates', icon: Layers },
