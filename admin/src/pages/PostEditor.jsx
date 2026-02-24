@@ -15,6 +15,7 @@ import MenuWidget from '../components/MenuWidget';
 import VisualPickerModal from '../components/VisualPickerModal';
 import HistoryPreviewModal from '../components/HistoryPreviewModal';
 import CodeEditor from '../components/CodeEditor';
+import AiImageOverlay from '../components/AiImageOverlay';
 
 // Hooks
 import useContentEditor from '../hooks/useContentEditor';
@@ -66,6 +67,9 @@ export default function PostEditor() {
   const [generating, setGenerating] = useState(false);
   const [aiPrompts, setAiPrompts] = useState({});
   const [imageGenerating, setImageGenerating] = useState(null);
+  const [showAiOverlay, setShowAiOverlay] = useState(false);
+  const [activeAiPrompt, setActiveAiPrompt] = useState('');
+  const [activeAiRegion, setActiveAiRegion] = useState('');
 
   // Visual Picker State
   const [showPicker, setShowPicker] = useState(false);
@@ -198,22 +202,16 @@ export default function PostEditor() {
     }
   };
 
-  const handleImageGenerate = async (regionName) => {
+  const handleImageGenerate = (regionName) => {
     const prompt = window.prompt('Describe the image:', aiPrompts[regionName] || `Image for ${post.title}`);
     if (!prompt) return;
-    setImageGenerating(regionName);
-    const toastId = toast.loading('Generating image, please wait...');
-    try {
-      const response = await api.post('/ai/generate-image', { prompt });
-      if (response.success && response.path) {
-        handleContentChange(regionName, response.path);
-        toast.success('Image generated!', { id: toastId });
-      }
-    } catch (err) {
-      toast.error('Image generation failed', { id: toastId });
-    } finally {
-      setImageGenerating(null);
-    }
+    setActiveAiPrompt(prompt);
+    setActiveAiRegion(regionName);
+    setShowAiOverlay(true);
+  };
+
+  const handleAiConfirm = (path) => {
+    handleContentChange(activeAiRegion, path);
   };
 
   if (loading) return (
@@ -224,6 +222,12 @@ export default function PostEditor() {
 
   return (
     <div className="space-y-6">
+      <AiImageOverlay 
+        isOpen={showAiOverlay}
+        prompt={activeAiPrompt}
+        onClose={() => setShowAiOverlay(false)}
+        onConfirm={handleAiConfirm}
+      />
       <div className="flex items-center justify-between sticky top-16 bg-gray-50 z-20 -mx-6 px-6 py-4 border-b border-gray-200">
         <div className="flex items-center gap-4">
           <button onClick={() => navigate('/posts')} className="btn btn-ghost">

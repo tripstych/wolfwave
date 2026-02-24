@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { requireAuth, requireAdmin } from '../middleware/auth.js';
 import { generateThemeFromIndustry, generateImage, generateText, generateContentForFields, suggestSelectors } from '../services/aiService.js';
+import { downloadImage } from '../services/mediaService.js';
 import fs from 'fs/promises';
 import path from 'path';
 import { getThemesDir } from '../services/themeResolver.js';
@@ -81,18 +82,36 @@ router.post('/generate-theme', requireAuth, requireAdmin, async (req, res) => {
 
 /**
  * POST /api/ai/generate-image
- * Payload: { prompt: "A futuristic city" }
+ * Payload: { prompt: "A futuristic city", preview: true }
  */
 router.post('/generate-image', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const { prompt } = req.body;
+    const { prompt, preview } = req.body;
     if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
 
-    const imagePath = await generateImage(prompt, "1024x1024", req.user?.id);
+    const imagePath = await generateImage(prompt, "1024x1024", req.user?.id, !!preview);
     res.json({ success: true, path: imagePath });
 
   } catch (error) {
     console.error('Image Generation Failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/ai/save-generated-image
+ * Payload: { url: "...", prompt: "..." }
+ */
+router.post('/save-generated-image', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { url, prompt } = req.body;
+    if (!url) return res.status(400).json({ error: 'URL/Data is required' });
+
+    const localUrl = await downloadImage(url, prompt || 'AI Generated', req.user?.id, true);
+    res.json({ success: true, path: localUrl });
+
+  } catch (error) {
+    console.error('Image Save Failed:', error);
     res.status(500).json({ error: error.message });
   }
 });

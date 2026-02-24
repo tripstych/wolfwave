@@ -320,7 +320,7 @@ export async function generateRawText(systemPrompt, userPrompt, model = null) {
  * Generate an image using AI (DALL-E 3 or Gemini)
  * Downloads the image locally and returns the local path.
  */
-export async function generateImage(prompt, size = "1024x1024", userId = null) {
+export async function generateImage(prompt, size = "1024x1024", userId = null, skipSave = false) {
   const config = await getAiSettings();
   
   const hasNoKeys = !config.openai_api_key && !config.gemini_api_key;
@@ -330,7 +330,8 @@ export async function generateImage(prompt, size = "1024x1024", userId = null) {
     hasGemini: !!config.gemini_api_key, 
     hasOpenAI: !!config.openai_api_key, 
     isDemo: isDemoKey,
-    hasNoKeys
+    hasNoKeys,
+    skipSave
   });
 
   // SIMULATION MODE
@@ -367,6 +368,11 @@ export async function generateImage(prompt, size = "1024x1024", userId = null) {
         if (imageData) {
           console.log(`[AI-DEBUG] 📥 Base64 image received from Gemini (model: ${model}). Processing...`);
           const dataUri = `data:image/png;base64,${imageData}`;
+          
+          if (skipSave) {
+            return dataUri;
+          }
+
           const localUrl = await downloadMedia(dataUri, prompt, userId, true);
 
           console.log(`[AI-DEBUG] ✅ Gemini Image processed: ${localUrl}`);
@@ -419,7 +425,11 @@ export async function generateImage(prompt, size = "1024x1024", userId = null) {
       );
 
       const imageUrl = response.data.data[0].url;
-      console.log(`[AI-DEBUG] 📥 Image URL received. Downloading via mediaService...`);
+      console.log(`[AI-DEBUG] 📥 Image URL received. skipSave: ${skipSave}`);
+
+      if (skipSave) {
+        return imageUrl;
+      }
 
       // Use mediaService to download and register in DB (strict: true)
       const localUrl = await downloadImage(imageUrl, prompt, userId, true);

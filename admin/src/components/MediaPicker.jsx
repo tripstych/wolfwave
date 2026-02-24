@@ -2,12 +2,15 @@ import { useState, useEffect, useRef } from 'react';
 import api from '../lib/api';
 import { X, Upload, Check, Image as ImageIcon, Sparkles, Loader2, Video, Play, Search } from 'lucide-react';
 import { toast } from 'sonner';
+import AiImageOverlay from './AiImageOverlay';
 
 export default function MediaPicker({ onSelect, onClose }) {
   const [media, setMedia] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [showAiOverlay, setShowAiOverlay] = useState(false);
+  const [activePrompt, setActivePrompt] = useState('');
   const [type, setType] = useState('image'); // 'all', 'image', 'video'
   const [prompt, setPrompt] = useState('');
   const [selected, setSelected] = useState(null);
@@ -52,26 +55,15 @@ export default function MediaPicker({ onSelect, onClose }) {
   const isImage = (mimeType) => mimeType?.startsWith('image/');
   const isVideo = (mimeType) => mimeType?.startsWith('video/');
 
-  const handleGenerate = async () => {
+  const handleGenerate = () => {
     if (!prompt.trim()) return;
+    setActivePrompt(prompt);
+    setShowAiOverlay(true);
+  };
 
-    setGenerating(true);
-    const toastId = toast.loading('Generating image, please wait...');
-    try {
-      const result = await api.post('/ai/generate-image', { prompt });
-      if (result.success) {
-        // Refresh media list to show the new image
-        await loadMedia();
-        setPrompt('');
-        toast.success('Image generated!', { id: toastId });
-        // New image should be first in the list if sorted by newest
-      }
-    } catch (err) {
-      console.error('Generation failed:', err);
-      toast.error('Generation failed', { id: toastId });
-    } finally {
-      setGenerating(false);
-    }
+  const handleAiConfirm = (path) => {
+    setPrompt('');
+    loadMedia();
   };
 
   const handleSelect = () => {
@@ -87,6 +79,12 @@ export default function MediaPicker({ onSelect, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <AiImageOverlay 
+        isOpen={showAiOverlay}
+        prompt={activePrompt}
+        onClose={() => setShowAiOverlay(false)}
+        onConfirm={handleAiConfirm}
+      />
       <div className="absolute inset-0 bg-gray-900/50" onClick={onClose} />
       <div className="relative bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[80vh] flex flex-col">
         {/* Header */}

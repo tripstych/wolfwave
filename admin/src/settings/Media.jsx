@@ -16,13 +16,15 @@ import {
   Play
 } from 'lucide-react';
 import { toast } from 'sonner';
+import AiImageOverlay from '../components/AiImageOverlay';
 
 export default function Media() {
   const [media, setMedia] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
-  const [generating, setGenerating] = useState(false);
   const [prompt, setPrompt] = useState('');
+  const [showAiOverlay, setShowAiOverlay] = useState(false);
+  const [activePrompt, setActivePrompt] = useState('');
   const [selectedMedia, setSelectedMedia] = useState(null);
   const [editingAlt, setEditingAlt] = useState(false);
   const [altText, setAltText] = useState('');
@@ -72,24 +74,15 @@ export default function Media() {
     }
   };
 
-  const handleGenerate = async () => {
+  const handleGenerate = () => {
     if (!prompt.trim()) return;
+    setActivePrompt(prompt);
+    setShowAiOverlay(true);
+  };
 
-    setGenerating(true);
-    const toastId = toast.loading('Generating image, please wait...');
-    try {
-      const result = await api.post('/ai/generate-image', { prompt });
-      if (result.success) {
-        toast.success('Image generated!', { id: toastId });
-        setPrompt('');
-        loadMedia(); // Refresh grid
-      }
-    } catch (err) {
-      console.error('Generation failed:', err);
-      toast.error('Generation failed: ' + err.message, { id: toastId });
-    } finally {
-      setGenerating(false);
-    }
+  const handleAiConfirm = (path) => {
+    setPrompt('');
+    loadMedia();
   };
 
   const handleDelete = async (id) => {
@@ -130,6 +123,12 @@ export default function Media() {
 
   return (
     <div className="space-y-6">
+      <AiImageOverlay 
+        isOpen={showAiOverlay}
+        prompt={activePrompt}
+        onClose={() => setShowAiOverlay(false)}
+        onConfirm={handleAiConfirm}
+      />
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Media Library</h1>
         <div>
@@ -170,25 +169,15 @@ export default function Media() {
                 onChange={(e) => setPrompt(e.target.value)}
                 placeholder="e.g. 'A high-end luxury watch on a marble table', 'Abstract blue ocean waves'..."
                 className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                disabled={generating}
                 onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
               />
               <button
                 onClick={handleGenerate}
-                disabled={generating || !prompt.trim()}
+                disabled={!prompt.trim()}
                 className="px-6 py-2 bg-primary-600 text-white font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
-                {generating ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Painting...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-4 h-4" />
-                    Generate
-                  </>
-                )}
+                <Sparkles className="w-4 h-4" />
+                Generate
               </button>
             </div>
           </div>

@@ -14,6 +14,7 @@ import MenuWidget from '../components/MenuWidget';
 import VisualPickerModal from '../components/VisualPickerModal';
 import HistoryPreviewModal from '../components/HistoryPreviewModal';
 import CodeEditor from '../components/CodeEditor';
+import AiImageOverlay from '../components/AiImageOverlay';
 
 // Hooks
 import useContentEditor from '../hooks/useContentEditor';
@@ -76,6 +77,9 @@ export default function ProductEditor() {
   const [generating, setGenerating] = useState(false);
   const [aiPrompts, setAiPrompts] = useState({});
   const [imageGenerating, setImageGenerating] = useState(null);
+  const [showAiOverlay, setShowAiOverlay] = useState(false);
+  const [activeAiPrompt, setActiveAiPrompt] = useState('');
+  const [activeAiRegion, setActiveAiRegion] = useState('');
 
   useEffect(() => {
     if (!loading && product.variants?.length > 0 && options.length === 0) {
@@ -265,22 +269,16 @@ export default function ProductEditor() {
     }
   };
 
-  const handleImageGenerate = async (regionName) => {
+  const handleImageGenerate = (regionName) => {
     const prompt = window.prompt(_('ai.image.prompt', 'Describe the image:'), aiPrompts[regionName] || `Image for ${product.title}`);
     if (!prompt) return;
-    setImageGenerating(regionName);
-    const toastId = toast.loading(_('ai.image.loading', 'Generating image, please wait...'));
-    try {
-      const response = await api.post('/ai/generate-image', { prompt });
-      if (response.success && response.path) {
-        handleContentChange(regionName, response.path);
-        toast.success(_('ai.image.success', 'Image generated!'), { id: toastId });
-      }
-    } catch (err) {
-      toast.error(_('ai.image.error', 'Image generation failed'), { id: toastId });
-    } finally {
-      setImageGenerating(null);
-    }
+    setActiveAiPrompt(prompt);
+    setActiveAiRegion(regionName);
+    setShowAiOverlay(true);
+  };
+
+  const handleAiConfirm = (path) => {
+    handleContentChange(activeAiRegion, path);
   };
 
   const addOption = () => {
@@ -340,6 +338,12 @@ export default function ProductEditor() {
 
   return (
     <div className="content-container">
+      <AiImageOverlay 
+        isOpen={showAiOverlay}
+        prompt={activeAiPrompt}
+        onClose={() => setShowAiOverlay(false)}
+        onConfirm={handleAiConfirm}
+      />
       <div className="flex justify-between items-center mb-8 pb-4 border-b border-gray-200 sticky top-16 bg-white z-20 -mx-6 px-6 pt-4">
         <div className="flex items-center gap-4">
           <button onClick={() => navigate('/products')} className="btn btn-ghost"><ArrowLeft className="w-4 h-4" /></button>
