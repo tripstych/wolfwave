@@ -539,4 +539,56 @@ export async function convertPhpWithLLM(phpSource, context = {}) {
   return convertPhpToNunjucks(phpSource);
 }
 
-export default { convertPhpToNunjucks, extractBodyContent, buildBaseLayout, wrapAsChildTemplate, parseThemeMetadata, extractThemeStyles, detectPluginUsage, convertPhpWithLLM };
+/**
+ * Scan functions.php for enqueued scripts and styles.
+ * Returns { scripts: [], styles: [] } with asset paths.
+ */
+export function scanFunctionsPhp(phpSource) {
+  const assets = {
+    scripts: [],
+    styles: []
+  };
+
+  // Helper to clean WP URIs and convert to local asset paths
+  const cleanWpUri = (uri) => {
+    return uri
+      .replace(/['"]/g, '')
+      .replace(/get_template_directory_uri\s*\(\s*\)\s*\.\s*/g, 'assets/')
+      .replace(/get_stylesheet_directory_uri\s*\(\s*\)\s*\.\s*/g, 'assets/')
+      .trim();
+  };
+
+  // Match: wp_enqueue_style( 'handle', 'uri', ... )
+  const styleRegex = /wp_enqueue_style\s*\(\s*['"][^'"]+['"]\s*,\s*([^,)]+)/gi;
+  let styleMatch;
+  while ((styleMatch = styleRegex.exec(phpSource)) !== null) {
+    const uri = cleanWpUri(styleMatch[1]);
+    if (uri && !uri.endsWith('style.css') && !assets.styles.includes(uri)) {
+      assets.styles.push(uri);
+    }
+  }
+
+  // Match: wp_enqueue_script( 'handle', 'uri', ... )
+  const scriptRegex = /wp_enqueue_script\s*\(\s*['"][^'"]+['"]\s*,\s*([^,)]+)/gi;
+  let scriptMatch;
+  while ((scriptMatch = scriptRegex.exec(phpSource)) !== null) {
+    const uri = cleanWpUri(scriptMatch[1]);
+    if (uri && !assets.scripts.includes(uri)) {
+      assets.scripts.push(uri);
+    }
+  }
+
+  return assets;
+}
+
+export default { 
+  convertPhpToNunjucks, 
+  extractBodyContent, 
+  buildBaseLayout, 
+  wrapAsChildTemplate, 
+  parseThemeMetadata, 
+  extractThemeStyles, 
+  detectPluginUsage, 
+  convertPhpWithLLM,
+  scanFunctionsPhp 
+};

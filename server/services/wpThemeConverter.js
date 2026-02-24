@@ -101,6 +101,8 @@ export async function previewWpTheme(zipBuffer) {
   const isChildTheme = !!wpParentSlug;
   const convertedParent = isChildTheme ? await findConvertedParent(wpParentSlug) : null;
 
+  const functionsEntry = findEntry(entries, themeRoot, 'functions.php');
+
   // Scan all PHP files for plugin usage
   const allPhpSource = allPhpFiles.map(e => e.getData().toString('utf-8')).join('\n');
   const pluginInfo = detectPluginUsage(allPhpSource);
@@ -118,6 +120,7 @@ export async function previewWpTheme(zipBuffer) {
     parentTheme: wpParentSlug,
     parentThemeFound: !!convertedParent,
     hasScreenshot,
+    hasFunctionsPhp: !!functionsEntry,
     detectedFiles,
     templateCount: detectedFiles.filter(f => f.hasMapping).length,
     partialCount: detectedFiles.filter(f => f.isTemplatePart).length,
@@ -146,6 +149,7 @@ export async function convertWpTheme(zipBuffer, options = {}) {
   const entries = zip.getEntries();
   const themeRoot = findThemeRoot(entries);
   const useLLM = options.useLLM !== false; // default true
+  const scanFunctions = options.scanFunctions === true; // default false
 
   // 1. Read metadata
   const styleCssEntry = findEntry(entries, themeRoot, 'style.css');
@@ -232,6 +236,30 @@ export async function convertWpTheme(zipBuffer, options = {}) {
       js: []
     }
   };
+
+  // 5A. Scan functions.php for extra assets if requested
+  const functionsEntry = findEntry(entries, themeRoot, 'functions.php');
+  if (functionsEntry && scanFunctions) {
+    const { scanFunctionsPhp } = await import('../lib/phpToNunjucks.js');
+    const extraAssets = scanFunctionsPhp(functionsEntry.getData().toString('utf-8'));
+    
+    // Add extra CSS
+    for (const cssFile of extraAssets.styles) {
+      if (!themeJson.assets.css.includes(cssFile)) {
+        themeJson.assets.css.push(cssFile);
+        info(dbName, 'WP_CONVERT_ASSET', `Extracted CSS from functions.php: ${cssFile}`);
+      }
+    }
+    
+    // Add extra JS
+    for (const jsFile of extraAssets.scripts) {
+      if (!themeJson.assets.js.includes(jsFile)) {
+        themeJson.assets.js.push(jsFile);
+        info(dbName, 'WP_CONVERT_ASSET', `Extracted JS from functions.php: ${jsFile}`);
+      }
+    }
+  }
+
   await fs.writeFile(path.join(themePath, 'theme.json'), JSON.stringify(themeJson, null, 2), 'utf-8');
 
   // 6. Extract and save CSS

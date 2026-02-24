@@ -314,7 +314,9 @@ router.post('/wp-theme/preview', requireAuth, requireEditor, wpUpload.single('th
 router.post('/wp-theme/convert', requireAuth, requireEditor, wpUpload.single('theme'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'ZIP file required' });
-    const options = {};
+    const options = {
+      scanFunctions: req.body.scanFunctions === 'true'
+    };
     if (req.body.selectedFiles) {
       try { options.selectedFiles = JSON.parse(req.body.selectedFiles); } catch {}
     }

@@ -19,6 +19,7 @@ export default function Themes() {
   const [wpLoading, setWpLoading] = useState(false);
   const [wpResult, setWpResult] = useState(null);
   const [wpSelectedFiles, setWpSelectedFiles] = useState(new Set());
+  const [wpScanFunctions, setWpScanFunctions] = useState(false);
 
   const handleWpFileSelect = async (e) => {
     const file = e.target.files?.[0];
@@ -27,6 +28,7 @@ export default function Themes() {
     setWpPreview(null);
     setWpResult(null);
     setWpLoading(true);
+    setWpScanFunctions(false);
     try {
       const formData = new FormData();
       formData.append('theme', file);
@@ -48,6 +50,7 @@ export default function Themes() {
       const formData = new FormData();
       formData.append('theme', wpFile);
       formData.append('selectedFiles', JSON.stringify(Array.from(wpSelectedFiles)));
+      formData.append('scanFunctions', wpScanFunctions);
       const data = await api.post('/import/wp-theme/convert', formData);
       if (data.success) {
         setWpResult(data);
@@ -285,17 +288,30 @@ export default function Themes() {
                 <div className="card overflow-hidden">
                   <div className="p-4 border-b flex justify-between items-center bg-gray-50">
                     <h3 className="font-bold text-gray-700">{_('themes.wp_import.template_files', 'Template Files')}</h3>
-                    <button 
-                      onClick={handleWpConvert} 
-                      disabled={wpLoading || (wpPreview.templateCount > 0 && wpSelectedFiles.size === 0)} 
-                      className="btn btn-primary"
-                    >
-                      {wpLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <ArrowRight className="w-4 h-4 mr-2" />}
-                      {wpSelectedFiles.size > 0 
-                        ? `${_('themes.wp_import.convert_btn', 'Convert')} ${wpSelectedFiles.size} ${_('themes.wp_import.convert_btn_suffix', 'Templates')}`
-                        : _('themes.wp_import.convert_theme_btn', 'Convert Theme')
-                      }
-                    </button>
+                    <div className="flex items-center gap-4">
+                      {wpPreview.hasFunctionsPhp && (
+                        <label className="flex items-center gap-2 cursor-pointer select-none">
+                          <input 
+                            type="checkbox" 
+                            className="rounded border-gray-300 text-primary-600 focus:ring-primary-600"
+                            checked={wpScanFunctions}
+                            onChange={(e) => setWpScanFunctions(e.target.checked)}
+                          />
+                          <span className="text-xs text-gray-600 font-medium">{_('themes.wp_import.scan_functions', 'Scan functions.php for extra assets')}</span>
+                        </label>
+                      )}
+                      <button 
+                        onClick={handleWpConvert} 
+                        disabled={wpLoading || (wpPreview.templateCount > 0 && wpSelectedFiles.size === 0)} 
+                        className="btn btn-primary"
+                      >
+                        {wpLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <ArrowRight className="w-4 h-4 mr-2" />}
+                        {wpSelectedFiles.size > 0 
+                          ? `${_('themes.wp_import.convert_btn', 'Convert')} ${wpSelectedFiles.size} ${_('themes.wp_import.convert_btn_suffix', 'Templates')}`
+                          : _('themes.wp_import.convert_theme_btn', 'Convert Theme')
+                        }
+                      </button>
+                    </div>
                   </div>
 
                   {wpPreview.detectedFiles.filter(f => f.isLayout).length > 0 && (
