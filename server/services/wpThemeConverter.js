@@ -26,6 +26,7 @@ import {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TEMPLATES_DIR = path.join(__dirname, '../../templates');
+const THEMES_DIR = path.join(__dirname, '../../themes');
 const UPLOADS_DIR = path.join(__dirname, '../../uploads');
 
 // WP template hierarchy → WebWolf content types
@@ -96,7 +97,9 @@ export async function previewWpTheme(zipBuffer) {
   const hasScreenshot = !!screenshotEntry;
 
   // Check if it's a child theme
-  const isChildTheme = !!metadata.template;
+  const wpParentSlug = metadata.template || null;
+  const isChildTheme = !!wpParentSlug;
+  const convertedParent = isChildTheme ? await findConvertedParent(wpParentSlug) : null;
 
   // Scan all PHP files for plugin usage
   const allPhpSource = allPhpFiles.map(e => e.getData().toString('utf-8')).join('\n');
@@ -112,7 +115,8 @@ export async function previewWpTheme(zipBuffer) {
   return {
     metadata,
     isChildTheme,
-    parentTheme: metadata.template || null,
+    parentTheme: wpParentSlug,
+    parentThemeFound: !!convertedParent,
     hasScreenshot,
     detectedFiles,
     templateCount: detectedFiles.filter(f => f.hasMapping).length,
@@ -137,6 +141,7 @@ export async function previewWpTheme(zipBuffer) {
  */
 export async function convertWpTheme(zipBuffer, options = {}) {
   const dbName = getCurrentDbName();
+  const AdmZip = (await import('adm-zip')).default;
   const zip = new AdmZip(zipBuffer);
   const entries = zip.getEntries();
   const themeRoot = findThemeRoot(entries);
@@ -148,18 +153,44 @@ export async function convertWpTheme(zipBuffer, options = {}) {
     ? parseThemeMetadata(styleCssEntry.getData().toString('utf-8'))
     : { theme_name: 'Imported Theme' };
 
-  const themeName = sanitizeName(metadata.theme_name || 'imported');
-  info(dbName, 'WP_CONVERT_START', `Converting WP theme: ${metadata.theme_name}`);
+  const themeSlug = sanitizeName(metadata.theme_name || 'imported');
+  const themePath = path.join(THEMES_DIR, themeSlug);
+  
+  info(dbName, 'WP_CONVERT_START', `Converting WP theme: ${metadata.theme_name} into themes/${themeSlug}`);
+
+  // Check if it's a child theme
+  const wpParentSlug = metadata.template || null;
+  let inherits = null;
+  if (wpParentSlug) {
+    // Try to find if we've already converted the parent
+    // We search for a theme folder that matches the parent slug or has metadata matching it
+    const convertedParent = await findConvertedParent(wpParentSlug);
+    if (convertedParent) {
+      inherits = convertedParent;
+      info(dbName, 'WP_CONVERT_INHERIT', `Detected child theme! Inheriting from: ${inherits}`);
+    } else {
+      info(dbName, 'WP_CONVERT_INHERIT_MISSING', `Detected child theme but parent "${wpParentSlug}" not found in themes/. Defaulting to inheritance from base.`);
+    }
+  }
 
   const results = {
     themeName: metadata.theme_name,
-    slug: themeName,
+    slug: themeSlug,
+    inherits,
     templates: [],
     warnings: [],
     themeOptions: {}
   };
 
-  // 2. Extract theme styles / colors
+  // 2. Create theme directory structure
+  await ensureDir(themePath);
+  await ensureDir(path.join(themePath, 'layouts'));
+  await ensureDir(path.join(themePath, 'pages'));
+  await ensureDir(path.join(themePath, 'posts'));
+  await ensureDir(path.join(themePath, 'components'));
+  await ensureDir(path.join(themePath, 'assets'));
+
+  // 3. Extract theme styles / colors
   if (styleCssEntry) {
     const styles = extractThemeStyles(styleCssEntry.getData().toString('utf-8'));
     if (styles.colors.primary) results.themeOptions.primary_color = styles.colors.primary;
@@ -168,65 +199,74 @@ export async function convertWpTheme(zipBuffer, options = {}) {
     if (styles.fonts[1]) results.themeOptions.google_font_heading = styles.fonts[1];
   }
 
-  // 3. Build base layout from header.php + footer.php
+  // 4. Build base layout from header.php + footer.php
   const headerEntry = findEntry(entries, themeRoot, 'header.php');
   const footerEntry = findEntry(entries, themeRoot, 'footer.php');
 
-  const headerPhp = headerEntry ? headerEntry.getData().toString('utf-8') : '';
-  const footerPhp = footerEntry ? footerEntry.getData().toString('utf-8') : '';
+  let baseLayout = 'layouts/main.njk';
 
-  const layoutFilename = `layouts/wp-${themeName}.njk`;
-  const layoutPath = path.join(TEMPLATES_DIR, layoutFilename);
-
-  if (headerPhp || footerPhp) {
-    const layoutNjk = buildBaseLayout(headerPhp, footerPhp, themeName);
-    await ensureDir(path.dirname(layoutPath));
-    await fs.writeFile(layoutPath, layoutNjk, 'utf-8');
-    info(dbName, 'WP_CONVERT_LAYOUT', `Generated base layout: ${layoutFilename}`);
+  if (headerEntry || footerEntry) {
+    const headerPhp = headerEntry ? headerEntry.getData().toString('utf-8') : '';
+    const footerPhp = footerEntry ? footerEntry.getData().toString('utf-8') : '';
+    const layoutNjk = buildBaseLayout(headerPhp, footerPhp, themeSlug);
+    await fs.writeFile(path.join(themePath, 'layouts/main.njk'), layoutNjk, 'utf-8');
+    info(dbName, 'WP_CONVERT_LAYOUT', `Generated base layout: layouts/main.njk`);
+  } else if (inherits) {
+    // Child theme with no header/footer — it will inherit layouts/main.njk from parent
+    info(dbName, 'WP_CONVERT_LAYOUT_INHERIT', `No header/footer found, inheriting layout from ${inherits}`);
   } else {
-    // No header/footer — use the default base layout
-    results.warnings.push('No header.php/footer.php found — templates will use the default base layout');
+    // No header/footer and no parent — fallback to system base
+    baseLayout = 'layouts/base.njk';
+    results.warnings.push('No header.php/footer.php found — templates will use the default system layout');
   }
 
-  const baseLayout = (headerPhp || footerPhp) ? layoutFilename : 'layouts/base.njk';
+  // 5. Create theme.json
+  const themeJson = {
+    name: metadata.theme_name,
+    slug: themeSlug,
+    version: metadata.version || '1.0.0',
+    description: metadata.description || 'Converted from WordPress',
+    inherits: inherits,
+    assets: {
+      css: ["assets/style.css"],
+      js: []
+    }
+  };
+  await fs.writeFile(path.join(themePath, 'theme.json'), JSON.stringify(themeJson, null, 2), 'utf-8');
 
-  // 4. Extract and save CSS
-  let extractedCss = '';
+  // 6. Extract and save CSS
   if (styleCssEntry) {
     const rawCss = styleCssEntry.getData().toString('utf-8');
-    // Strip the header comment
-    extractedCss = rawCss.replace(/\/\*[\s\S]*?\*\//, '').trim();
-
+    const extractedCss = rawCss.replace(/\/\*[\s\S]*?\*\//, '').trim();
     if (extractedCss.length > 0) {
-      const cssDir = path.join(UPLOADS_DIR, 'theme-assets', themeName);
-      await ensureDir(cssDir);
-      await fs.writeFile(path.join(cssDir, 'style.css'), extractedCss, 'utf-8');
+      await fs.writeFile(path.join(themePath, 'assets/style.css'), extractedCss, 'utf-8');
     }
   }
 
-  // 5. Save screenshot if present
+  // 7. Save screenshot if present
   const screenshotEntry = findEntry(entries, themeRoot, 'screenshot.png') || findEntry(entries, themeRoot, 'screenshot.jpg');
   if (screenshotEntry) {
     const ext = screenshotEntry.entryName.endsWith('.png') ? 'png' : 'jpg';
-    const screenshotDir = path.join(UPLOADS_DIR, 'theme-assets', themeName);
-    await ensureDir(screenshotDir);
-    await fs.writeFile(path.join(screenshotDir, `screenshot.${ext}`), screenshotEntry.getData());
+    await fs.writeFile(path.join(themePath, `screenshot.${ext}`), screenshotEntry.getData());
   }
 
-  // 6. Copy theme assets (images, fonts in theme directory)
+  // 8. Copy theme assets (images, fonts in theme directory)
   const assetExtensions = ['.woff', '.woff2', '.ttf', '.eot', '.otf', '.svg', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.ico'];
   for (const entry of entries) {
     if (entry.isDirectory) continue;
     const ext = path.extname(entry.entryName).toLowerCase();
     if (assetExtensions.includes(ext)) {
       const relativePath = themeRoot ? entry.entryName.replace(themeRoot, '') : entry.entryName;
-      const destPath = path.join(UPLOADS_DIR, 'theme-assets', themeName, relativePath);
+      // Filter out files we already handled
+      if (['style.css', 'screenshot.png', 'screenshot.jpg'].includes(path.basename(relativePath))) continue;
+      
+      const destPath = path.join(themePath, 'assets', relativePath);
       await ensureDir(path.dirname(destPath));
       await fs.writeFile(destPath, entry.getData());
     }
   }
 
-  // 7. Convert template-parts → components
+  // 9. Convert template-parts → components
   const partialEntries = entries.filter(e => {
     if (e.isDirectory) return false;
     const rel = themeRoot ? e.entryName.replace(themeRoot, '') : e.entryName;
@@ -248,30 +288,27 @@ export async function convertWpTheme(zipBuffer, options = {}) {
       njk = convertPhpToNunjucks(phpSource);
     }
 
-    const compFilename = `components/wp-${themeName}-${partName}.njk`;
-    const compPath = path.join(TEMPLATES_DIR, compFilename);
+    const compFilename = `components/${partName}.njk`;
+    const compPath = path.join(themePath, compFilename);
 
     await ensureDir(path.dirname(compPath));
     await fs.writeFile(compPath, njk, 'utf-8');
     info(dbName, 'WP_CONVERT_PARTIAL', `Component: ${compFilename}`);
   }
 
-  // 8. Convert sidebar.php → component
+  // 10. Convert sidebar.php → component
   const sidebarEntry = findEntry(entries, themeRoot, 'sidebar.php');
   if (sidebarEntry) {
     const sidebarPhp = sidebarEntry.getData().toString('utf-8');
     const sidebarNjk = convertPhpToNunjucks(sidebarPhp);
-    const sidebarFilename = `components/wp-${themeName}-sidebar.njk`;
-    await ensureDir(path.join(TEMPLATES_DIR, 'components'));
-    await fs.writeFile(path.join(TEMPLATES_DIR, sidebarFilename), sidebarNjk, 'utf-8');
+    await fs.writeFile(path.join(themePath, 'components/sidebar.njk'), sidebarNjk, 'utf-8');
   }
 
-  // 9. Convert main content templates
+  // 11. Convert main content templates
   for (const [wpFile, mapping] of Object.entries(TEMPLATE_MAP)) {
     const entry = findEntry(entries, themeRoot, wpFile);
     if (!entry) continue;
 
-    // Skip if user deselected this template
     if (options.selectedFiles && !options.selectedFiles.includes(wpFile)) continue;
 
     const phpSource = entry.getData().toString('utf-8');
@@ -286,7 +323,6 @@ export async function convertWpTheme(zipBuffer, options = {}) {
       bodyNjk = convertPhpToNunjucks(bodyPhp);
     }
 
-    // Extract any inline <style> blocks for the styles block
     let inlineStyles = '';
     const styleMatches = bodyNjk.match(/<style[^>]*>([\s\S]*?)<\/style>/gi);
     let cleanBody = bodyNjk;
@@ -296,30 +332,29 @@ export async function convertWpTheme(zipBuffer, options = {}) {
     }
 
     const templateNjk = wrapAsChildTemplate(cleanBody, baseLayout, inlineStyles);
-    const filename = `${mapping.dir}/wp-${themeName}-${mapping.name}.njk`;
-    const templatePath = path.join(TEMPLATES_DIR, filename);
+    const filename = `${mapping.dir}/${mapping.name}.njk`;
+    const templatePath = path.join(themePath, filename);
 
     await ensureDir(path.dirname(templatePath));
     await fs.writeFile(templatePath, templateNjk, 'utf-8');
 
+    const dbFilename = `themes/${themeSlug}/${filename}`;
     results.templates.push({
       source: wpFile,
-      filename,
+      filename: dbFilename,
       contentType: mapping.contentType,
       name: `WP ${metadata.theme_name} - ${capitalize(mapping.name)}`
     });
 
-    info(dbName, 'WP_CONVERT_TEMPLATE', `Template: ${wpFile} → ${filename}`);
+    info(dbName, 'WP_CONVERT_TEMPLATE', `Template: ${wpFile} → ${dbFilename}`);
   }
 
-  // 10. Handle any remaining top-level PHP templates not in TEMPLATE_MAP
-  // (custom page templates like page-about.php, page-contact.php, etc.)
+  // 12. Handle any remaining top-level PHP templates
   const customTemplateRegex = /^page-(.+)\.php$/;
   for (const entry of entries) {
     if (entry.isDirectory) continue;
     const relativePath = themeRoot ? entry.entryName.replace(themeRoot, '') : entry.entryName;
 
-    // Only top-level PHP files
     if (relativePath.includes('/')) continue;
     if (!relativePath.endsWith('.php')) continue;
     if (TEMPLATE_MAP[relativePath]) continue;
@@ -341,31 +376,30 @@ export async function convertWpTheme(zipBuffer, options = {}) {
       }
 
       const templateNjk = wrapAsChildTemplate(bodyNjk, baseLayout);
-
-      const filename = `pages/wp-${themeName}-${pageName}.njk`;
-      const templatePath = path.join(TEMPLATES_DIR, filename);
+      const filename = `pages/${pageName}.njk`;
+      const templatePath = path.join(themePath, filename);
 
       await ensureDir(path.dirname(templatePath));
       await fs.writeFile(templatePath, templateNjk, 'utf-8');
 
+      const dbFilename = `themes/${themeSlug}/${filename}`;
       results.templates.push({
         source: relativePath,
-        filename,
+        filename: dbFilename,
         contentType: 'pages',
         name: `WP ${metadata.theme_name} - ${capitalize(pageName)}`
       });
 
-      info(dbName, 'WP_CONVERT_CUSTOM', `Custom template: ${relativePath} → ${filename}`);
+      info(dbName, 'WP_CONVERT_CUSTOM', `Custom template: ${relativePath} → ${dbFilename}`);
     }
   }
 
-  // 11. Register templates in DB
+  // 13. Register templates in DB (linking them to this theme folder)
   for (const tpl of results.templates) {
-    const fullPath = path.join(TEMPLATES_DIR, tpl.filename);
+    const fullPath = path.join(THEMES_DIR, tpl.filename.replace('themes/', ''));
     let content = '';
     try { content = await fs.readFile(fullPath, 'utf-8'); } catch {}
 
-    // Parse regions from the generated template
     const { extractRegions } = await import('./templateParser.js');
     const regions = extractRegions(content);
 
@@ -388,7 +422,7 @@ export async function convertWpTheme(zipBuffer, options = {}) {
     });
   }
 
-  // 12. Sync content types
+  // 14. Sync content types
   try {
     await syncTemplatesToDb(prisma);
   } catch (err) {
@@ -397,6 +431,27 @@ export async function convertWpTheme(zipBuffer, options = {}) {
 
   info(dbName, 'WP_CONVERT_DONE', `Converted ${results.templates.length} templates from ${metadata.theme_name}`);
   return results;
+}
+
+/**
+ * Helper to find a converted parent theme by its WP slug
+ */
+async function findConvertedParent(wpParentSlug) {
+  try {
+    const themes = await fs.readdir(THEMES_DIR);
+    for (const theme of themes) {
+      try {
+        const configPath = path.join(THEMES_DIR, theme, 'theme.json');
+        const raw = await fs.readFile(configPath, 'utf-8');
+        const config = JSON.parse(raw);
+        // Match by slug or some metadata if we added it
+        if (theme === wpParentSlug || theme === sanitizeName(wpParentSlug)) {
+          return theme;
+        }
+      } catch (e) {}
+    }
+  } catch (e) {}
+  return null;
 }
 
 // ── HELPERS ──

@@ -96,7 +96,8 @@ export function themeRender(req, res, templateFilename, context = {}) {
       options: mergedOptions
     },
     theme_css: assets.css,
-    theme_js: assets.js
+    theme_js: assets.js,
+    active_theme: themeName
   };
 
   // Inject user if admin/editor (for edit-in-place)

@@ -164,9 +164,16 @@ export default function Themes() {
                 {wpPreview.metadata.version && <p className="text-xs text-gray-400">v{wpPreview.metadata.version}</p>}
                 {wpPreview.metadata.description && <p className="text-sm text-gray-600 mt-2">{wpPreview.metadata.description}</p>}
                 {wpPreview.isChildTheme && (
-                  <div className="bg-amber-50 border border-amber-200 rounded p-2 text-xs text-amber-700">
-                    <AlertCircle className="w-3 h-3 inline mr-1" />
-                    Child theme of <strong>{wpPreview.parentTheme}</strong> — parent theme templates not included.
+                  <div className={`p-2 rounded border text-xs flex flex-col gap-1 ${wpPreview.parentThemeFound ? 'bg-green-50 border-green-200 text-green-700' : 'bg-amber-50 border-amber-200 text-amber-700'}`}>
+                    <div className="flex items-center gap-1 font-bold">
+                      <AlertCircle className="w-3 h-3" />
+                      Child theme of: {wpPreview.parentTheme}
+                    </div>
+                    {wpPreview.parentThemeFound ? (
+                      <p>Parent found! This theme will automatically inherit all parent templates.</p>
+                    ) : (
+                      <p>Warning: Parent theme not found in /themes directory. You should import the parent theme first for best results.</p>
+                    )}
                   </div>
                 )}
                 {wpPreview.themeStyles && (
@@ -292,7 +299,7 @@ export default function Themes() {
                           <CheckCircle2 className="w-4 h-4 text-green-400" />
                           <span className="font-mono text-xs text-gray-500">{f.source}</span>
                           <ArrowRight className="w-3 h-3 text-gray-300" />
-                          <span className="text-xs text-green-700 font-medium">layouts/wp-{wpPreview.metadata?.theme_name?.toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'theme'}.njk</span>
+                          <span className="text-xs text-green-700 font-medium">themes/{wpPreview.metadata?.theme_name?.toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'theme'}/layouts/main.njk</span>
                         </div>
                       ))}
                     </div>
@@ -313,7 +320,7 @@ export default function Themes() {
                           <div className="flex items-center gap-2">
                             <span className="font-mono text-xs text-gray-600">{f.source}</span>
                             <ArrowRight className="w-3 h-3 text-gray-300 shrink-0" />
-                            <span className="text-xs text-primary-700 font-medium">{f.targetDir}/wp-*-{f.targetName}.njk</span>
+                            <span className="text-xs text-primary-700 font-medium">themes/{wpPreview.metadata?.theme_name?.toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'theme'}/{f.targetDir}/{f.targetName}.njk</span>
                           </div>
                         </div>
                         <span className="text-[10px] bg-gray-100 px-2 py-0.5 rounded-full text-gray-500 shrink-0">{f.contentType}</span>
@@ -331,7 +338,7 @@ export default function Themes() {
                           <FileCode className="w-4 h-4 text-gray-400" />
                           <span className="font-mono text-xs text-gray-500">{f.source}</span>
                           <ArrowRight className="w-3 h-3 text-gray-300" />
-                          <span className="text-xs text-gray-500">components/wp-*-{f.basename.replace('.php', '')}.njk</span>
+                          <span className="text-xs text-gray-500">themes/{wpPreview.metadata?.theme_name?.toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'theme'}/components/{f.basename.replace('.php', '')}.njk</span>
                         </div>
                       ))}
                     </div>

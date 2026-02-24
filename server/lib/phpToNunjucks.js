@@ -145,8 +145,8 @@ const WP_TAG_RULES = [
   { pattern: /<\?php\s+endwhile\s*;?\s*\?>/gi, replace: '{% endfor %}' },
 
   // ─── THEME ASSET URLs ───
-  { pattern: /<\?php\s+echo\s+(?:esc_url\s*\(\s*)?get_template_directory_uri\s*\(\s*\)\s*\)?\s*;?\s*\?>/gi, replace: '' },
-  { pattern: /<\?php\s+echo\s+(?:esc_url\s*\(\s*)?get_stylesheet_directory_uri\s*\(\s*\)\s*\)?\s*;?\s*\?>/gi, replace: '' },
+  { pattern: /<\?php\s+echo\s+(?:esc_url\s*\(\s*)?get_template_directory_uri\s*\(\s*\)\s*\)?\s*;?\s*\?>/gi, replace: '/themes/{{ active_theme }}/assets' },
+  { pattern: /<\?php\s+echo\s+(?:esc_url\s*\(\s*)?get_stylesheet_directory_uri\s*\(\s*\)\s*\)?\s*;?\s*\?>/gi, replace: '/themes/{{ active_theme }}/assets' },
 
   // ─── ESCAPING FUNCTIONS (unwrap) ───
   { pattern: /<\?php\s+echo\s+esc_html\s*\(\s*get_the_title\s*\(\s*\)\s*\)\s*;?\s*\?>/gi, replace: '{{ page.title }}' },
