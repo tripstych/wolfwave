@@ -81,8 +81,16 @@ export class TemplateGenerator {
         await fs.mkdir(path.dirname(fullPath), { recursive: true });
         await fs.writeFile(fullPath, njkCode);
 
-        const template = await prisma.templates.create({
-          data: {
+        const template = await prisma.templates.upsert({
+          where: { filename: filename },
+          update: {
+            name: `Imported ${group.page_type} (${hash.substring(0, 8)})`,
+            content_type: contentType,
+            description: group.summary,
+            blueprint: group.selector_map,
+            updated_at: new Date()
+          },
+          create: {
             name: `Imported ${group.page_type} (${hash.substring(0, 8)})`,
             filename: filename,
             content_type: contentType,
