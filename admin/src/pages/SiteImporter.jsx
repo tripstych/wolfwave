@@ -530,15 +530,15 @@ export default function SiteImporter() {
         <div className="space-y-6">
           <div className="card p-4">
             <h2 className="font-semibold mb-4">New Crawl</h2>
-            <form onSubmit={handleStartCrawl} className="space-y-3">
-              <input id="input-crawl-url" type="text" value={url} onChange={e => setUrl(e.target.value)} onBlur={e => { let v = e.target.value.trim(); if (v && !/^https?:\/\//i.test(v)) setUrl('https://' + v); }} className="input" placeholder="https://..." required />
+            <form onSubmit={handleStartCrawl} className="space-y-3" id="admin-site-importer-start-import-form">
+              <input id="admin-site-importer-url-input" type="text" value={url} onChange={e => setUrl(e.target.value)} onBlur={e => { let v = e.target.value.trim(); if (v && !/^https?:\/\//i.test(v)) setUrl('https://' + v); }} className="input" placeholder="https://..." required />
 
               <div className="flex items-center justify-between">
                 <button type="button" onClick={() => setShowOptions(!showOptions)} className="text-xs text-primary-600 font-medium flex items-center gap-1 hover:underline">
                   {showOptions ? 'Hide' : 'Show'} Advanced Options
                 </button>
                 <label className="flex items-center gap-2 text-xs font-medium text-gray-600 cursor-pointer">
-                  <input id="checkbox-auto-detect" type="checkbox" checked={config.autoDetect} onChange={e => setConfig({...config, autoDetect: e.target.checked})} className="rounded border-gray-300 text-primary-600 focus:ring-primary-600" />
+                  <input id="admin-site-importer-auto-detect-checkbox" type="checkbox" checked={config.autoDetect} onChange={e => setConfig({...config, autoDetect: e.target.checked})} className="rounded border-gray-300 text-primary-600 focus:ring-primary-600" />
                   Auto-detect Blueprint
                 </label>
               </div>
@@ -547,26 +547,26 @@ export default function SiteImporter() {
                 <div className="p-3 bg-gray-50 rounded border space-y-3">
                   <div>
                     <label className="text-[10px] uppercase font-bold text-gray-500 block mb-1">Load Blueprint</label>
-                    <select onChange={(e) => applyPreset(e.target.value)} className="input py-1 text-xs" defaultValue="">
+                    <select onChange={(e) => applyPreset(e.target.value)} id="admin-site-importer-preset-select" className="input py-1 text-xs" defaultValue="">
                       <option value="" disabled>Choose a platform...</option>
                       {Object.entries(presets).map(([key, p]) => (<option key={key} value={key}>{p.name}</option>))}
                     </select>
                   </div>
                   <div>
                     <label className="text-[10px] uppercase font-bold text-gray-500 block mb-1">Max Pages</label>
-                    <input type="number" value={config.maxPages} onChange={e => setConfig({...config, maxPages: e.target.value})} className="input py-1 text-sm" />
+                    <input type="number" value={config.maxPages} onChange={e => setConfig({...config, maxPages: e.target.value})} id="admin-site-importer-max-pages-input" className="input py-1 text-sm" />
                   </div>
                   <div>
                     <label className="text-[10px] uppercase font-bold text-gray-500 block mb-1">Fast Sync: Product Feed URL (JSON/RSS)</label>
-                    <input type="text" value={config.feedUrl} onChange={e => setConfig({...config, feedUrl: e.target.value})} className="input py-1 text-sm" placeholder="e.g. /products.json" />
+                    <input type="text" value={config.feedUrl} onChange={e => setConfig({...config, feedUrl: e.target.value})} id="admin-site-importer-feed-url-input" className="input py-1 text-sm" placeholder="e.g. /products.json" />
                   </div>
                   <div>
                     <label className="text-[10px] uppercase font-bold text-gray-500 block mb-1">Prioritize (comma separated)</label>
-                    <input type="text" value={config.priorityPatterns} onChange={e => setConfig({...config, priorityPatterns: e.target.value})} className="input py-1 text-sm" placeholder="/products/" />
+                    <input type="text" value={config.priorityPatterns} onChange={e => setConfig({...config, priorityPatterns: e.target.value})} id="admin-site-importer-priority-patterns-input" className="input py-1 text-sm" placeholder="/products/" />
                   </div>
                   <div>
                     <label className="text-[10px] uppercase font-bold text-gray-500 block mb-1">Exclude (comma separated)</label>
-                    <input type="text" value={config.excludePatterns} onChange={e => setConfig({...config, excludePatterns: e.target.value})} className="input py-1 text-sm" placeholder={systemRoutes.length > 0 ? systemRoutes.map(r => r.url).slice(0, 5).join(', ') + '...' : '/tagged/, /search'} />
+                    <input type="text" value={config.excludePatterns} onChange={e => setConfig({...config, excludePatterns: e.target.value})} id="admin-site-importer-exclude-patterns-input" className="input py-1 text-sm" placeholder={systemRoutes.length > 0 ? systemRoutes.map(r => r.url).slice(0, 5).join(', ') + '...' : '/tagged/, /search'} />
                   </div>
                   <div className="pt-2 border-t border-gray-200">
                     <label className="text-[10px] uppercase font-bold text-gray-500 block mb-2">Layout Grouping</label>

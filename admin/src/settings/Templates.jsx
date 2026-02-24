@@ -102,11 +102,11 @@ export default function Templates() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Templates</h1>
         <div className="flex items-center gap-2">
-          <button onClick={handleReload} disabled={reloading} className="btn btn-secondary">
+          <button onClick={handleReload} disabled={reloading} id="admin-templates-reload-cache-button" className="btn btn-secondary">
             <RefreshCw className={`w-4 h-4 mr-2 ${reloading ? 'animate-spin' : ''}`} />
             {reloading ? 'Reloading...' : 'Reload Cache'}
           </button>
-          <button onClick={handleSync} disabled={syncing} className="btn btn-primary">
+          <button onClick={handleSync} disabled={syncing} id="admin-templates-sync-filesystem-button" className="btn btn-primary">
             <RefreshCw className={`w-4 h-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
             {syncing ? 'Syncing...' : 'Sync from Filesystem'}
           </button>
@@ -184,6 +184,7 @@ export default function Templates() {
                 </div>
                 <Link
                   to={`/themes/default/editor?file=${selectedTemplate.filename}`}
+                  id="admin-templates-edit-code-link"
                   className="btn btn-secondary"
                 >
                   <Code className="w-4 h-4 mr-2" />

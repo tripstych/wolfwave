@@ -230,7 +230,7 @@ export default function PageEditor() {
       />
       <div className="flex items-center justify-between sticky top-16 bg-gray-50 z-20 -mx-6 px-6 py-4 border-b border-gray-200">
         <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/pages')} className="btn btn-ghost">
+          <button onClick={() => navigate('/pages')} id="admin-page-editor-back-button" className="btn btn-ghost">
             <ArrowLeft className="w-4 h-4" />
           </button>
           <h1 className="text-2xl font-bold text-gray-900">
@@ -239,14 +239,14 @@ export default function PageEditor() {
         </div>
         <div className="flex items-center gap-2">
           {page.status === 'published' && (
-            <a href={getSiteUrl(page.slug)} target="_blank" rel="noopener noreferrer" className="btn btn-ghost">
+            <a href={getSiteUrl(page.slug)} target="_blank" rel="noopener noreferrer" id="admin-page-editor-view-link" className="btn btn-ghost">
               <Eye className="w-4 h-4 mr-2" /> View
             </a>
           )}
-          <button id="btn-save-draft" onClick={() => handleSave('draft')} disabled={saving} className="btn btn-secondary">
+          <button id="admin-page-editor-save-draft-button" onClick={() => handleSave('draft')} disabled={saving} className="btn btn-secondary">
             Save Draft
           </button>
-          <button id="btn-publish" onClick={() => handleSave('published')} disabled={saving} className="btn btn-primary">
+          <button id="admin-page-editor-publish-button" onClick={() => handleSave('published')} disabled={saving} className="btn btn-primary">
             <Save className="w-4 h-4 mr-2" /> {saving ? 'Saving...' : 'Publish'}
           </button>
         </div>
@@ -266,6 +266,7 @@ export default function PageEditor() {
             <nav className="-mb-px flex space-x-8">
               <button
                 onClick={() => setActiveTab('editor')}
+                id="admin-page-editor-editor-tab"
                 className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
                   activeTab === 'editor'
                     ? 'border-primary-500 text-primary-600'
@@ -276,6 +277,7 @@ export default function PageEditor() {
               </button>
               <button
                 onClick={() => setActiveTab('history')}
+                id="admin-page-editor-history-tab"
                 className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
                   activeTab === 'history'
                     ? 'border-primary-500 text-primary-600'
@@ -295,6 +297,7 @@ export default function PageEditor() {
                   <button
                     type="button"
                     onClick={() => setShowSource(!showSource)}
+                    id="admin-page-editor-toggle-source-button"
                     className={`btn btn-sm ${showSource ? 'btn-primary' : 'btn-ghost text-gray-500'} flex items-center gap-2`}
                     title={showSource ? "Switch to Visual Editor" : "Edit Raw JSON Source"}
                   >
@@ -405,7 +408,7 @@ export default function PageEditor() {
             </h2>
             <div className="space-y-3">
               <input
-                id="input-scrape-url"
+                id="admin-page-editor-scrape-url-input"
                 type="url"
                 value={scrapeUrl}
                 onChange={(e) => setScrapeUrl(e.target.value)}
@@ -415,7 +418,7 @@ export default function PageEditor() {
               />
               <div className="grid grid-cols-2 gap-2">
                 <button
-                  id="btn-scrape"
+                  id="admin-page-editor-scrape-button"
                   onClick={handleScrape}
                   disabled={scraping || !scrapeUrl.trim()}
                   className="btn btn-secondary flex items-center justify-center gap-2 text-xs"
@@ -424,7 +427,7 @@ export default function PageEditor() {
                   Scrape
                 </button>
                 <button
-                  id="btn-visual-picker"
+                  id="admin-page-editor-visual-picker-button"
                   onClick={() => setShowPicker(true)}
                   disabled={scraping || !scrapeUrl.trim()}
                   className="btn btn-secondary flex items-center justify-center gap-2 text-xs"
@@ -441,7 +444,7 @@ export default function PageEditor() {
               <label className="label">Template</label>
               <div className="flex gap-2">
                 <select
-                  id="select-template"
+                  id="admin-page-editor-template-select"
                   value={page.template_id || ''}
                   onChange={(e) => handleTemplateChange(e.target.value)}
                   className="input flex-1"
@@ -451,12 +454,12 @@ export default function PageEditor() {
                     <option key={t.id} value={String(t.id)}>{t.name}</option>
                   ))}
                 </select>
-                <button id="btn-sync-templates" onClick={syncTemplates} className="btn btn-ghost px-3" title="Sync templates">
+                <button id="admin-page-editor-sync-templates-button" onClick={syncTemplates} className="btn btn-ghost px-3" title="Sync templates">
                   <RefreshCw className="w-4 h-4" />
                 </button>
               </div>
               <button
-                id="btn-ai-autofill"
+                id="admin-page-editor-ai-autofill-button"
                 onClick={handleAiGenerate}
                 disabled={generating || !page.template_id}
                 className="btn btn-secondary w-full mt-2 flex items-center justify-center gap-2 text-indigo-600 border-indigo-200"
@@ -468,7 +471,7 @@ export default function PageEditor() {
             <div>
               <label className="label">Status</label>
               <select
-                id="select-status"
+                id="admin-page-editor-status-select"
                 value={page.status}
                 onChange={(e) => handleFieldChange('status', e.target.value)}
                 className="input"

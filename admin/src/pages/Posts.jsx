@@ -67,7 +67,7 @@ export default function Posts() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Blog Posts</h1>
-        <Link to="/posts/new" className="btn btn-primary">
+        <Link to="/posts/new" id="admin-posts-new-post-button" className="btn btn-primary">
           <Plus className="w-4 h-4 mr-2" />
           New Post
         </Link>

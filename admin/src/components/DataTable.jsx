@@ -46,6 +46,7 @@ export default function DataTable({
               value={table.search}
               onChange={(e) => table.setSearch(e.target.value)}
               className="input flex-1 min-w-[200px]"
+              id="admin-data-table-search-input"
             />
           )}
 
@@ -57,6 +58,7 @@ export default function DataTable({
                   value={table.filters[filter.key] || ''}
                   onChange={(e) => table.setFilter(filter.key, e.target.value)}
                   className="input"
+                  id={`admin-data-table-filter-${filter.key}`}
                 >
                   {filter.options.map(opt => (
                     <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -97,6 +99,7 @@ export default function DataTable({
                 value={table.sortBy || ''}
                 onChange={(e) => table.setSortBy(e.target.value)}
                 className="input"
+                id="admin-data-table-sort-select"
               >
                 {sortingConfig.options.map(opt => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
