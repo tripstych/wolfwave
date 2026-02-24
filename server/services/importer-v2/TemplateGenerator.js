@@ -81,6 +81,13 @@ export class TemplateGenerator {
         await fs.mkdir(path.dirname(fullPath), { recursive: true });
         await fs.writeFile(fullPath, njkCode);
 
+        // Convert selector map to standard regions format for CMS compatibility
+        const regions = Object.keys(group.selector_map || {}).map(name => ({
+          name,
+          label: name.charAt(0).toUpperCase() + name.slice(1),
+          type: (name === 'description' || name === 'content' || name === 'body') ? 'richtext' : 'text'
+        }));
+
         const template = await prisma.templates.upsert({
           where: { filename: filename },
           update: {
@@ -88,6 +95,7 @@ export class TemplateGenerator {
             content_type: contentType,
             description: group.summary,
             blueprint: group.selector_map,
+            regions: JSON.stringify(regions),
             updated_at: new Date()
           },
           create: {
@@ -95,7 +103,8 @@ export class TemplateGenerator {
             filename: filename,
             content_type: contentType,
             description: group.summary,
-            blueprint: group.selector_map
+            blueprint: group.selector_map,
+            regions: JSON.stringify(regions)
           }
         });
 
