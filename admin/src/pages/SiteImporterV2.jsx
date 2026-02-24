@@ -129,6 +129,18 @@ export default function SiteImporterV2() {
     }
   };
 
+  const triggerTransform = async () => {
+    if (!selectedSite) return;
+    if (!confirm('This will use the AI rules to migrate all staged content into your CMS tables. Continue?')) return;
+    try {
+      await api.post(`/import-v2/sites/${selectedSite.id}/transform`);
+      toast.success('Migration started in background...');
+      refreshSite();
+    } catch (err) {
+      alert('Transformation failed: ' + err.message);
+    }
+  };
+
   const handleDeleteSite = async (id) => {
     if (!confirm('Are you sure you want to delete this site and all its staged content?')) return;
     try {
@@ -279,6 +291,12 @@ export default function SiteImporterV2() {
                   {selectedSite.status === 'crawled' && (
                     <button onClick={triggerRuleGen} className="btn btn-primary btn-sm bg-amber-500 hover:bg-amber-600 border-none">
                       Generate Rules
+                    </button>
+                  )}
+                  {selectedSite.llm_ruleset && selectedSite.status !== 'completed' && (
+                    <button onClick={triggerTransform} className="btn btn-primary btn-sm flex items-center gap-2">
+                      <Zap className="w-3.5 h-3.5" />
+                      Finalize & Migrate
                     </button>
                   )}
                 </div>

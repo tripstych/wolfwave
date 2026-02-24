@@ -52,6 +52,11 @@ export class TransformationEngine {
 
         const extractedContent = await structuredScrape(fields, item.stripped_html);
 
+        // Map page_type to CMS module
+        let moduleName = 'pages';
+        if (groupRules.page_type === 'product') moduleName = 'products';
+        if (['article', 'blog_post', 'post'].includes(groupRules.page_type)) moduleName = 'posts';
+
         // --- Sideload Media & Remap Links ---
         for (const [key, value] of Object.entries(extractedContent)) {
           if (!value) continue;
@@ -83,12 +88,21 @@ export class TransformationEngine {
           }
         }
 
-        // Save to CMS content table
-        const content = await prisma.content.create({
-          data: {
-            module: groupRules.page_type === 'product' ? 'products' : 'pages',
+        // Save to CMS content table (Upsert based on slug derived from source_url)
+        const slug = this.generateSlug(item.url);
+        const content = await prisma.content.upsert({
+          where: { slug: slug },
+          update: {
+            module: moduleName,
             title: extractedContent.title || item.title,
-            slug: this.generateSlug(item.url),
+            data: extractedContent,
+            source_url: item.url,
+            updated_at: new Date()
+          },
+          create: {
+            module: moduleName,
+            title: extractedContent.title || item.title,
+            slug: slug,
             data: extractedContent,
             source_url: item.url
           }

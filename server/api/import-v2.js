@@ -3,6 +3,7 @@ import { requireAuth, requireEditor } from '../middleware/auth.js';
 import prisma from '../lib/prisma.js';
 import { ImporterServiceV2 } from '../services/importer-v2/ImporterServiceV2.js';
 import { RuleGenerator } from '../services/importer-v2/RuleGenerator.js';
+import { TransformationEngine } from '../services/importer-v2/TransformationEngine.js';
 
 const router = Router();
 
@@ -108,6 +109,25 @@ router.post('/sites/:id/generate-rules', requireAuth, requireEditor, async (req,
     const ruleGen = new RuleGenerator(siteId, req.tenantDb);
     const ruleset = await ruleGen.run();
     res.json({ success: true, ruleset });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * Manually trigger transformation
+ */
+router.post('/sites/:id/transform', requireAuth, requireEditor, async (req, res) => {
+  try {
+    const siteId = parseInt(req.params.id);
+    const engine = new TransformationEngine(siteId, req.tenantDb);
+    
+    // Run in background to avoid timeout
+    engine.run().catch(err => {
+      console.error('[IMPORT-V2] Background Transformation Failed:', err);
+    });
+
+    res.json({ success: true, message: 'Transformation started in background' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

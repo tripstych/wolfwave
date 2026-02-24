@@ -71,6 +71,10 @@ export class TemplateGenerator {
           group.page_type
         );
 
+        let contentType = 'pages';
+        if (group.page_type === 'product') contentType = 'products';
+        if (['article', 'blog_post', 'post'].includes(group.page_type)) contentType = 'posts';
+
         const filename = `imported/${this.siteId}/${group.page_type}-${hash.substring(0, 8)}.njk`;
         const fullPath = path.join(process.cwd(), 'templates', filename);
 
@@ -81,7 +85,7 @@ export class TemplateGenerator {
           data: {
             name: `Imported ${group.page_type} (${hash.substring(0, 8)})`,
             filename: filename,
-            content_type: group.page_type === 'product' ? 'products' : 'pages',
+            content_type: contentType,
             description: group.summary,
             blueprint: group.selector_map
           }
