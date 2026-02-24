@@ -126,6 +126,13 @@ async function seed() {
       `INSERT INTO content_types (name, label, plural_label, icon, menu_order, has_status, has_seo, is_system)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
        ON DUPLICATE KEY UPDATE label = VALUES(label), plural_label = VALUES(plural_label)`,
+      ['posts', 'Post', 'Posts', 'FileText', 1.5, true, true, true]
+    );
+
+    await query(
+      `INSERT INTO content_types (name, label, plural_label, icon, menu_order, has_status, has_seo, is_system)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE label = VALUES(label), plural_label = VALUES(plural_label)`,
       ['blocks', 'Block', 'Blocks', 'Boxes', 2, false, false, true]
     );
 

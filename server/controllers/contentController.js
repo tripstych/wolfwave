@@ -155,8 +155,8 @@ export const renderContent = async (req, res) => {
       }
     }
 
-    // Check if this is a module index request (e.g., /pages, /products)
-    const indexModules = ['pages', 'products'];
+    // Check if this is a module index request (e.g., /pages, /products, /posts)
+    const indexModules = ['pages', 'products', 'posts'];
     const moduleMatch = slug.match(/^\/([a-z]+)$/);
     if (moduleMatch && indexModules.includes(moduleMatch[1])) {
       const module = moduleMatch[1];
@@ -165,14 +165,25 @@ export const renderContent = async (req, res) => {
 
         const { sort, order, min_price, max_price, q } = req.query;
 
-        // Build product query with filters if it's the products module
+        // Build base query
         let sql = `
           SELECT c.id, c.module, c.slug, c.title, COALESCE(c.data, '{}') as data,
-                 p.price, p.sku, p.inventory_quantity, p.image
+                 c.created_at, c.updated_at
           FROM content c
-          LEFT JOIN products p ON c.id = p.content_id
           WHERE c.module = ? AND c.slug IS NOT NULL
         `;
+        
+        // Add specific module joins/fields
+        if (module === 'products') {
+          sql = `
+            SELECT c.id, c.module, c.slug, c.title, COALESCE(c.data, '{}') as data,
+                   p.price, p.sku, p.inventory_quantity, p.image,
+                   c.created_at, c.updated_at
+            FROM content c
+            LEFT JOIN products p ON c.id = p.content_id
+            WHERE c.module = ? AND c.slug IS NOT NULL
+          `;
+        }
         
         const params = [module];
 
@@ -201,7 +212,7 @@ export const renderContent = async (req, res) => {
             sql += ` ORDER BY p.${sortField} ${sortOrder}`;
           }
         } else {
-          sql += ` ORDER BY c.title ASC`;
+          sql += ` ORDER BY c.created_at DESC`;
         }
 
         const moduleContent = await query(sql, params);
@@ -231,7 +242,7 @@ export const renderContent = async (req, res) => {
 
     // Fallback resolution
     if (!contentRows[0] && slug !== '/') {
-      const prefixes = ['/products', '/pages'];
+      const prefixes = ['/products', '/pages', '/posts'];
       
       // Case A: Prepend prefix (e.g. /my-product -> /products/my-product)
       for (const p of prefixes) {
@@ -308,6 +319,16 @@ export const renderContent = async (req, res) => {
         );
         pageData.images = images;
       }
+    } else if (contentType === 'posts') {
+      const posts = await query(`
+        SELECT p.*, t.filename as template_filename, t.options as template_options, t.id as template_id,
+               u.name as created_by_name
+        FROM pages p
+        LEFT JOIN templates t ON p.template_id = t.id
+        LEFT JOIN users u ON p.created_by = u.id
+        WHERE p.content_id = ? AND p.status = 'published' AND p.content_type = 'posts'
+      `, [contentRow.id]);
+      pageData = posts[0];
     } else if (contentType === 'classifieds') {
       const ads = await query(`
         SELECT ca.*, t.filename as template_filename, t.options as template_options, t.id as template_id,

@@ -45,6 +45,7 @@ export default function Sidebar({ isOpen, onClose, contentTypes = [] }) {
       section: 'Content',
       items: [
         { name: 'Pages', href: '/pages', icon: FileText },
+        { name: 'Posts', href: '/posts', icon: FileText },
         { name: 'Blocks', href: '/blocks', icon: Boxes },
         { name: 'Widgets', href: '/widgets', icon: Puzzle },
         { name: 'Templates', href: '/templates', icon: Layers },

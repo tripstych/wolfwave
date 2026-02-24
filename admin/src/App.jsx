@@ -7,6 +7,8 @@ import Login from './core/Login';
 import Dashboard from './core/Dashboard';
 import Pages from './pages/Pages';
 import PageEditor from './pages/PageEditor';
+import Posts from './pages/Posts';
+import PostEditor from './pages/PostEditor';
 import Templates from './settings/Templates';
 import Media from './settings/Media';
 import Menus from './settings/Menus';
@@ -80,6 +82,9 @@ function App() {
                 <Route path="/pages" element={<Pages />} />
                 <Route path="/pages/new" element={<PageEditor />} />
                 <Route path="/pages/:id" element={<PageEditor />} />
+                <Route path="/posts" element={<Posts />} />
+                <Route path="/posts/new" element={<PostEditor />} />
+                <Route path="/posts/:id" element={<PostEditor />} />
                 <Route path="/templates" element={<Templates />} />
                 <Route path="/media" element={<Media />} />
                 <Route path="/menus" element={<Menus />} />
