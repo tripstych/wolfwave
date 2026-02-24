@@ -32,7 +32,6 @@ export default function Sidebar({ isOpen, onClose, contentTypes = [] }) {
       section: _('nav.section.store', 'Store'),
       items: [
         { name: _('nav.my_sites', 'My Sites'), href: '/my-sites', icon: Globe },
-        { name: _('nav.site_importer', 'Site Importer'), href: '/import', icon: Download },
         { name: _('nav.products', 'Products'), href: '/products', icon: Package },
         { name: _('nav.orders', 'Orders'), href: '/orders', icon: Briefcase },
         { name: _('nav.customers', 'Customers'), href: '/customers', icon: Users },
@@ -66,6 +65,7 @@ export default function Sidebar({ isOpen, onClose, contentTypes = [] }) {
       section: _('nav.section.settings', 'Settings'),
       items: [
         { name: _('nav.themes', 'Themes'), href: '/themes', icon: Palette },
+        { name: _('nav.site_importer', 'Site Importer'), href: '/import', icon: Download },
         { name: _('nav.styles', 'Styles'), href: '/styles', icon: Palette },
         { name: _('nav.users', 'Users'), href: '/users', icon: Users },
         { name: _('nav.sites', 'Sites'), href: '/tenants', icon: Globe },
