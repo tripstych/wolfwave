@@ -278,9 +278,6 @@ export async function generateImage(prompt, size = "1024x1024", userId = null) {
       
       if (imageData) {
         console.log(`[AI-DEBUG] 📥 Base64 image received from Gemini. Processing...`);
-        // We'll create a data URI to pass to our existing downloadMedia logic, 
-        // or we could refactor downloadMedia to handle buffers. 
-        // For simplicity and minimal change to working logic, data URI works:
         const dataUri = `data:image/png;base64,${imageData}`;
         const localUrl = await downloadMedia(dataUri, prompt, userId, true);
         
@@ -288,11 +285,16 @@ export async function generateImage(prompt, size = "1024x1024", userId = null) {
         return localUrl;
       }
       
-      console.log(`[AI-DEBUG] ⚠️ Gemini returned no image data, trying fallback...`);
+      throw new Error('Gemini returned no image data');
     } catch (e) {
       const errorMsg = e.response?.data?.error?.message || e.message;
-      console.log(`[AI-DEBUG] ⚠️ Gemini Image Gen failed: ${errorMsg}`);
-      // If they don't have OpenAI, this will eventually hit the final throw
+      console.error(`[AI-DEBUG] ❌ Gemini Image Gen failed: ${errorMsg}`);
+      
+      // If this is the only provider, throw immediately
+      if (!OPENAI_API_KEY || OPENAI_API_KEY === 'demo') {
+        throw new Error(`Gemini Imagen Error: ${errorMsg}`);
+      }
+      // Otherwise continue to DALL-E fallback
     }
   }
 
