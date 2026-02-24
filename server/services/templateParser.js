@@ -326,20 +326,33 @@ export async function syncTemplatesToDb(prisma, themeName = 'default') {
     where: {
       filename: { notIn: syncedFilenames }
     },
-    select: { id: true, filename: true }
+    select: { id: true, filename: true, content_type: true }
   });
 
   if (staleTemplates.length > 0) {
     console.log(`Cleaning up ${staleTemplates.length} stale templates...`);
+    const { handleStaleTemplateMigration } = await import('./templateMigrationService.js');
+    
+    // Get currently available templates (the ones we just synced) for migration targets
+    const availableTemplates = await prisma.templates.findMany({
+      where: { filename: { in: syncedFilenames } }
+    });
+
     for (const stale of staleTemplates) {
       try {
-        await prisma.templates.delete({
-          where: { id: stale.id }
-        });
-        console.log(`Deleted stale template: ${stale.filename}`);
+        // Attempt to migrate records using this stale template
+        const canDelete = await handleStaleTemplateMigration(stale.id, availableTemplates);
+        
+        if (canDelete) {
+          await prisma.templates.delete({
+            where: { id: stale.id }
+          });
+          console.log(`Deleted stale template: ${stale.filename}`);
+        } else {
+          console.warn(`Preserved stale template ${stale.filename} as it still has records that couldn't be migrated.`);
+        }
       } catch (err) {
-        // This usually happens if the template is still in use by a page or block (Restrict constraint)
-        console.warn(`Could not delete stale template ${stale.filename} (possibly still in use): ${err.message}`);
+        console.warn(`Could not delete stale template ${stale.filename}: ${err.message}`);
       }
     }
   }
