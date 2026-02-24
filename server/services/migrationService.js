@@ -106,7 +106,8 @@ export async function migratePage(importedPageId, templateId, selectorMap = { 'm
         title: title,
         slug: pageSlug,
         data: JSON.stringify(extractedData),
-        search_index: generateSearchIndex(title, extractedData)
+        search_index: generateSearchIndex(title, extractedData),
+        source_url: importedPage.url
       }
     });
 

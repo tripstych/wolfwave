@@ -56,7 +56,8 @@ export async function migrateProduct(importedPageId, templateId) {
       // 1. Update base product content if needed
       await updateContent(existingContent.id, {
         data: contentData,
-        search_index: generateSearchIndex(title, contentData)
+        search_index: generateSearchIndex(title, contentData),
+        source_url: importedPage.url
       });
       
       const product = await prisma.products.findFirst({ 
@@ -117,7 +118,8 @@ export async function migrateProduct(importedPageId, templateId) {
         title, 
         slug: productSlug, 
         data: JSON.stringify(contentData), 
-        search_index: generateSearchIndex(title, contentData) 
+        search_index: generateSearchIndex(title, contentData),
+        source_url: importedPage.url
       }
     });
 
