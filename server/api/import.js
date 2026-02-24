@@ -9,6 +9,7 @@ import { analyzeSiteGroups, generateTemplateFromGroup } from '../services/templa
 import { migratePage, bulkMigrate, bulkMigrateAll } from '../services/migrationService.js';
 import { migrateProduct, bulkMigrateProducts } from '../services/productMigrationService.js';
 import { previewWpTheme, convertWpTheme } from '../services/wpThemeConverter.js';
+import { importLiveTheme } from '../services/liveThemeService.js';
 import prisma from '../lib/prisma.js';
 import { CRAWLER_PRESETS } from '../lib/crawlerPresets.js';
 
@@ -312,18 +313,17 @@ router.post('/wp-theme/preview', requireAuth, requireEditor, wpUpload.single('th
 });
 
 router.post('/wp-theme/convert', requireAuth, requireEditor, wpUpload.single('theme'), async (req, res) => {
+  // ... existing handler ...
+});
+
+router.post('/wp-theme/live-import', requireAuth, requireEditor, async (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ error: 'ZIP file required' });
-    const options = {
-      scanFunctions: req.body.scanFunctions === 'true'
-    };
-    if (req.body.selectedFiles) {
-      try { options.selectedFiles = JSON.parse(req.body.selectedFiles); } catch {}
-    }
-    const result = await convertWpTheme(req.file.buffer, options);
-    res.json({ success: true, ...result });
+    const { url, name } = req.body;
+    if (!url) return res.status(400).json({ error: 'URL required' });
+    const result = await importLiveTheme(url, { name });
+    res.json(result);
   } catch (err) {
-    res.status(500).json({ error: `Conversion failed: ${err.message}` });
+    res.status(500).json({ error: `Live import failed: ${err.message}` });
   }
 });
 

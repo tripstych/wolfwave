@@ -21,6 +21,27 @@ export default function Themes() {
   const [wpSelectedFiles, setWpSelectedFiles] = useState(new Set());
   const [wpScanFunctions, setWpScanFunctions] = useState(false);
 
+  // Live Theme Import state
+  const [liveUrl, setLiveUrl] = useState('');
+  const [liveName, setLiveName] = useState('');
+  const [liveImporting, setLiveImporting] = useState(false);
+
+  const handleLiveImport = async (e) => {
+    e.preventDefault();
+    if (!liveUrl) return;
+    setLiveImporting(true);
+    try {
+      const res = await api.post('/import/wp-theme/live-import', { url: liveUrl, name: liveName });
+      if (res.success) {
+        alert(_('themes.live_import.success', 'Theme imported successfully from live site!'));
+        setLiveUrl('');
+        setLiveName('');
+        fetchThemes();
+      }
+    } catch (err) { alert(_('themes.live_import.failed', 'Live import failed: ') + err.message); }
+    finally { setLiveImporting(false); }
+  };
+
   const handleWpFileSelect = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -131,6 +152,35 @@ export default function Themes() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="space-y-4">
+            <div className="card p-6">
+              <h2 className="font-semibold mb-4 flex items-center gap-2">
+                <Globe className="w-5 h-5 text-primary-600" />
+                {_('themes.live_import.title', 'Import Theme from URL')}
+              </h2>
+              <p className="text-sm text-gray-500 mb-4">{_('themes.live_import.subtitle', 'Crawl a live website to extract its CSS/JS and generate matching templates.')}</p>
+              
+              <form onSubmit={handleLiveImport} className="space-y-3">
+                <input 
+                  type="text" 
+                  className="input text-sm" 
+                  placeholder="https://example.com" 
+                  value={liveUrl}
+                  onChange={e => setLiveUrl(e.target.value)}
+                  required
+                />
+                <input 
+                  type="text" 
+                  className="input text-sm" 
+                  placeholder="Theme Name (Optional)" 
+                  value={liveName}
+                  onChange={e => setLiveName(e.target.value)}
+                />
+                <button type="submit" disabled={liveImporting} className="btn btn-primary w-full">
+                  {liveImporting ? <><Loader2 className="w-4 h-4 animate-spin mr-2" /> {_('themes.live_import.importing', 'Importing...')}</> : _('themes.live_import.btn', 'Import from URL')}
+                </button>
+              </form>
+            </div>
+
             <div className="card p-6">
               <h2 className="font-semibold mb-4 flex items-center gap-2">
                 <FolderOpen className="w-5 h-5 text-primary-600" />
