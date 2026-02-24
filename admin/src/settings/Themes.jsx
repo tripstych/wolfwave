@@ -260,6 +260,10 @@ export default function Themes() {
                   placeholder="https://example.com" 
                   value={liveUrl}
                   onChange={e => setLiveUrl(e.target.value)}
+                  onBlur={e => {
+                    let v = e.target.value.trim();
+                    if (v && !/^https?:\/\//i.test(v)) setLiveUrl('https://' + v);
+                  }}
                   required
                 />
                 <input 
