@@ -228,24 +228,32 @@ router.put('/:key', requireAuth, requireAdmin, async (req, res) => {
 // Test S3 connection
 router.post('/test-s3', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const { s3_bucket_name, s3_region, s3_role_arn, s3_external_id } = req.body;
+    const { s3_bucket_name, s3_region, s3_auth_method, s3_access_key_id, s3_secret_access_key, s3_role_arn, s3_external_id } = req.body;
 
-    if (!s3_bucket_name || !s3_role_arn || !s3_external_id) {
-      return res.status(400).json({ error: 'Bucket name, Role ARN, and External ID are required.' });
+    if (!s3_bucket_name) {
+      return res.status(400).json({ error: 'Bucket name is required.' });
     }
 
-    const config = {
-      bucket: s3_bucket_name,
-      region: s3_region || 'us-east-1',
-      roleArn: s3_role_arn,
-      externalId: s3_external_id,
-    };
+    const authMethod = s3_auth_method || 'access_key';
+    let config;
+
+    if (authMethod === 'role') {
+      if (!s3_role_arn || !s3_external_id) {
+        return res.status(400).json({ error: 'Role ARN and External ID are required for IAM role authentication.' });
+      }
+      config = { bucket: s3_bucket_name, region: s3_region || 'us-east-1', authMethod: 'role', roleArn: s3_role_arn, externalId: s3_external_id };
+    } else {
+      if (!s3_access_key_id || !s3_secret_access_key) {
+        return res.status(400).json({ error: 'Access Key ID and Secret Access Key are required.' });
+      }
+      config = { bucket: s3_bucket_name, region: s3_region || 'us-east-1', authMethod: 'access_key', accessKeyId: s3_access_key_id, secretAccessKey: s3_secret_access_key };
+    }
 
     await testS3Connection(config);
     res.json({ success: true, message: 'Successfully connected to S3 bucket.' });
   } catch (err) {
-    const message = err.name === 'AccessDenied'
-      ? 'Access denied. Check your Role ARN, External ID, and bucket permissions.'
+    const message = err.name === 'AccessDenied' || err.Code === 'AccessDenied'
+      ? 'Access denied. Check your credentials and make sure they have permission to access this bucket.'
       : err.message || 'Failed to connect to S3.';
     res.status(400).json({ success: false, error: message });
   }

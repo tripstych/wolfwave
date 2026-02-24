@@ -32,7 +32,7 @@ async function getAiSettings() {
     anthropic_api_key: settings.anthropic_api_key || process.env.ANTHROPIC_API_KEY,
     anthropic_api_url: 'https://api.anthropic.com/v1/messages',
     gemini_api_key: settings.gemini_api_key || process.env.GEMINI_API_KEY,
-    gemini_model: settings.gemini_model || process.env.GEMINI_MODEL || 'gemini-1.5-flash',
+    gemini_model: settings.gemini_model || process.env.GEMINI_MODEL || 'gemini-3-flash-preview',
     ai_simulation_mode: settings.ai_simulation_mode === 'true' || process.env.AI_SIMULATION_MODE === 'true'
   };
 }

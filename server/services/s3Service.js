@@ -49,6 +49,7 @@ async function readS3SettingsFromDb(dbName) {
 
 /**
  * Parse settings rows into a config object. Returns null if bucket is not set.
+ * Supports two auth methods: "access_key" (simple) and "role" (IAM role assumption).
  */
 function parseS3Rows(rows) {
   if (!rows || rows.length === 0) return null;
@@ -58,24 +59,49 @@ function parseS3Rows(rows) {
     map[row.setting_key] = row.setting_value;
   }
 
-  if (!map.s3_bucket_name || !map.s3_role_arn || !map.s3_external_id) {
-    return null;
+  if (!map.s3_bucket_name) return null;
+
+  const authMethod = map.s3_auth_method || 'access_key';
+
+  if (authMethod === 'role') {
+    if (!map.s3_role_arn || !map.s3_external_id) return null;
+    return {
+      bucket: map.s3_bucket_name,
+      region: map.s3_region || 'us-east-1',
+      authMethod: 'role',
+      roleArn: map.s3_role_arn,
+      externalId: map.s3_external_id,
+      prefix: map.s3_prefix || '',
+    };
   }
 
+  // access_key method
+  if (!map.s3_access_key_id || !map.s3_secret_access_key) return null;
   return {
     bucket: map.s3_bucket_name,
     region: map.s3_region || 'us-east-1',
-    roleArn: map.s3_role_arn,
-    externalId: map.s3_external_id,
+    authMethod: 'access_key',
+    accessKeyId: map.s3_access_key_id,
+    secretAccessKey: map.s3_secret_access_key,
     prefix: map.s3_prefix || '',
   };
 }
 
 /**
- * Get an S3 client with temporary credentials from AssumeRole.
- * Caches credentials until 5 minutes before expiry.
+ * Get an S3 client using either access keys or IAM role assumption.
  */
 export async function getS3Client(config) {
+  if (config.authMethod === 'access_key') {
+    return new S3Client({
+      region: config.region,
+      credentials: {
+        accessKeyId: config.accessKeyId,
+        secretAccessKey: config.secretAccessKey,
+      },
+    });
+  }
+
+  // Role assumption with external ID
   const cacheKey = `${config.roleArn}:${config.externalId}`;
   const cached = credentialsCache.get(cacheKey);
 
@@ -116,7 +142,6 @@ export function buildS3Key(config, relativePath) {
   const dbName = getCurrentDbName();
   const tenantName = dbName.replace(/^wolfwave_/, '') || '_default';
   const prefix = config.prefix || tenantName;
-  // Ensure no double slashes
   return `${prefix}/${relativePath}`.replace(/\/+/g, '/');
 }
 
@@ -168,7 +193,7 @@ export function extractS3Key(url, config) {
 }
 
 /**
- * Test S3 connection by assuming the role and checking bucket access.
+ * Test S3 connection by creating a client and checking bucket access.
  */
 export async function testS3Connection(config) {
   const client = await getS3Client(config);
