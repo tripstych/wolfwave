@@ -3,25 +3,28 @@ import { useParams, useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import { toast } from 'sonner';
 import { ArrowLeft, Check, X, AlertTriangle, User, MapPin, Tag, DollarSign } from 'lucide-react';
-
-const STATUS_COLORS = {
-  pending_review: 'bg-yellow-100 text-yellow-700',
-  approved: 'bg-green-100 text-green-700',
-  rejected: 'bg-red-100 text-red-700',
-  expired: 'bg-gray-100 text-gray-500',
-  sold: 'bg-blue-100 text-blue-700',
-};
-
-const CONDITION_LABELS = {
-  new_item: 'New',
-  used: 'Used',
-  refurbished: 'Refurbished',
-  na: 'N/A',
-};
+import { useTranslation } from '../context/TranslationContext';
 
 export default function ClassifiedDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { _ } = useTranslation();
+
+  const STATUS_COLORS = {
+    pending_review: 'bg-yellow-100 text-yellow-700',
+    approved: 'bg-green-100 text-green-700',
+    rejected: 'bg-red-100 text-red-700',
+    expired: 'bg-gray-100 text-gray-500',
+    sold: 'bg-blue-100 text-blue-700',
+  };
+
+  const CONDITION_LABELS = {
+    new_item: _('condition.new', 'New'),
+    used: _('condition.used', 'Used'),
+    refurbished: _('condition.refurbished', 'Refurbished'),
+    na: _('condition.na', 'N/A'),
+  };
+
   const [ad, setAd] = useState(null);
   const [loading, setLoading] = useState(true);
   const [rejectReason, setRejectReason] = useState('');
@@ -43,7 +46,7 @@ export default function ClassifiedDetail() {
   const handleApprove = async () => {
     try {
       await api.post(`/classifieds/admin/${id}/approve`);
-      toast.success('Ad approved');
+      toast.success(_('classifieds.success.approved', 'Ad approved'));
       loadAd();
     } catch (err) {
       toast.error(err.message);
@@ -53,7 +56,7 @@ export default function ClassifiedDetail() {
   const handleReject = async () => {
     try {
       await api.post(`/classifieds/admin/${id}/reject`, { reason: rejectReason });
-      toast.success('Ad rejected');
+      toast.success(_('classifieds.success.rejected', 'Ad rejected'));
       setShowRejectForm(false);
       loadAd();
     } catch (err) {
@@ -69,16 +72,16 @@ export default function ClassifiedDetail() {
     );
   }
 
-  if (!ad) return <div className="text-center py-12 text-gray-500">Ad not found</div>;
+  if (!ad) return <div className="text-center py-12 text-gray-500">{_('classifieds.error.not_found', 'Ad not found')}</div>;
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       <div className="flex items-center justify-between">
         <button onClick={() => navigate('/classifieds')} className="flex items-center gap-2 text-gray-500 hover:text-gray-700">
-          <ArrowLeft className="w-4 h-4" /> Back to Classifieds
+          <ArrowLeft className="w-4 h-4" /> {_('classifieds.back_to_list', 'Back to Classifieds')}
         </button>
         <span className={`text-sm px-3 py-1 rounded-full ${STATUS_COLORS[ad.status]}`}>
-          {ad.status.replace('_', ' ')}
+          {_( `status.${ad.status}`, ad.status.replace('_', ' '))}
         </span>
       </div>
 
@@ -107,7 +110,7 @@ export default function ClassifiedDetail() {
             </div>
           )}
           {ad.condition && ad.condition !== 'na' && (
-            <span>Condition: {CONDITION_LABELS[ad.condition]}</span>
+            <span>{_('classifieds.condition', 'Condition')}: {CONDITION_LABELS[ad.condition]}</span>
           )}
         </div>
 
@@ -123,7 +126,7 @@ export default function ClassifiedDetail() {
         {/* Description */}
         {ad.description && (
           <div>
-            <h3 className="font-medium text-gray-700 mb-1">Description</h3>
+            <h3 className="font-medium text-gray-700 mb-1">{_('common.description', 'Description')}</h3>
             <div className="prose prose-sm text-gray-600 whitespace-pre-wrap">{ad.description}</div>
           </div>
         )}
@@ -131,7 +134,7 @@ export default function ClassifiedDetail() {
         {/* Contact info */}
         {ad.contact_info && (
           <div>
-            <h3 className="font-medium text-gray-700 mb-1">Contact Info</h3>
+            <h3 className="font-medium text-gray-700 mb-1">{_('classifieds.contact_info', 'Contact Info')}</h3>
             <p className="text-gray-600">{ad.contact_info}</p>
           </div>
         )}
@@ -141,7 +144,7 @@ export default function ClassifiedDetail() {
       {(ad.moderation_flags?.length > 0 || ad.rejection_reason) && (
         <div className="card p-6 space-y-3 border-orange-200 bg-orange-50/50">
           <h2 className="font-semibold text-gray-900 flex items-center gap-2">
-            <AlertTriangle className="w-5 h-5 text-orange-500" /> Moderation
+            <AlertTriangle className="w-5 h-5 text-orange-500" /> {_('classifieds.moderation', 'Moderation')}
           </h2>
           {ad.moderation_flags?.length > 0 && (
             <div className="flex flex-wrap gap-2">
@@ -151,7 +154,7 @@ export default function ClassifiedDetail() {
             </div>
           )}
           {ad.rejection_reason && (
-            <p className="text-sm text-gray-600"><strong>Reason:</strong> {ad.rejection_reason}</p>
+            <p className="text-sm text-gray-600"><strong>{_('common.reason', 'Reason')}:</strong> {ad.rejection_reason}</p>
           )}
         </div>
       )}
@@ -159,13 +162,13 @@ export default function ClassifiedDetail() {
       {/* Actions */}
       {(ad.status === 'pending_review' || ad.status === 'rejected') && (
         <div className="card p-6 space-y-4">
-          <h2 className="font-semibold text-gray-900">Actions</h2>
+          <h2 className="font-semibold text-gray-900">{_('common.actions', 'Actions')}</h2>
           <div className="flex gap-3">
             <button onClick={handleApprove} className="btn btn-primary">
-              <Check className="w-4 h-4 mr-2" /> Approve
+              <Check className="w-4 h-4 mr-2" /> {_('common.approve', 'Approve')}
             </button>
             <button onClick={() => setShowRejectForm(!showRejectForm)} className="btn btn-secondary text-red-600">
-              <X className="w-4 h-4 mr-2" /> Reject
+              <X className="w-4 h-4 mr-2" /> {_('common.reject', 'Reject')}
             </button>
           </div>
           {showRejectForm && (
@@ -175,9 +178,9 @@ export default function ClassifiedDetail() {
                 onChange={(e) => setRejectReason(e.target.value)}
                 className="input"
                 rows={3}
-                placeholder="Reason for rejection..."
+                placeholder={_('classifieds.rejection_placeholder', 'Reason for rejection...')}
               />
-              <button onClick={handleReject} className="btn btn-secondary text-red-600">Confirm Rejection</button>
+              <button onClick={handleReject} className="btn btn-secondary text-red-600">{_('classifieds.confirm_rejection', 'Confirm Rejection')}</button>
             </div>
           )}
         </div>
@@ -185,9 +188,9 @@ export default function ClassifiedDetail() {
 
       {/* Timestamps */}
       <div className="text-xs text-gray-400 flex gap-4">
-        <span>Created: {new Date(ad.created_at).toLocaleString()}</span>
-        <span>Updated: {new Date(ad.updated_at).toLocaleString()}</span>
-        {ad.expires_at && <span>Expires: {new Date(ad.expires_at).toLocaleDateString()}</span>}
+        <span>{_('common.created', 'Created')}: {new Date(ad.created_at).toLocaleString()}</span>
+        <span>{_('common.updated', 'Updated')}: {new Date(ad.updated_at).toLocaleString()}</span>
+        {ad.expires_at && <span>{_('common.expires', 'Expires')}: {new Date(ad.expires_at).toLocaleDateString()}</span>}
       </div>
     </div>
   );

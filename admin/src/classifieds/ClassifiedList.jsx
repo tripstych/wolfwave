@@ -3,24 +3,27 @@ import { Link } from 'react-router-dom';
 import api from '../lib/api';
 import { toast } from 'sonner';
 import { Search, Check, X, Eye, Filter } from 'lucide-react';
-
-const STATUS_COLORS = {
-  pending_review: 'bg-yellow-100 text-yellow-700',
-  approved: 'bg-green-100 text-green-700',
-  rejected: 'bg-red-100 text-red-700',
-  expired: 'bg-gray-100 text-gray-500',
-  sold: 'bg-blue-100 text-blue-700',
-};
-
-const STATUS_LABELS = {
-  pending_review: 'Pending',
-  approved: 'Active',
-  rejected: 'Rejected',
-  expired: 'Expired',
-  sold: 'Sold',
-};
+import { useTranslation } from '../context/TranslationContext';
 
 export default function ClassifiedList() {
+  const { _ } = useTranslation();
+
+  const STATUS_COLORS = {
+    pending_review: 'bg-yellow-100 text-yellow-700',
+    approved: 'bg-green-100 text-green-700',
+    rejected: 'bg-red-100 text-red-700',
+    expired: 'bg-gray-100 text-gray-500',
+    sold: 'bg-blue-100 text-blue-700',
+  };
+
+  const STATUS_LABELS = {
+    pending_review: _('status.pending_review', 'Pending'),
+    approved: _('status.approved', 'Active'),
+    rejected: _('status.rejected', 'Rejected'),
+    expired: _('status.expired', 'Expired'),
+    sold: _('status.sold', 'Sold'),
+  };
+
   const [ads, setAds] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -48,7 +51,7 @@ export default function ClassifiedList() {
   const handleApprove = async (id) => {
     try {
       await api.post(`/classifieds/admin/${id}/approve`);
-      toast.success('Ad approved');
+      toast.success(_('classifieds.success.approved', 'Ad approved'));
       loadAds();
     } catch (err) {
       toast.error(err.message);
@@ -56,11 +59,11 @@ export default function ClassifiedList() {
   };
 
   const handleReject = async (id) => {
-    const reason = prompt('Rejection reason:');
+    const reason = prompt(_('classifieds.prompt.rejection_reason', 'Rejection reason:'));
     if (reason === null) return;
     try {
       await api.post(`/classifieds/admin/${id}/reject`, { reason });
-      toast.success('Ad rejected');
+      toast.success(_('classifieds.success.rejected', 'Ad rejected'));
       loadAds();
     } catch (err) {
       toast.error(err.message);
@@ -78,8 +81,11 @@ export default function ClassifiedList() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Classified Ads</h1>
-          <p className="text-sm text-gray-500 mt-1">{total} total ads{pendingCount > 0 && ` — ${pendingCount} pending review`}</p>
+          <h1 className="text-2xl font-bold text-gray-900">{_('classifieds.list_title', 'Classified Ads')}</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            {total} {_('classifieds.total_ads', 'total ads')}
+            {pendingCount > 0 && ` — ${pendingCount} ${_('classifieds.pending_review', 'pending review')}`}
+          </p>
         </div>
       </div>
 
@@ -91,7 +97,7 @@ export default function ClassifiedList() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="input flex-1"
-            placeholder="Search ads..."
+            placeholder={_('classifieds.search_placeholder', 'Search ads...')}
           />
           <button type="submit" className="btn btn-secondary">
             <Search className="w-4 h-4" />
@@ -103,12 +109,12 @@ export default function ClassifiedList() {
           onChange={(e) => setStatusFilter(e.target.value)}
           className="input w-auto"
         >
-          <option value="">All Statuses</option>
-          <option value="pending_review">Pending Review</option>
-          <option value="approved">Active</option>
-          <option value="rejected">Rejected</option>
-          <option value="expired">Expired</option>
-          <option value="sold">Sold</option>
+          <option value="">{_('classifieds.filter.all_statuses', 'All Statuses')}</option>
+          <option value="pending_review">{_('status.pending_review', 'Pending Review')}</option>
+          <option value="approved">{_('status.approved', 'Active')}</option>
+          <option value="rejected">{_('status.rejected', 'Rejected')}</option>
+          <option value="expired">{_('status.expired', 'Expired')}</option>
+          <option value="sold">{_('status.sold', 'Sold')}</option>
         </select>
       </div>
 
@@ -118,19 +124,19 @@ export default function ClassifiedList() {
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
         </div>
       ) : ads.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">No classified ads found</div>
+        <div className="text-center py-12 text-gray-500">{_('classifieds.empty_message', 'No classified ads found')}</div>
       ) : (
         <div className="card overflow-hidden">
           <table className="min-w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="text-left p-3 font-medium text-gray-600">Ad</th>
-                <th className="text-left p-3 font-medium text-gray-600">Customer</th>
-                <th className="text-left p-3 font-medium text-gray-600">Category</th>
-                <th className="text-right p-3 font-medium text-gray-600">Price</th>
-                <th className="text-left p-3 font-medium text-gray-600">Status</th>
-                <th className="text-left p-3 font-medium text-gray-600">Date</th>
-                <th className="text-right p-3 font-medium text-gray-600">Actions</th>
+                <th className="text-left p-3 font-medium text-gray-600">{_('classifieds.col.ad', 'Ad')}</th>
+                <th className="text-left p-3 font-medium text-gray-600">{_('classifieds.col.customer', 'Customer')}</th>
+                <th className="text-left p-3 font-medium text-gray-600">{_('classifieds.col.category', 'Category')}</th>
+                <th className="text-right p-3 font-medium text-gray-600">{_('classifieds.col.price', 'Price')}</th>
+                <th className="text-left p-3 font-medium text-gray-600">{_('common.status', 'Status')}</th>
+                <th className="text-left p-3 font-medium text-gray-600">{_('common.date', 'Date')}</th>
+                <th className="text-right p-3 font-medium text-gray-600">{_('common.actions', 'Actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -146,7 +152,7 @@ export default function ClassifiedList() {
                           {ad.title}
                         </Link>
                         {ad.moderation_flags?.length > 0 && (
-                          <p className="text-xs text-orange-500 mt-0.5">Flags: {ad.moderation_flags.join(', ')}</p>
+                          <p className="text-xs text-orange-500 mt-0.5">{_('classifieds.flags', 'Flags')}: {ad.moderation_flags.join(', ')}</p>
                         )}
                       </div>
                     </div>
@@ -174,10 +180,10 @@ export default function ClassifiedList() {
                       </Link>
                       {ad.status === 'pending_review' && (
                         <>
-                          <button onClick={() => handleApprove(ad.id)} className="p-1.5 text-green-500 hover:text-green-700 rounded" title="Approve">
+                          <button onClick={() => handleApprove(ad.id)} className="p-1.5 text-green-500 hover:text-green-700 rounded" title={_('common.approve', "Approve")}>
                             <Check className="w-4 h-4" />
                           </button>
-                          <button onClick={() => handleReject(ad.id)} className="p-1.5 text-red-500 hover:text-red-700 rounded" title="Reject">
+                          <button onClick={() => handleReject(ad.id)} className="p-1.5 text-red-500 hover:text-red-700 rounded" title={_('common.reject', "Reject")}>
                             <X className="w-4 h-4" />
                           </button>
                         </>

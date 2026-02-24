@@ -2,28 +2,31 @@ import { useState, useEffect } from 'react';
 import api from '../lib/api';
 import { toast } from 'sonner';
 import { Plus, Edit2, Trash2, Tag, CheckCircle, Clock, XCircle, ShoppingBag, X, Image as ImageIcon } from 'lucide-react';
-
-const STATUS_BADGES = {
-  pending_review: { icon: Clock, label: 'Pending Review', className: 'bg-yellow-100 text-yellow-700' },
-  approved: { icon: CheckCircle, label: 'Active', className: 'bg-green-100 text-green-700' },
-  rejected: { icon: XCircle, label: 'Rejected', className: 'bg-red-100 text-red-700' },
-  expired: { icon: Clock, label: 'Expired', className: 'bg-gray-100 text-gray-500' },
-  sold: { icon: ShoppingBag, label: 'Sold', className: 'bg-blue-100 text-blue-700' },
-};
-
-const CONDITION_OPTIONS = [
-  { value: 'new_item', label: 'New' },
-  { value: 'used', label: 'Used' },
-  { value: 'refurbished', label: 'Refurbished' },
-  { value: 'na', label: 'N/A' },
-];
-
-const emptyForm = {
-  title: '', description: '', price: '', currency: 'USD', condition: 'na',
-  category_id: '', location: '', contact_info: '', images: [],
-};
+import { useTranslation } from '../context/TranslationContext';
 
 export default function MyClassifieds() {
+  const { _ } = useTranslation();
+
+  const STATUS_BADGES = {
+    pending_review: { icon: Clock, label: _('status.pending_review', 'Pending Review'), className: 'bg-yellow-100 text-yellow-700' },
+    approved: { icon: CheckCircle, label: _('status.approved', 'Active'), className: 'bg-green-100 text-green-700' },
+    rejected: { icon: XCircle, label: _('status.rejected', 'Rejected'), className: 'bg-red-100 text-red-700' },
+    expired: { icon: Clock, label: _('status.expired', 'Expired'), className: 'bg-gray-100 text-gray-500' },
+    sold: { icon: ShoppingBag, label: _('status.sold', 'Sold'), className: 'bg-blue-100 text-blue-700' },
+  };
+
+  const CONDITION_OPTIONS = [
+    { value: 'new_item', label: _('condition.new', 'New') },
+    { value: 'used', label: _('condition.used', 'Used') },
+    { value: 'refurbished', label: _('condition.refurbished', 'Refurbished') },
+    { value: 'na', label: _('condition.na', 'N/A') },
+  ];
+
+  const emptyForm = {
+    title: '', description: '', price: '', currency: 'USD', condition: 'na',
+    category_id: '', location: '', contact_info: '', images: [],
+  };
+
   const [ads, setAds] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -45,7 +48,7 @@ export default function MyClassifieds() {
       setCategories(catsData || []);
     } catch (err) {
       if (err.response?.status === 403) {
-        toast.error('Active subscription required to access classifieds');
+        toast.error(_('classifieds.error.subscription_required', 'Active subscription required to access classifieds'));
       } else {
         toast.error(err.message);
       }
@@ -78,7 +81,7 @@ export default function MyClassifieds() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.title.trim()) return toast.error('Title is required');
+    if (!form.title.trim()) return toast.error(_('classifieds.error.title_required', 'Title is required'));
     setSubmitting(true);
 
     const payload = {
@@ -96,9 +99,9 @@ export default function MyClassifieds() {
       }
 
       if (result.moderation && !result.moderation.approved) {
-        toast('Ad submitted for review', { description: result.moderation.reason });
+        toast(_('classifieds.success.submitted', 'Ad submitted for review'), { description: result.moderation.reason });
       } else {
-        toast.success(editingId ? 'Ad updated' : 'Ad posted!');
+        toast.success(editingId ? _('classifieds.success.updated', 'Ad updated') : _('classifieds.success.posted', 'Ad posted!'));
       }
 
       setShowForm(false);
@@ -112,10 +115,10 @@ export default function MyClassifieds() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('Delete this ad?')) return;
+    if (!confirm(_('classifieds.confirm_delete', 'Delete this ad?'))) return;
     try {
       await api.delete(`/classifieds/${id}`);
-      toast.success('Ad deleted');
+      toast.success(_('classifieds.success.deleted', 'Ad deleted'));
       setAds(ads.filter(a => a.id !== id));
     } catch (err) {
       toast.error(err.message);
@@ -125,7 +128,7 @@ export default function MyClassifieds() {
   const handleMarkSold = async (id) => {
     try {
       await api.post(`/classifieds/${id}/mark-sold`);
-      toast.success('Marked as sold');
+      toast.success(_('classifieds.success.sold', 'Marked as sold'));
       loadData();
     } catch (err) {
       toast.error(err.message);
@@ -161,11 +164,11 @@ export default function MyClassifieds() {
     <div className="space-y-6 max-w-4xl mx-auto">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">My Classified Ads</h1>
-          <p className="text-sm text-gray-500 mt-1">{ads.length} ad(s)</p>
+          <h1 className="text-2xl font-bold text-gray-900">{_('classifieds.my_ads_title', 'My Classified Ads')}</h1>
+          <p className="text-sm text-gray-500 mt-1">{ads.length} {_('classifieds.ads_count', 'ad(s)')}</p>
         </div>
         <button onClick={openNewForm} className="btn btn-primary">
-          <Plus className="w-4 h-4 mr-2" /> Post New Ad
+          <Plus className="w-4 h-4 mr-2" /> {_('classifieds.post_new', 'Post New Ad')}
         </button>
       </div>
 
@@ -173,7 +176,7 @@ export default function MyClassifieds() {
       {showForm && (
         <div className="card p-6 space-y-4 ring-2 ring-primary-200">
           <div className="flex items-center justify-between">
-            <h2 className="font-semibold text-gray-900">{editingId ? 'Edit Ad' : 'Post New Ad'}</h2>
+            <h2 className="font-semibold text-gray-900">{editingId ? _('classifieds.edit_ad', 'Edit Ad') : _('classifieds.post_new_title', 'Post New Ad')}</h2>
             <button onClick={() => { setShowForm(false); setEditingId(null); }} className="text-gray-400 hover:text-gray-600">
               <X className="w-5 h-5" />
             </button>
@@ -181,30 +184,30 @@ export default function MyClassifieds() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="label">Title *</label>
-              <input type="text" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="input" placeholder="What are you selling?" />
+              <label className="label">{_('common.title', 'Title')} *</label>
+              <input type="text" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="input" placeholder={_('classifieds.form.title_placeholder', "What are you selling?")} />
             </div>
 
             <div>
-              <label className="label">Description</label>
-              <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="input" rows={4} placeholder="Describe your item..." />
+              <label className="label">{_('common.description', 'Description')}</label>
+              <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="input" rows={4} placeholder={_('classifieds.form.desc_placeholder', "Describe your item...")} />
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
               <div>
-                <label className="label">Price</label>
+                <label className="label">{_('common.price', 'Price')}</label>
                 <input type="number" step="0.01" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} className="input" placeholder="0.00" />
               </div>
               <div>
-                <label className="label">Condition</label>
+                <label className="label">{_('classifieds.condition', 'Condition')}</label>
                 <select value={form.condition} onChange={(e) => setForm({ ...form, condition: e.target.value })} className="input">
                   {CONDITION_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
               <div>
-                <label className="label">Category</label>
+                <label className="label">{_('common.category', 'Category')}</label>
                 <select value={form.category_id} onChange={(e) => setForm({ ...form, category_id: e.target.value })} className="input">
-                  <option value="">No Category</option>
+                  <option value="">{_('classifieds.no_category', 'No Category')}</option>
                   {flatCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
@@ -212,20 +215,20 @@ export default function MyClassifieds() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="label">Location</label>
+                <label className="label">{_('common.location', 'Location')}</label>
                 <input type="text" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} className="input" placeholder="City, State" />
               </div>
               <div>
-                <label className="label">Contact Info</label>
+                <label className="label">{_('classifieds.contact_info', 'Contact Info')}</label>
                 <input type="text" value={form.contact_info} onChange={(e) => setForm({ ...form, contact_info: e.target.value })} className="input" placeholder="Email or phone" />
               </div>
             </div>
 
             {/* Images */}
             <div>
-              <label className="label">Images</label>
+              <label className="label">{_('common.images', 'Images')}</label>
               <div className="flex gap-2 mb-2">
-                <input type="url" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addImage())} className="input flex-1" placeholder="Paste image URL..." />
+                <input type="url" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addImage())} className="input flex-1" placeholder={_('classifieds.form.image_placeholder', "Paste image URL...")} />
                 <button type="button" onClick={addImage} className="btn btn-secondary">
                   <ImageIcon className="w-4 h-4" />
                 </button>
@@ -246,9 +249,9 @@ export default function MyClassifieds() {
 
             <div className="flex gap-3 pt-2">
               <button type="submit" disabled={submitting} className="btn btn-primary">
-                {submitting ? 'Submitting...' : editingId ? 'Update Ad' : 'Post Ad'}
+                {submitting ? _('common.submitting', 'Submitting...') : editingId ? _('classifieds.update_ad', 'Update Ad') : _('classifieds.post_ad', 'Post Ad')}
               </button>
-              <button type="button" onClick={() => { setShowForm(false); setEditingId(null); }} className="btn btn-secondary">Cancel</button>
+              <button type="button" onClick={() => { setShowForm(false); setEditingId(null); }} className="btn btn-secondary">{_('common.cancel', 'Cancel')}</button>
             </div>
           </form>
         </div>
@@ -258,9 +261,9 @@ export default function MyClassifieds() {
       {ads.length === 0 && !showForm ? (
         <div className="text-center py-16">
           <Tag className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500 mb-4">You haven't posted any classified ads yet.</p>
+          <p className="text-gray-500 mb-4">{_('classifieds.empty_my_ads', "You haven't posted any classified ads yet.")}</p>
           <button onClick={openNewForm} className="btn btn-primary">
-            <Plus className="w-4 h-4 mr-2" /> Post Your First Ad
+            <Plus className="w-4 h-4 mr-2" /> {_('classifieds.post_first', 'Post Your First Ad')}
           </button>
         </div>
       ) : (
@@ -290,22 +293,22 @@ export default function MyClassifieds() {
                     </div>
 
                     {ad.status === 'rejected' && ad.rejection_reason && (
-                      <p className="text-xs text-red-500 mt-1">Reason: {ad.rejection_reason}</p>
+                      <p className="text-xs text-red-500 mt-1">{_('common.reason', 'Reason')}: {ad.rejection_reason}</p>
                     )}
 
                     <div className="flex items-center gap-2 mt-3">
                       {ad.status === 'approved' && (
                         <button onClick={() => handleMarkSold(ad.id)} className="text-xs btn btn-secondary py-1 px-2">
-                          <ShoppingBag className="w-3 h-3 mr-1" /> Mark Sold
+                          <ShoppingBag className="w-3 h-3 mr-1" /> {_('classifieds.mark_sold', 'Mark Sold')}
                         </button>
                       )}
                       {(ad.status === 'approved' || ad.status === 'pending_review' || ad.status === 'rejected') && (
                         <button onClick={() => openEditForm(ad)} className="text-xs btn btn-secondary py-1 px-2">
-                          <Edit2 className="w-3 h-3 mr-1" /> Edit
+                          <Edit2 className="w-3 h-3 mr-1" /> {_('common.edit', 'Edit')}
                         </button>
                       )}
                       <button onClick={() => handleDelete(ad.id)} className="text-xs btn btn-secondary py-1 px-2 text-red-500">
-                        <Trash2 className="w-3 h-3 mr-1" /> Delete
+                        <Trash2 className="w-3 h-3 mr-1" /> {_('common.delete', 'Delete')}
                       </button>
                     </div>
                   </div>

@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import api from '../lib/api';
 import { toast } from 'sonner';
 import { Save, Plus, Trash2, Shield, Settings } from 'lucide-react';
+import { useTranslation } from '../context/TranslationContext';
 
 export default function ClassifiedSettings() {
+  const { _ } = useTranslation();
   const [settings, setSettings] = useState({
     classifieds_enabled: 'true',
     classifieds_auto_approve: 'false',
@@ -46,7 +48,7 @@ export default function ClassifiedSettings() {
     setSaving(true);
     try {
       await api.put('/classifieds/admin/settings', settings);
-      toast.success('Settings saved');
+      toast.success(_('common.success.saved', 'Settings saved'));
     } catch (err) {
       toast.error(err.message);
     } finally {
@@ -62,18 +64,18 @@ export default function ClassifiedSettings() {
       setShowAddRule(false);
       const data = await api.get('/classifieds/admin/moderation-rules');
       setRules(data);
-      toast.success('Rule added');
+      toast.success(_('classifieds.rules.success.added', 'Rule added'));
     } catch (err) {
       toast.error(err.message);
     }
   };
 
   const handleDeleteRule = async (id) => {
-    if (!confirm('Delete this rule?')) return;
+    if (!confirm(_('classifieds.rules.confirm_delete', 'Delete this rule?'))) return;
     try {
       await api.delete(`/classifieds/admin/moderation-rules/${id}`);
       setRules(rules.filter(r => r.id !== id));
-      toast.success('Rule deleted');
+      toast.success(_('classifieds.rules.success.deleted', 'Rule deleted'));
     } catch (err) {
       toast.error(err.message);
     }
@@ -82,7 +84,7 @@ export default function ClassifiedSettings() {
   const handleToggleRule = async (rule) => {
     try {
       await api.post('/classifieds/admin/moderation-rules', { ...rule, enabled: !rule.enabled });
-      setRules(rules.map(r => r.id === rule.id ? { ...r, enabled: !r.enabled } : r));
+      setRules(rules.map(r => r.id === rule.id ? { ...r, enabled: !rule.enabled } : r));
     } catch (err) {
       toast.error(err.message);
     }
@@ -95,19 +97,19 @@ export default function ClassifiedSettings() {
       setNewCatName('');
       const data = await api.get('/classifieds/admin/categories/all');
       setCategories(data);
-      toast.success('Category added');
+      toast.success(_('classifieds.categories.success.added', 'Category added'));
     } catch (err) {
       toast.error(err.message);
     }
   };
 
   const handleDeleteCategory = async (id) => {
-    if (!confirm('Delete this category? Ads will become uncategorized.')) return;
+    if (!confirm(_('classifieds.categories.confirm_delete', 'Delete this category? Ads will become uncategorized.'))) return;
     try {
       await api.delete(`/classifieds/admin/categories/${id}`);
       const data = await api.get('/classifieds/admin/categories/all');
       setCategories(data);
-      toast.success('Category deleted');
+      toast.success(_('classifieds.categories.success.deleted', 'Category deleted'));
     } catch (err) {
       toast.error(err.message);
     }
@@ -124,17 +126,17 @@ export default function ClassifiedSettings() {
   return (
     <div className="space-y-6 max-w-3xl mx-auto">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Classifieds Settings</h1>
+        <h1 className="text-2xl font-bold text-gray-900">{_('classifieds.settings.title', 'Classifieds Settings')}</h1>
         <button onClick={handleSaveSettings} disabled={saving} className="btn btn-primary">
           <Save className="w-4 h-4 mr-2" />
-          {saving ? 'Saving...' : 'Save Settings'}
+          {saving ? _('common.saving', 'Saving...') : _('common.save_settings', 'Save Settings')}
         </button>
       </div>
 
       {/* General Settings */}
       <div className="card p-6 space-y-4">
         <h2 className="font-semibold text-gray-900 pb-2 border-b border-gray-200 flex items-center gap-2">
-          <Settings className="w-4 h-4" /> General
+          <Settings className="w-4 h-4" /> {_('settings.section.general', 'General')}
         </h2>
 
         <label className="flex items-center gap-2">
@@ -144,12 +146,12 @@ export default function ClassifiedSettings() {
             onChange={(e) => setSettings({ ...settings, classifieds_enabled: e.target.checked ? 'true' : 'false' })}
             className="rounded"
           />
-          <span className="text-sm text-gray-700">Enable Classifieds Module</span>
+          <span className="text-sm text-gray-700">{_('classifieds.settings.enable', 'Enable Classifieds Module')}</span>
         </label>
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="label">Ad Expiry (days)</label>
+            <label className="label">{_('classifieds.settings.expiry_days', 'Ad Expiry (days)')}</label>
             <input
               type="number"
               value={settings.classifieds_expiry_days}
@@ -160,7 +162,7 @@ export default function ClassifiedSettings() {
             />
           </div>
           <div>
-            <label className="label">Max Images Per Ad</label>
+            <label className="label">{_('classifieds.settings.max_images', 'Max Images Per Ad')}</label>
             <input
               type="number"
               value={settings.classifieds_max_images}
@@ -176,7 +178,7 @@ export default function ClassifiedSettings() {
       {/* Moderation Settings */}
       <div className="card p-6 space-y-4">
         <h2 className="font-semibold text-gray-900 pb-2 border-b border-gray-200 flex items-center gap-2">
-          <Shield className="w-4 h-4" /> Moderation
+          <Shield className="w-4 h-4" /> {_('classifieds.moderation', 'Moderation')}
         </h2>
 
         <label className="flex items-center gap-2">
@@ -186,7 +188,7 @@ export default function ClassifiedSettings() {
             onChange={(e) => setSettings({ ...settings, classifieds_auto_approve: e.target.checked ? 'true' : 'false' })}
             className="rounded"
           />
-          <span className="text-sm text-gray-700">Auto-approve all ads (skip moderation)</span>
+          <span className="text-sm text-gray-700">{_('classifieds.settings.auto_approve', 'Auto-approve all ads (skip moderation)')}</span>
         </label>
 
         <label className="flex items-center gap-2">
@@ -196,18 +198,18 @@ export default function ClassifiedSettings() {
             onChange={(e) => setSettings({ ...settings, classifieds_ai_moderation: e.target.checked ? 'true' : 'false' })}
             className="rounded"
           />
-          <span className="text-sm text-gray-700">Enable AI-powered moderation</span>
+          <span className="text-sm text-gray-700">{_('classifieds.settings.enable_ai', 'Enable AI-powered moderation')}</span>
         </label>
         <p className="text-xs text-gray-500">
-          When enabled, ads are reviewed by AI against the rules below. Requires an AI API key (Gemini, OpenAI, or Anthropic) in your <strong>Settings</strong>.
+          {_('classifieds.settings.ai_hint', 'When enabled, ads are reviewed by AI against the rules below. Requires an AI API key (Gemini, OpenAI, or Anthropic) in your')} <strong>{_('user.settings', 'Settings')}</strong>.
         </p>
 
         {/* Rules */}
         <div className="border-t border-gray-200 pt-4">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-medium text-gray-700">Moderation Rules</h3>
+            <h3 className="font-medium text-gray-700">{_('classifieds.rules.title', 'Moderation Rules')}</h3>
             <button onClick={() => setShowAddRule(!showAddRule)} className="btn btn-secondary text-sm py-1 px-3">
-              <Plus className="w-3 h-3 mr-1" /> Add Rule
+              <Plus className="w-3 h-3 mr-1" /> {_('classifieds.rules.add_btn', 'Add Rule')}
             </button>
           </div>
 
@@ -219,15 +221,15 @@ export default function ClassifiedSettings() {
                   value={newRule.name}
                   onChange={(e) => setNewRule({ ...newRule, name: e.target.value })}
                   className="input"
-                  placeholder="Rule name (e.g. Nudity)"
+                  placeholder={_('classifieds.rules.name_placeholder', "Rule name (e.g. Nudity)")}
                 />
                 <select
                   value={newRule.rule_type}
                   onChange={(e) => setNewRule({ ...newRule, rule_type: e.target.value })}
                   className="input"
                 >
-                  <option value="block">Block</option>
-                  <option value="allow">Allow</option>
+                  <option value="block">{_('classifieds.rules.type.block', 'Block')}</option>
+                  <option value="allow">{_('classifieds.rules.type.allow', 'Allow')}</option>
                 </select>
               </div>
               <input
@@ -235,14 +237,14 @@ export default function ClassifiedSettings() {
                 value={newRule.description}
                 onChange={(e) => setNewRule({ ...newRule, description: e.target.value })}
                 className="input"
-                placeholder="Description (e.g. No explicit nudity in images)"
+                placeholder={_('classifieds.rules.desc_placeholder', "Description (e.g. No explicit nudity in images)")}
               />
-              <button onClick={handleAddRule} className="btn btn-primary text-sm py-1 px-4">Add</button>
+              <button onClick={handleAddRule} className="btn btn-primary text-sm py-1 px-4">{_('common.add', 'Add')}</button>
             </div>
           )}
 
           {rules.length === 0 ? (
-            <p className="text-sm text-gray-400">No moderation rules configured. AI will use general content guidelines.</p>
+            <p className="text-sm text-gray-400">{_('classifieds.rules.empty', 'No moderation rules configured. AI will use general content guidelines.')}</p>
           ) : (
             <div className="space-y-2">
               {rules.map(rule => (
@@ -274,7 +276,7 @@ export default function ClassifiedSettings() {
 
       {/* Categories */}
       <div className="card p-6 space-y-4">
-        <h2 className="font-semibold text-gray-900 pb-2 border-b border-gray-200">Categories</h2>
+        <h2 className="font-semibold text-gray-900 pb-2 border-b border-gray-200">{_('classifieds.categories.title', 'Categories')}</h2>
 
         <div className="flex gap-2">
           <input
@@ -283,15 +285,15 @@ export default function ClassifiedSettings() {
             onChange={(e) => setNewCatName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleAddCategory()}
             className="input flex-1"
-            placeholder="New category name..."
+            placeholder={_('classifieds.categories.placeholder', "New category name...")}
           />
           <button onClick={handleAddCategory} disabled={!newCatName.trim()} className="btn btn-secondary">
-            <Plus className="w-4 h-4 mr-1" /> Add
+            <Plus className="w-4 h-4 mr-1" /> {_('common.add', 'Add')}
           </button>
         </div>
 
         {categories.length === 0 ? (
-          <p className="text-sm text-gray-400">No categories yet. Add some above.</p>
+          <p className="text-sm text-gray-400">{_('classifieds.categories.empty', 'No categories yet. Add some above.')}</p>
         ) : (
           <div className="space-y-2">
             {categories.map(cat => (
@@ -300,7 +302,7 @@ export default function ClassifiedSettings() {
                   <div>
                     <span className="text-sm font-medium text-gray-700">{cat.name}</span>
                     {cat._count?.classified_ads > 0 && (
-                      <span className="text-xs text-gray-400 ml-2">({cat._count.classified_ads} ads)</span>
+                      <span className="text-xs text-gray-400 ml-2">({cat._count.classified_ads} {_('classifieds.ads_count', 'ads')})</span>
                     )}
                   </div>
                   <button onClick={() => handleDeleteCategory(cat.id)} className="p-1 text-gray-400 hover:text-red-500">
