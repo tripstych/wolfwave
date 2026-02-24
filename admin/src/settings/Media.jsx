@@ -11,7 +11,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Sparkles,
-  Loader2
+  Loader2,
+  Video,
+  Play
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -116,6 +118,7 @@ export default function Media() {
   };
 
   const isImage = (mimeType) => mimeType?.startsWith('image/');
+  const isVideo = (mimeType) => mimeType?.startsWith('video/');
 
   if (loading) {
     return (
@@ -134,7 +137,7 @@ export default function Media() {
             ref={fileInputRef}
             type="file"
             multiple
-            accept="image/*,.pdf,.doc,.docx"
+            accept="image/*,video/*,.pdf,.doc,.docx"
             onChange={handleUpload}
             className="hidden"
           />
@@ -226,6 +229,16 @@ export default function Media() {
                         alt={item.alt_text || item.original_name}
                         className="w-full h-full object-cover"
                       />
+                    ) : isVideo(item.mime_type) ? (
+                      <div className="w-full h-full flex flex-col items-center justify-center bg-gray-100">
+                        <Video className="w-12 h-12 text-primary-400" />
+                        <div className="absolute top-2 right-2">
+                          <Play className="w-4 h-4 text-primary-600 fill-primary-600" />
+                        </div>
+                        <p className="text-[10px] text-gray-500 mt-2 px-2 truncate w-full text-center">
+                          {item.original_name}
+                        </p>
+                      </div>
                     ) : (
                       <div className="w-full h-full flex flex-col items-center justify-center bg-gray-100">
                         <FileText className="w-12 h-12 text-gray-400" />
@@ -281,13 +294,19 @@ export default function Media() {
                 </button>
               </div>
 
-              {isImage(selectedMedia.mime_type) && (
+              {isImage(selectedMedia.mime_type) ? (
                 <img
                   src={`/uploads${selectedMedia.path}`}
                   alt={selectedMedia.alt_text || ''}
                   className="w-full rounded-lg"
                 />
-              )}
+              ) : isVideo(selectedMedia.mime_type) ? (
+                <video
+                  src={`/uploads${selectedMedia.path}`}
+                  controls
+                  className="w-full rounded-lg bg-black"
+                />
+              ) : null}
 
               <div className="space-y-3 text-sm">
                 <div>

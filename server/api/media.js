@@ -52,6 +52,11 @@ const fileFilter = (req, file, cb) => {
     'image/gif',
     'image/webp',
     'image/svg+xml',
+    'video/mp4',
+    'video/webm',
+    'video/ogg',
+    'video/quicktime',
+    'video/x-msvideo',
     'application/pdf',
     'application/msword',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document'

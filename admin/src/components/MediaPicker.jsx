@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import api from '../lib/api';
-import { X, Upload, Check, Image as ImageIcon, Sparkles, Loader2 } from 'lucide-react';
+import { X, Upload, Check, Image as ImageIcon, Sparkles, Loader2, Video, Play, Search } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function MediaPicker({ onSelect, onClose }) {
@@ -8,17 +8,19 @@ export default function MediaPicker({ onSelect, onClose }) {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [type, setType] = useState('image'); // 'all', 'image', 'video'
   const [prompt, setPrompt] = useState('');
   const [selected, setSelected] = useState(null);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
     loadMedia();
-  }, []);
+  }, [type]);
 
   const loadMedia = async () => {
     try {
-      const data = await api.get('/media?type=image&limit=50');
+      const queryType = type === 'all' ? '' : type;
+      const data = await api.get(`/media?type=${queryType}&limit=50`);
       setMedia(data.media || []);
     } catch (err) {
       console.error('Failed to load media:', err);
@@ -47,6 +49,9 @@ export default function MediaPicker({ onSelect, onClose }) {
     }
   };
 
+  const isImage = (mimeType) => mimeType?.startsWith('image/');
+  const isVideo = (mimeType) => mimeType?.startsWith('video/');
+
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
 
@@ -74,7 +79,8 @@ export default function MediaPicker({ onSelect, onClose }) {
       onSelect({
         id: selected.id,
         url: `/uploads${selected.path}`,
-        alt: selected.alt_text || ''
+        alt: selected.alt_text || '',
+        mimeType: selected.mime_type
       });
     }
   };
@@ -141,6 +147,38 @@ export default function MediaPicker({ onSelect, onClose }) {
             </div>
           </div>
 
+          {/* Filter Bar */}
+          <div className="flex items-center gap-2 mb-6 border-b pb-4">
+            <button
+              onClick={() => setType('image')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
+                type === 'image' ? 'bg-primary-600 text-white shadow-md' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <ImageIcon className="w-3 h-3" /> Images
+              </div>
+            </button>
+            <button
+              onClick={() => setType('video')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
+                type === 'video' ? 'bg-primary-600 text-white shadow-md' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <Video className="w-3 h-3" /> Videos
+              </div>
+            </button>
+            <button
+              onClick={() => setType('all')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
+                type === 'all' ? 'bg-primary-600 text-white shadow-md' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+              }`}
+            >
+              All Media
+            </button>
+          </div>
+
           {/* Grid */}
           {loading ? (
             <div className="flex items-center justify-center h-48">
@@ -163,11 +201,24 @@ export default function MediaPicker({ onSelect, onClose }) {
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
-                  <img
-                    src={`/uploads${item.path}`}
-                    alt={item.alt_text || ''}
-                    className="w-full h-full object-cover"
-                  />
+                  {isImage(item.mime_type) ? (
+                    <img
+                      src={`/uploads${item.path}`}
+                      alt={item.alt_text || ''}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : isVideo(item.mime_type) ? (
+                    <div className="w-full h-full flex flex-col items-center justify-center bg-gray-100">
+                      <Video className="w-8 h-8 text-primary-400" />
+                      <div className="absolute top-1 right-1">
+                        <Play className="w-3 h-3 text-primary-600 fill-primary-600" />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                      <FileText className="w-8 h-8 text-gray-400" />
+                    </div>
+                  )}
                   {selected?.id === item.id && (
                     <div className="absolute inset-0 bg-primary-500/20 flex items-center justify-center">
                       <div className="w-6 h-6 bg-primary-500 rounded-full flex items-center justify-center">
