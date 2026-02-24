@@ -105,8 +105,41 @@ export class TransformationEngine {
             slug: slug,
             data: extractedContent,
             source_url: item.url
-          }
+          },
+          include: { pages: true }
         });
+
+        // --- Create/Update Module Specific Record ---
+        const templateId = groupRules.template_id;
+        
+        if (moduleName === 'pages') {
+          await prisma.pages.upsert({
+            where: { id: content.pages?.[0]?.id || -1 }, // Try to find existing page linked to this content
+            update: { title: content.title, template_id: templateId, status: 'published' },
+            create: { content_id: content.id, title: content.title, template_id: templateId, status: 'published' }
+          });
+        } 
+        else if (moduleName === 'products') {
+          await prisma.products.upsert({
+            where: { sku: extractedContent.sku || `slug-${content.slug}` },
+            update: { 
+              title: content.title, 
+              template_id: templateId, 
+              price: extractedContent.price || 0,
+              status: 'active'
+            },
+            create: { 
+              content_id: content.id, 
+              title: content.title, 
+              template_id: templateId, 
+              sku: extractedContent.sku || `slug-${content.slug}`,
+              price: extractedContent.price || 0,
+              status: 'active'
+            }
+          });
+        }
+        // Note: 'posts' module uses the content table directly in this CMS, 
+        // but we ensure it has the correct module name set above.
 
         // Link staged item to content
         await prisma.staged_items.update({

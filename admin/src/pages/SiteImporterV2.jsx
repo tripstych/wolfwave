@@ -303,7 +303,7 @@ export default function SiteImporterV2() {
                     </button>
                   )}
                   {selectedSite.llm_ruleset && selectedSite.status !== 'completed' && (
-                    <button onClick={triggerTransform} className="btn btn-primary btn-sm flex items-center gap-2">
+                    <button onClick={triggerTransform} id="finalize-migrate" className="btn btn-primary btn-sm flex items-center gap-2">
                       <Zap className="w-3.5 h-3.5" />
                       Finalize & Migrate
                     </button>
