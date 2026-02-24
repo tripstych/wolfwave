@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Check, Palette, Code, Upload, FolderOpen, Loader2, CheckCircle2, AlertCircle, ArrowRight, FileCode, X, Type, Zap, Cpu, Globe } from 'lucide-react';
+import { Check, Palette, Code, Upload, FolderOpen, Loader2, CheckCircle2, AlertCircle, ArrowRight, FileCode, X, Type, Zap, Cpu, Globe, Sparkles } from 'lucide-react';
 import AiThemeGenerator from './AiThemeGenerator';
 import api from '../lib/api';
 import { useTranslation } from '../context/TranslationContext';

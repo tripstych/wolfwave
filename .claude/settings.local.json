@@ -4,7 +4,8 @@
       "Bash(npm run build)",
       "Bash(npx vitest:*)",
       "Bash(node create-test-db.js:*)",
-      "Bash(DATABASE_URL=\"mysql://root:@localhost:3306/wolfwave_test\" npx prisma db push:*)"
+      "Bash(DATABASE_URL=\"mysql://root:@localhost:3306/wolfwave_test\" npx prisma db push:*)",
+      "Bash(node -e:*)"
     ]
   }
 }

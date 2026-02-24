@@ -20,13 +20,16 @@ export default function MySites() {
   const [showCreate, setShowCreate] = useState(false);
   const [noCustomer, setNoCustomer] = useState(false);
   const [newSite, setNewSite] = useState({ name: '', subdomain: '' });
+  const [isFetching, setIsFetching] = useState(false);
 
   useEffect(() => {
     loadData();
   }, []);
 
   const loadData = async () => {
+    if (isFetching) return;
     try {
+      setIsFetching(true);
       setLoading(true);
       const [sitesData, limitsData] = await Promise.all([
         api.get('/customer-tenants'),
@@ -40,6 +43,7 @@ export default function MySites() {
       toast.error('Failed to load your sites');
     } finally {
       setLoading(false);
+      setIsFetching(false);
     }
   };
 
