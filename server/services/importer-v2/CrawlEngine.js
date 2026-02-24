@@ -25,10 +25,21 @@ export class CrawlEngine {
       // Force lowercase hostname for consistency
       nUrl.hostname = nUrl.hostname.toLowerCase();
       
-      // Strip common noisy parameters that create duplicate URLs
+      // 1. Platform Specific Normalization (Shopify)
+      // Collapse /collections/.*/products/x -> /products/x
+      const collectionProductMatch = nUrl.pathname.match(/\/collections\/[^/]+\/products\/(.+)/);
+      if (collectionProductMatch) {
+        nUrl.pathname = '/products/' + collectionProductMatch[1];
+      }
+
+      // 2. Junk Path Filtering
+      const junkPaths = ['/cart', '/search', '/account', '/login', '/logout', '/checkout', '/tools/'];
+      if (junkPaths.some(p => nUrl.pathname.startsWith(p))) return null;
+
+      // 3. Strip common noisy parameters
       const stripParams = [
         'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 
-        'fbclid', 'gclid', 'ref', 'variant', 'view', '_ss', '_v', '_pos'
+        'fbclid', 'gclid', 'ref', 'variant', 'view', '_ss', '_v', '_pos', 'pr_prod_strat', 'pr_rec_id'
       ];
       stripParams.forEach(p => nUrl.searchParams.delete(p));
       

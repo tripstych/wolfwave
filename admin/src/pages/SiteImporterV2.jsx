@@ -23,6 +23,7 @@ import {
 
 export default function SiteImporterV2() {
   const [url, setUrl] = useState('');
+  const [maxPages, setMaxPages] = useState(500);
   const [loading, setLoading] = useState(true);
   const [sites, setSites] = useState([]);
   const [selectedSite, setSelectedSite] = useState(null);
@@ -93,7 +94,7 @@ export default function SiteImporterV2() {
     if (!url) return;
     setIsStarting(true);
     try {
-      const res = await api.post('/import-v2', { url });
+      const res = await api.post('/import-v2', { url, config: { maxPages: parseInt(maxPages) } });
       if (res.success) {
         setUrl('');
         loadSites();
@@ -166,6 +167,17 @@ export default function SiteImporterV2() {
                   placeholder="https://example.com"
                   className="input text-sm"
                   required
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-400 mb-1 uppercase">Max Pages to Crawl</label>
+                <input
+                  type="number"
+                  value={maxPages}
+                  onChange={(e) => setMaxPages(e.target.value)}
+                  className="input text-sm"
+                  min="1"
+                  max="5000"
                 />
               </div>
               <button
