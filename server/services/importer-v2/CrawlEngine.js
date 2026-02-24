@@ -38,22 +38,30 @@ export class CrawlEngine {
   calculateHash(strippedHtml) {
     const $ = cheerio.load(strippedHtml);
     
-    // Tags that don't contribute to layout structure
-    const noiseTags = new Set(['a', 'span', 'i', 'strong', 'em', 'b', 'u', 'br', 'svg', 'path', 'small', 'label', 'button']);
+    // Content tags that should be ignored for structural hashing
+    const contentTags = new Set([
+      'a', 'span', 'i', 'strong', 'em', 'b', 'u', 'br', 'svg', 'path', 
+      'small', 'label', 'button', 'img', 'p', 'h1', 'h2', 'h3', 'h4', 
+      'h5', 'h6', 'input', 'select', 'textarea', 'video', 'audio', 
+      'canvas', 'iframe', 'hr', 'picture', 'source', 'noscript'
+    ]);
+    
     const tags = [];
 
     function traverse(node, depth = 0) {
-      if (depth > 15 || node.type !== 'tag' || noiseTags.has(node.name)) return;
+      if (depth > 20 || node.type !== 'tag' || contentTags.has(node.name)) return;
       
       tags.push(node.name);
       
       let lastTagName = '';
       $(node).children().each((i, el) => {
-        // Deduplication: If we just saw this tag type as a sibling, don't recurse into it
-        // This makes a list of 10 items hash the same as a list of 1 item.
-        if (el.type === 'tag' && el.name !== lastTagName) {
-          traverse(el, depth + 1);
-          lastTagName = el.name;
+        // Deduplication: If we just saw this structural tag type as a sibling, skip it.
+        // This ensures lists of products/posts don't change the hash.
+        if (el.type === 'tag' && !contentTags.has(el.name)) {
+          if (el.name !== lastTagName) {
+            traverse(el, depth + 1);
+            lastTagName = el.name;
+          }
         }
       });
       
