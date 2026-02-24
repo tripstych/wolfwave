@@ -2,6 +2,7 @@ import { query } from '../db/connection.js';
 import { themeRender, renderError } from '../lib/renderer.js';
 import { error as logError } from '../lib/logger.js';
 import { canAccess } from '../middleware/permission.js';
+import { SYSTEM_ROUTES } from '../lib/systemRoutes.js';
 
 function parseJsonField(value) {
   if (value === null || value === undefined) return null;
@@ -63,6 +64,18 @@ export const sitemapXml = async (req, res) => {
     let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
     xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
 
+    // 1. Add System Routes (if priority > 0)
+    for (const route of SYSTEM_ROUTES) {
+      if (route.priority > 0) {
+        xml += '  <url>\n';
+        xml += `    <loc>${siteUrl}${route.url === '/' ? '' : route.url}</loc>\n`;
+        xml += '    <changefreq>' + (route.changefreq || 'weekly') + '</changefreq>\n';
+        xml += `    <priority>${route.priority.toFixed(1)}</priority>\n`;
+        xml += '  </url>\n';
+      }
+    }
+
+    // 2. Add dynamic pages
     for (const page of pages) {
       const slug = page.slug === '/' ? '' : page.slug;
       xml += '  <url>\n';

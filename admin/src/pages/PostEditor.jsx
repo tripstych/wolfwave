@@ -11,6 +11,7 @@ import DynamicField from '../components/DynamicField';
 import RepeaterField from '../components/RepeaterField';
 import MediaPicker from '../components/MediaPicker';
 import ContentGroupsWidget from '../components/ContentGroupsWidget';
+import MenuWidget from '../components/MenuWidget';
 import VisualPickerModal from '../components/VisualPickerModal';
 import HistoryPreviewModal from '../components/HistoryPreviewModal';
 import CodeEditor from '../components/CodeEditor';
@@ -468,6 +469,13 @@ export default function PostEditor() {
               </select>
             </div>
           </div>
+
+          <MenuWidget
+            pageId={post.id}
+            title={post.title}
+            url={post.slug}
+            contentType="posts"
+          />
 
           <AccessControlSection
             accessRules={post.access_rules}

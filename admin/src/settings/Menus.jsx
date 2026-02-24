@@ -27,6 +27,7 @@ export default function Menus() {
   const [selectedMenu, setSelectedMenu] = useState(null);
   const [pages, setPages] = useState([]);
   const [subscriptionPlans, setSubscriptionPlans] = useState([]);
+  const [systemRoutes, setSystemRoutes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showNewMenu, setShowNewMenu] = useState(false);
   const [showNewItem, setShowNewItem] = useState(false);
@@ -54,26 +55,21 @@ export default function Menus() {
     }
   });
 
-  const SYSTEM_ROUTES = [
-    { title: 'Home', url: '/' },
-    { title: 'Search', url: '/search' },
-    { title: 'Shop (All Products)', url: '/products' },
-    { title: 'Shopping Cart', url: '/cart' },
-    { title: 'Checkout', url: '/checkout' },
-    { title: 'Subscription Plans', url: '/subscribe' },
-    { title: 'My Account', url: '/customer/account' },
-    { title: 'Manage Subscription', url: '/account/subscription' },
-    { title: 'Digital Downloads', url: '/customer/downloads' },
-    { title: 'Login', url: '/customer/login' },
-    { title: 'Register', url: '/customer/register' },
-    { title: 'Logout', url: '/customer/logout' }
-  ];
-
   useEffect(() => {
     loadMenus();
     loadPages();
     loadSubscriptionPlans();
+    loadSystemRoutes();
   }, []);
+
+  const loadSystemRoutes = async () => {
+    try {
+      const routes = await api.get('/settings/system-routes');
+      setSystemRoutes(routes || []);
+    } catch (err) {
+      console.error('Failed to load system routes:', err);
+    }
+  };
 
   const loadSubscriptionPlans = async () => {
     try {
@@ -254,7 +250,7 @@ export default function Menus() {
                 <label className="flex items-center gap-2 text-sm">
                   <input
                     type="radio"
-                    checked={!editingItem.page_id && !SYSTEM_ROUTES.find(r => r.url === editingItem.url)}
+                    checked={!editingItem.page_id && !systemRoutes.find(r => r.url === editingItem.url)}
                     onChange={() => setEditingItem({ ...editingItem, page_id: null })}
                   />
                   Custom URL
@@ -270,8 +266,8 @@ export default function Menus() {
                 <label className="flex items-center gap-2 text-sm">
                   <input
                     type="radio"
-                    checked={!editingItem.page_id && !!SYSTEM_ROUTES.find(r => r.url === editingItem.url)}
-                    onChange={() => setEditingItem({ ...editingItem, page_id: null, url: SYSTEM_ROUTES[0].url })}
+                    checked={!editingItem.page_id && !!systemRoutes.find(r => r.url === editingItem.url)}
+                    onChange={() => setEditingItem({ ...editingItem, page_id: null, url: systemRoutes[0]?.url })}
                   />
                   System
                 </label>
@@ -300,13 +296,13 @@ export default function Menus() {
                       <option key={page.id} value={page.id}>{page.title}</option>
                     ))}
                   </select>
-                ) : SYSTEM_ROUTES.find(r => r.url === editingItem.url) ? (
+                ) : systemRoutes.find(r => r.url === editingItem.url) ? (
                   <select
                     value={editingItem.url || ''}
                     onChange={(e) => setEditingItem({ ...editingItem, url: e.target.value })}
                     className="input flex-1"
                   >
-                    {SYSTEM_ROUTES.map(route => (
+                    {systemRoutes.map(route => (
                       <option key={route.url} value={route.url}>{route.title}</option>
                     ))}
                   </select>
@@ -717,7 +713,7 @@ export default function Menus() {
                       <input
                         type="radio"
                         checked={newItem.linkType === 'system'}
-                        onChange={() => setNewItem({ ...newItem, linkType: 'system', page_id: null, url: SYSTEM_ROUTES[0].url })}
+                        onChange={() => setNewItem({ ...newItem, linkType: 'system', page_id: null, url: systemRoutes[0]?.url })}
                       />
                       System
                     </label>
@@ -772,7 +768,7 @@ export default function Menus() {
                         <select
                           value={newItem.url || ''}
                           onChange={(e) => {
-                            const route = SYSTEM_ROUTES.find(r => r.url === e.target.value);
+                            const route = systemRoutes.find(r => r.url === e.target.value);
                             setNewItem(curr => ({
                               ...curr,
                               url: e.target.value,
@@ -781,7 +777,7 @@ export default function Menus() {
                           }}
                           className="input"
                         >
-                          {SYSTEM_ROUTES.map(route => (
+                          {systemRoutes.map(route => (
                             <option key={route.url} value={route.url}>{route.title}</option>
                           ))}
                         </select>

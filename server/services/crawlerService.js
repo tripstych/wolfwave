@@ -6,6 +6,7 @@ import { runWithTenant, getCurrentDbName } from '../lib/tenantContext.js';
 import { info, error as logError } from '../lib/logger.js';
 import { extractMetadata } from './scraperService.js';
 import { CRAWLER_PRESETS } from '../lib/crawlerPresets.js';
+import { SYSTEM_ROUTES } from '../lib/systemRoutes.js';
 
 function normalizeUrl(url) {
   try {
@@ -93,6 +94,10 @@ async function detectBlueprint(rootUrl, dbName) {
 function discoverLinks($, currentUrl, rootDomain, visited, queue, config = {}) {
   const priorityPatterns = config.priorityPatterns || ['/products/'];
   const excludePatterns = config.excludePatterns || ['/tagged/', '/search', 'sort_by='];
+  
+  // Add all system routes to exclude list
+  const systemPaths = SYSTEM_ROUTES.map(r => r.url);
+  
   let found = 0;
 
   $('a[href]').each((i, el) => {
@@ -105,7 +110,10 @@ function discoverLinks($, currentUrl, rootDomain, visited, queue, config = {}) {
 
       if (absoluteUrl.hostname === rootDomain && ['http:', 'https:'].includes(absoluteUrl.protocol)) {
         if (path.match(/\.(jpg|jpeg|png|gif|pdf|zip|gz|mp4|mp3|css|js|svg|woff|woff2)$/)) return;
+        
+        // Exclude custom patterns AND system paths
         if (excludePatterns.some(p => path.includes(p) || search.includes(p))) return;
+        if (systemPaths.some(p => path === p || path === p + '/')) return;
 
         // Normalize Shopify collection product URLs to canonical /products/ form
         const collectionProductMatch = path.match(/\/collections\/[^/]+\/products\/(.+)/);

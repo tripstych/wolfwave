@@ -189,6 +189,7 @@ export default function SiteImporter() {
     autoDetect: true
   });
 
+  const [systemRoutes, setSystemRoutes] = useState([]);
   const [presets, setPresets] = useState({});
   const [sites, setSites] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -222,7 +223,17 @@ export default function SiteImporter() {
     loadSites();
     loadTemplates();
     loadPresets();
+    loadSystemRoutes();
   }, []);
+
+  const loadSystemRoutes = async () => {
+    try {
+      const routes = await api.get('/settings/system-routes');
+      setSystemRoutes(routes || []);
+    } catch (err) {
+      console.error('Failed to load system routes:', err);
+    }
+  };
 
   // 2. Message Listener
   useEffect(() => {
@@ -902,7 +913,7 @@ export default function SiteImporter() {
                       value={config.excludePatterns} 
                       onChange={e => setConfig({...config, excludePatterns: e.target.value})}
                       className="input py-1 text-sm"
-                      placeholder="/tagged/, /search"
+                      placeholder={systemRoutes.length > 0 ? systemRoutes.map(r => r.url).slice(0, 5).join(', ') + '...' : '/tagged/, /search'}
                     />
                   </div>
 

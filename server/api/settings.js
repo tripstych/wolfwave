@@ -3,8 +3,17 @@ import { query } from '../db/connection.js';
 import { requireAuth, requireAdmin } from '../middleware/auth.js';
 import { logInfo, logError } from '../lib/logger.js';
 import axios from 'axios';
+import { SYSTEM_ROUTES } from '../lib/systemRoutes.js';
 
 const router = Router();
+
+/**
+ * GET /api/settings/system-routes
+ * Exposes internal routes for menu management and sitemaps.
+ */
+router.get('/system-routes', requireAuth, (req, res) => {
+  res.json(SYSTEM_ROUTES);
+});
 
 /**
  * Auto-register Stripe webhook endpoint when stripe_secret_key is saved.

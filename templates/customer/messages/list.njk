@@ -1,0 +1,149 @@
+{% extends "layouts/base.njk" %}
+
+{% block content %}
+<div class="account-container">
+  <div class="account-header">
+    <div class="flex items-center gap-4">
+      <a href="/customer/account" class="btn btn-secondary">Back to Account</a>
+      <h1>My Messages</h1>
+    </div>
+  </div>
+
+  <div class="account-content">
+    <div id="conversations-list" class="space-y-4">
+      <div class="loading">Loading messages...</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  async function loadConversations() {
+    try {
+      const response = await fetch('/api/messages/conversations', { credentials: 'include' });
+      if (!response.ok) throw new Error('Failed to load messages');
+      
+      const conversations = await response.json();
+      const list = document.getElementById('conversations-list');
+      
+      if (conversations.length === 0) {
+        list.innerHTML = `
+          <div class="empty-state">
+            <p>You have no messages yet.</p>
+            <a href="/classifieds" class="btn btn-primary mt-4">Browse Classifieds</a>
+          </div>
+        `;
+        return;
+      }
+
+      list.innerHTML = conversations.map(conv => {
+        const unread = conv._count?.messages > 0;
+        const lastMsg = conv.messages?.[0];
+        
+        return `
+          <a href="/customer/messages/${conv.id}" class="conv-card ${unread ? 'unread' : ''}">
+            <div class="conv-img">
+              ${conv.ad?.image 
+                ? `<img src="${conv.ad.image}" alt="${conv.ad.title}">`
+                : `<div class="no-img">?</div>`}
+            </div>
+            <div class="conv-info">
+              <div class="flex justify-between items-start">
+                <h3 class="ad-title">${conv.ad?.title || 'Unknown Ad'}</h3>
+                <span class="conv-date text-[10px] text-gray-400 uppercase font-bold">
+                  ${new Date(conv.updated_at).toLocaleDateString()}
+                </span>
+              </div>
+              <p class="conv-user text-xs text-gray-500 font-bold mb-1">
+                Conversation with ${conv.buyer?.first_name || conv.seller?.first_name}
+              </p>
+              <p class="conv-last-msg text-sm text-gray-600 line-clamp-1">
+                ${lastMsg?.content || 'No messages yet'}
+              </p>
+            </div>
+            ${unread ? `<div class="unread-dot"></div>` : ''}
+          </a>
+        `;
+      }).join('');
+    } catch (err) {
+      console.error(err);
+      document.getElementById('conversations-list').innerHTML = '<p class="error">Failed to load messages</p>';
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', loadConversations);
+</script>
+
+<style>
+  .conv-card {
+    display: flex;
+    gap: 1rem;
+    padding: 1rem;
+    background: white;
+    border: 2px solid #f3f4f6;
+    border-radius: 1rem;
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.2s;
+    position: relative;
+  }
+
+  .conv-card:hover {
+    border-color: #3b82f6;
+    background: #f0f7ff;
+    transform: translateX(4px);
+  }
+
+  .conv-card.unread {
+    background: #eff6ff;
+    border-color: #3b82f6;
+  }
+
+  .conv-img {
+    width: 60px;
+    height: 60px;
+    background: #f3f4f6;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  .conv-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .conv-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .ad-title {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 900;
+    color: #111827;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .unread-dot {
+    width: 10px;
+    height: 10px;
+    background: #3b82f6;
+    border-radius: 50%;
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    background: #f9fafb;
+    border: 2px dashed #e5e7eb;
+    border-radius: 12px;
+  }
+</style>
+{% endblock %}

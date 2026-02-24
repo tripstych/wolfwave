@@ -155,3 +155,54 @@ export const editAd = async (req, res) => {
     renderError(req, res, 500);
   }
 };
+
+/**
+ * Subscriber: List Conversations (Inbox)
+ */
+export const listConversations = async (req, res) => {
+  const { customer, site } = res.locals;
+  if (!customer) return res.redirect('/customer/login?redirect=/customer/messages');
+
+  try {
+    themeRender(req, res, 'customer/messages/list.njk', {
+      page: { title: 'My Messages', slug: '/customer/messages' },
+      seo: {
+        title: `Messages - ${site.site_name}`,
+        robots: 'noindex, follow'
+      }
+    });
+  } catch (err) {
+    renderError(req, res, 500);
+  }
+};
+
+/**
+ * Subscriber: View Single Conversation
+ */
+export const viewConversation = async (req, res) => {
+  const { customer, site } = res.locals;
+  if (!customer) return res.redirect('/customer/login');
+
+  try {
+    const conversationId = parseInt(req.params.id);
+    // Fetch basic conv info to verify access
+    const conv = await prisma.conversations.findUnique({
+      where: { id: conversationId }
+    });
+
+    if (!conv || (conv.buyer_id !== customer.id && conv.seller_id !== customer.id)) {
+      return renderError(req, res, 404, { message: 'Conversation not found' });
+    }
+
+    themeRender(req, res, 'customer/messages/detail.njk', {
+      page: { title: 'Conversation', slug: `/customer/messages/${conversationId}` },
+      conversationId,
+      seo: {
+        title: `Message Thread - ${site.site_name}`,
+        robots: 'noindex, follow'
+      }
+    });
+  } catch (err) {
+    renderError(req, res, 500);
+  }
+};

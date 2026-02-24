@@ -10,6 +10,7 @@ import SEOSection from '../components/SEOSection';
 import DynamicField from '../components/DynamicField';
 import MediaPicker from '../components/MediaPicker';
 import ContentGroupsWidget from '../components/ContentGroupsWidget';
+import MenuWidget from '../components/MenuWidget';
 import VisualPickerModal from '../components/VisualPickerModal';
 import HistoryPreviewModal from '../components/HistoryPreviewModal';
 import CodeEditor from '../components/CodeEditor';
@@ -654,6 +655,12 @@ export default function ProductEditor() {
               </button>
             </div>
           </div>
+
+          <MenuWidget
+            title={product.title}
+            url={product.slug}
+            contentType="products"
+          />
 
           <AccessControlSection
             accessRules={product.access_rules}

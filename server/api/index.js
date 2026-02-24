@@ -36,6 +36,7 @@ import dashboardRoutes from './dashboard.js';
 import apiKeysRoutes from './api-keys.js';
 import amazonRoutes from './amazon.js';
 import classifiedAdsRoutes from './classifieds.js';
+import messagesRoutes from './messages.js';
 
 const router = Router();
 
@@ -76,6 +77,7 @@ router.use('/dashboard', dashboardRoutes);
 router.use('/api-keys', apiKeysRoutes);
 router.use('/amazon', amazonRoutes);
 router.use('/classifieds', classifiedAdsRoutes);
+router.use('/messages', messagesRoutes);
 
 // Health check
 router.get('/health', (req, res) => {

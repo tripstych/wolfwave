@@ -43,6 +43,8 @@ router.get('/account/subscription', customerController.subscription);
 router.get('/customer/ads', classifiedController.myAds);
 router.get('/customer/ads/create', classifiedController.createAd);
 router.get('/customer/ads/edit/:id', classifiedController.editAd);
+router.get('/customer/messages', classifiedController.listConversations);
+router.get('/customer/messages/:id', classifiedController.viewConversation);
 
 // Content (catch-all)
 router.get('*', contentController.renderContent);

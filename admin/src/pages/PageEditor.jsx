@@ -11,6 +11,7 @@ import DynamicField from '../components/DynamicField';
 import RepeaterField from '../components/RepeaterField';
 import MediaPicker from '../components/MediaPicker';
 import ContentGroupsWidget from '../components/ContentGroupsWidget';
+import MenuWidget from '../components/MenuWidget';
 import VisualPickerModal from '../components/VisualPickerModal';
 import HistoryPreviewModal from '../components/HistoryPreviewModal';
 import CodeEditor from '../components/CodeEditor';
@@ -468,6 +469,13 @@ export default function PageEditor() {
               </select>
             </div>
           </div>
+
+          <MenuWidget
+            pageId={page.id}
+            title={page.title}
+            url={page.slug}
+            contentType={page.content_type}
+          />
 
           <AccessControlSection
             accessRules={page.access_rules}
