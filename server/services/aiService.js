@@ -509,7 +509,44 @@ export async function generateContentForFields(fields, userContext, model = null
  * Suggest CSS selectors for a set of fields based on HTML content
  */
 export async function suggestSelectors(fields, html, model = null, req = null) {
-  // ... existing implementation ...
+  const config = await getAiSettings();
+  const isDemo = (!config.openai_api_key || config.openai_api_key === 'demo') && (!config.anthropic_api_key || config.anthropic_api_key === 'demo');
+
+  if (isDemo) {
+    const mock = {};
+    fields.forEach(f => {
+      if (f.name === 'title') mock[f.name] = 'h1';
+      else if (f.name.includes('price')) mock[f.name] = '.price';
+      else if (f.name.includes('description')) mock[f.name] = '.product-description';
+      else if (f.name.includes('image')) mock[f.name] = '.product-main-image img';
+      else mock[f.name] = `.${f.name}`;
+    });
+    return mock;
+  }
+
+  const systemPrompt = `You are a web scraping expert. 
+  Your goal is to look at a provided HTML snippet and suggest the best CSS selectors for a set of target fields.
+  
+  You will receive:
+  1. A list of fields (name, label, type).
+  2. A sample of the target webpage HTML.
+  
+  Rules:
+  - Return ONLY a JSON object where keys are field names and values are CSS selectors.
+  - Prioritize unique IDs, then specific classes.
+  - If a field is an 'image' type, ensure the selector targets the <img> tag or an element with a background-image.
+  - Be as precise as possible.
+  - If you cannot find a good match, use a reasonable guess based on common patterns.
+  `;
+
+  // Strip excessive HTML to save tokens
+  const cleanHtml = html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+                        .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+                        .substring(0, 15000); // 15k chars is usually enough for structure
+
+  const userPrompt = `Fields to map: ${JSON.stringify(fields)}\n\nHTML Snippet:\n${cleanHtml}`;
+
+  return await generateText(systemPrompt, userPrompt, model, req);
 }
 
 /**
@@ -619,6 +656,10 @@ RULES:
     throw err;
   }
 }
+/**
+ * Generate Theme (Existing)
+ */
+export async function generateThemeFromIndustry(industry) {
   // 1. Text Generation
   const systemPrompt = `You are a WebWolf Theme Architect. 
   Your goal is to generate a JSON object containing configuration and content for a new CMS theme based on an industry.
