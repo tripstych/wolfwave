@@ -25,21 +25,81 @@ export default function Themes() {
   const [liveUrl, setLiveUrl] = useState('');
   const [liveName, setLiveName] = useState('');
   const [liveImporting, setLiveImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState(null);
+  const [nonsenseBlurb, setNonsenseBlurb] = useState('');
+
+  const nonsenseBlurbs = [
+    'Reticulating splines...',
+    'Generating semantic meaningfulness...',
+    'Decompressing layout photons...',
+    'Consulting the AI architect...',
+    'Optimizing the CSS flavor profiles...',
+    'Localizing asset gravity...',
+    'Buffering digital vibes...',
+    'Aligning template chakras...',
+    'Teaching the LLM how to code...',
+    'Scanning for hidden easter eggs...',
+    'Polishing the pixels...'
+  ];
+
+  useEffect(() => {
+    let interval;
+    if (liveImporting || wpLoading) {
+      setNonsenseBlurb(nonsenseBlurbs[0]);
+      interval = setInterval(() => {
+        setNonsenseBlurb(prev => {
+          const idx = nonsenseBlurbs.indexOf(prev);
+          return nonsenseBlurbs[(idx + 1) % nonsenseBlurbs.length];
+        });
+      }, 3500);
+    }
+    return () => clearInterval(interval);
+  }, [liveImporting, wpLoading]);
+
+  const pollProgress = async (taskId) => {
+    try {
+      const res = await api.get(`/import/progress/${taskId}`);
+      if (res && res.status) {
+        setImportProgress(res);
+        if (res.status === 'Theme import complete!' || res.status.startsWith('Error:')) {
+          return true; // Stop polling
+        }
+      }
+    } catch (e) { console.warn('Progress poll failed', e); }
+    return false;
+  };
 
   const handleLiveImport = async (e) => {
     e.preventDefault();
     if (!liveUrl) return;
+    const taskId = `live-import-${Date.now()}`;
     setLiveImporting(true);
+    setImportProgress({ status: 'Connecting to site...' });
+    
+    // Start polling
+    const pollInterval = setInterval(async () => {
+      const shouldStop = await pollProgress(taskId);
+      if (shouldStop) clearInterval(pollInterval);
+    }, 2000);
+
     try {
-      const res = await api.post('/import/wp-theme/live-import', { url: liveUrl, name: liveName });
+      const res = await api.post('/import/wp-theme/live-import', { url: liveUrl, name: liveName, taskId });
       if (res.success) {
+        clearInterval(pollInterval);
+        setImportProgress(null);
         alert(_('themes.live_import.success', 'Theme imported successfully from live site!'));
         setLiveUrl('');
         setLiveName('');
         fetchThemes();
       }
-    } catch (err) { alert(_('themes.live_import.failed', 'Live import failed: ') + err.message); }
-    finally { setLiveImporting(false); }
+    } catch (err) { 
+      clearInterval(pollInterval);
+      alert(_('themes.live_import.failed', 'Live import failed: ') + err.message); 
+    }
+    finally { 
+      setLiveImporting(false); 
+      setImportProgress(null);
+    }
   };
 
   const handleWpFileSelect = async (e) => {
@@ -66,21 +126,40 @@ export default function Themes() {
 
   const handleWpConvert = async () => {
     if (!wpFile) return;
+    const taskId = `wp-convert-${Date.now()}`;
     setWpLoading(true);
+    setImportProgress({ status: 'Starting conversion...' });
+
+    // Start polling
+    const pollInterval = setInterval(async () => {
+      const shouldStop = await pollProgress(taskId);
+      if (shouldStop) clearInterval(pollInterval);
+    }, 2000);
+
     try {
       const formData = new FormData();
       formData.append('theme', wpFile);
       formData.append('selectedFiles', JSON.stringify(Array.from(wpSelectedFiles)));
       formData.append('scanFunctions', wpScanFunctions);
+      formData.append('taskId', taskId);
       const data = await api.post('/import/wp-theme/convert', formData);
       if (data.success) {
+        clearInterval(pollInterval);
+        setImportProgress(null);
         setWpResult(data);
         fetchThemes();
       } else {
+        clearInterval(pollInterval);
         alert(_('themes.wp_import.conversion_failed', 'Conversion failed: ') + (data.error || _('common.unknown_error', 'Unknown error')));
       }
-    } catch (err) { alert(_('themes.wp_import.conversion_failed', 'Conversion failed: ') + err.message); }
-    finally { setWpLoading(false); }
+    } catch (err) { 
+      clearInterval(pollInterval);
+      alert(_('themes.wp_import.conversion_failed', 'Conversion failed: ') + err.message); 
+    }
+    finally { 
+      setWpLoading(false); 
+      setImportProgress(null);
+    }
   };
 
   const toggleWpFile = (basename) => {
@@ -179,6 +258,23 @@ export default function Themes() {
                   {liveImporting ? <><Loader2 className="w-4 h-4 animate-spin mr-2" /> {_('themes.live_import.importing', 'Importing...')}</> : _('themes.live_import.btn', 'Import from URL')}
                 </button>
               </form>
+
+              {importProgress && (
+                <div className="mt-4 p-3 bg-blue-50 border border-blue-100 rounded-lg animate-pulse">
+                  <div className="flex items-center gap-2 text-blue-700 font-medium text-xs mb-1">
+                    <Sparkles className="w-3 h-3" />
+                    {importProgress.status}
+                  </div>
+                  {importProgress.steps && importProgress.steps.length > 1 && (
+                    <div className="text-[10px] text-blue-500 overflow-hidden h-4 italic">
+                      {importProgress.steps[importProgress.steps.length - 2]}
+                    </div>
+                  )}
+                  <div className="text-[9px] text-blue-400 mt-2 font-mono uppercase tracking-widest text-center opacity-70">
+                    {nonsenseBlurb}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="card p-6">
@@ -208,6 +304,23 @@ export default function Themes() {
               {wpLoading && !wpPreview && (
                 <div className="flex items-center justify-center gap-2 mt-4 text-sm text-gray-500">
                   <Loader2 className="w-4 h-4 animate-spin" /> {_('themes.wp_import.analyzing', 'Analyzing theme...')}
+                </div>
+              )}
+
+              {importProgress && wpLoading && (
+                <div className="mt-4 p-3 bg-indigo-50 border border-indigo-100 rounded-lg animate-pulse">
+                  <div className="flex items-center gap-2 text-indigo-700 font-medium text-xs mb-1">
+                    <Zap className="w-3 h-3" />
+                    {importProgress.status}
+                  </div>
+                  {importProgress.steps && importProgress.steps.length > 1 && (
+                    <div className="text-[10px] text-indigo-500 overflow-hidden h-4 italic">
+                      {importProgress.steps[importProgress.steps.length - 2]}
+                    </div>
+                  )}
+                  <div className="text-[9px] text-indigo-400 mt-2 font-mono uppercase tracking-widest text-center opacity-70">
+                    {nonsenseBlurb}
+                  </div>
                 </div>
               )}
             </div>

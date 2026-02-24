@@ -7,6 +7,7 @@ import { getCurrentDbName } from '../lib/tenantContext.js';
 import { info, error as logError } from '../lib/logger.js';
 import { generateRawText } from './aiService.js';
 import { syncTemplatesToDb } from './templateParser.js';
+import { createTask, updateTask, completeTask } from '../lib/progressStore.js';
 import prisma from '../lib/prisma.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -17,7 +18,11 @@ const THEMES_DIR = path.join(__dirname, '../../themes');
  */
 export async function importLiveTheme(url, options = {}) {
   const dbName = getCurrentDbName();
+  const { taskId } = options;
   const themeName = options.name || 'Imported Live Site';
+
+  if (taskId) createTask(taskId, `Connecting to ${url}...`);
+
   const themeSlug = themeName.toLowerCase().replace(/[^a-z0-9]+/g, '-').substring(0, 50);
   const themePath = path.join(THEMES_DIR, themeSlug);
 
@@ -32,6 +37,8 @@ export async function importLiveTheme(url, options = {}) {
     const $ = cheerio.load(html);
     const origin = new URL(url).origin;
 
+    if (taskId) updateTask(taskId, 'Analyzing site structure and assets...');
+
     // 2. Setup Directory Structure
     await fs.mkdir(themePath, { recursive: true });
     await fs.mkdir(path.join(themePath, 'layouts'), { recursive: true });
@@ -42,6 +49,8 @@ export async function importLiveTheme(url, options = {}) {
 
     // 3. Extract and Localize CSS
     const styleLinks = $('link[rel="stylesheet"]');
+    if (taskId && styleLinks.length > 0) updateTask(taskId, `Localizing ${styleLinks.length} CSS files...`);
+    
     for (let i = 0; i < styleLinks.length; i++) {
       const href = $(styleLinks[i]).attr('href');
       if (!href) continue;
@@ -63,6 +72,8 @@ export async function importLiveTheme(url, options = {}) {
 
     // 4. Extract and Localize Inline Styles
     const inlineStyles = $('style');
+    if (taskId && inlineStyles.length > 0) updateTask(taskId, 'Extracting inline styles...');
+    
     let mergedInlineCss = '';
     inlineStyles.each((i, el) => {
       mergedInlineCss += $(el).html() + '\n';
@@ -75,6 +86,8 @@ export async function importLiveTheme(url, options = {}) {
 
     // 5. Extract and Localize JS
     const scriptTags = $('script[src]');
+    if (taskId && scriptTags.length > 0) updateTask(taskId, `Localizing ${scriptTags.length} JavaScript files...`);
+    
     for (let i = 0; i < scriptTags.length; i++) {
       const src = $(scriptTags[i]).attr('src');
       if (!src) continue;
@@ -98,7 +111,8 @@ export async function importLiveTheme(url, options = {}) {
       }
     }
 
-    // 6. Fix internal image URLs in the remaining HTML
+    // 6. Fix internal image URLs
+    if (taskId) updateTask(taskId, 'Optimizing internal image paths...');
     $('img[src]').each((i, el) => {
       const src = $(el).attr('src');
       if (src && !src.startsWith('http') && !src.startsWith('data:')) {
@@ -107,6 +121,8 @@ export async function importLiveTheme(url, options = {}) {
     });
 
     // 7. LLM: Analyze and Generate Layout
+    if (taskId) updateTask(taskId, 'AI is drafting your theme layout (this takes a few seconds)...');
+    
     const layoutInputHtml = $.html()
       .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
       .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
@@ -130,6 +146,8 @@ RULES:
     await fs.writeFile(path.join(themePath, 'layouts/main.njk'), layoutNjk.replace(/^```[a-z]*\n/i, '').replace(/\n```$/i, ''));
 
     // 8. LLM: Generate Homepage Template
+    if (taskId) updateTask(taskId, 'AI is generating your homepage template...');
+    
     const templatePrompt = `Generate a homepage template (pages/home.njk) based on this HTML.
 Use '{% extends "layouts/main.njk" %}' and wrap content in '{% block content %}'.
 Identify logical sections and use 'data-cms-region' attributes for editable areas (e.g. hero_title, features, etc.).
@@ -139,6 +157,8 @@ Return ONLY Nunjucks code. No markdown fences.`;
     await fs.writeFile(path.join(themePath, 'pages/home.njk'), homeNjk.replace(/^```[a-z]*\n/i, '').replace(/\n```$/i, ''));
 
     // 9. Create theme.json
+    if (taskId) updateTask(taskId, 'Finalizing theme manifest...');
+    
     const themeJson = {
       name: themeName,
       slug: themeSlug,
@@ -149,12 +169,19 @@ Return ONLY Nunjucks code. No markdown fences.`;
     await fs.writeFile(path.join(themePath, 'theme.json'), JSON.stringify(themeJson, null, 2));
 
     // 10. Sync to DB
+    if (taskId) updateTask(taskId, 'Syncing templates to CMS database...');
     await syncTemplatesToDb(prisma, themeSlug);
+
+    if (taskId) {
+      updateTask(taskId, 'Theme ready! Finalizing installation...');
+      completeTask(taskId);
+    }
 
     info(dbName, 'LIVE_THEME_DONE', `Successfully imported live theme: ${themeSlug}`);
     return { success: true, theme: themeJson };
 
   } catch (err) {
+    if (taskId) updateTask(taskId, `Error: ${err.message}`);
     logError(dbName, err, 'LIVE_THEME_IMPORT_FAILED');
     throw err;
   }

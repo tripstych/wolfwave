@@ -13,6 +13,7 @@ import prisma from '../lib/prisma.js';
 import { syncTemplatesToDb } from './templateParser.js';
 import { getCurrentDbName } from '../lib/tenantContext.js';
 import { info, error as logError } from '../lib/logger.js';
+import { createTask, updateTask, completeTask } from '../lib/progressStore.js';
 import {
   convertPhpToNunjucks,
   extractBodyContent,
@@ -150,12 +151,17 @@ export async function convertWpTheme(zipBuffer, options = {}) {
   const themeRoot = findThemeRoot(entries);
   const useLLM = options.useLLM !== false; // default true
   const scanFunctions = options.scanFunctions === true; // default false
+  const { taskId } = options;
+
+  if (taskId) createTask(taskId, 'Analyzing WordPress theme structure...');
 
   // 1. Read metadata
   const styleCssEntry = findEntry(entries, themeRoot, 'style.css');
   const metadata = styleCssEntry
     ? parseThemeMetadata(styleCssEntry.getData().toString('utf-8'))
     : { theme_name: 'Imported Theme' };
+
+  if (taskId) updateTask(taskId, `Setting up ${metadata.theme_name}...`);
 
   const themeSlug = sanitizeName(metadata.theme_name || 'imported');
   const themePath = path.join(THEMES_DIR, themeSlug);
@@ -166,6 +172,7 @@ export async function convertWpTheme(zipBuffer, options = {}) {
   const wpParentSlug = metadata.template || null;
   let inherits = null;
   if (wpParentSlug) {
+    if (taskId) updateTask(taskId, `Searching for parent theme: ${wpParentSlug}...`);
     // Try to find if we've already converted the parent
     // We search for a theme folder that matches the parent slug or has metadata matching it
     const convertedParent = await findConvertedParent(wpParentSlug);
@@ -187,6 +194,7 @@ export async function convertWpTheme(zipBuffer, options = {}) {
   };
 
   // 2. Create theme directory structure
+  if (taskId) updateTask(taskId, 'Creating theme directories...');
   await ensureDir(themePath);
   await ensureDir(path.join(themePath, 'layouts'));
   await ensureDir(path.join(themePath, 'pages'));
@@ -195,6 +203,7 @@ export async function convertWpTheme(zipBuffer, options = {}) {
   await ensureDir(path.join(themePath, 'assets'));
 
   // 3. Extract theme styles / colors
+  if (taskId) updateTask(taskId, 'Extracting theme styles and colors...');
   if (styleCssEntry) {
     const styles = extractThemeStyles(styleCssEntry.getData().toString('utf-8'));
     if (styles.colors.primary) results.themeOptions.primary_color = styles.colors.primary;
@@ -204,6 +213,7 @@ export async function convertWpTheme(zipBuffer, options = {}) {
   }
 
   // 4. Build base layout from header.php + footer.php
+  if (taskId) updateTask(taskId, 'Generating base layout (header/footer)...');
   const headerEntry = findEntry(entries, themeRoot, 'header.php');
   const footerEntry = findEntry(entries, themeRoot, 'footer.php');
 
@@ -225,6 +235,7 @@ export async function convertWpTheme(zipBuffer, options = {}) {
   }
 
   // 5. Create theme.json
+  if (taskId) updateTask(taskId, 'Writing theme manifest (theme.json)...');
   const themeJson = {
     name: metadata.theme_name,
     slug: themeSlug,
@@ -264,6 +275,7 @@ export async function convertWpTheme(zipBuffer, options = {}) {
 
   // 6. Extract and save CSS
   if (styleCssEntry) {
+    if (taskId) updateTask(taskId, 'Saving main stylesheet...');
     const rawCss = styleCssEntry.getData().toString('utf-8');
     const extractedCss = rawCss.replace(/\/\*[\s\S]*?\*\//, '').trim();
     if (extractedCss.length > 0) {
@@ -274,11 +286,13 @@ export async function convertWpTheme(zipBuffer, options = {}) {
   // 7. Save screenshot if present
   const screenshotEntry = findEntry(entries, themeRoot, 'screenshot.png') || findEntry(entries, themeRoot, 'screenshot.jpg');
   if (screenshotEntry) {
+    if (taskId) updateTask(taskId, 'Saving theme screenshot...');
     const ext = screenshotEntry.entryName.endsWith('.png') ? 'png' : 'jpg';
     await fs.writeFile(path.join(themePath, `screenshot.${ext}`), screenshotEntry.getData());
   }
 
   // 8. Copy theme assets (images, fonts in theme directory)
+  if (taskId) updateTask(taskId, 'Copying theme assets (fonts, images)...');
   const assetExtensions = ['.woff', '.woff2', '.ttf', '.eot', '.otf', '.svg', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.ico'];
   for (const entry of entries) {
     if (entry.isDirectory) continue;
@@ -302,37 +316,44 @@ export async function convertWpTheme(zipBuffer, options = {}) {
       && e.entryName.endsWith('.php');
   });
 
-  for (const entry of partialEntries) {
-    const relativePath = themeRoot ? entry.entryName.replace(themeRoot, '') : entry.entryName;
-    const partName = sanitizeName(path.basename(relativePath, '.php'));
-    const phpSource = entry.getData().toString('utf-8');
+  if (partialEntries.length > 0) {
+    if (taskId) updateTask(taskId, `Converting ${partialEntries.length} template parts...`);
+    for (const entry of partialEntries) {
+      const relativePath = themeRoot ? entry.entryName.replace(themeRoot, '') : entry.entryName;
+      const partName = sanitizeName(path.basename(relativePath, '.php'));
+      const phpSource = entry.getData().toString('utf-8');
 
-    const detection = detectPluginUsage(phpSource);
-    let njk;
-    if (useLLM && detection.needsLLM) {
-      info(dbName, 'WP_CONVERT_LLM', `Using LLM for partial: ${relativePath} (${detection.pluginHints.join(', ')})`);
-      njk = await convertPhpWithLLM(phpSource, { filename: relativePath, templateType: 'component', pluginHints: detection.pluginHints });
-    } else {
-      njk = convertPhpToNunjucks(phpSource);
+      const detection = detectPluginUsage(phpSource);
+      let njk;
+      if (useLLM && detection.needsLLM) {
+        info(dbName, 'WP_CONVERT_LLM', `Using LLM for partial: ${relativePath} (${detection.pluginHints.join(', ')})`);
+        njk = await convertPhpWithLLM(phpSource, { filename: relativePath, templateType: 'component', pluginHints: detection.pluginHints });
+      } else {
+        njk = convertPhpToNunjucks(phpSource);
+      }
+
+      const compFilename = `components/${partName}.njk`;
+      const compPath = path.join(themePath, compFilename);
+
+      await ensureDir(path.dirname(compPath));
+      await fs.writeFile(compPath, njk, 'utf-8');
+      info(dbName, 'WP_CONVERT_PARTIAL', `Component: ${compFilename}`);
     }
-
-    const compFilename = `components/${partName}.njk`;
-    const compPath = path.join(themePath, compFilename);
-
-    await ensureDir(path.dirname(compPath));
-    await fs.writeFile(compPath, njk, 'utf-8');
-    info(dbName, 'WP_CONVERT_PARTIAL', `Component: ${compFilename}`);
   }
 
   // 10. Convert sidebar.php → component
   const sidebarEntry = findEntry(entries, themeRoot, 'sidebar.php');
   if (sidebarEntry) {
+    if (taskId) updateTask(taskId, 'Converting sidebar...');
     const sidebarPhp = sidebarEntry.getData().toString('utf-8');
     const sidebarNjk = convertPhpToNunjucks(sidebarPhp);
     await fs.writeFile(path.join(themePath, 'components/sidebar.njk'), sidebarNjk, 'utf-8');
   }
 
   // 11. Convert main content templates
+  const templateFiles = Object.entries(TEMPLATE_MAP).filter(([wpFile]) => findEntry(entries, themeRoot, wpFile));
+  if (taskId) updateTask(taskId, `Converting ${templateFiles.length} main templates (this may take a moment)...`);
+  
   for (const [wpFile, mapping] of Object.entries(TEMPLATE_MAP)) {
     const entry = findEntry(entries, themeRoot, wpFile);
     if (!entry) continue;
@@ -378,6 +399,7 @@ export async function convertWpTheme(zipBuffer, options = {}) {
   }
 
   // 12. Handle any remaining top-level PHP templates
+  if (taskId) updateTask(taskId, 'Checking for custom page templates...');
   const customTemplateRegex = /^page-(.+)\.php$/;
   for (const entry of entries) {
     if (entry.isDirectory) continue;
@@ -423,6 +445,7 @@ export async function convertWpTheme(zipBuffer, options = {}) {
   }
 
   // 13. Register templates in DB (linking them to this theme folder)
+  if (taskId) updateTask(taskId, 'Registering templates in database...');
   for (const tpl of results.templates) {
     const fullPath = path.join(THEMES_DIR, tpl.filename.replace('themes/', ''));
     let content = '';
@@ -451,10 +474,16 @@ export async function convertWpTheme(zipBuffer, options = {}) {
   }
 
   // 14. Sync content types
+  if (taskId) updateTask(taskId, 'Finalizing content types and cleanup...');
   try {
     await syncTemplatesToDb(prisma, themeSlug);
   } catch (err) {
     results.warnings.push(`Content type sync warning: ${err.message}`);
+  }
+
+  if (taskId) {
+    updateTask(taskId, 'Theme import complete!');
+    completeTask(taskId);
   }
 
   info(dbName, 'WP_CONVERT_DONE', `Converted ${results.templates.length} templates from ${metadata.theme_name}`);

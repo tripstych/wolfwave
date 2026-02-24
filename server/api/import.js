@@ -11,6 +11,7 @@ import { migrateProduct, bulkMigrateProducts } from '../services/productMigratio
 import { previewWpTheme, convertWpTheme } from '../services/wpThemeConverter.js';
 import { importLiveTheme } from '../services/liveThemeService.js';
 import prisma from '../lib/prisma.js';
+import { getTask } from '../lib/progressStore.js';
 import { CRAWLER_PRESETS } from '../lib/crawlerPresets.js';
 
 // Multer for WP theme ZIP uploads (memory storage, 50MB limit)
@@ -27,6 +28,14 @@ const wpUpload = multer({
 });
 
 const router = Router();
+
+// Progress Tracking
+router.get('/progress/:taskId', requireAuth, (req, res) => {
+  const { getTask } = import('../lib/progressStore.js'); // dynamic or move to top
+  const task = getTask(req.params.taskId);
+  if (!task) return res.status(404).json({ error: 'Task not found' });
+  res.json(task);
+});
 
 // Visual Selector Proxy
 router.get('/proxy', requireAuth, requireEditor, async (req, res) => {
@@ -313,14 +322,28 @@ router.post('/wp-theme/preview', requireAuth, requireEditor, wpUpload.single('th
 });
 
 router.post('/wp-theme/convert', requireAuth, requireEditor, wpUpload.single('theme'), async (req, res) => {
-  // ... existing handler ...
+  try {
+    if (!req.file) return res.status(400).json({ error: 'ZIP file required' });
+    const { taskId } = req.body;
+    const options = {
+      scanFunctions: req.body.scanFunctions === 'true',
+      taskId
+    };
+    if (req.body.selectedFiles) {
+      try { options.selectedFiles = JSON.parse(req.body.selectedFiles); } catch {}
+    }
+    const result = await convertWpTheme(req.file.buffer, options);
+    res.json({ success: true, ...result });
+  } catch (err) {
+    res.status(500).json({ error: `Conversion failed: ${err.message}` });
+  }
 });
 
 router.post('/wp-theme/live-import', requireAuth, requireEditor, async (req, res) => {
   try {
-    const { url, name } = req.body;
+    const { url, name, taskId } = req.body;
     if (!url) return res.status(400).json({ error: 'URL required' });
-    const result = await importLiveTheme(url, { name });
+    const result = await importLiveTheme(url, { name, taskId });
     res.json(result);
   } catch (err) {
     res.status(500).json({ error: `Live import failed: ${err.message}` });

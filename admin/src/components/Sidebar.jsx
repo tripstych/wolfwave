@@ -32,6 +32,7 @@ export default function Sidebar({ isOpen, onClose, contentTypes = [] }) {
       section: _('nav.section.store', 'Store'),
       items: [
         { name: _('nav.my_sites', 'My Sites'), href: '/my-sites', icon: Globe },
+        { name: _('nav.site_importer', 'Site Importer'), href: '/import', icon: Download },
         { name: _('nav.products', 'Products'), href: '/products', icon: Package },
         { name: _('nav.orders', 'Orders'), href: '/orders', icon: Briefcase },
         { name: _('nav.customers', 'Customers'), href: '/customers', icon: Users },
