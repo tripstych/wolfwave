@@ -281,6 +281,7 @@ async function registerContentTypes(prisma, templates) {
  */
 export async function syncTemplatesToDb(prisma, themeName = 'default') {
   const templates = await scanTemplates(themeName);
+  const syncedFilenames = templates.map(t => t.filename);
 
   for (const template of templates) {
     const contentType = extractContentType(template.filename);
@@ -314,11 +315,33 @@ export async function syncTemplatesToDb(prisma, themeName = 'default') {
         name: template.name,
         regions: template.regions,
         content_type: contentType,
-        // Only update content if DB content is empty? 
-        // Or always sync? Let's always sync for now during a full sync command.
         content: content
       }
     });
+  }
+
+  // ── CLEANUP STALE TEMPLATES ──
+  // Find templates in DB that were NOT found on filesystem
+  const staleTemplates = await prisma.templates.findMany({
+    where: {
+      filename: { notIn: syncedFilenames }
+    },
+    select: { id: true, filename: true }
+  });
+
+  if (staleTemplates.length > 0) {
+    console.log(`Cleaning up ${staleTemplates.length} stale templates...`);
+    for (const stale of staleTemplates) {
+      try {
+        await prisma.templates.delete({
+          where: { id: stale.id }
+        });
+        console.log(`Deleted stale template: ${stale.filename}`);
+      } catch (err) {
+        // This usually happens if the template is still in use by a page or block (Restrict constraint)
+        console.warn(`Could not delete stale template ${stale.filename} (possibly still in use): ${err.message}`);
+      }
+    }
   }
 
   // Auto-discover and register new content types

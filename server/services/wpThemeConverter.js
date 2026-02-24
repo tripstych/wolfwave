@@ -452,7 +452,7 @@ export async function convertWpTheme(zipBuffer, options = {}) {
 
   // 14. Sync content types
   try {
-    await syncTemplatesToDb(prisma);
+    await syncTemplatesToDb(prisma, themeSlug);
   } catch (err) {
     results.warnings.push(`Content type sync warning: ${err.message}`);
   }
