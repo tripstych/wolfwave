@@ -139,9 +139,9 @@ function calculateStructuralHash(html) {
     const body = $('body')[0];
     if (!body) return null;
     const tags = [];
-    const IGNORED = new Set(['a', 'span', 'img', 'i', 'strong', 'em', 'b', 'u', 'br', 'svg', 'path', 'script', 'style', 'noscript']);
+    const IGNORED = new Set(['a', 'span', 'i', 'strong', 'em', 'b', 'u', 'br', 'svg', 'path', 'script', 'style', 'noscript']);
     function traverse(node, depth = 0) {
-      if (depth > 6 || node.type !== 'tag' || IGNORED.has(node.name)) return;
+      if (depth > 10 || node.type !== 'tag' || IGNORED.has(node.name)) return;
       tags.push(node.name);
       let last = '';
       $(node).children().each((i, el) => {

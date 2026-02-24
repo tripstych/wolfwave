@@ -10,6 +10,8 @@ import { migratePage, bulkMigrate, bulkMigrateAll } from '../services/migrationS
 import { migrateProduct, bulkMigrateProducts } from '../services/productMigrationService.js';
 import { previewWpTheme, convertWpTheme } from '../services/wpThemeConverter.js';
 import { importLiveTheme } from '../services/liveThemeService.js';
+import { extractMenusFromHTML } from '../services/aiService.js';
+import * as menuService from '../services/menuService.js';
 import prisma from '../lib/prisma.js';
 import { getTask } from '../lib/progressStore.js';
 import { CRAWLER_PRESETS } from '../lib/crawlerPresets.js';
@@ -172,6 +174,51 @@ router.post('/sites/:id/generate-template', requireAuth, requireEditor, async (r
   try {
     const tpl = await generateTemplateFromGroup(parseInt(req.params.id), req.body.structural_hash, req.body.name);
     res.json({ success: true, template: tpl });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/sites/:id/generate-menus', requireAuth, requireEditor, async (req, res) => {
+  try {
+    const siteId = parseInt(req.params.id);
+    const site = await prisma.imported_sites.findUnique({
+      where: { id: siteId },
+      include: { imported_pages: { where: { url: { contains: '/' } }, take: 1 } }
+    });
+
+    if (!site) return res.status(404).json({ error: 'Site not found' });
+    const homepage = site.imported_pages[0];
+    if (!homepage || !homepage.raw_html) return res.status(400).json({ error: 'Homepage HTML not found' });
+
+    const aiData = await extractMenusFromHTML(homepage.raw_html);
+    const results = [];
+
+    if (aiData && aiData.menus) {
+      for (const m of aiData.menus) {
+        // Create the menu
+        const newMenu = await menuService.createMenu(m.name, m.slug);
+        
+        // Add items (recursive helper)
+        const addItems = async (items, parentId = null) => {
+          for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+            const newItem = await menuService.createMenuItem(newMenu.id, {
+              title: item.title,
+              url: item.url,
+              parentId,
+              position: i
+            });
+            if (item.children && item.children.length > 0) {
+              await addItems(item.children, newItem.id);
+            }
+          }
+        };
+
+        await addItems(m.items);
+        results.push({ name: m.name, slug: m.slug, itemCount: m.items.length });
+      }
+    }
+
+    res.json({ success: true, menus: results });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

@@ -85,6 +85,23 @@ export async function getMenuBySlug(slug, context = {}) {
   }
 }
 
+export async function createMenu(name, slug, description = '') {
+  const result = await query(
+    'INSERT INTO menus (name, slug, description, created_at, updated_at) VALUES (?, ?, ?, NOW(), NOW())',
+    [name, slug, description]
+  );
+  return { id: result.insertId, name, slug, description };
+}
+
+export async function createMenuItem(menuId, item) {
+  const { title, url, parentId = null, position = 0, target = 'self' } = item;
+  const result = await query(
+    'INSERT INTO menu_items (menu_id, parent_id, title, url, target, position, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())',
+    [menuId, parentId, title, url, target, position]
+  );
+  return { id: result.insertId, ...item };
+}
+
 export async function getAllMenus(context = {}) {
   try {
     const menus = await query('SELECT slug FROM menus');

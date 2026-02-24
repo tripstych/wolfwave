@@ -568,9 +568,57 @@ EXTRACTION RULES:
 }
 
 /**
- * Generate Theme (Existing)
+ * Extract navigation menus from HTML using AI.
  */
-export async function generateThemeFromIndustry(industry) {
+export async function extractMenusFromHTML(html, model = null, req = null) {
+  const config = await getAiSettings();
+  const $ = (await import('cheerio')).load(html);
+  
+  // 1. SURGICAL CLEANING: Keep only navigation-relevant parts
+  $('script, style, noscript, svg, iframe, canvas, main, article, .content, #content, aside, .sidebar').remove();
+  
+  // Collapse whitespace and trim to stay within limits
+  const cleanHtml = $('body').html()
+    .replace(/\s+/g, ' ')
+    .substring(0, 40000);
+
+  const systemPrompt = `You are a web architecture expert. 
+Your task is to analyze the provided HTML (which contains headers, footers, and nav bars) and extract the navigation menus.
+
+Return a JSON object with this structure:
+{
+  "menus": [
+    {
+      "name": "Main Navigation",
+      "slug": "main-nav",
+      "items": [
+        { "title": "Home", "url": "/", "children": [] },
+        { "title": "Shop", "url": "/shop", "children": [ { "title": "New Arrivals", "url": "/shop/new" } ] }
+      ]
+    },
+    {
+      "name": "Footer Menu",
+      "slug": "footer-menu",
+      "items": [...]
+    }
+  ]
+}
+
+RULES:
+- Identify logical groups of links (Main Nav, Footer links, Social links).
+- Preserve hierarchy (parent/child) if evident in the HTML.
+- Return ONLY the valid JSON object. No explanation.`;
+
+  const userPrompt = `SOURCE HTML:\n${cleanHtml}`;
+
+  try {
+    const result = await generateText(systemPrompt, userPrompt, model, req);
+    return result;
+  } catch (err) {
+    console.error('[AI-Menus] Menu extraction failed:', err.message);
+    throw err;
+  }
+}
   // 1. Text Generation
   const systemPrompt = `You are a WebWolf Theme Architect. 
   Your goal is to generate a JSON object containing configuration and content for a new CMS theme based on an industry.

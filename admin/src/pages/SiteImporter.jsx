@@ -599,6 +599,20 @@ export default function SiteImporter() {
     } catch (err) { alert(err.message); }
   };
 
+  const [generatingMenus, setGeneratingMenus] = useState(false);
+  const handleGenerateMenus = async () => {
+    if (!selectedSite) return;
+    if (!confirm('This will use AI to analyze the homepage and create menus. Continue?')) return;
+    try {
+      setGeneratingMenus(true);
+      const res = await api.post(`/import/sites/${selectedSite.id}/generate-menus`);
+      if (res.success) {
+        alert(`Successfully generated ${res.menus.length} menus! Check the Menus settings to review them.`);
+      }
+    } catch (err) { alert('Failed to generate menus: ' + err.message); }
+    finally { setGeneratingMenus(false); }
+  };
+
   const addRule = () => {
     setConfig({
       ...config,
@@ -993,7 +1007,17 @@ export default function SiteImporter() {
           ) : (
             <div className="space-y-6">
               <div className="flex items-center justify-between bg-white p-4 rounded-lg border shadow-sm">
-                <h2 className="font-bold text-lg">{new URL(selectedSite.root_url).hostname}</h2>
+                <div className="flex items-center gap-4">
+                  <h2 className="font-bold text-lg">{new URL(selectedSite.root_url).hostname}</h2>
+                  <button 
+                    onClick={handleGenerateMenus} 
+                    disabled={generatingMenus}
+                    className="btn btn-secondary btn-xs flex items-center gap-1"
+                  >
+                    {generatingMenus ? <Loader2 className="w-3 h-3 animate-spin" /> : <List className="w-3 h-3" />}
+                    AI Generate Menus
+                  </button>
+                </div>
                 <div className="flex items-center gap-2">
                   <div className="flex bg-gray-100 p-1 rounded-lg">
                     <button onClick={() => setView('rules')} className={`px-3 py-1.5 text-sm rounded-md ${view === 'rules' ? 'bg-white shadow-sm' : 'text-gray-500'}`}>Rules</button>
