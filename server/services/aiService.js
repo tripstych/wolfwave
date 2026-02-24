@@ -173,6 +173,7 @@ export async function generateText(systemPrompt, userPrompt, model = null, req =
       throw new Error(`OpenAI Service Error: ${error.message}`);
     }
     throw new Error('Failed to generate text content');
+    }
   }
 
   throw new Error('No valid AI Text Generation provider configured (Missing API Key)');
