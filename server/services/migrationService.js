@@ -110,29 +110,36 @@ export async function migratePage(importedPageId, templateId, selectorMap = { 'm
       return record;
     }
 
-    const pageSlug = await generateUniqueSlug(title, 'pages');
+    const slug = await generateUniqueSlug(title, contentType);
 
     const content = await prisma.content.create({
       data: {
-        module: 'pages',
+        module: contentType,
         title: title,
-        slug: pageSlug,
+        slug: slug,
         data: JSON.stringify(extractedData),
         search_index: generateSearchIndex(title, extractedData),
         source_url: importedPage.url
       }
     });
 
-    const page = await prisma.pages.create({
-      data: { template_id: templateId, content_id: content.id, title: title, status: 'draft' }
-    });
+    let createdRecord;
+    if (contentType === 'products') {
+      createdRecord = await prisma.products.create({
+        data: { template_id: templateId, content_id: content.id, title: title, sku: `IMP-${Date.now()}`, price: 0, status: 'active' }
+      });
+    } else {
+      createdRecord = await prisma.pages.create({
+        data: { template_id: templateId, content_id: content.id, title: title, status: 'draft' }
+      });
+    }
 
     // Update metadata with rule ID if provided
     const currentMeta = typeof importedPage.metadata === 'string' ? JSON.parse(importedPage.metadata) : (importedPage.metadata || {});
     if (ruleId) currentMeta.migration_rule_id = ruleId;
 
     await prisma.staged_items.update({ where: { id: importedPageId }, data: { status: 'migrated', metadata: currentMeta } });
-    return page;
+    return createdRecord;
   } catch (err) {
     logError(dbName, err, 'PAGE_MIGRATION_FAILED');
     throw err;
