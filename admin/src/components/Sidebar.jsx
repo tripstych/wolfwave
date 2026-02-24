@@ -43,22 +43,19 @@ export default function Sidebar({ isOpen, onClose, contentTypes = [] }) {
     {
       section: 'Content',
       items: [
-        { name: 'Pages', href: '/pages', icon: FileText },
-        { name: 'Posts', href: '/posts', icon: BookOpen },
-        { name: 'Blocks', href: '/blocks', icon: Boxes },
-        { name: 'Widgets', href: '/widgets', icon: Puzzle },
-        { name: 'Templates', href: '/templates', icon: Layers },
         { name: 'Media', href: '/media', icon: Image },
-        { name: 'Menus', href: '/menus', icon: List },
-        { name: 'Groups', href: '/groups', icon: Tag },
         ...contentTypes
-          .filter(type => !['products', 'pages', 'blocks', 'widgets', 'shop', 'shops', 'blog', 'components', 'partials', 'customer'].includes(type.name))
+          .filter(type => !['products', 'blocks', 'widgets', 'shop', 'shops', 'blog', 'components', 'partials', 'customer'].includes(type.name))
           .map(type => ({
             name: type.plural_label,
             href: `/${type.name}`,
             icon: ICON_MAP[type.icon] || FileText
           })),
-        { name: 'Site Importer', href: '/import', icon: Download },
+        { name: 'Blocks', href: '/blocks', icon: Boxes },
+        { name: 'Widgets', href: '/widgets', icon: Puzzle },
+        { name: 'Templates', href: '/templates', icon: Layers },
+        { name: 'Menus', href: '/menus', icon: List },
+        { name: 'Groups', href: '/groups', icon: Tag },
       ]
     },
     {
