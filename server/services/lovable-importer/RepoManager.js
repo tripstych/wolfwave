@@ -90,6 +90,6 @@ export class RepoManager {
    * Get relative path from absolute path
    */
   getRelativePath(absolutePath) {
-    return path.relative(this.workDir, absolutePath).replace(/\/g, '/');
+    return path.relative(this.workDir, absolutePath).replace(/\\/g, '/');
   }
 }
