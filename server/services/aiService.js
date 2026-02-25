@@ -835,41 +835,23 @@ RESPOND WITH ONLY VALID JSON:
 export async function analyzeSiteImport(html, url = '', model = null, req = null) {
   const $ = (await import('cheerio')).load(html);
 
-  // Clean like structuredScrape but keep class/id info (critical for selector suggestions)
+  // Clean non-visible elements but keep full page structure (header/footer/nav stay — LLM needs them for context)
   $('script, style, noscript, svg, iframe, canvas, link[rel="stylesheet"], meta').remove();
-  
-  // DON'T remove main content containers! Only remove obvious UI junk.
-  $('header, footer, nav, .sidebar, .menu, .nav, .footer, .header, #header, #footer, #nav').remove();
 
+  // Strip noisy attributes but keep class/id (critical for selector suggestions)
   $('*').each((i, el) => {
     const attribs = el.attribs || {};
     for (const key in attribs) {
-      if (key !== 'class' && key !== 'id' && key !== 'src' && key !== 'href' && key !== 'alt') {
+      if (!['class', 'id', 'src', 'href', 'alt'].includes(key)) {
         $(el).removeAttr(key);
       }
     }
   });
 
-  // Smart detection: Find the container with the most meaningful content
-  let $main = $('main, [role="main"], article, .content, #content, .post, .entry, .product').first();
-  
-  // If we didn't find a semantic tag, find the div with the most paragraphs or long text
-  if ($main.length === 0) {
-    let bestDiv = $('body');
-    let maxLen = 0;
-    $('div').each((i, el) => {
-      const text = $(el).text().trim();
-      if (text.length > maxLen) {
-        maxLen = text.length;
-        bestDiv = $(el);
-      }
-    });
-    $main = bestDiv;
-  }
-
-  const cleanHtml = $main.html()
+  // Send the full body to the LLM — it needs the complete page structure to write accurate selectors
+  const cleanHtml = ($('body').html() || $.html())
     .replace(/\s+/g, ' ')
-    .substring(0, 40000);
+    .substring(0, 30000);
 
   const systemPrompt = `You are a web content analysis expert. You analyze HTML to identify content structure and recommend CSS selectors for automated content extraction.
 
