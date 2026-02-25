@@ -17,7 +17,8 @@ import {
   Database,
   Heart,
   Monitor,
-  X
+  X,
+  AlertCircle
 } from 'lucide-react';
 
 export default function LovableImporter() {
