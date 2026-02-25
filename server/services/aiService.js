@@ -874,23 +874,27 @@ RESPOND WITH ONLY VALID JSON in this exact format:
   "page_type": "product|article|blog_post|listing|contact|about|homepage|gallery|other",
   "selector_map": {
     "title": "CSS selector for the unique page title (e.g. h1.product-title)",
-    "description": "CSS selector for the core body text. MUST target the deepest container holding the actual <p>, <h2>, <ul> tags. OMIT if it includes spacers, empty sections, or utility links.",
+    "description": "CSS selector for the innermost container that holds the actual body/description text — the element whose direct children are <p>, <h2>, <ul> etc. NOT a wrapper div. OMIT this field entirely if you cannot find a clean, specific container.",
     "price": "CSS selector for price (if product, otherwise omit)",
-    "images": "CSS selector for the primary content images (exclude layout/UI icons)",
-    "main": "CSS selector for the minimal container that directly wraps the unique page content"
+    "images": "CSS selector for the primary content images (exclude layout/UI icons)"
   },
   "confidence": 0.85,
   "summary": "Brief 1-sentence description of what this page is and its layout structure"
 }
 
 RULES:
-- AVOID WRAPPERS: Do not select top-level #main or section-wrapper elements if they contain layout "noise" (like shopify-sections with spacers, scripts, or empty columns).
-- TARGET DENSITY: Look for the element where the actual content tags (p, h1, h2, img, ul) are concentrated. 
+- NO "main" FIELD: Do NOT include a "main" key in selector_map. Every field must map to a specific, named content region (title, description, price, images, etc).
+- DESCRIPTION MUST BE PRECISE: The "description" selector must point to the tightest container around the actual readable text. Walk DOWN the DOM tree until you find the element whose children are the actual content tags (<p>, <h2>, <ul>), not a layout wrapper. If the page has no clear body text area, OMIT "description" entirely.
+- AVOID WRAPPERS: Do not select top-level #main, section-wrapper, or shopify-section elements. These contain layout noise (spacers, scripts, empty columns).
+- TARGET DENSITY: Find the element where actual content tags (p, h1, h2, img, ul) are concentrated as direct children.
 - Example: If #main-content contains a spacer div and THEN a div.columns with all the text, your selector MUST be "div.columns".
 - BE SURGICAL: Avoid any selector that captures "Share this", "Related posts", breadcrumbs, or sidebars.
 - Use the MOST SPECIFIC selector possible (e.g. ".entry-content" or ".article-body").
 - If a selector would include extraneous layout elements or empty divs, it is WRONG. Omit the field instead.
-- The selectors MUST exist in the provided HTML.`;
+- The selectors MUST exist in the provided HTML.
+- For PRODUCT pages: include "title", "description" (product description text), "price", and "images". Omit any field you cannot precisely target.
+- For ARTICLE/POST pages: include "title", "description" (article body), and optionally "images". Omit "price".
+- For LISTING pages: include "title" and optionally "description". Product grid items will be handled separately.`;
 
   const userPrompt = `URL: ${url}\n\nHTML:\n${cleanHtml}`;
 
