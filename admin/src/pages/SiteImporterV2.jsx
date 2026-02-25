@@ -440,9 +440,28 @@ export default function SiteImporterV2() {
                                       <h5 className="text-[9px] font-bold text-gray-400 uppercase mb-2">Selector Mapping</h5>
                                       <div className="space-y-1">
                                         {Object.entries(type.selector_map || {}).map(([field, selector]) => (
-                                          <div key={field} className="flex items-center gap-2 text-[10px]">
-                                            <span className="font-bold text-primary-700 min-w-[60px]">{field}:</span>
-                                            <code className="bg-white border rounded px-1.5 py-0.5 text-gray-600 font-mono flex-1">{selector}</code>
+                                          <div key={field} className="flex items-start gap-2 text-[10px]">
+                                            <span className="font-bold text-primary-700 min-w-[60px] mt-0.5">{field}:</span>
+                                            <div className="flex-1 space-y-1">
+                                              {typeof selector === 'object' ? (
+                                                <div className="flex flex-col gap-1">
+                                                  <code className="bg-white border rounded px-1.5 py-0.5 text-gray-600 font-mono">
+                                                    {selector.selector}
+                                                  </code>
+                                                  <div className="flex gap-2">
+                                                    <span className="text-[9px] text-gray-400 uppercase">Attr: <span className="text-amber-600 font-bold">{selector.attr}</span></span>
+                                                    {selector.multiple && <span className="text-[9px] text-blue-500 font-bold uppercase">Multiple</span>}
+                                                  </div>
+                                                  {selector.reasoning && (
+                                                    <div className="text-[9px] text-gray-500 italic">Reason: {selector.reasoning}</div>
+                                                  )}
+                                                </div>
+                                              ) : (
+                                                <code className="bg-white border rounded px-1.5 py-0.5 text-gray-600 font-mono block">
+                                                  {selector}
+                                                </code>
+                                              )}
+                                            </div>
                                           </div>
                                         ))}
                                       </div>
