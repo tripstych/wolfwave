@@ -749,10 +749,12 @@ Your goal is to convert a static HTML page into a dynamic Nunjucks template (.nj
 RULES:
 - Wrap the main content area in {% block content %}{% endblock %}.
 - Replace static content with dynamic tags based on the provided selector map.
-- Use {{ data.field_name }} for dynamic fields.
-- For images, use <img src="{{ data.image_field | default('/placeholder.png') }}">.
+- CRITICAL: Every dynamic field MUST be wrapped in an element with 'data-cms-region' and 'data-cms-type' attributes.
+- Format: <div data-cms-region="field_name" data-cms-type="text|richtext|image">{{ data.field_name | safe }}</div>
+- For images: <img data-cms-region="image_field" data-cms-type="image" src="{{ data.image_field | default('/placeholder.png') }}">
+- Use 'richtext' for descriptions and long content, 'text' for titles/prices.
 - Maintain the original CSS structure and classes.
-- If the HTML contains a header or footer that should be shared, identify them and suggest where to split.
+- If the HTML contains a header or footer that should be shared, identify them and suggest where to split using comments.
 - Return ONLY the Nunjucks code. No explanation.
 
 SELECTOR MAP:
@@ -813,7 +815,9 @@ export async function analyzeSiteImport(html, url = '', model = null, req = null
 
   // Clean like structuredScrape but keep class/id info (critical for selector suggestions)
   $('script, style, noscript, svg, iframe, canvas, link[rel="stylesheet"], meta').remove();
-  $('header, footer, nav, aside, .sidebar, .menu, .nav, .footer, .header, #header, #footer, #nav').remove();
+  
+  // DON'T remove main content containers! Only remove obvious UI junk.
+  $('header, footer, nav, .sidebar, .menu, .nav, .footer, .header, #header, #footer, #nav').remove();
 
   $('*').each((i, el) => {
     const attribs = el.attribs || {};
@@ -824,8 +828,24 @@ export async function analyzeSiteImport(html, url = '', model = null, req = null
     }
   });
 
-  const $main = $('main, [role="main"], article, .content, #content').first();
-  const cleanHtml = ($main.length > 0 ? $main.html() : $('body').html())
+  // Smart detection: Find the container with the most meaningful content
+  let $main = $('main, [role="main"], article, .content, #content, .post, .entry, .product').first();
+  
+  // If we didn't find a semantic tag, find the div with the most paragraphs or long text
+  if ($main.length === 0) {
+    let bestDiv = $('body');
+    let maxLen = 0;
+    $('div').each((i, el) => {
+      const text = $(el).text().trim();
+      if (text.length > maxLen) {
+        maxLen = text.length;
+        bestDiv = $(el);
+      }
+    });
+    $main = bestDiv;
+  }
+
+  const cleanHtml = $main.html()
     .replace(/\s+/g, ' ')
     .substring(0, 40000);
 
@@ -840,22 +860,24 @@ RESPOND WITH ONLY VALID JSON in this exact format:
 {
   "page_type": "product|article|blog_post|listing|contact|about|homepage|gallery|other",
   "selector_map": {
-    "title": "CSS selector for the page/product title (e.g. h1.product-title)",
-    "description": "CSS selector for main description/body content",
+    "title": "CSS selector for the unique page title (e.g. h1.product-title)",
+    "description": "CSS selector for the core body text. MUST target the deepest container holding the actual <p>, <h2>, <ul> tags. OMIT if it includes spacers, empty sections, or utility links.",
     "price": "CSS selector for price (if product, otherwise omit)",
-    "images": "CSS selector for content images (e.g. .gallery img)"
+    "images": "CSS selector for the primary content images (exclude layout/UI icons)",
+    "main": "CSS selector for the minimal container that directly wraps the unique page content"
   },
   "confidence": 0.85,
   "summary": "Brief 1-sentence description of what this page is and its layout structure"
 }
 
 RULES:
-- Use the MOST SPECIFIC selector that reliably targets the content (prefer .class-name over tag alone)
-- Only include "price", "sku", "images" fields if this is clearly a product page
-- For articles/blog posts, include "author", "date", "category" selectors if visible
-- The selectors MUST exist in the provided HTML — do not guess selectors that aren't there
-- Confidence should reflect how clear the page structure is (0.0 to 1.0)
-- If you cannot determine a reliable selector for a field, omit that field entirely`;
+- AVOID WRAPPERS: Do not select top-level #main or section-wrapper elements if they contain layout "noise" (like shopify-sections with spacers, scripts, or empty columns).
+- TARGET DENSITY: Look for the element where the actual content tags (p, h1, h2, img, ul) are concentrated. 
+- Example: If #main-content contains a spacer div and THEN a div.columns with all the text, your selector MUST be "div.columns".
+- BE SURGICAL: Avoid any selector that captures "Share this", "Related posts", breadcrumbs, or sidebars.
+- Use the MOST SPECIFIC selector possible (e.g. ".entry-content" or ".article-body").
+- If a selector would include extraneous layout elements or empty divs, it is WRONG. Omit the field instead.
+- The selectors MUST exist in the provided HTML.`;
 
   const userPrompt = `URL: ${url}\n\nHTML:\n${cleanHtml}`;
 
