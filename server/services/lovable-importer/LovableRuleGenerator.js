@@ -1,54 +1,73 @@
-import { RuleGenerator } from '../assisted-import/RuleGenerator.js';
 import prisma from '../../lib/prisma.js';
-import { info } from '../../lib/logger.js';
-import { AssistedImportService } from '../assisted-import/AssistedImportService.js';
+import { info, error as logError } from '../../lib/logger.js';
+import { analyzeLovableSource } from '../aiService.js';
+import { LovableImporterService } from './LovableImporterService.js';
 
 /**
- * Lovable-specific rule generator.
- * Aggregates styles from staged items to ensure WYSIWYG support.
+ * LovableRuleGenerator analyzes source code (.tsx/.jsx) instead of rendered HTML.
+ * It identifies logical "Pages" and their "Editable Regions".
  */
-export class LovableRuleGenerator extends RuleGenerator {
+export class LovableRuleGenerator {
+  constructor(siteId, dbName) {
+    this.siteId = siteId;
+    this.dbName = dbName;
+  }
+
   async run() {
-    // Run the standard rule generation first
-    const ruleset = await super.run();
+    try {
+      info(this.dbName, 'LOVABLE_RULEGEN_START', `Analyzing source for site ${this.siteId}`);
 
-    info(this.dbName, 'LOVABLE_RULEGEN_STYLES', `Aggregating styles for WYSIWYG...`);
+      const site = await prisma.imported_sites.findUnique({ where: { id: this.siteId } });
+      const ruleset = {
+        importer_type: 'git_source',
+        pages: {}, // Maps path -> region definitions
+        components: {},
+        theme: {}
+      };
 
-    // Aggregate unique styles from all structural groups
-    const globalStyles = {
-      links: new Set(),
-      inline: new Set()
-    };
+      // 1. Identify primary pages (usually in src/pages/ or src/App.tsx routes)
+      const stagedFiles = await prisma.staged_items.findMany({
+        where: { site_id: this.siteId }
+      });
 
-    const items = await prisma.staged_items.findMany({
-      where: { site_id: this.siteId, status: 'crawled' },
-      select: { metadata: true }
-    });
+      const sourcePages = stagedFiles.filter(f => 
+        f.url.includes('pages/') && f.url.match(/\.(tsx|jsx)$/)
+      );
 
-    for (const item of items) {
-      const styles = item.metadata?.styles;
-      if (!styles) continue;
+      info(this.dbName, 'LOVABLE_RULEGEN_PAGES', `Found ${sourcePages.length} primary page components`);
 
-      if (Array.isArray(styles.links)) {
-        styles.links.forEach(l => globalStyles.links.add(l));
+      for (const pageItem of sourcePages) {
+        info(this.dbName, 'LOVABLE_RULEGEN_ANALYZE', `Analyzing component: ${pageItem.url}`);
+        
+        // Ask AI to find props/state/literals that should be CMS regions
+        const analysis = await analyzeLovableSource(pageItem.raw_html, pageItem.url);
+        
+        ruleset.pages[pageItem.url] = {
+          file_path: pageItem.url,
+          page_type: analysis.page_type,
+          regions: analysis.regions,
+          summary: analysis.summary
+        };
+
+        // Update the item type in DB
+        await prisma.staged_items.update({
+          where: { id: pageItem.id },
+          data: { item_type: analysis.page_type }
+        });
       }
-      if (Array.isArray(styles.inline)) {
-        styles.inline.forEach(i => globalStyles.inline.add(i));
-      }
+
+      await prisma.imported_sites.update({
+        where: { id: this.siteId },
+        data: {
+          llm_ruleset: ruleset,
+          status: 'rules_generated'
+        }
+      });
+
+      return ruleset;
+    } catch (err) {
+      logError(this.dbName, err, 'LOVABLE_RULEGEN_FAILED');
+      throw err;
     }
-
-    // Convert Sets to Arrays for JSON storage
-    ruleset.lovable_styles = {
-      links: Array.from(globalStyles.links),
-      inline: Array.from(globalStyles.inline)
-    };
-
-    // Update the site with the enriched ruleset
-    await prisma.imported_sites.update({
-      where: { id: this.siteId },
-      data: { llm_ruleset: ruleset }
-    });
-
-    return ruleset;
   }
 }

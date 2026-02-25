@@ -951,6 +951,78 @@ RESPOND WITH ONLY VALID JSON:
 }
 
 /**
+ * Analyze React source code from Lovable to identify editable regions.
+ */
+export async function analyzeLovableSource(code, filePath, model = null, req = null) {
+  const systemPrompt = `Role: You are a Lead Frontend Architect specializing in CMS migrations.
+Task: Analyze the provided React source code (.tsx/.jsx) and identify which parts of the UI should be converted into editable CMS regions.
+
+Requirements:
+1. Identify Literals: Look for hardcoded strings in the JSX that are clearly content (headlines, button text, body copy).
+2. Identify Props: Look for components that receive content via props.
+3. Identify Images: Find all <img> tags or background images and extract their src literals.
+4. Categorize: Mark regions as 'text' (single line), 'richtext' (multiple paragraphs or HTML), or 'image'.
+
+RESPOND WITH ONLY VALID JSON:
+{
+  "page_type": "product|article|homepage|about|contact|other",
+  "regions": [
+    {
+      "key": "unique_camel_case_key",
+      "label": "User-friendly label",
+      "type": "text|richtext|image",
+      "original_value": "The current hardcoded value found in source",
+      "multiple": false
+    }
+  ],
+  "summary": "Brief description of what this component does"
+}`;
+
+  const userPrompt = `File Path: ${filePath}\n\nSource Code:\n${code}`;
+
+  try {
+    return await generateText(systemPrompt, userPrompt, model, req);
+  } catch (err) {
+    console.error('[AI-Lovable] Source analysis failed:', err.message);
+    throw err;
+  }
+}
+
+/**
+ * Convert a React component (.tsx) into a WebWolf Nunjucks template (.njk).
+ */
+export async function convertReactToNunjucks(code, regions, pageType, model = null) {
+  const systemPrompt = `Role: You are an expert Full-Stack Developer and Template Architect.
+Task: Convert the provided React/JSX source code into a standalone WebWolf Nunjucks (.njk) template.
+
+RULES:
+1. STANDALONE: Generate a complete HTML document (<!DOCTYPE html>, <html>, <head>, <body>).
+2. TAILWIND PRESERVATION: Keep all Tailwind classes exactly as they are in the source.
+3. CMS REGIONS: Replace the identified content regions with Nunjucks tags.
+   - For text: <span data-cms-region="key" data-cms-type="text">{{ content.key | default('original') }}</span>
+   - For richtext: <div data-cms-region="key" data-cms-type="richtext">{{ content.key | safe }}</div>
+   - For images: <img data-cms-region="key" data-cms-type="image" src="{{ content.key | default('original') }}">
+4. NO REACT LOGIC: Remove imports, state, hooks, and event handlers. Replace them with static equivalents or CMS logic.
+5. CLEANUP: Unwrap any <Root>, <Layout>, or <AuthProvider> wrappers. Output the core UI.
+6. ASSETS: Assume assets from 'public/' are in '/uploads/assets/'. Adjust paths if necessary.
+
+Return ONLY the Nunjucks code. No preamble.
+
+PAGE TYPE: ${pageType}
+IDENTIFIED REGIONS:
+${JSON.stringify(regions, null, 2)}`;
+
+  const userPrompt = `Source Code:\n${code}`;
+
+  try {
+    return await generateRawText(systemPrompt, userPrompt, model);
+  } catch (err) {
+    console.error('[AI-Lovable] React-to-Nunjucks conversion failed:', err.message);
+    throw err;
+  }
+}
+
+/**
  * Analyze a site's homepage to identify platform, recommend CSS/JS assets to import,
  * detect fonts, and extract color palette.
  */

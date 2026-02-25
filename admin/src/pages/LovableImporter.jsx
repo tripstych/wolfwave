@@ -164,16 +164,15 @@ export default function LovableImporter() {
   const statusLabel = (status) => {
     const map = {
       pending: 'Pending',
-      rendering: 'Rendering SPA',
-      sanitizing: 'Cleaning HTML',
-      generating_rules: 'Analyzing',
+      cloning: 'Cloning Repository',
+      analyzing: 'Analyzing Source',
+      generating_rules: 'Mapping Components',
       generating_templates: 'Generating Templates',
       ready: 'Ready',
       transforming: 'Migrating',
       completed: 'Completed',
       failed: 'Failed',
-      cancelled: 'Cancelled',
-      nuking: 'Clearing Data'
+      cancelled: 'Cancelled'
     };
     return map[status] || status;
   };
@@ -183,7 +182,7 @@ export default function LovableImporter() {
     if (status === 'failed') return 'bg-red-100 text-red-700';
     if (status === 'cancelled') return 'bg-gray-100 text-gray-500';
     if (status === 'ready') return 'bg-emerald-100 text-emerald-700';
-    return 'bg-purple-100 text-purple-700';
+    return 'bg-pink-100 text-pink-700';
   };
 
   return (
@@ -194,7 +193,7 @@ export default function LovableImporter() {
             <Heart className="w-6 h-6 text-pink-500 fill-pink-500" />
             Lovable Import
           </h1>
-          <p className="text-sm text-gray-500">Import Lovable-generated sites as base themes</p>
+          <p className="text-sm text-gray-500">Import Lovable Git Repositories as base themes</p>
         </div>
       </div>
 
@@ -202,38 +201,29 @@ export default function LovableImporter() {
         {/* Sidebar */}
         <div className="lg:col-span-1 space-y-6">
           <div className="card p-4">
-            <h2 className="font-semibold mb-4 text-sm uppercase tracking-wider text-gray-500">Import Lovable Site</h2>
+            <h2 className="font-semibold mb-4 text-sm uppercase tracking-wider text-gray-500">New Source Import</h2>
             <form onSubmit={handleStartImport} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-gray-400 mb-1 uppercase">Deployed URL</label>
+                <label className="block text-xs font-bold text-gray-400 mb-1 uppercase">Git Repository URL</label>
                 <input
                   type="text"
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
-                  placeholder="https://my-project.lovable.app"
+                  placeholder="https://github.com/user/project.git"
                   className="input text-sm"
                   required
                 />
-              </div>
-              <div className="flex items-center gap-2 p-2 bg-red-50 border border-red-100 rounded">
-                <input
-                  type="checkbox"
-                  id="lovable-nuke-checkbox"
-                  checked={nuke}
-                  onChange={(e) => setNuke(e.target.checked)}
-                  className="rounded border-red-300 text-red-600 focus:ring-red-500"
-                />
-                <label htmlFor="lovable-nuke-checkbox" className="text-xs font-bold text-red-700 cursor-pointer uppercase">
-                  Nuke Existing Site Data
-                </label>
+                <p className="text-[9px] text-gray-400 mt-1 leading-tight">
+                  Public HTTPS URL recommended.
+                </p>
               </div>
               <button
                 type="submit"
                 disabled={isStarting}
-                className="btn btn-primary w-full flex items-center justify-center gap-2"
+                className="btn btn-primary w-full flex items-center justify-center gap-2 bg-pink-600 hover:bg-pink-700 border-none"
               >
-                {isStarting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Monitor className="w-4 h-4" />}
-                Import from Lovable
+                {isStarting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Database className="w-4 h-4" />}
+                Clone & Convert
               </button>
             </form>
           </div>

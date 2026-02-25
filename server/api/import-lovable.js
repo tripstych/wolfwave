@@ -10,18 +10,18 @@ import { jobRegistry } from '../services/assisted-import/JobRegistry.js';
 const router = Router();
 
 /**
- * Start a new Lovable site import
+ * Start a new Lovable Git-based import
  */
 router.post('/', requireAuth, requireEditor, async (req, res) => {
   try {
     const { url, config = {} } = req.body;
-    if (!url) return res.status(400).json({ error: 'Lovable site URL required' });
+    if (!url) return res.status(400).json({ error: 'Git repository URL required' });
 
     const site = await prisma.imported_sites.create({
       data: {
         root_url: url,
         status: 'pending',
-        config: { ...config, importer_type: 'lovable' }
+        config: { ...config, importer_type: 'lovable_git' }
       }
     });
 
