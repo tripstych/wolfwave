@@ -176,18 +176,35 @@ export class TransformationEngine {
     const $ = cheerio.load(html);
     const results = {};
 
-    for (const [field, selector] of Object.entries(selectorMap)) {
-      if (!selector) continue;
+    for (const [field, selectorData] of Object.entries(selectorMap)) {
+      if (!selectorData) continue;
+      
+      // Handle both simple string selectors and complex objects
+      const selector = typeof selectorData === 'object' ? selectorData.selector : selectorData;
+      const attr = typeof selectorData === 'object' ? selectorData.attr : null;
+      const isMultiple = typeof selectorData === 'object' ? selectorData.multiple : (field === 'images' || field === 'gallery');
+
       const $el = $(selector);
       if ($el.length === 0) continue;
 
       if (field === 'image' || field === 'images' || field === 'gallery' || field === 'thumbnail') {
         const images = $el.map((i, el) => {
-          const src = $(el).attr('src') || $(el).attr('data-src') || $(el).attr('href');
+          // Priority: 1. AI suggested attribute, 2. Common high-res attrs, 3. src
+          const src = attr ? $(el).attr(attr) : (
+            $(el).attr('data-zoom') || 
+            $(el).attr('data-src') || 
+            $(el).attr('data-original') || 
+            $(el).attr('href') || 
+            $(el).attr('src')
+          );
+          
           if (src && src.startsWith('//')) return 'https:' + src;
           return src;
         }).get().filter(Boolean);
-        results[field] = (field === 'images' || field === 'gallery') ? images : images[0];
+        
+        // Ensure uniqueness
+        const uniqueImages = [...new Set(images)];
+        results[field] = isMultiple ? uniqueImages : uniqueImages[0];
       } 
       else if (['content', 'body', 'richtext', 'main', 'article', 'post'].includes(field)) {
         results[field] = $el.html()?.trim();

@@ -87,6 +87,8 @@ export class TemplateGenerator {
         const regions = Object.keys(group.selector_map || {}).map(name => {
           let type = 'text';
           const lowerName = name.toLowerCase();
+          const config = group.selector_map[name];
+          const isMultiple = typeof config === 'object' ? config.multiple : (name === 'images' || name === 'gallery');
           
           // 1. Richtext Detection (Long content or specific keywords)
           if (['content', 'body', 'about', 'bio', 'details', 'main', 'article', 'post'].some(k => lowerName.includes(k))) {
@@ -94,7 +96,7 @@ export class TemplateGenerator {
           }
           
           // 2. Image Detection
-          if (['image', 'img', 'thumbnail', 'photo', 'picture', 'banner', 'logo', 'icon'].some(k => lowerName.includes(k))) {
+          if (['image', 'img', 'thumbnail', 'photo', 'picture', 'banner', 'logo', 'icon', 'images'].some(k => lowerName.includes(k))) {
             type = 'image';
           }
 
@@ -106,7 +108,8 @@ export class TemplateGenerator {
           return {
             name,
             label: name.charAt(0).toUpperCase() + name.slice(1).replace(/_/g, ' '),
-            type
+            type,
+            multiple: isMultiple
           };
         });
 

@@ -756,6 +756,15 @@ RULES:
 - NO NESTING: Do not put a data-cms-region inside another data-cms-region. 
   * If 'main' or 'content' is used as a region, it must NOT wrap 'title' or 'description'. 
   * Choose either specific fields (title, description, content) OR a broad 'main' field, but never both in a parent-child relationship.
+- COLLECTIONS & LOOPS: If a field in the selector map indicates multiple items (like 'images'):
+  * Do NOT output a single static tag.
+  * Generate a Nunjucks loop to render the items.
+  * Example for images: 
+    <div class="media-gallery">
+      {% for img in content.images %}
+        <img data-cms-region="images" data-cms-type="image" src="{{ img }}">
+      {% endfor %}
+    </div>
 - CRITICAL: Every dynamic field MUST be wrapped in an element with 'data-cms-region' and 'data-cms-type' attributes.
 - Format: <div data-cms-region="field_name" data-cms-type="text|richtext|image">{{ content.field_name | safe }}</div>
 - For images: <img data-cms-region="image_field" data-cms-type="image" src="{{ content.image_field | default('/placeholder.png') }}">
@@ -869,7 +878,12 @@ RESPOND WITH ONLY VALID JSON in this exact format:
     "description": "CSS selector for a short introductory blurb or summary (typically plain text or a single paragraph).",
     "content": "CSS selector for the main rich-text body. Target the container with the highest density of structural tags like <p>, <h2>, <h3>, <ul>, and <li>. This is the primary article or product body.",
     "price": "CSS selector for price (if product, otherwise omit)",
-    "images": "CSS selector for the primary content images (exclude layout/UI icons)"
+    "images": {
+      "selector": "CSS selector targeting ALL primary media elements (e.g. '.product-slideshow img' or 'a.zoom-link')",
+      "attr": "The attribute containing the HIGHEST resolution URL (e.g. 'data-zoom', 'data-src', 'srcset', 'href', or 'src').",
+      "multiple": true,
+      "reasoning": "Briefly explain why this selector/attribute captures the actual high-res product media and avoids thumbnails."
+    }
   },
   "confidence": 0.85,
   "summary": "Brief 1-sentence description of what this page is and its layout structure"
@@ -878,6 +892,7 @@ RESPOND WITH ONLY VALID JSON in this exact format:
 RULES:
 - NO "main" FIELD: Do NOT include a "main" key in selector_map.
 - CONTENT VS DESCRIPTION: "content" is the substantial main body. It is easily identified because it typically contains SEVERAL <p> tags, heading tags, or lists. "description" is ONLY for a short introductory blurb or snippet.
+- MEDIA REASONING: Do not just grab the first <img>. Look for elements that suggest high-quality sources. If a site uses a zoom plugin, the high-res image is often in a 'data-zoom' or 'href' attribute of a link wrapping the image. Identify the selector that captures ALL unique media items for the product/article.
 - CONTENT MUST BE PRECISE: The "content" selector must point to the tightest container around the actual readable body text. Walk DOWN the DOM tree until you find the element whose children are the actual content tags, not a layout wrapper.
 - AVOID WRAPPERS: Do not select top-level #main, section-wrapper, or shopify-section elements. These contain layout noise.
 - TARGET DENSITY: Find the element where actual content tags (p, h1, h2, img, ul) are concentrated as direct children.
