@@ -63,23 +63,25 @@ export class RuleGenerator {
           select: { url: true, stripped_html: true }
         });
 
-        const validatedRegions = (analysis.regions || []).map(region => {
+        const validatedRegions = [];
+        for (const region of (analysis.regions || [])) {
           let successCount = 0;
           for (const member of groupMembers) {
-            const $ = (await import('cheerio')).load(member.stripped_html);
+            const cheerio = await import('cheerio');
+            const $ = cheerio.load(member.stripped_html);
             if ($(region.selector).length > 0) successCount++;
           }
 
           const successRate = successCount / groupMembers.length;
-          return {
+          validatedRegions.push({
             ...region,
             validation: {
               success_rate: successRate,
               is_brittle: successRate < 1.0,
               is_invalid: successRate === 0
             }
-          };
-        });
+          });
+        }
 
         // Convert to selector_map for Transformation Engine compatibility
         const selectorMap = {};
