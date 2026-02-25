@@ -1005,7 +1005,10 @@ RULES:
    - For images: <img data-cms-region="key" data-cms-type="image" src="{{ content.key | default('original') }}">
 4. NO REACT LOGIC: Remove imports, state, hooks, and event handlers. Replace them with static equivalents or CMS logic.
 5. CLEANUP: Unwrap any <Root>, <Layout>, or <AuthProvider> wrappers. Output the core UI.
-6. ASSETS: Assume assets from 'public/' are in '/uploads/assets/'. Adjust paths if necessary.
+6. ASSETS: All files from the Git repo's 'public/' folder and 'src/assets/' are now served from the CMS '/uploads/' directory. 
+   - Example: '/logo.png' in source stays '/uploads/logo.png' in template.
+   - Example: '@/assets/hero.jpg' in source becomes '/uploads/assets/hero.jpg'.
+   - Ensure all image src and CSS url() paths point to /uploads/...
 
 Return ONLY the Nunjucks code. No preamble.
 

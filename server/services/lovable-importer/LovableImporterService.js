@@ -4,6 +4,7 @@ import { LovableTemplateGenerator } from './LovableTemplateGenerator.js';
 import { LovableTransformer } from './LovableTransformer.js';
 import { info, error as logError } from '../../lib/logger.js';
 import { runWithTenant, getCurrentDbName } from '../../lib/tenantContext.js';
+import { getTenantUploadsDir } from '../mediaService.js';
 import prisma from '../../lib/prisma.js';
 import { jobRegistry } from '../assisted-import/JobRegistry.js';
 
@@ -64,6 +65,12 @@ export class LovableImporterService {
         await repo.clone();
 
         if (jobRegistry.isCancelled(siteId)) throw new Error('IMPORT_CANCELLED');
+        await LovableImporterService.updateStatus(siteId, 'deploying_assets', 'Sideloading repository assets...');
+        
+        // Sideload assets programmatically
+        const tenantUploadsDir = getTenantUploadsDir();
+        await repo.deployAssets(tenantUploadsDir);
+
         await LovableImporterService.updateStatus(siteId, 'analyzing', 'Scanning source files...');
         
         const files = await repo.scan();

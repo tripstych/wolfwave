@@ -43,6 +43,57 @@ export class RepoManager {
   }
 
   /**
+   * Copy assets from the repo to the tenant's uploads directory
+   */
+  async deployAssets(targetBaseDir) {
+    const publicDir = path.join(this.workDir, 'public');
+    const srcAssetsDir = path.join(this.workDir, 'src', 'assets');
+
+    // 1. Copy Public folder (root of the web server in Lovable)
+    try {
+      const stats = await fs.stat(publicDir).catch(() => null);
+      if (stats && stats.isDirectory()) {
+        info(this.dbName, 'LOVABLE_REPO_DEPLOY', 'Deploying /public assets...');
+        await this.copyDir(publicDir, targetBaseDir);
+      }
+    } catch (err) {
+      logError(this.dbName, err, 'LOVABLE_DEPLOY_PUBLIC_FAILED');
+    }
+
+    // 2. Copy src/assets folder
+    try {
+      const stats = await fs.stat(srcAssetsDir).catch(() => null);
+      if (stats && stats.isDirectory()) {
+        info(this.dbName, 'LOVABLE_REPO_DEPLOY', 'Deploying /src/assets...');
+        const dest = path.join(targetBaseDir, 'assets');
+        await fs.mkdir(dest, { recursive: true });
+        await this.copyDir(srcAssetsDir, dest);
+      }
+    } catch (err) {
+      logError(this.dbName, err, 'LOVABLE_DEPLOY_SRC_ASSETS_FAILED');
+    }
+  }
+
+  /**
+   * Helper to recursively copy directories
+   */
+  async copyDir(src, dest) {
+    await fs.mkdir(dest, { recursive: true });
+    const entries = await fs.readdir(src, { withFileTypes: true });
+
+    for (const entry of entries) {
+      const srcPath = path.join(src, entry.name);
+      const destPath = path.join(dest, entry.name);
+
+      if (entry.isDirectory()) {
+        await this.copyDir(srcPath, destPath);
+      } else {
+        await fs.copyFile(srcPath, destPath);
+      }
+    }
+  }
+
+  /**
    * Recursively scan the repo for relevant source files (.tsx, .jsx, .json)
    */
   async scan() {
