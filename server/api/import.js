@@ -15,6 +15,7 @@ import * as menuService from '../services/menuService.js';
 import prisma from '../lib/prisma.js';
 import { getTask } from '../lib/progressStore.js';
 import { CRAWLER_PRESETS } from '../lib/crawlerPresets.js';
+import { jobRegistry } from '../services/importer-v2/JobRegistry.js';
 
 // Multer for WP theme ZIP uploads (memory storage, 50MB limit)
 const wpUpload = multer({
@@ -281,8 +282,11 @@ router.post('/sites/:id/analyze-site', requireAuth, requireEditor, async (req, r
 
 router.post('/sites/:id/stop', requireAuth, requireEditor, async (req, res) => {
   try {
+    const siteId = parseInt(req.params.id);
+    jobRegistry.cancel(siteId);
+    
     await prisma.imported_sites.update({
-      where: { id: parseInt(req.params.id) },
+      where: { id: siteId },
       data: { status: 'cancelled' }
     });
     res.json({ success: true });
@@ -404,8 +408,11 @@ router.post('/sites/:id/bulk-migrate-all', requireAuth, requireEditor, async (re
 
 router.delete('/sites/:id', requireAuth, requireEditor, async (req, res) => {
   try {
+    const siteId = parseInt(req.params.id);
+    jobRegistry.cancel(siteId);
+
     await prisma.imported_sites.delete({
-      where: { id: parseInt(req.params.id) }
+      where: { id: siteId }
     });
     res.json({ success: true });
   } catch (err) { res.status(500).json({ error: err.message }); }

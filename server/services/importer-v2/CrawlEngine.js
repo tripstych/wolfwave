@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import prisma from '../../lib/prisma.js';
 import { info, error as logError } from '../../lib/logger.js';
 import { ImporterServiceV2 } from './ImporterServiceV2.js';
+import { jobRegistry } from './JobRegistry.js';
 
 export class CrawlEngine {
   constructor(siteId, rootUrl, dbName, config = {}) {
@@ -131,6 +132,11 @@ export class CrawlEngine {
     info(this.dbName, 'IMPORT_V2_CRAWL_START', `Crawling up to ${this.maxPages} pages`);
 
     while (this.queue.length > 0 && this.pageCount < this.maxPages) {
+      if (jobRegistry.isCancelled(this.siteId)) {
+        info(this.dbName, 'IMPORT_V2_CRAWL_CANCELLED', `Crawler stopped for site ${this.siteId} due to cancellation.`);
+        return;
+      }
+
       const url = this.queue.shift();
       if (!url || this.visited.has(url)) continue;
       this.visited.add(url);
