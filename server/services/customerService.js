@@ -84,6 +84,10 @@ export async function getCustomerContext(req) {
       subscription
     };
   } catch (e) {
+    // Return null silently for expired or invalid tokens
+    if (e.name === 'TokenExpiredError' || e.name === 'JsonWebTokenError') {
+      return null;
+    }
     console.error('Error in getCustomerContext:', e.message);
     return null;
   }
