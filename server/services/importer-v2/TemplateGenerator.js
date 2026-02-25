@@ -38,7 +38,7 @@ export class TemplateGenerator {
           where: { site_id: this.siteId, structural_hash: hash }
         });
 
-        if (!sample || !sample.raw_html) continue;
+        if (!sample || !sample.stripped_html) continue;
 
         info(this.dbName, 'IMPORT_V2_TEMPLATE_GEN_TYPE', `Processing ${group.page_type} (${hash})`);
         await ImporterServiceV2.updateStatus(this.siteId, 'generating_templates', `Analyzing structure ${i + 1}/${hashes.length} (${group.page_type})...`);
@@ -66,7 +66,7 @@ export class TemplateGenerator {
         await ImporterServiceV2.updateStatus(this.siteId, 'generating_templates', `Creating unique Nunjucks template for ${group.page_type}...`);
 
         const njkCode = await generateTemplateFromHtml(
-          sample.raw_html,
+          sample.stripped_html,
           group.selector_map,
           group.page_type,
           ruleset.theme?.local_assets || null
