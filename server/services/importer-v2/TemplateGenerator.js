@@ -82,11 +82,32 @@ export class TemplateGenerator {
         await fs.writeFile(fullPath, njkCode);
 
         // Convert selector map to standard regions format for CMS compatibility
-        const regions = Object.keys(group.selector_map || {}).map(name => ({
-          name,
-          label: name.charAt(0).toUpperCase() + name.slice(1),
-          type: (name === 'description' || name === 'content' || name === 'body') ? 'richtext' : 'text'
-        }));
+        // Heuristic: Determine field types based on name and content patterns
+        const regions = Object.keys(group.selector_map || {}).map(name => {
+          let type = 'text';
+          const lowerName = name.toLowerCase();
+          
+          // 1. Richtext Detection (Long content or specific keywords)
+          if (['description', 'content', 'body', 'about', 'bio', 'details'].some(k => lowerName.includes(k))) {
+            type = 'richtext';
+          }
+          
+          // 2. Image Detection
+          if (['image', 'img', 'thumbnail', 'photo', 'picture', 'banner', 'logo', 'icon'].some(k => lowerName.includes(k))) {
+            type = 'image';
+          }
+
+          // 3. Price/Number (fallback to text for flexibility, but could be number)
+          if (['price', 'cost', 'amount', 'total'].some(k => lowerName.includes(k))) {
+            type = 'text'; 
+          }
+
+          return {
+            name,
+            label: name.charAt(0).toUpperCase() + name.slice(1).replace(/_/g, ' '),
+            type
+          };
+        });
 
         // Clean name: "Imported Homepage", "Imported Product", etc.
         // We add a number only if we have multiple of the same type
