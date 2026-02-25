@@ -1,0 +1,5 @@
+{
+  "watch": ["server/"],
+  "ignore": ["templates/imported/"],
+  "ext": "js,mjs,json"
+}
