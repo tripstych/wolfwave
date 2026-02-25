@@ -80,7 +80,7 @@ export class CrawlEngine {
     $('*').removeAttr('style');
 
     // 4. Collapse whitespace for token efficiency
-    return ($('body').html() || '').replace(/\s+/g, ' ').trim();
+    return ($.html('body') || $.html()).replace(/\s+/g, ' ').trim();
   }
 
   calculateHash(strippedHtml) {

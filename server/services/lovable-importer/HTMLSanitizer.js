@@ -81,7 +81,7 @@ export class HTMLSanitizer {
     $('*').removeAttr('style');
 
     // 4. Collapse whitespace
-    return ($('body').html() || '').replace(/\s+/g, ' ').trim();
+    return ($.html('body') || $.html()).replace(/\s+/g, ' ').trim();
   }
 
   /**
