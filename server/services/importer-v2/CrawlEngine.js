@@ -61,27 +61,23 @@ export class CrawlEngine {
   }
 
   /**
-   * Level 3: Ultra-clean for LLM Rule Generation
-   * Strips everything except the core structure and text content.
+   * Level 3: Context-Rich HTML for LLM Rule Generation
+   * Keeps structure and semantic clues, removes only technical bloat.
    */
   generateLlmHtml(html) {
     const $ = cheerio.load(html);
     
-    // 1. Remove non-visible/non-structural metadata
-    $('head, script, style, noscript, iframe, svg, path, symbol, canvas, link, meta, comment').remove();
+    // 1. Remove high-token technical bloat
+    $('head, script, style, noscript, iframe, canvas, link, meta, comment').remove();
     
-    // 2. Remove purely decorative or non-content elements
-    $('header, footer, nav, aside, .sidebar, .menu, .nav, .footer, .header, #header, #footer, #nav').remove();
-
-    // 3. Clean attributes (Keep only ID and Class for selector mapping)
-    $('*').each((i, el) => {
-      const attribs = el.attribs || {};
-      for (const key in attribs) {
-        if (!['class', 'id', 'src', 'href', 'alt'].includes(key)) {
-          $(el).removeAttr(key);
-        }
-      }
+    // 2. Simplify complex SVGs to placeholders (preserves layout context without token cost)
+    $('svg').each((i, el) => {
+      $(el).replaceWith('<svg-icon-placeholder />');
     });
+
+    // 3. Clean attributes: Remove only 'style' (high bloat, low semantic value)
+    // Keep everything else (id, class, role, aria, data-*) as they are clues for the AI
+    $('*').removeAttr('style');
 
     // 4. Collapse whitespace for token efficiency
     return ($('body').html() || '').replace(/\s+/g, ' ').trim();

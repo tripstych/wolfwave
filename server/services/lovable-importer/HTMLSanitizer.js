@@ -57,26 +57,24 @@ export class HTMLSanitizer {
   }
 
   /**
-   * Ultra-clean version for LLM context window — strips nav/header/footer,
-   * collapses whitespace. Mirrors CrawlEngine.generateLlmHtml().
+   * Level 3: Context-Rich HTML for LLM Rule Generation
+   * Keeps structure and semantic clues, removes only technical bloat.
    */
   generateLlmHtml(sanitizedHtml) {
     const $ = cheerio.load(sanitizedHtml);
 
-    // Remove non-content structural elements
-    $('head, header, footer, nav, aside').remove();
+    // 1. Remove high-token technical bloat
+    $('head, script, style, noscript, iframe, canvas, link, meta, comment').remove();
 
-    // Remove remaining attributes except id, src, href, alt
-    $('*').each((i, el) => {
-      const attribs = el.attribs || {};
-      for (const key in attribs) {
-        if (!['id', 'src', 'href', 'alt'].includes(key)) {
-          $(el).removeAttr(key);
-        }
-      }
+    // 2. Simplify SVGs to placeholders
+    $('svg').each((i, el) => {
+      $(el).replaceWith('<svg-icon-placeholder />');
     });
 
-    // Collapse whitespace
+    // 3. Keep all semantic attributes (role, aria, data-*) but remove style
+    $('*').removeAttr('style');
+
+    // 4. Collapse whitespace
     return ($('body').html() || '').replace(/\s+/g, ' ').trim();
   }
 
