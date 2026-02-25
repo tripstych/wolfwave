@@ -177,11 +177,17 @@ export class TransformationEngine {
         }).get().filter(Boolean);
         results[field] = (field === 'images' || field === 'gallery') ? images : images[0];
       } 
-      else if (['description', 'content', 'body', 'richtext'].includes(field)) {
+      else if (['description', 'content', 'body', 'richtext', 'main', 'article', 'post'].includes(field)) {
         results[field] = $el.html()?.trim();
       } 
       else {
-        results[field] = $el.first().text().trim();
+        // Fallback: If the field name doesn't match but the content has tags, it's probably HTML
+        const html = $el.html()?.trim();
+        if (html && (html.includes('<p') || html.includes('<div') || html.includes('<br'))) {
+          results[field] = html;
+        } else {
+          results[field] = $el.first().text().trim();
+        }
       }
     }
     return results;
