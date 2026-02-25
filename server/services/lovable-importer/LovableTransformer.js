@@ -33,7 +33,8 @@ export class LovableTransformer {
         });
 
         // 3. Explicit Prisma Creation (Requirement 3)
-        // Step A: Create the content record with raw data
+        // Note: Using sequential creation to avoid nested logic errors
+        info(this.dbName, 'LOVABLE_TRANSFORM_PRISMA', `Creating content record for ${pageConfig.route_slug}`);
         const contentRecord = await prisma.content.create({
           data: {
             module: 'pages',
@@ -43,12 +44,12 @@ export class LovableTransformer {
           }
         });
 
-        // Step B: Create the page record linked to the content
+        info(this.dbName, 'LOVABLE_TRANSFORM_PRISMA', `Creating page record for ${pageConfig.route_slug}`);
         await prisma.pages.create({
           data: {
             title: pageConfig.title || pathKey.split('/').pop(),
             template_id: pageConfig.template_id,
-            content_id: contentRecord.id, // Explicit link
+            content_id: contentRecord.id,
             content_type: 'pages',
             status: 'draft'
           }
