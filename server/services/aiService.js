@@ -956,16 +956,6 @@ RESPOND WITH ONLY VALID JSON:
   }
 }
 
-  const userPrompt = `URL: ${url}\n\nHTML:\n${cleanHtml}`;
-
-  try {
-    return await generateText(systemPrompt, userPrompt, model, req);
-  } catch (err) {
-    console.error('[AI-Analyze] Site import analysis failed:', err.message);
-    throw err;
-  }
-}
-
 /**
  * Analyze a site's homepage to identify platform, recommend CSS/JS assets to import,
  * detect fonts, and extract color palette.
