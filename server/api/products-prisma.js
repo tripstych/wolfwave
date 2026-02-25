@@ -39,24 +39,29 @@ router.get('/', requireAuth, async (req, res) => {
     }
 
     if (search) {
+      // Find content IDs matching search term first
+      const contentMatches = await prisma.content.findMany({
+        where: {
+          title: { contains: search }
+        },
+        select: { id: true }
+      });
+      const contentIds = contentMatches.map(c => c.id);
       where.OR = [
-        { content: { title: { contains: search } } },
-        { sku: { contains: search } }
+        { sku: { contains: search } },
+        { content_id: { in: contentIds } }
       ];
     }
 
     // Dynamic sorting
     let orderBy = {};
-    if (sort_by === 'title') {
-      orderBy = { content: { title: order.toLowerCase() === 'asc' ? 'asc' : 'desc' } };
-    } else {
-      orderBy = { [sort_by]: order.toLowerCase() === 'asc' ? 'asc' : 'desc' };
-    }
+    // Note: title sorting across tables without relation is tricky in Prisma,
+    // we'll default to created_at if sorting by title for now, or could implement custom sort.
+    orderBy = { [sort_by === 'title' ? 'created_at' : sort_by]: order.toLowerCase() === 'asc' ? 'asc' : 'desc' };
 
     const products = await prisma.products.findMany({
       where,
       include: {
-        content: true,
         product_images: {
           orderBy: { position: 'asc' }
         },
@@ -69,17 +74,27 @@ router.get('/', requireAuth, async (req, res) => {
       skip: pageOffset
     });
 
+    // Fetch content for these products manually
+    const contentIds = products.map(p => p.content_id).filter(Boolean);
+    const contents = await prisma.content.findMany({
+      where: { id: { in: contentIds } }
+    });
+    const contentMap = Object.fromEntries(contents.map(c => [c.id, c]));
+
     const total = await prisma.products.count({ where });
 
     // Transform response
-    const transformed = products.map(p => ({
-      ...p,
-      title: p.content?.title || 'Untitled',
-      content: p.content?.data || {},
-      image: p.image || p.product_images?.[0]?.url || '',
-      images: p.product_images,
-      variants: p.product_variants
-    }));
+    const transformed = products.map(p => {
+      const productContent = contentMap[p.content_id];
+      return {
+        ...p,
+        title: productContent?.title || 'Untitled',
+        content: productContent?.data || {},
+        image: p.image || p.product_images?.[0]?.url || '',
+        images: p.product_images,
+        variants: p.product_variants
+      };
+    });
 
     res.json({
       data: transformed,
@@ -99,7 +114,6 @@ router.get('/:id', requireAuth, async (req, res) => {
     const product = await prisma.products.findUnique({
       where: { id: productId },
       include: {
-        content: true,
         product_images: {
           orderBy: { position: 'asc' }
         },
@@ -113,11 +127,19 @@ router.get('/:id', requireAuth, async (req, res) => {
       return res.status(404).json({ error: 'Product not found' });
     }
 
-    const contentData = product.content?.data || {};
+    // Fetch content manually
+    let productContent = null;
+    if (product.content_id) {
+      productContent = await prisma.content.findUnique({
+        where: { id: product.content_id }
+      });
+    }
+
+    const contentData = productContent?.data || {};
     res.json({
       ...product,
-      title: product.content?.title || 'Untitled',
-      slug: product.content?.slug || '',
+      title: productContent?.title || 'Untitled',
+      slug: productContent?.slug || '',
       image: product.image || product.product_images?.[0]?.url || '',
       images: product.product_images,
       content: contentData,
@@ -342,8 +364,13 @@ router.put('/:id', requireAuth, requireEditor, async (req, res) => {
     if (access_rules !== undefined) productUpdates.access_rules = access_rules || null;
 
     // Update content if provided
+    let existingContent = null;
+    if (existing.content_id) {
+      existingContent = await prisma.content.findUnique({ where: { id: existing.content_id } });
+    }
+
     if (existing.content_id && (content !== undefined || title !== undefined || providedSlug !== undefined)) {
-      let contentData = existing.content?.data || {};
+      let contentData = existingContent?.data || {};
 
       const contentUpdates = {};
       if (title !== undefined) contentUpdates.title = title;
@@ -369,7 +396,7 @@ router.put('/:id', requireAuth, requireEditor, async (req, res) => {
       if (Object.keys(contentUpdates).length > 0) {
         // Update search index if content or title changed
         contentUpdates.search_index = generateSearchIndex(
-          title || existing.content?.title || existing.title, 
+          title || existingContent?.title || existing.title, 
           contentData
         );
 
@@ -382,7 +409,6 @@ router.put('/:id', requireAuth, requireEditor, async (req, res) => {
       where: { id: productId },
       data: productUpdates,
       include: {
-        content: true,
         product_variants: true
       }
     });
@@ -481,7 +507,6 @@ router.put('/:id', requireAuth, requireEditor, async (req, res) => {
     const finalProduct = await prisma.products.findUnique({
       where: { id: productId },
       include: {
-        content: true,
         product_images: {
           orderBy: { position: 'asc' }
         },
@@ -491,13 +516,17 @@ router.put('/:id', requireAuth, requireEditor, async (req, res) => {
       }
     });
 
+    const finalContent = finalProduct.content_id 
+      ? await prisma.content.findUnique({ where: { id: finalProduct.content_id } })
+      : null;
+
     res.json({
       ...finalProduct,
-      title: finalProduct.content?.title || 'Untitled',
-      slug: finalProduct.content?.slug || '',
+      title: finalContent?.title || 'Untitled',
+      slug: finalContent?.slug || '',
       image: finalProduct.image || finalProduct.product_images?.[0]?.url || '',
       images: finalProduct.product_images,
-      content: finalProduct.content?.data || {},
+      content: finalContent?.data || {},
       variants: finalProduct.product_variants
     });
   } catch (err) {

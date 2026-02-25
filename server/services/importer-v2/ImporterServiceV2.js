@@ -24,7 +24,7 @@ export class ImporterServiceV2 {
   static async nukeSiteData(dbName) {
     info(dbName, 'IMPORT_V2_NUKE_START', 'Nuking existing site data for fresh import');
     
-    // Order matters for relational safety (though we loosened constraints, it's good practice)
+    // Order matters for relational safety
     await prisma.pages.deleteMany({});
     await prisma.products.deleteMany({});
     await prisma.content_history.deleteMany({});
@@ -56,6 +56,8 @@ export class ImporterServiceV2 {
     await runWithTenant(dbName, async () => {
       try {
         const site = await prisma.imported_sites.findUnique({ where: { id: siteId } });
+        if (!site) throw new Error('Site record not found');
+        
         const config = site.config || {};
 
         if (config.nuke) {
@@ -71,7 +73,7 @@ export class ImporterServiceV2 {
 
         await ImporterServiceV2.updateStatus(siteId, 'crawling', 'Starting site crawl...');
 
-        // Phase 2: Crawl (Reuse existing config from above)
+        // Phase 2: Crawl
         const crawler = new CrawlEngine(siteId, rootUrl, dbName, config);
         await crawler.run();
 
@@ -88,7 +90,6 @@ export class ImporterServiceV2 {
         await templateGen.run();
 
         info(dbName, 'IMPORT_V2_READY', `Import process for ${rootUrl} is ready for manual finalization`);
-        
         await ImporterServiceV2.updateStatus(siteId, 'ready', 'Templates generated. Ready for final migration!');
 
       } catch (err) {
