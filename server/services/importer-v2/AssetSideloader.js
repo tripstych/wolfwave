@@ -23,10 +23,17 @@ export class AssetSideloader {
         where: { id: this.siteId }
       });
 
-      if (!site || !site.llm_ruleset) throw new Error('Ruleset not found');
+      if (!site || !site.llm_ruleset) {
+        info(this.dbName, 'IMPORT_V2_ASSETS_SKIP', 'No ruleset found, skipping asset sideloading');
+        return;
+      }
       const ruleset = site.llm_ruleset;
       const rootUrl = ruleset.root_url || site.root_url;
-      const theme = ruleset.theme || {};
+      const theme = ruleset.theme;
+      if (!theme) {
+        info(this.dbName, 'IMPORT_V2_ASSETS_SKIP', 'No theme info in ruleset, skipping asset sideloading');
+        return;
+      }
       const assets = theme.assets || {};
 
       const baseDir = path.join(process.cwd(), 'templates', 'imported', String(this.siteId), 'assets');

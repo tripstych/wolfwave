@@ -72,11 +72,15 @@ export class ImporterServiceV2 {
         const discovery = new DiscoveryEngine(siteId, rootUrl, dbName);
         await discovery.run();
 
-        await ImporterServiceV2.updateStatus(siteId, 'analyzing', 'Sideloading theme assets...');
-        
-        // Phase 1b: Asset Sideloading
-        const sideloader = new AssetSideloader(siteId, dbName);
-        await sideloader.run();
+        // Phase 1b: Asset Sideloading (non-fatal — crawl must proceed even if this fails)
+        try {
+          await ImporterServiceV2.updateStatus(siteId, 'analyzing', 'Sideloading theme assets...');
+          const sideloader = new AssetSideloader(siteId, dbName);
+          await sideloader.run();
+        } catch (assetErr) {
+          logError(dbName, assetErr, 'IMPORT_V2_ASSET_SIDELOAD_FAILED');
+          await ImporterServiceV2.updateStatus(siteId, 'analyzing', 'Asset sideloading failed, continuing with crawl...');
+        }
 
         await ImporterServiceV2.updateStatus(siteId, 'crawling', 'Starting site crawl...');
 
