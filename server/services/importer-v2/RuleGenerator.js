@@ -53,7 +53,7 @@ export class RuleGenerator {
         await ImporterServiceV2.updateStatus(this.siteId, 'generating_rules', `Analyzing group ${processedGroups}/${groups.length} (${group.structural_hash.substring(0,8)})...`);
 
         // Use LLM to analyze the ultra-clean LLM HTML
-        const analysis = await analyzeSiteImport(sample.llm_html, sample.url);
+        const analysis = await analyzeSiteImport(sample.stripped_html, sample.url);
 
         ruleset.types[group.structural_hash] = {
           page_type: analysis.page_type,
