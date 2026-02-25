@@ -18,7 +18,7 @@ export class HTMLSanitizer {
   /**
    * Attributes to keep on elements (everything else is stripped)
    */
-  static KEEP_ATTRS = new Set(['id', 'href', 'src', 'alt', 'for', 'name', 'type', 'action', 'method']);
+  static KEEP_ATTRS = new Set(['id', 'href', 'src', 'alt', 'for', 'name', 'type', 'action', 'method', 'role']);
 
   /**
    * Main sanitization: Removes React/Vite artifacts but PRESERVES classes for WYSIWYG.
@@ -32,12 +32,18 @@ export class HTMLSanitizer {
     // 2. Remove React error overlays / dev tools
     $('#webpack-dev-server-client-overlay, [data-nextjs-scroll-focus-boundary], #lovable-badge').remove();
 
-    // 3. Remove React/Radix/shadcn-specific attributes + inline styles
-    // NOTE: We KEEP 'class' here for WYSIWYG
+    // 3. Clean attributes
     $('*').each((i, el) => {
       const attribs = el.attribs || {};
       for (const key in attribs) {
-        if (!HTMLSanitizer.KEEP_ATTRS.has(key) && key !== 'class') {
+        // Keep: 1. Whitelisted keys, 2. 'class', 3. 'data-*', 4. 'aria-*'
+        const shouldKeep = 
+          HTMLSanitizer.KEEP_ATTRS.has(key) || 
+          key === 'class' || 
+          key.startsWith('data-') || 
+          key.startsWith('aria-');
+
+        if (!shouldKeep) {
           $(el).removeAttr(key);
         }
       }
