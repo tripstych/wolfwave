@@ -212,6 +212,7 @@ export class TransformationEngine {
       else if (field === 'description') {
         results[field] = $el.first().text().trim();
       }
+      else {
         // Fallback: If the field name doesn't match but the content has tags, it's probably HTML
         const html = $el.html()?.trim();
         if (html && (html.includes('<p') || html.includes('<div') || html.includes('<br'))) {
