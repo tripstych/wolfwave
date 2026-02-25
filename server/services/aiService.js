@@ -1003,7 +1003,8 @@ Task: Transpile React/JSX source code into a WolveWave Nunjucks (.njk) template.
 
 Requirements:
 1. Structural Fidelity: Maintain every single div, class (Tailwind), and layout element exactly as defined in the source.
-2. CMS Integration: Apply data-cms-region and data-cms-type attributes precisely according to the WolfWave schema.
+2. NO MISSING PARTIALS: Do NOT use {% include "partials/..." %}. We do not have those files yet. If the source code has a <Navbar /> or <Footer />, you MUST transpile the actual HTML/Tailwind for those components directly into the template.
+3. CMS Integration: Apply data-cms-region and data-cms-type attributes precisely according to the WolfWave schema.
 3. Logic Conversion: Replace React map() loops with Nunjucks {% for %} and ternary/if logic with {% if %}.
 4. NO REACT FLUFF: Remove all React-specific imports, hooks (useState, useEffect), and event handlers.
 5. Path Mapping: Update all asset paths to point to '/uploads/assets/'.

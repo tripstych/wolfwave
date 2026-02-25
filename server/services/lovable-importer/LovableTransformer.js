@@ -33,10 +33,16 @@ export class LovableTransformer {
         });
 
         // 3. Explicit Prisma Creation (Requirement 3)
-        // Note: Using sequential creation to avoid nested logic errors
-        info(this.dbName, 'LOVABLE_TRANSFORM_PRISMA', `Creating content record for ${pageConfig.route_slug}`);
-        const contentRecord = await prisma.content.create({
-          data: {
+        // Step A: Upsert the content record
+        info(this.dbName, 'LOVABLE_TRANSFORM_PRISMA', `Upserting content for ${pageConfig.route_slug}`);
+        const contentRecord = await prisma.content.upsert({
+          where: { slug: pageConfig.route_slug },
+          update: {
+            title: pageConfig.title || pathKey.split('/').pop(),
+            data: contentData,
+            updated_at: new Date()
+          },
+          create: {
             module: 'pages',
             title: pageConfig.title || pathKey.split('/').pop(),
             slug: pageConfig.route_slug,
@@ -44,16 +50,28 @@ export class LovableTransformer {
           }
         });
 
-        info(this.dbName, 'LOVABLE_TRANSFORM_PRISMA', `Creating page record for ${pageConfig.route_slug}`);
-        await prisma.pages.create({
-          data: {
-            title: pageConfig.title || pathKey.split('/').pop(),
-            template_id: pageConfig.template_id,
-            content_id: contentRecord.id,
-            content_type: 'pages',
-            status: 'draft'
-          }
+        // Step B: Manage the page record
+        info(this.dbName, 'LOVABLE_TRANSFORM_PRISMA', `Managing page record for ${pageConfig.route_slug}`);
+        const existingPage = await prisma.pages.findFirst({
+          where: { title: pageConfig.title, template_id: pageConfig.template_id }
         });
+
+        if (existingPage) {
+          await prisma.pages.update({
+            where: { id: existingPage.id },
+            data: { content_id: contentRecord.id, updated_at: new Date() }
+          });
+        } else {
+          await prisma.pages.create({
+            data: {
+              title: pageConfig.title || pathKey.split('/').pop(),
+              template_id: pageConfig.template_id,
+              content_id: contentRecord.id,
+              content_type: 'pages',
+              status: 'draft'
+            }
+          });
+        }
 
         info(this.dbName, 'LOVABLE_TRANSFORM_SUCCESS', `Created CMS page for ${pageConfig.route_slug}`);
       }
