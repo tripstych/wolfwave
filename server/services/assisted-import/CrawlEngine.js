@@ -99,21 +99,29 @@ export class CrawlEngine {
     function traverse(node, depth = 0) {
       if (depth > 20 || node.type !== 'tag' || contentTags.has(node.name)) return;
       
-      tags.push(node.name);
+      // Include sorted class names in the signature for much higher accuracy
+      let tagSignature = node.name;
+      if (node.attribs?.class) {
+        const classes = node.attribs.class.split(/\s+/).filter(Boolean).sort().join('.');
+        if (classes) tagSignature += `.${classes}`;
+      }
+      
+      tags.push(tagSignature);
       
       let lastTagName = '';
       $(node).children().each((i, el) => {
-        // Deduplication: If we just saw this structural tag type as a sibling, skip it.
+        // Deduplication: If we just saw this structural signature as a sibling, skip it.
         // This ensures lists of products/posts don't change the hash.
         if (el.type === 'tag' && !contentTags.has(el.name)) {
-          if (el.name !== lastTagName) {
+          const childSignature = el.name + (el.attribs?.class ? '.' + el.attribs.class.split(/\s+/).filter(Boolean).sort().join('.') : '');
+          if (childSignature !== lastTagName) {
             traverse(el, depth + 1);
-            lastTagName = el.name;
+            lastTagName = childSignature;
           }
         }
       });
       
-      tags.push(`/${node.name}`);
+      tags.push(`/${tagSignature}`);
     }
 
     const body = $('body')[0];

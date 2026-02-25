@@ -808,6 +808,59 @@ PAGE TYPE: ${pageType}`;
 }
 
 /**
+ * Generate a structural Nunjucks template based purely on identified data regions,
+ * ignoring the original site's look and feel.
+ */
+export async function generateStructuralTemplate(regions, pageType, model = null, req = null) {
+  const systemPrompt = `You are a Nunjucks template expert and an expert UI/UX designer.
+Your goal is to design a clean, modern, structural Nunjucks template (.njk) based ONLY on a list of available data regions.
+DO NOT try to copy the look and feel of the original website. 
+Instead, based on the available types of data and the page type, design a template that will structurally format the data in a beautiful, responsive way using standard semantic HTML and simple vanilla CSS classes (e.g., .container, .grid, .card, .header) or inline styles if necessary to make it look decent out of the box.
+
+RULES:
+- STANDALONE: Generate a complete HTML document (<!DOCTYPE html>, <html>, <head>, <body>).
+- NO BLOCKS: Do not use {% block content %} or {% extends %}. Output raw HTML with Nunjucks tags.
+- DYNAMIC CONTENT: Use the provided data regions to populate the template.
+- COLLECTIONS & LOOPS: If a region indicates multiple items (like 'images'), generate a Nunjucks loop:
+    <div class="gallery-grid">
+      {% for item in content.images %}
+        <img data-cms-region="images" data-cms-type="image" src="{{ item }}" class="gallery-img">
+      {% endfor %}
+    </div>
+- CRITICAL: Every dynamic field MUST be wrapped in an element with 'data-cms-region' and 'data-cms-type' attributes.
+- Format: <div data-cms-region="field_name" data-cms-type="text|richtext|image">{{ content.field_name | safe }}</div>
+- CMS HEAD: Always include {{ seo.title }}, {{ seo.description }}, etc. in the <head>.
+- CMS EDITING: Add this before </body>: 
+  {% if user %}
+    <link rel="stylesheet" href="/css/edit-in-place.css">
+    <script src="/js/edit-in-place.js"></script>
+  {% endif %}
+- Return ONLY the Nunjucks code. No explanation.
+
+PAGE TYPE: ${pageType}
+
+AVAILABLE DATA REGIONS:
+${JSON.stringify(regions, null, 2)}`;
+
+  const userPrompt = `Generate the structural Nunjucks template for a ${pageType} page based on the provided regions.`;
+
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      return await generateRawText(systemPrompt, userPrompt, model);
+    } catch (err) {
+      const status = err.response?.status;
+      if (attempt < 2 && (status === 502 || status === 503 || status === 429 || err.code === 'ECONNABORTED')) {
+        console.warn(`[AI-Template] Attempt ${attempt} failed, retrying in 5s...`);
+        await new Promise(r => setTimeout(r, 5000));
+        continue;
+      }
+      console.error('[AI-Template] Structural template generation failed:', err.message);
+      throw err;
+    }
+  }
+}
+
+/**
  * Compare two page structures to see if they can share the same template.
  */
 export async function comparePageStructures(htmlA, htmlB, model = null) {
@@ -842,60 +895,66 @@ RESPOND WITH ONLY VALID JSON:
 }
 
 /**
- * Analyze a sample page from a structural group and suggest logical "Editable Regions".
- * This is the core "Autonomous Architect" logic for the site importer.
+ * Analyze a sample page using the Technical Content Engineer prompt.
+ * Identifies editable regions, navigation, and media.
  */
-export async function analyzeSiteImport(html, url = '', model = null, req = null) {
+export async function analyzeSiteImport(html, url = '', model = null, req = null, feedback = null) {
   const $ = (await import('cheerio')).load(html);
 
   // Clean non-visible elements
   $('script, style, noscript, svg, iframe, canvas, link[rel="stylesheet"], meta').remove();
 
-  // Strip noisy attributes but keep class/id
-  $('*').each((i, el) => {
-    const attribs = el.attribs || {};
-    for (const key in attribs) {
-      if (!['class', 'id', 'src', 'href', 'alt'].includes(key)) {
-        $(el).removeAttr(key);
-      }
-    }
-  });
-
   const cleanHtml = ($('body').html() || $.html())
     .replace(/\s+/g, ' ')
     .substring(0, 30000);
 
-  const systemPrompt = `You are an autonomous CMS Page Architect. Your goal is to analyze a webpage's HTML and identify the logical "Editable Regions" that should be managed by a CMS.
+  const systemPrompt = `Role: You are a Technical Content Engineer specializing in CMS migrations.
 
-Instead of following a rigid schema, you must decide which sections of the page are content-rich and deserve to be editable by a user.
+Task: Analyze the provided HTML and identify content blocks that should be converted into editable fields.
+
+Requirements:
+1. Editable Fields: Identify headers, body text, and images.
+2. Navigation: Specifically extract any <nav>, <ul>, or menu-related structures into a dedicated navigation property.
+3. Format: Return the result as a single JSON-formatted string.
+
+Schema Logic:
+- content: Key-value pairs of IDs/Classes (the CSS selectors) and their inner HTML/text content.
+- navigation: An array of objects containing label and url.
+- media: Source URLs for any <img> tags found in editable areas.
+
+${feedback ? `
+CRITICAL - PREVIOUS ATTEMPT FAILED:
+The following selectors were previously suggested but failed to match other pages in this group:
+${JSON.stringify(feedback, null, 2)}
+Please provide MORE RESILIENT selectors this time.
+` : ''}
 
 RESPOND WITH ONLY VALID JSON:
 {
   "page_type": "product|article|blog_post|listing|contact|about|homepage|other",
-  "regions": [
-    {
-      "key": "unique_camel_case_key",
-      "label": "User-friendly label (e.g. 'Main Headline', 'Product Features')",
-      "type": "text|richtext|image|link",
-      "selector": "The most specific and resilient CSS selector for this region",
-      "attr": "Optional: Specific attribute to extract (e.g. 'src', 'data-zoom', 'href'). Default is innerHTML for richtext and textContent for text.",
-      "multiple": true,
-      "reasoning": "Briefly explain why this section is a meaningful editable unit."
-    }
+  "content": {
+    "CSS_SELECTOR_1": "Inner HTML or text",
+    "CSS_SELECTOR_2": "..."
+  },
+  "navigation": [
+    { "label": "Menu Item", "url": "/path" }
+  ],
+  "media": [
+    "https://example.com/image.jpg"
   ],
   "confidence": 0.9,
   "summary": "1-sentence summary of the page layout"
-}
+}`;
 
-RULES:
-1. IDENTIFY EDITABLE ZONES: Look for headlines, body text blocks, primary images, and price/data points.
-2. TEXT VS RICHTEXT: Use 'text' for simple strings (h1, span, prices). Use 'richtext' for substantial blocks containing multiple paragraphs, lists, or structural formatting.
-3. EXCLUDE NOISE: Do NOT create regions for site-wide navigation, footers, social sharing widgets, or 'Related Products' grids. Focus ONLY on the unique content of the current page.
-4. BE SURGICAL: Find the tightest possible parent element for each region. Avoid broad layout wrappers like #main or .container.
-5. PREFER SEMANTICS: For the main body, look for elements with high text density and low link density.
-6. MEDIA: If a page has a gallery or multiple product images, mark it as 'image' with "multiple": true.
-7. RESILIENCE: Avoid volatile class names. Prefer semantic tags or stable tag sequences (e.g. 'main > section > div:nth-of-type(2)') if class names look dynamic.
-8. CONSISTENCY: Use standard keys where possible (title, content, price, images) but add custom keys for unique page sections.`;
+  const userPrompt = `Input HTML: ${cleanHtml}`;
+
+  try {
+    return await generateText(systemPrompt, userPrompt, model, req);
+  } catch (err) {
+    console.error('[AI-Analyze] Technical Content Engineer analysis failed:', err.message);
+    throw err;
+  }
+}
 
   const userPrompt = `URL: ${url}\n\nHTML:\n${cleanHtml}`;
 

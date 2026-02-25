@@ -1,5 +1,5 @@
 import prisma from '../../lib/prisma.js';
-import { generateTemplateFromHtml, comparePageStructures } from '../aiService.js';
+import { generateStructuralTemplate, comparePageStructures } from '../aiService.js';
 import { info, error as logError } from '../../lib/logger.js';
 import { AssistedImportService } from './AssistedImportService.js';
 import path from 'path';
@@ -65,11 +65,9 @@ export class TemplateGenerator {
         // --- Generate New Template ---
         await AssistedImportService.updateStatus(this.siteId, 'generating_templates', `Creating unique Nunjucks template for ${group.page_type}...`);
 
-        const njkCode = await generateTemplateFromHtml(
-          sample.stripped_html,
-          group.selector_map,
-          group.page_type,
-          ruleset.theme?.local_assets || null
+        const njkCode = await generateStructuralTemplate(
+          group.regions || [],
+          group.page_type
         );
 
         let contentType = 'pages';

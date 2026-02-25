@@ -471,7 +471,7 @@ export default function AssistedImporter() {
                                                 {region.validation?.failed_urls?.length > 0 && (
                                                   <div className="mt-1 p-1.5 bg-red-50 border border-red-100 rounded text-[8px] text-red-600">
                                                     <div className="font-bold uppercase mb-0.5 flex items-center gap-1">
-                                                      <AlertCircle className="w-2.5 h-2.5" /> FAILED ON {region.validation.failed_urls.length} PAGES:
+                                                      <AlertCircle className="w-2.5 h-2.5" /> FAILED ON {region.validation.failed_urls.length}/{region.validation.total_checked || region.validation.failed_urls.length} SAMPLES:
                                                     </div>
                                                     <ul className="list-disc pl-3 max-h-20 overflow-y-auto">
                                                       {region.validation.failed_urls.map((url, i) => (
