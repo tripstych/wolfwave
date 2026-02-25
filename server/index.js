@@ -97,6 +97,9 @@ app.use(accessLog);
 // Static files — theme assets
 app.use('/themes', express.static(getThemesDir()));
 
+// Static files — imported assets (from site importer)
+app.use('/imported', express.static(path.join(__dirname, '../templates/imported')));
+
 // Serve React admin in production
 if (process.env.NODE_ENV === 'production') {
   app.use('/admin', express.static(path.join(__dirname, '../admin/dist')));
