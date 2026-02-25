@@ -47,7 +47,7 @@ export async function downloadAsset(url) {
 /**
  * Get the tenant-specific uploads directory.
  */
-function getTenantUploadsDir() {
+export function getTenantUploadsDir() {
   const dbName = getCurrentDbName();
   const subdomain = dbName.replace(/^wolfwave_/, '') || '_default';
   return path.join(UPLOADS_ROOT, subdomain);
