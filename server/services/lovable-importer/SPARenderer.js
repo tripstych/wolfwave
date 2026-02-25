@@ -26,7 +26,9 @@ export class SPARenderer {
   normalizeUrl(url) {
     try {
       const nUrl = new URL(url, this.rootUrl);
-      nUrl.hash = '';
+      // PRESERVE HASH: For SPAs, #features is a unique visual state
+      const hash = nUrl.hash;
+      nUrl.hash = ''; // Temporarily clear to normalize base
       nUrl.hostname = nUrl.hostname.toLowerCase();
 
       const stripParams = [
@@ -37,7 +39,9 @@ export class SPARenderer {
 
       let cleaned = nUrl.toString();
       if (cleaned.endsWith('/') && nUrl.pathname !== '/') cleaned = cleaned.slice(0, -1);
-      return cleaned;
+      
+      // Restore hash if it exists
+      return hash ? cleaned + hash : cleaned;
     } catch { return null; }
   }
 
@@ -141,7 +145,7 @@ export class SPARenderer {
 
       $('a[href]').each((i, el) => {
         const href = $(el).attr('href');
-        if (!href || href.startsWith('#') || href.startsWith('javascript:')) return;
+        if (!href || href.startsWith('javascript:')) return;
 
         try {
           const abs = new URL(href, this.page.url());
