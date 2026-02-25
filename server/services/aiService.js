@@ -749,20 +749,22 @@ Your goal is to convert a static HTML page into a standalone dynamic Nunjucks te
 RULES:
 - STANDALONE: Generate a complete HTML document (<!DOCTYPE html>, <html>, <head>, <body>).
 - NO BLOCKS: Do not use {% block content %} or {% extends %}. Output raw HTML with Nunjucks tags.
-- Replace static content with dynamic tags based on the provided selector map.
+- REPLACE CONTENT: You MUST replace the static text/HTML inside identified elements with Nunjucks tags. 
+  * Incorrect: <h1 data-cms-region="title">Static Title</h1>
+  * Correct: <h1 data-cms-region="title" data-cms-type="text">{{ content.title }}</h1>
+- NO NESTING: Do not put a data-cms-region inside another data-cms-region. 
+  * If 'main' is used as a region, it must NOT wrap 'title' or 'description'. 
+  * Choose either specific fields (title, description) OR a broad 'main' field, but never both in a parent-child relationship.
 - CRITICAL: Every dynamic field MUST be wrapped in an element with 'data-cms-region' and 'data-cms-type' attributes.
 - Format: <div data-cms-region="field_name" data-cms-type="text|richtext|image">{{ content.field_name | safe }}</div>
 - For images: <img data-cms-region="image_field" data-cms-type="image" src="{{ content.image_field | default('/placeholder.png') }}">
-- Use 'richtext' for descriptions and long content, 'text' for titles/prices.
-- THEME ASSETS: If local assets are provided, include them in the <head> or at the end of the body as appropriate using the provided local paths.
+- THEME ASSETS: Include provided local assets in the <head> or at the end of the body using the provided local paths.
 - CMS HEAD: Always include {{ seo.title }}, {{ seo.description }}, etc. in the <head>.
 - CMS EDITING: Add this before </body>: 
   {% if user %}
     <link rel="stylesheet" href="/css/edit-in-place.css">
     <script src="/js/edit-in-place.js"></script>
   {% endif %}
-- Maintain the original CSS structure and classes exactly.
-- ENSURE tags are not empty: The {{ content.field }} tag MUST be inside the element.
 - Return ONLY the Nunjucks code. No explanation.
 
 THEME ASSETS (Local paths):
