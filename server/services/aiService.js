@@ -237,13 +237,51 @@ const textCallers = {
 };
 
 /**
+ * Robustly extract and parse JSON from an LLM response string.
+ * Handles markdown blocks, trailing text, and multiple JSON candidates.
+ */
+function extractJson(text) {
+  if (!text || typeof text !== 'string') return null;
+  
+  const clean = text.trim();
+  
+  // 1. Direct parse attempt
+  try {
+    return JSON.parse(clean);
+  } catch (e) {}
+
+  // 2. Try to find JSON block in markdown
+  const markdownMatch = clean.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+  if (markdownMatch && markdownMatch[1]) {
+    try {
+      return JSON.parse(markdownMatch[1].trim());
+    } catch (e) {}
+  }
+
+  // 3. Last resort: Find first { and last }
+  const start = clean.indexOf('{');
+  const end = clean.lastIndexOf('}');
+  if (start !== -1 && end !== -1 && end > start) {
+    try {
+      const candidate = clean.substring(start, end + 1);
+      return JSON.parse(candidate);
+    } catch (e) {}
+  }
+
+  throw new Error(`Failed to extract valid JSON from response: ${text.substring(0, 100)}...`);
+}
+
+/**
  * Generate text content using an LLM
  */
 export async function generateText(systemPrompt, userPrompt, model = null, req = null) {
   const config = await getAiSettings();
 
-  // Create prompt hash for caching
-  const targetModel = model || config.gemini_model || 'gpt-4o';
+  // Determine the actual model that will be used for the hash
+  const defaultProvider = config.ai_default_provider || 'gemini';
+  const providerModelMap = { gemini: 'gemini_model', anthropic: 'anthropic_model', openai: 'openai_model' };
+  const targetModel = model || config[providerModelMap[defaultProvider]] || 'gemini-1.5-flash';
+
   const promptHash = crypto.createHash('sha256')
     .update(`${systemPrompt}|${userPrompt}|${targetModel}`)
     .digest('hex');
@@ -303,7 +341,9 @@ export async function generateText(systemPrompt, userPrompt, model = null, req =
     try {
       const { text, model: usedModel } = await caller(config, systemPrompt, userPrompt, model, true);
       console.log(`[AI-DEBUG] 📥 Received response from ${provider}.`);
-      const parsed = JSON.parse(text);
+      
+      const parsed = extractJson(text);
+      
       await setCachedAiResponse(promptHash, parsed, usedModel);
       return parsed;
     } catch (error) {
@@ -324,8 +364,11 @@ export async function generateText(systemPrompt, userPrompt, model = null, req =
 export async function generateRawText(systemPrompt, userPrompt, model = null) {
   const config = await getAiSettings();
 
-  // Create prompt hash for caching
-  const targetModel = model || config.gemini_model || 'gpt-4o';
+  // Determine the actual model that will be used for the hash
+  const defaultProvider = config.ai_default_provider || 'gemini';
+  const providerModelMap = { gemini: 'gemini_model', anthropic: 'anthropic_model', openai: 'openai_model' };
+  const targetModel = model || config[providerModelMap[defaultProvider]] || 'gemini-1.5-flash';
+
   const promptHash = crypto.createHash('sha256')
     .update(`RAW|${systemPrompt}|${userPrompt}|${targetModel}`)
     .digest('hex');
