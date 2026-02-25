@@ -899,11 +899,15 @@ RULES:
 - Example: If #main-content contains a spacer div and THEN a div.columns with all the text, your selector MUST be "div.columns".
 - BE SURGICAL: Avoid any selector that captures "Share this", "Related posts", breadcrumbs, or sidebars.
 - Use the MOST SPECIFIC selector possible (e.g. ".entry-content" or ".article-body").
+- BE RESILIENT: Structural groups may contain pages with slightly different class names. Prefer selectors that are likely to be stable across the entire group. 
+  * Good: 'main > article', 'section[data-content]', '.content-body'
+  * Brittle: '.product-123-description', '.unique-page-class'
+  * If classes look dynamic or page-specific, use a tag sequence (e.g. 'main > div:nth-of-type(2)') instead.
 - If a selector would include extraneous layout elements or empty divs, it is WRONG. Omit the field instead.
 - The selectors MUST exist in the provided HTML.
 - For PRODUCT pages: include "title", "content" (the full product details), "description" (short blurb), "price", and "images".
 - For ARTICLE/POST pages: include "title", "content" (the full article body), "description" (short intro), and optionally "images".
-- For LISTING pages: include "title" and optionally "description". Product grid items will be handled separately.`;
+- For LISTING pages: include "title" and optionally "content". Product grid items will be handled separately.`;
 
   const userPrompt = `URL: ${url}\n\nHTML:\n${cleanHtml}`;
 

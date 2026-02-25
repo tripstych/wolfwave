@@ -20,6 +20,7 @@ import Settings from './settings/Settings';
 import SEO from './settings/SEO';
 import SiteImporter from './pages/SiteImporter';
 import SiteImporterV2 from './pages/SiteImporterV2';
+import LovableImporter from './pages/LovableImporter';
 import ContentList from './content/ContentList';
 import ContentEditor from './content/ContentEditor';
 import ProductList from './products/ProductList';
@@ -99,6 +100,7 @@ function App() {
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/import" element={<SiteImporter />} />
                 <Route path="/import-v2" element={<SiteImporterV2 />} />
+                <Route path="/import-lovable" element={<LovableImporter />} />
                 <Route path="/products" element={<ProductList />} />
                 <Route path="/products/new" element={<ProductEditor />} />
                 <Route path="/products/:id" element={<ProductEditor />} />

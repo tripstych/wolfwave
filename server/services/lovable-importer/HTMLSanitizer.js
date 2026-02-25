@@ -1,0 +1,196 @@
+import * as cheerio from 'cheerio';
+import crypto from 'crypto';
+import prisma from '../../lib/prisma.js';
+import { info, error as logError } from '../../lib/logger.js';
+import { LovableImporterService } from './LovableImporterService.js';
+import { jobRegistry } from '../importer-v2/JobRegistry.js';
+
+/**
+ * HTMLSanitizer strips Tailwind utility classes, React/Radix artifacts,
+ * and meaningless wrapper divs to produce clean semantic HTML.
+ */
+export class HTMLSanitizer {
+  constructor(siteId, dbName) {
+    this.siteId = siteId;
+    this.dbName = dbName;
+  }
+
+  /**
+   * Attributes to keep on elements (everything else is stripped)
+   */
+  static KEEP_ATTRS = new Set(['id', 'href', 'src', 'alt', 'for', 'name', 'type', 'action', 'method']);
+
+  /**
+   * Main sanitization: strips Tailwind, React artifacts, collapses wrapper divs
+   */
+  sanitize(html) {
+    const $ = cheerio.load(html);
+
+    // 1. Remove non-content elements
+    $('script, style, noscript, link[rel="stylesheet"], link[rel="preload"], link[rel="modulepreload"], meta, svg, canvas').remove();
+
+    // 2. Remove React error overlays / dev tools
+    $('#webpack-dev-server-client-overlay, [data-nextjs-scroll-focus-boundary]').remove();
+
+    // 3. Remove ALL class attributes (strips Tailwind completely)
+    $('*').removeAttr('class');
+
+    // 4. Remove React/Radix/shadcn-specific attributes + inline styles
+    $('*').each((i, el) => {
+      const attribs = el.attribs || {};
+      for (const key in attribs) {
+        if (!HTMLSanitizer.KEEP_ATTRS.has(key)) {
+          $(el).removeAttr(key);
+        }
+      }
+    });
+
+    // 5. Unwrap the #root wrapper
+    const rootContent = $('#root').html();
+    if (rootContent) {
+      $('body').html(rootContent);
+    }
+
+    // 6. Collapse meaningless wrapper divs (no attrs, single child element)
+    let changed = true;
+    let passes = 0;
+    while (changed && passes < 5) {
+      changed = false;
+      passes++;
+      $('div').each((i, el) => {
+        const $el = $(el);
+        if (Object.keys(el.attribs || {}).length === 0) {
+          const children = $el.children();
+          if (children.length === 1) {
+            const child = children.first();
+            const childTag = child[0]?.name;
+            if (['div', 'section', 'article', 'main', 'header', 'footer', 'nav', 'aside'].includes(childTag)) {
+              $el.replaceWith(child);
+              changed = true;
+            }
+          }
+        }
+      });
+    }
+
+    // 7. Remove empty elements (leftover wrappers with no text or children)
+    $('div, span').each((i, el) => {
+      const $el = $(el);
+      if ($el.text().trim() === '' && $el.children().length === 0 && !$el.find('img, video, picture').length) {
+        $el.remove();
+      }
+    });
+
+    // 8. Clean up <head> — keep only charset and title
+    const title = $('title').text();
+    $('head').html(`<meta charset="UTF-8"><title>${title}</title>`);
+
+    return $.html();
+  }
+
+  /**
+   * Ultra-clean version for LLM context window — strips nav/header/footer,
+   * collapses whitespace. Mirrors CrawlEngine.generateLlmHtml().
+   */
+  generateLlmHtml(sanitizedHtml) {
+    const $ = cheerio.load(sanitizedHtml);
+
+    // Remove non-content structural elements
+    $('head, header, footer, nav, aside').remove();
+
+    // Remove remaining attributes except id, src, href, alt
+    $('*').each((i, el) => {
+      const attribs = el.attribs || {};
+      for (const key in attribs) {
+        if (!['id', 'src', 'href', 'alt'].includes(key)) {
+          $(el).removeAttr(key);
+        }
+      }
+    });
+
+    // Collapse whitespace
+    return ($('body').html() || '').replace(/\s+/g, ' ').trim();
+  }
+
+  /**
+   * Structural hash for grouping similar page layouts.
+   * Mirrors CrawlEngine.calculateHash().
+   */
+  calculateHash(sanitizedHtml) {
+    const $ = cheerio.load(sanitizedHtml);
+
+    const contentTags = new Set([
+      'a', 'span', 'i', 'strong', 'em', 'b', 'u', 'br', 'svg', 'path',
+      'small', 'label', 'button', 'img', 'p', 'h1', 'h2', 'h3', 'h4',
+      'h5', 'h6', 'input', 'select', 'textarea', 'video', 'audio',
+      'canvas', 'iframe', 'hr', 'picture', 'source', 'noscript'
+    ]);
+
+    const tags = [];
+
+    function traverse(node, depth = 0) {
+      if (depth > 20 || node.type !== 'tag' || contentTags.has(node.name)) return;
+
+      tags.push(node.name);
+
+      let lastTagName = '';
+      $(node).children().each((i, el) => {
+        if (el.type === 'tag' && !contentTags.has(el.name)) {
+          if (el.name !== lastTagName) {
+            traverse(el, depth + 1);
+            lastTagName = el.name;
+          }
+        }
+      });
+
+      tags.push(`/${node.name}`);
+    }
+
+    const body = $('body')[0];
+    if (body) traverse(body);
+    return crypto.createHash('sha256').update(tags.join('>')).digest('hex');
+  }
+
+  async run() {
+    try {
+      info(this.dbName, 'LOVABLE_SANITIZE_START', `Sanitizing rendered pages for site ${this.siteId}`);
+
+      const items = await prisma.staged_items.findMany({
+        where: { site_id: this.siteId, status: 'rendered' },
+        select: { id: true, url: true, raw_html: true }
+      });
+
+      for (let i = 0; i < items.length; i++) {
+        if (jobRegistry.isCancelled(this.siteId)) return;
+
+        const item = items[i];
+        if (!item.raw_html) continue;
+
+        const strippedHtml = this.sanitize(item.raw_html);
+        const llmHtml = this.generateLlmHtml(strippedHtml);
+        const structuralHash = this.calculateHash(strippedHtml);
+
+        await prisma.staged_items.update({
+          where: { id: item.id },
+          data: {
+            stripped_html: strippedHtml,
+            llm_html: llmHtml,
+            structural_hash: structuralHash,
+            status: 'crawled' // Match status expected by RuleGenerator
+          }
+        });
+
+        if ((i + 1) % 5 === 0) {
+          await LovableImporterService.updateStatus(
+            this.siteId, 'sanitizing', `Cleaned ${i + 1}/${items.length} pages...`
+          );
+        }
+      }
+
+      info(this.dbName, 'LOVABLE_SANITIZE_COMPLETE', `Sanitized ${items.length} pages`);
+    } catch (err) {
+      logError(this.dbName, err, 'LOVABLE_SANITIZE_FAILED');
+      throw err;
+    }
+  }
+}
