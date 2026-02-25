@@ -46,9 +46,10 @@ export class TransformationEngine {
         const extractedContent = await this.performLocalExtraction(item.stripped_html, groupRules.selector_map);
 
         // Map page_type to CMS module
-        let moduleName = 'pages';
+        let moduleName = 'pages'; 
         if (groupRules.page_type === 'product') moduleName = 'products';
-        if (['article', 'blog_post', 'post'].includes(groupRules.page_type)) moduleName = 'posts';
+        // Note: We removed the forced 'posts' mapping here so everything shows up in 'Pages' by default
+        // unless specifically identified as a product.
 
         // --- Sideload Media & Remap Links ---
         for (const [key, value] of Object.entries(extractedContent)) {
