@@ -843,8 +843,7 @@ RESPOND WITH ONLY VALID JSON in this exact format:
     "title": "CSS selector for the page/product title (e.g. h1.product-title)",
     "description": "CSS selector for main description/body content",
     "price": "CSS selector for price (if product, otherwise omit)",
-    "images": "CSS selector for content images (e.g. .gallery img)",
-    "main": "CSS selector for the main content container"
+    "images": "CSS selector for content images (e.g. .gallery img)"
   },
   "confidence": 0.85,
   "summary": "Brief 1-sentence description of what this page is and its layout structure"
@@ -852,7 +851,6 @@ RESPOND WITH ONLY VALID JSON in this exact format:
 
 RULES:
 - Use the MOST SPECIFIC selector that reliably targets the content (prefer .class-name over tag alone)
-- For "main", choose the tightest container that wraps all the actual page content
 - Only include "price", "sku", "images" fields if this is clearly a product page
 - For articles/blog posts, include "author", "date", "category" selectors if visible
 - The selectors MUST exist in the provided HTML — do not guess selectors that aren't there

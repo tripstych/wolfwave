@@ -88,7 +88,7 @@ export class TemplateGenerator {
           const lowerName = name.toLowerCase();
           
           // 1. Richtext Detection (Long content or specific keywords)
-          if (['description', 'content', 'body', 'about', 'bio', 'details'].some(k => lowerName.includes(k))) {
+          if (['description', 'content', 'body', 'about', 'bio', 'details', 'main', 'article', 'post'].some(k => lowerName.includes(k))) {
             type = 'richtext';
           }
           
