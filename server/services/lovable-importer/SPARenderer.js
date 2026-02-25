@@ -52,18 +52,56 @@ export class SPARenderer {
     await this.page.setUserAgent('WebWolf-LovableImporter/1.0');
   }
 
-  async renderPage(url) {
-    await this.page.goto(url, { waitUntil: 'networkidle0', timeout: 30000 });
+  async renderPage(url, useInteraction = false) {
+    const currentUrl = this.page.url();
+    
+    if (useInteraction && this.normalizeUrl(currentUrl) !== this.normalizeUrl(url)) {
+      info(this.dbName, 'LOVABLE_RENDER_INTERACT', `Attempting internal navigation to ${url}`);
+      
+      // Try to find the link and click it instead of a full reload
+      const clicked = await this.page.evaluate((targetUrl) => {
+        const links = Array.from(document.querySelectorAll('a[href]'));
+        const target = links.find(l => l.href === targetUrl || l.getAttribute('href') === targetUrl);
+        if (target) {
+          target.click();
+          return true;
+        }
+        return false;
+      }, url);
 
-    // Wait for React to hydrate (root div gets children)
-    try {
-      await this.page.waitForSelector('#root > *', { timeout: 10000 });
-    } catch {
-      // Some Lovable sites may not use #root — try body content
-      info(this.dbName, 'LOVABLE_RENDERER_NO_ROOT', `No #root found for ${url}, using body content`);
+      if (clicked) {
+        try {
+          await this.page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 5000 }).catch(() => {});
+        } catch {}
+      } else {
+        // Fallback to goto if no link found to click
+        await this.page.goto(url, { waitUntil: 'networkidle0', timeout: 30000 });
+      }
+    } else if (this.normalizeUrl(currentUrl) !== this.normalizeUrl(url)) {
+      await this.page.goto(url, { waitUntil: 'networkidle0', timeout: 30000 });
     }
 
-    // Scroll to trigger lazy-loaded images
+    // --- SPA Stability & Hydration ---
+    try {
+      await this.page.waitForSelector('#root > *', { timeout: 5000 });
+    } catch {
+      // Fallback: wait for any content if #root is missing
+      await new Promise(r => setTimeout(r, 2000));
+    }
+
+    // --- Discover Hidden Content (Expand Menus/Tabs) ---
+    await this.page.evaluate(() => {
+      // Auto-click common "revealer" elements to find more links/content
+      const revealers = document.querySelectorAll('button[aria-expanded="false"], .menu-toggle, [data-headlessui-state=""], .tabs-trigger');
+      revealers.forEach(el => {
+        // Only click if it won't navigate away (heuristically)
+        if (!el.closest('a') && el.innerText.length < 20) {
+          try { el.click(); } catch(e) {}
+        }
+      });
+    });
+
+    // Scroll to trigger lazy-loaded images/content
     await this.page.evaluate(async () => {
       await new Promise(resolve => {
         let totalHeight = 0;
@@ -76,12 +114,11 @@ export class SPARenderer {
             window.scrollTo(0, 0);
             resolve();
           }
-        }, 80);
+        }, 50);
       });
     });
 
-    // Brief wait for any images triggered by scrolling
-    await new Promise(r => setTimeout(r, 500));
+    await new Promise(r => setTimeout(r, 1000));
 
     const html = await this.page.content();
     const title = await this.page.title();
@@ -96,25 +133,6 @@ export class SPARenderer {
     return { html, title, styles };
   }
 
-  async discoverRoutes() {
-    const rootHostname = new URL(this.rootUrl).hostname;
-
-    const links = await this.page.evaluate((hostname) => {
-      return Array.from(document.querySelectorAll('a[href]'))
-        .map(a => a.href)
-        .filter(href => {
-          try {
-            const url = new URL(href);
-            return url.hostname === hostname &&
-              !url.pathname.match(/\.(jpg|jpeg|png|gif|svg|pdf|zip|css|js)$/i) &&
-              !url.hash;
-          } catch { return false; }
-        });
-    }, rootHostname);
-
-    return [...new Set(links)];
-  }
-
   async run() {
     try {
       await this.launch();
@@ -122,7 +140,7 @@ export class SPARenderer {
       const rootNorm = this.normalizeUrl(this.rootUrl);
       this.queue.push(rootNorm);
 
-      info(this.dbName, 'LOVABLE_CRAWL_START', `Rendering up to ${this.maxPages} pages`);
+      info(this.dbName, 'LOVABLE_CRAWL_START', `Exploring SPA states for up to ${this.maxPages} pages`);
 
       while (this.queue.length > 0 && this.pageCount < this.maxPages) {
         if (jobRegistry.isCancelled(this.siteId)) {
@@ -135,17 +153,20 @@ export class SPARenderer {
         this.visited.add(url);
 
         try {
-          info(this.dbName, 'LOVABLE_RENDER_PAGE', `Rendering: ${url}`);
-          const { html, title, styles } = await this.renderPage(url);
+          info(this.dbName, 'LOVABLE_RENDER_PAGE', `Processing State: ${url}`);
+          
+          // For the first page, we use goto. For subsequent, we try to stay in-app.
+          const isFirst = this.pageCount === 0;
+          const { html, title, styles } = await this.renderPage(url, !isFirst);
 
-          // Store raw rendered HTML (sanitization happens in Phase 2)
+          // Store rendered state
           await prisma.staged_items.upsert({
             where: { unique_site_url: { site_id: this.siteId, url } },
             update: {
               title: (title || url).substring(0, 255),
               raw_html: html,
               status: 'rendered',
-              metadata: { styles } // Store styles for Phase 2/3
+              metadata: { styles }
             },
             create: {
               site_id: this.siteId,
@@ -159,7 +180,7 @@ export class SPARenderer {
 
           this.pageCount++;
 
-          // Discover new routes from rendered page
+          // Discover new routes from this visual state
           const discovered = await this.discoverRoutes();
           for (const link of discovered) {
             const norm = this.normalizeUrl(link);
@@ -175,18 +196,20 @@ export class SPARenderer {
 
           if (this.pageCount % 5 === 0) {
             await LovableImporterService.updateStatus(
-              this.siteId, 'rendering', `Rendered ${this.pageCount} pages...`
+              this.siteId, 'rendering', `Captured ${this.pageCount} SPA states...`
             );
           }
 
-          // Brief delay between pages
-          await new Promise(r => setTimeout(r, 200));
+          // Brief delay to allow app to settle
+          await new Promise(r => setTimeout(r, 500));
         } catch (err) {
-          logError(this.dbName, err, 'LOVABLE_RENDER_PAGE_FAILED', { url });
+          logError(this.dbName, err, 'LOVABLE_RENDER_STATE_FAILED', { url });
+          // If interaction failed, maybe reload and try again
+          if (!url.includes(this.rootUrl)) continue; 
         }
       }
 
-      info(this.dbName, 'LOVABLE_CRAWL_COMPLETE', `Finished rendering ${this.pageCount} pages`);
+      info(this.dbName, 'LOVABLE_CRAWL_COMPLETE', `Finished capturing ${this.pageCount} SPA states`);
     } finally {
       await this.cleanup();
     }

@@ -125,7 +125,11 @@ export class CrawlEngine {
     }
 
     const body = $('body')[0];
-    if (body) traverse(body);
+    if (body) {
+      // Start traversal from body, but treat body as the root
+      traverse(body);
+    }
+    
     return crypto.createHash('sha256').update(tags.join('>')).digest('hex');
   }
 

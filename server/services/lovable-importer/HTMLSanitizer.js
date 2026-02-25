@@ -125,10 +125,13 @@ export class HTMLSanitizer {
       tags.push(`/${tagSignature}`);
     }
 
-    const body = $('body')[0];
-    if (body) traverse(body);
-    return crypto.createHash('sha256').update(tags.join('>')).digest('hex');
-  }
+        const body = $('body')[0];
+        if (body) {
+          traverse(body);
+        }
+    
+        return crypto.createHash('sha256').update(tags.join('>')).digest('hex');
+      }
 
   async run() {
     try {
