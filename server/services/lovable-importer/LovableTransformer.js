@@ -33,18 +33,18 @@ export class LovableTransformer {
         });
 
         // 3. Explicit Prisma Creation (Requirement 3)
-        // Note: Using WolfWave 'pages' and 'content' models
+        // Note: In WolfWave schema, 'slug' lives on the 'content' record, not the 'page'.
         await prisma.pages.create({
           data: {
             title: pageConfig.title || pathKey.split('/').pop(),
-            slug: pageConfig.route_slug,
             template_id: pageConfig.template_id, // Linked during Template Gen phase
             content_type: 'pages',
             status: 'draft',
             content: {
               create: {
                 module: 'pages',
-                title: pageConfig.title,
+                title: pageConfig.title || pathKey.split('/').pop(),
+                slug: pageConfig.route_slug, // Slug is here
                 data: contentData // The raw extracted literals
               }
             }
