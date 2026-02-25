@@ -19,15 +19,28 @@ function resolveThemePath(theme, filePath) {
 
   const themesDir = getThemesDir();
   const themeDir = path.join(themesDir, theme);
-  const fullPath = filePath ? path.join(themeDir, filePath) : themeDir;
+  let fullPath = filePath ? path.join(themeDir, filePath) : themeDir;
   
-  // Normalize both for comparison (especially on Windows)
-  const normFullPath = path.normalize(fullPath);
+  // Normalize for comparison
+  let normFullPath = path.normalize(fullPath);
   const normThemesDir = path.normalize(themesDir);
 
-  // Prevent directory traversal
-  if (!normFullPath.startsWith(normThemesDir)) {
-    throw new Error(`Invalid path: ${normFullPath} is outside ${normThemesDir}`);
+  // If default theme and file not found in themes/default, check root templates/
+  if (theme === 'default' && filePath && !fs.existsSync(normFullPath)) {
+    const rootTemplatesDir = path.join(themesDir, '..', 'templates');
+    const possibleRootPath = path.normalize(path.join(rootTemplatesDir, filePath));
+    if (fs.existsSync(possibleRootPath)) {
+      normFullPath = possibleRootPath;
+    }
+  }
+
+  // Prevent directory traversal - must be within themes/ OR within templates/
+  const normRootTemplatesDir = path.normalize(path.join(themesDir, '..', 'templates'));
+  const isInsideThemes = normFullPath.startsWith(normThemesDir);
+  const isInsideTemplates = normFullPath.startsWith(normRootTemplatesDir);
+
+  if (!isInsideThemes && !isInsideTemplates) {
+    throw new Error(`Invalid path: ${normFullPath} is outside allowed directories`);
   }
 
   return normFullPath;
@@ -88,7 +101,26 @@ router.get('/:theme/files', requireAuth, requireAdmin, async (req, res) => {
     }
 
     await scanDir(themeDir);
-    res.json(files);
+
+    // If default theme, also scan the root templates directory
+    if (theme === 'default') {
+      const rootTemplatesDir = path.join(getThemesDir(), '..', 'templates');
+      if (fs.existsSync(rootTemplatesDir)) {
+        await scanDir(rootTemplatesDir);
+      }
+    }
+    
+    // Deduplicate files by path (in case same path exists in both)
+    const uniqueFiles = [];
+    const seenPaths = new Set();
+    for (const f of files) {
+      if (!seenPaths.has(f.path)) {
+        uniqueFiles.push(f);
+        seenPaths.add(f.path);
+      }
+    }
+
+    res.json(uniqueFiles);
   } catch (err) {
     console.error('Failed to list theme files:', err);
     res.status(500).json({ error: 'Failed to list theme files' });

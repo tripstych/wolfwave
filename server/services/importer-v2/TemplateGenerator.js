@@ -119,6 +119,7 @@ export class TemplateGenerator {
           update: {
             name: displayName,
             content_type: contentType,
+            content: njkCode,
             description: group.summary,
             blueprint: group.selector_map,
             regions: JSON.stringify(regions),
@@ -127,6 +128,7 @@ export class TemplateGenerator {
           create: {
             name: displayName,
             filename: filename,
+            content: njkCode,
             content_type: contentType,
             description: group.summary,
             blueprint: group.selector_map,
