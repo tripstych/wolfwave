@@ -196,8 +196,11 @@ export class TransformationEngine {
   generateSlug(url) {
     try {
       const path = new URL(url).pathname;
-      if (path === '/') return 'home';
-      return path.replace(/^\/+|\/+$/g, '').replace(/\//g, '-');
+      if (path === '/' || !path) return 'home';
+      
+      // Preserve the full path without replacing slashes with dashes
+      // But ensure it starts with a slash
+      return path.startsWith('/') ? path : '/' + path;
     } catch {
       return 'item-' + Date.now();
     }
