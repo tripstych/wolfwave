@@ -962,9 +962,11 @@ Task: Analyze provided React source code (.tsx/.jsx) for a scoped content migrat
 
 Requirements:
 1. Discovery: Build a route manifest from the component structure.
-2. Scoped Content Extraction: Identify all raw string literals and media paths used in the JSX.
-3. STRICT CONSTRAINT: Do not rewrite, summarize, or clean up the copy. Extract RAW string literals exactly as they appear to prevent hallucination.
-4. Categorize: Mark as 'text' (single string), 'richtext' (multiple paragraphs/HTML), or 'image'.
+2. Identify Master Content: Look for the primary body area (e.g. the main article or product description block). Mark this as a single 'richtext' region.
+3. EXCLUDE SUB-REGIONS: Once a Master Content region is identified, do NOT create any sub-regions for strings or images found INSIDE that block. They will be handled as part of the rich text.
+4. Identify External Literals: Identify headlines, buttons, or metadata found OUTSIDE the Master Content area.
+5. STRICT CONSTRAINT: Do not rewrite, summarize, or clean up the copy. Extract RAW string literals exactly as they appear.
+6. Categorize: Mark as 'text' (single string), 'richtext' (multiple paragraphs/HTML), or 'image'.
 
 RESPOND WITH ONLY VALID JSON:
 {
