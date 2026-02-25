@@ -1,11 +1,10 @@
 import prisma from '../../lib/prisma.js';
 import { info, error as logError } from '../../lib/logger.js';
 import { analyzeLovableSource } from '../aiService.js';
-import { LovableImporterService } from './LovableImporterService.js';
 
 /**
- * LovableRuleGenerator analyzes source code (.tsx/.jsx) instead of rendered HTML.
- * It identifies logical "Pages" and their "Editable Regions".
+ * REBUILD: LovableRuleGenerator (Senior Systems Engineer)
+ * Task: Discovery & Route Mapping.
  */
 export class LovableRuleGenerator {
   constructor(siteId, dbName) {
@@ -15,41 +14,44 @@ export class LovableRuleGenerator {
 
   async run() {
     try {
-      info(this.dbName, 'LOVABLE_RULEGEN_START', `Analyzing source for site ${this.siteId}`);
+      info(this.dbName, 'LOVABLE_MANIFEST_START', `Building route manifest for site ${this.siteId}`);
 
-      const site = await prisma.imported_sites.findUnique({ where: { id: this.siteId } });
       const ruleset = {
-        importer_type: 'git_source',
-        pages: {}, // Maps path -> region definitions
-        components: {},
+        importer_type: 'lovable_industrial',
+        pages: {}, // The Route Manifest: Correlates file -> route -> content
         theme: {}
       };
 
-      // 1. Identify primary pages (usually in src/pages/ or src/App.tsx routes)
+      // 1. Discovery & Route Mapping (Requirement 1)
       const stagedFiles = await prisma.staged_items.findMany({
         where: { site_id: this.siteId }
       });
 
+      // Scan src/pages for primary routes
       const sourcePages = stagedFiles.filter(f => 
-        f.url.includes('pages/') && f.url.match(/\.(tsx|jsx)$/)
+        f.url.includes('src/pages/') && f.url.match(/\.(tsx|jsx)$/)
       );
 
-      info(this.dbName, 'LOVABLE_RULEGEN_PAGES', `Found ${sourcePages.length} primary page components`);
+      info(this.dbName, 'LOVABLE_MANIFEST_PAGES', `Discovered ${sourcePages.length} potential routes`);
 
       for (const pageItem of sourcePages) {
-        info(this.dbName, 'LOVABLE_RULEGEN_ANALYZE', `Analyzing component: ${pageItem.url}`);
+        info(this.dbName, 'LOVABLE_EXTRACT_START', `Scoped content extraction: ${pageItem.url}`);
         
-        // Ask AI to find props/state/literals that should be CMS regions
+        // 2. Scoped Content Extraction (Requirement 2)
+        // AI analyzes source for RAW literals only
         const analysis = await analyzeLovableSource(pageItem.raw_html, pageItem.url);
         
+        // Correlate route to manifest
         ruleset.pages[pageItem.url] = {
           file_path: pageItem.url,
+          route_slug: analysis.route_slug || this.deriveSlug(pageItem.url),
+          title: analysis.title,
           page_type: analysis.page_type,
-          regions: analysis.regions,
-          summary: analysis.summary
+          regions: analysis.regions, // Extracted literals
+          media_paths: analysis.media_paths
         };
 
-        // Update the item type in DB
+        // Update item type for visibility
         await prisma.staged_items.update({
           where: { id: pageItem.id },
           data: { item_type: analysis.page_type }
@@ -66,8 +68,14 @@ export class LovableRuleGenerator {
 
       return ruleset;
     } catch (err) {
-      logError(this.dbName, err, 'LOVABLE_RULEGEN_FAILED');
+      logError(this.dbName, err, 'LOVABLE_MANIFEST_FAILED');
       throw err;
     }
+  }
+
+  deriveSlug(filePath) {
+    const filename = filePath.split('/').pop().replace(/\.(tsx|jsx)$/, '').toLowerCase();
+    if (filename === 'index') return 'home';
+    return filename;
   }
 }

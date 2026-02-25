@@ -40,8 +40,11 @@ router.get('/sites', requireAuth, async (req, res) => {
     const sites = await prisma.imported_sites.findMany({
       orderBy: { created_at: 'desc' }
     });
-    // Filter to lovable imports in JS (Prisma JSON path filtering varies by DB)
-    const lovableSites = sites.filter(s => s.config?.importer_type === 'lovable');
+    // Filter to lovable imports (both legacy and git-based)
+    const lovableSites = sites.filter(s => 
+      s.config?.importer_type === 'lovable' || 
+      s.config?.importer_type === 'lovable_git'
+    );
     res.json(lovableSites);
   } catch (err) {
     res.status(500).json({ error: err.message });

@@ -106,15 +106,18 @@ export class LovableImporterService {
 
         // 3. Template Generation (Source to Nunjucks)
         if (jobRegistry.isCancelled(siteId)) throw new Error('IMPORT_CANCELLED');
-        await LovableImporterService.updateStatus(siteId, 'generating_templates', 'Converting components to Nunjucks...');
+        await LovableImporterService.updateStatus(siteId, 'generating_templates', 'Converting components to Nunjucks templates...');
         const templateGen = new LovableTemplateGenerator(siteId, dbName);
         await templateGen.run();
 
-        // 4. Content Extraction (optional first pass)
-        // For Git imports, transformation might be simpler as we're mostly creating templates.
+        // 4. CMS Ingestion (Requirement 3: Explicit Prisma Creation)
+        if (jobRegistry.isCancelled(siteId)) throw new Error('IMPORT_CANCELLED');
+        await LovableImporterService.updateStatus(siteId, 'transforming', 'Ingesting content into WolfWave database...');
+        const transformer = new LovableTransformer(siteId, dbName);
+        await transformer.run();
         
-        info(dbName, 'LOVABLE_IMPORT_READY', `Git import for ${repoUrl} ready`);
-        await LovableImporterService.updateStatus(siteId, 'ready', 'Source imported and templates generated!');
+        info(dbName, 'LOVABLE_IMPORT_READY', `Industrial import for ${repoUrl} complete`);
+        await LovableImporterService.updateStatus(siteId, 'completed', 'Source imported, templates generated, and pages created!');
 
       } catch (err) {
         if (err.message === 'IMPORT_CANCELLED') {

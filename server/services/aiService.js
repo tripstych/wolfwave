@@ -952,31 +952,35 @@ RESPOND WITH ONLY VALID JSON:
 }
 
 /**
- * Analyze React source code from Lovable to identify editable regions.
+ * REBUILD: Analyze React source code (Senior Systems Engineer persona)
+ * Task: Scoped Content Extraction for WolfWave CMS.
  */
 export async function analyzeLovableSource(code, filePath, model = null, req = null) {
-  const systemPrompt = `Role: You are a Lead Frontend Architect specializing in CMS migrations.
-Task: Analyze the provided React source code (.tsx/.jsx) and identify which parts of the UI should be converted into editable CMS regions.
+  const systemPrompt = `Role: Senior Systems Engineer.
+Project: WolfWave CMS.
+Task: Analyze provided React source code (.tsx/.jsx) for a scoped content migration.
 
 Requirements:
-1. Identify Literals: Look for hardcoded strings in the JSX that are clearly content (headlines, button text, body copy).
-2. Identify Props: Look for components that receive content via props.
-3. Identify Images: Find all <img> tags or background images and extract their src literals.
-4. Categorize: Mark regions as 'text' (single line), 'richtext' (multiple paragraphs or HTML), or 'image'.
+1. Discovery: Build a route manifest from the component structure.
+2. Scoped Content Extraction: Identify all raw string literals and media paths used in the JSX.
+3. STRICT CONSTRAINT: Do not rewrite, summarize, or clean up the copy. Extract RAW string literals exactly as they appear to prevent hallucination.
+4. Categorize: Mark as 'text' (single string), 'richtext' (multiple paragraphs/HTML), or 'image'.
 
 RESPOND WITH ONLY VALID JSON:
 {
-  "page_type": "product|article|homepage|about|contact|other",
+  "page_type": "homepage|product|article|listing|other",
+  "route_slug": "derived-from-filepath-or-code",
+  "title": "Extracted Page Title",
   "regions": [
     {
       "key": "unique_camel_case_key",
       "label": "User-friendly label",
       "type": "text|richtext|image",
-      "original_value": "The current hardcoded value found in source",
-      "multiple": false
+      "raw_value": "EXACT_LITERAL_FROM_SOURCE"
     }
   ],
-  "summary": "Brief description of what this component does"
+  "media_paths": ["/src/assets/image.png", "logo.svg"],
+  "summary": "Technical layout summary"
 }`;
 
   const userPrompt = `File Path: ${filePath}\n\nSource Code:\n${code}`;
@@ -984,36 +988,34 @@ RESPOND WITH ONLY VALID JSON:
   try {
     return await generateText(systemPrompt, userPrompt, model, req);
   } catch (err) {
-    console.error('[AI-Lovable] Source analysis failed:', err.message);
+    console.error('[WolfWave-Engineer] Source extraction failed:', err.message);
     throw err;
   }
 }
 
 /**
- * Convert a React component (.tsx) into a WebWolf Nunjucks template (.njk).
+ * REBUILD: Convert React Component to WolfWave Nunjucks (Senior Systems Engineer persona)
  */
 export async function convertReactToNunjucks(code, regions, pageType, model = null) {
-  const systemPrompt = `Role: You are an expert Full-Stack Developer and Template Architect.
-Task: Convert the provided React/JSX source code into a standalone WebWolf Nunjucks (.njk) template.
+  const systemPrompt = `Role: Senior Systems Engineer.
+Project: WolfWave CMS.
+Task: Transpile React/JSX source code into a WolveWave Nunjucks (.njk) template.
 
-RULES:
-1. STANDALONE: Generate a complete HTML document (<!DOCTYPE html>, <html>, <head>, <body>).
-2. TAILWIND PRESERVATION: Keep all Tailwind classes exactly as they are in the source.
-3. CMS REGIONS: Replace the identified content regions with Nunjucks tags.
-   - For text: <span data-cms-region="key" data-cms-type="text">{{ content.key | default('original') }}</span>
-   - For richtext: <div data-cms-region="key" data-cms-type="richtext">{{ content.key | safe }}</div>
-   - For images: <img data-cms-region="key" data-cms-type="image" src="{{ content.key | default('original') }}">
-4. NO REACT LOGIC: Remove imports, state, hooks, and event handlers. Replace them with static equivalents or CMS logic.
-5. CLEANUP: Unwrap any <Root>, <Layout>, or <AuthProvider> wrappers. Output the core UI.
-6. ASSETS: All files from the Git repo's 'public/' folder and 'src/assets/' are now served from the CMS '/uploads/' directory. 
-   - Example: '/logo.png' in source stays '/uploads/logo.png' in template.
-   - Example: '@/assets/hero.jpg' in source becomes '/uploads/assets/hero.jpg'.
-   - Ensure all image src and CSS url() paths point to /uploads/...
+Requirements:
+1. Structural Fidelity: Maintain every single div, class (Tailwind), and layout element exactly as defined in the source.
+2. CMS Integration: Apply data-cms-region and data-cms-type attributes precisely according to the WolfWave schema.
+3. Logic Conversion: Replace React map() loops with Nunjucks {% for %} and ternary/if logic with {% if %}.
+4. NO REACT FLUFF: Remove all React-specific imports, hooks (useState, useEffect), and event handlers.
+5. Path Mapping: Update all asset paths to point to '/uploads/assets/'.
+
+Format for regions:
+- Text: <span data-cms-region="key" data-cms-type="text">{{ content.key | default('original_literal') }}</span>
+- RichText: <div data-cms-region="key" data-cms-type="richtext">{{ content.key | safe }}</div>
+- Image: <img data-cms-region="key" data-cms-type="image" src="{{ content.key | default('/uploads/assets/original') }}">
 
 Return ONLY the Nunjucks code. No preamble.
 
-PAGE TYPE: ${pageType}
-IDENTIFIED REGIONS:
+IDENTIFIED REGIONS FOR INJECTION:
 ${JSON.stringify(regions, null, 2)}`;
 
   const userPrompt = `Source Code:\n${code}`;
@@ -1021,7 +1023,7 @@ ${JSON.stringify(regions, null, 2)}`;
   try {
     return await generateRawText(systemPrompt, userPrompt, model);
   } catch (err) {
-    console.error('[AI-Lovable] React-to-Nunjucks conversion failed:', err.message);
+    console.error('[WolfWave-Engineer] Template transpilation failed:', err.message);
     throw err;
   }
 }
