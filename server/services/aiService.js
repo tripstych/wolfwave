@@ -744,18 +744,25 @@ RULES:
  */
 export async function generateTemplateFromHtml(html, selectorMap, pageType, assets = null, model = null, req = null) {
   const systemPrompt = `You are a Nunjucks template expert for the WebWolf CMS.
-Your goal is to convert a static HTML page into a dynamic Nunjucks template (.njk).
+Your goal is to convert a static HTML page into a standalone dynamic Nunjucks template (.njk).
 
 RULES:
-- Wrap the main content area in {% block content %}{% endblock %}.
+- STANDALONE: Generate a complete HTML document (<!DOCTYPE html>, <html>, <head>, <body>).
+- NO BLOCKS: Do not use {% block content %} or {% extends %}. Output raw HTML with Nunjucks tags.
 - Replace static content with dynamic tags based on the provided selector map.
 - CRITICAL: Every dynamic field MUST be wrapped in an element with 'data-cms-region' and 'data-cms-type' attributes.
-- Format: <div data-cms-region="field_name" data-cms-type="text|richtext|image">{{ data.field_name | safe }}</div>
-- For images: <img data-cms-region="image_field" data-cms-type="image" src="{{ data.image_field | default('/placeholder.png') }}">
+- Format: <div data-cms-region="field_name" data-cms-type="text|richtext|image">{{ content.field_name | safe }}</div>
+- For images: <img data-cms-region="image_field" data-cms-type="image" src="{{ content.image_field | default('/placeholder.png') }}">
 - Use 'richtext' for descriptions and long content, 'text' for titles/prices.
-- THEME ASSETS: If local assets are provided, include them in the <head> or at the end of the body as appropriate.
-- Maintain the original CSS structure and classes.
-- If the HTML contains a header or footer that should be shared, identify them and suggest where to split using comments.
+- THEME ASSETS: If local assets are provided, include them in the <head> or at the end of the body as appropriate using the provided local paths.
+- CMS HEAD: Always include {{ seo.title }}, {{ seo.description }}, etc. in the <head>.
+- CMS EDITING: Add this before </body>: 
+  {% if user %}
+    <link rel="stylesheet" href="/css/edit-in-place.css">
+    <script src="/js/edit-in-place.js"></script>
+  {% endif %}
+- Maintain the original CSS structure and classes exactly.
+- ENSURE tags are not empty: The {{ content.field }} tag MUST be inside the element.
 - Return ONLY the Nunjucks code. No explanation.
 
 THEME ASSETS (Local paths):
