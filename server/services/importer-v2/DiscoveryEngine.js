@@ -34,6 +34,17 @@ export class DiscoveryEngine {
       const contentAnalysis = await analyzeSiteImport(html, this.rootUrl);
       await ImporterServiceV2.updateStatus(this.siteId, 'analyzing', `Found ${contentAnalysis.page_type} structure on homepage.`);
       
+      // Convert regions to selector_map for initial extraction_rules
+      const homepageSelectors = {};
+      (contentAnalysis.regions || []).forEach(r => {
+        homepageSelectors[r.key] = {
+          selector: r.selector,
+          attr: r.attr,
+          multiple: r.multiple,
+          type: r.type
+        };
+      });
+
       const ruleset = {
         root_url: this.rootUrl,
         platform: assetAnalysis.platform,
@@ -47,7 +58,7 @@ export class DiscoveryEngine {
           }
         },
         extraction_rules: {
-          homepage: contentAnalysis.selector_map,
+          homepage: homepageSelectors,
           // Placeholder for dynamic type rules
           types: {} 
         },
