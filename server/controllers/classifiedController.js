@@ -124,12 +124,17 @@ export const editAd = async (req, res) => {
   try {
     const adId = parseInt(req.params.id);
     const ad = await prisma.classified_ads.findUnique({
-      where: { id: adId },
-      include: { content: true }
+      where: { id: adId }
     });
 
     if (!ad || ad.customer_id !== customer.id) {
       return renderError(req, res, 404, { message: 'Ad not found' });
+    }
+
+    // Fetch content manually
+    let adContent = null;
+    if (ad.content_id) {
+      adContent = await prisma.content.findUnique({ where: { id: ad.content_id } });
     }
 
     const categories = await prisma.classified_categories.findMany({
@@ -143,7 +148,10 @@ export const editAd = async (req, res) => {
     themeRender(req, res, 'customer/ads/edit.njk', {
       page: { title: 'Edit Ad', slug: `/customer/ads/edit/${adId}` },
       adId,
-      ad,
+      ad: {
+        ...ad,
+        content: adContent?.data || {}
+      },
       categories,
       templates,
       seo: {

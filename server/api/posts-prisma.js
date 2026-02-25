@@ -24,17 +24,27 @@ router.get('/', requireAuth, async (req, res) => {
     if (template_id) where.template_id = parseInt(template_id);
 
     if (search) {
+      // Find content IDs matching search term first
+      const contentMatches = await prisma.content.findMany({
+        where: {
+          OR: [
+            { title: { contains: search } },
+            { slug: { contains: search } }
+          ]
+        },
+        select: { id: true }
+      });
+      const contentIds = contentMatches.map(c => c.id);
       where.OR = [
         { title: { contains: search } },
-        { content: { slug: { contains: search } } }
+        { content_id: { in: contentIds } }
       ];
     }
 
-    // Fetch posts with content and template
+    // Fetch posts with template
     const posts = await prisma.pages.findMany({
       where,
       include: {
-        content: true,
         templates: {
           select: {
             id: true,
@@ -49,36 +59,39 @@ router.get('/', requireAuth, async (req, res) => {
       skip: pageOffset
     });
 
+    // Fetch content for these posts manually
+    const contentIds = posts.map(p => p.content_id).filter(Boolean);
+    const contents = await prisma.content.findMany({
+      where: { id: { in: contentIds } }
+    });
+    const contentMap = Object.fromEntries(contents.map(c => [c.id, c]));
+
     // Count total
     const total = await prisma.pages.count({ where });
 
     // Transform response
     const transformedPosts = posts.map(post => {
+      const postContent = contentMap[post.content_id];
       try {
         return {
           ...post,
           template_name: post.templates?.name,
           template_filename: post.templates?.filename,
           template_regions: post.templates?.regions || [],
-          content: post.content?.data || {},
+          content: postContent?.data || {},
           access_rules: post.access_rules ? (typeof post.access_rules === 'string' ? JSON.parse(post.access_rules) : post.access_rules) : null,
-          title: post.content?.title || post.title,
-          slug: post.content?.slug || ''
+          title: postContent?.title || post.title,
+          slug: postContent?.slug || ''
         };
       } catch (parseErr) {
-        console.error('JSON parse error for post:', post.id, {
-          regions: post.templates?.regions,
-          contentData: post.content?.data,
-          error: parseErr.message
-        });
         return {
           ...post,
           template_name: post.templates?.name,
           template_filename: post.templates?.filename,
           template_regions: post.templates?.regions || [],
           content: {},
-          title: post.content?.title || post.title,
-          slug: post.content?.slug || post.slug
+          title: postContent?.title || post.title,
+          slug: postContent?.slug || post.slug
         };
       }
     });
@@ -101,7 +114,6 @@ router.get('/:id', requireAuth, async (req, res) => {
     const post = await prisma.pages.findUnique({
       where: { id: postId },
       include: {
-        content: true,
         templates: {
           select: {
             id: true,
@@ -117,15 +129,23 @@ router.get('/:id', requireAuth, async (req, res) => {
       return res.status(404).json({ error: 'Post not found' });
     }
 
+    // Fetch content manually
+    let postContent = null;
+    if (post.content_id) {
+      postContent = await prisma.content.findUnique({
+        where: { id: post.content_id }
+      });
+    }
+
     res.json({
       ...post,
       template_name: post.templates?.name,
       template_filename: post.templates?.filename,
       template_regions: post.templates?.regions ? (typeof post.templates.regions === 'string' ? JSON.parse(post.templates.regions) : post.templates.regions) : [],
-      content: post.content?.data || {},
+      content: postContent?.data || {},
       access_rules: post.access_rules ? (typeof post.access_rules === 'string' ? JSON.parse(post.access_rules) : post.access_rules) : null,
-      title: post.content?.title || post.title,
-      slug: post.content?.slug || ''
+      title: postContent?.title || post.title,
+      slug: postContent?.slug || ''
     });
   } catch (err) {
     console.error('Get post error:', err);
@@ -448,22 +468,26 @@ router.post('/:id/duplicate', requireAuth, requireEditor, async (req, res) => {
     const postId = parseInt(req.params.id);
 
     const originalPost = await prisma.pages.findUnique({
-      where: { id: postId },
-      include: { content: true }
+      where: { id: postId }
     });
 
     if (!originalPost || originalPost.content_type !== 'posts') {
       return res.status(404).json({ error: 'Post not found' });
     }
 
-    const newSlug = `${originalPost.content?.slug || '/'}-${Date.now()}`;
+    // Fetch content manually
+    const originalContent = originalPost.content_id 
+      ? await prisma.content.findUnique({ where: { id: originalPost.content_id } })
+      : null;
+
+    const newSlug = `${originalContent?.slug || '/'}-${Date.now()}`;
 
     const newContent = await prisma.content.create({
       data: {
         module: 'posts',
-        title: `${originalPost.content?.title || originalPost.title} (Copy)`,
+        title: `${originalContent?.title || originalPost.title} (Copy)`,
         slug: newSlug,
-        data: originalPost.content?.data || '{}'
+        data: originalContent?.data || '{}'
       }
     });
 

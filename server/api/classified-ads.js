@@ -28,7 +28,6 @@ router.get('/', optionalAuth, async (req, res) => {
       where,
       include: {
         category: true,
-        content: true,
         customer: {
           select: { first_name: true, last_name: true }
         }
@@ -38,12 +37,19 @@ router.get('/', optionalAuth, async (req, res) => {
       skip: parseInt(offset)
     });
 
+    // Fetch content manually
+    const contentIds = ads.map(a => a.content_id).filter(Boolean);
+    const contents = await prisma.content.findMany({
+      where: { id: { in: contentIds } }
+    });
+    const contentMap = Object.fromEntries(contents.map(c => [c.id, c]));
+
     const total = await prisma.classified_ads.count({ where });
 
     // Transform content data
     const transformed = ads.map(ad => ({
       ...ad,
-      content: ad.content?.data || {}
+      content: contentMap[ad.content_id]?.data || {}
     }));
 
     res.json({ data: transformed, total });
@@ -65,13 +71,20 @@ router.get('/my-ads', requireAuth, async (req, res) => {
 
     const ads = await prisma.classified_ads.findMany({
       where: { customer_id: customer.id },
-      include: { category: true, content: true },
+      include: { category: true },
       orderBy: { created_at: 'desc' }
     });
 
+    // Fetch content manually
+    const contentIds = ads.map(a => a.content_id).filter(Boolean);
+    const contents = await prisma.content.findMany({
+      where: { id: { in: contentIds } }
+    });
+    const contentMap = Object.fromEntries(contents.map(c => [c.id, c]));
+
     const transformed = ads.map(ad => ({
       ...ad,
-      content: ad.content?.data || {}
+      content: contentMap[ad.content_id]?.data || {}
     }));
 
     res.json(transformed);
@@ -89,7 +102,6 @@ router.get('/:slug', async (req, res) => {
       where: { slug: req.params.slug },
       include: {
         category: true,
-        content: true,
         customer: {
           select: { first_name: true, last_name: true, email: true }
         }
@@ -98,9 +110,15 @@ router.get('/:slug', async (req, res) => {
 
     if (!ad) return res.status(404).json({ error: 'Ad not found' });
     
+    // Fetch content manually
+    let adContent = null;
+    if (ad.content_id) {
+      adContent = await prisma.content.findUnique({ where: { id: ad.content_id } });
+    }
+
     res.json({
       ...ad,
-      content: ad.content?.data || {}
+      content: adContent?.data || {}
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -193,13 +211,12 @@ router.post('/', requireAuth, async (req, res) => {
         image: processedImage,
         images: processedImages,
         status: 'pending_review'
-      },
-      include: { content: true }
+      }
     });
 
     res.status(201).json({
       ...ad,
-      content: ad.content?.data || {}
+      content: processedContent
     });
   } catch (err) {
     console.error('Create ad error:', err);
@@ -218,12 +235,17 @@ router.put('/:id', requireAuth, async (req, res) => {
 
     const adId = parseInt(req.params.id);
     const existing = await prisma.classified_ads.findUnique({ 
-      where: { id: adId },
-      include: { content: true }
+      where: { id: adId }
     });
 
     if (!existing || existing.customer_id !== customer.id) {
       return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    // Fetch existing content manually
+    let existingContent = null;
+    if (existing.content_id) {
+      existingContent = await prisma.content.findUnique({ where: { id: existing.content_id } });
     }
 
     const { 
@@ -264,7 +286,7 @@ router.put('/:id', requireAuth, async (req, res) => {
       return newObj;
     };
 
-    const processedContent = await processContentMedia(content || existing.content?.data || {});
+    const processedContent = await processContentMedia(content || existingContent?.data || {});
 
     // 1. Update content record if needed
     if (existing.content_id) {
@@ -288,13 +310,12 @@ router.put('/:id', requireAuth, async (req, res) => {
         image: processedImage,
         images: processedImages,
         status: status === 'sold' ? 'sold' : existing.status
-      },
-      include: { content: true }
+      }
     });
 
     res.json({
       ...ad,
-      content: ad.content?.data || {}
+      content: processedContent
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
