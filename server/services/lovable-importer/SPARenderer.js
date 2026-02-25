@@ -45,7 +45,7 @@ export class SPARenderer {
     info(this.dbName, 'LOVABLE_RENDERER_LAUNCH', 'Launching headless browser...');
     this.browser = await puppeteer.launch({
       headless: true,
-      args: ['--disable-gpu', '--disable-dev-shm-usage']
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu', '--disable-dev-shm-usage']
     });
     this.page = await this.browser.newPage();
     await this.page.setViewport({ width: 1280, height: 800 });
