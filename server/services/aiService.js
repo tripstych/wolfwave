@@ -94,12 +94,15 @@ async function getAiSettings() {
   const rows = await query(
     `SELECT setting_key, setting_value FROM settings
      WHERE setting_key IN (
-       'openai_api_key', 'openai_api_url', 
-       'anthropic_api_key', 'gemini_api_key', 
-       'gemini_model', 'ai_simulation_mode'
+       'openai_api_key', 'openai_api_url',
+       'anthropic_api_key', 'gemini_api_key',
+       'gemini_model', 'ai_simulation_mode',
+       'ai_default_provider', 'ai_fallback_provider',
+       'anthropic_model', 'openai_model',
+       'openai_image_model', 'gemini_image_model'
      )`
   );
-  
+
   const settings = {};
   rows.forEach(r => { settings[r.setting_key] = r.setting_value; });
 
@@ -110,16 +113,135 @@ async function getAiSettings() {
     anthropic_api_url: 'https://api.anthropic.com/v1/messages',
     gemini_api_key: settings.gemini_api_key || process.env.GEMINI_API_KEY,
     gemini_model: settings.gemini_model || process.env.GEMINI_MODEL || 'gemini-3-flash-preview',
-    ai_simulation_mode: settings.ai_simulation_mode === 'true' || process.env.AI_SIMULATION_MODE === 'true'
+    ai_simulation_mode: settings.ai_simulation_mode === 'true' || process.env.AI_SIMULATION_MODE === 'true',
+    ai_default_provider: settings.ai_default_provider || 'gemini',
+    ai_fallback_provider: settings.ai_fallback_provider || 'none',
+    anthropic_model: settings.anthropic_model || 'claude-sonnet-4-20250514',
+    openai_model: settings.openai_model || 'gpt-4o',
+    openai_image_model: settings.openai_image_model || 'dall-e-3',
+    gemini_image_model: settings.gemini_image_model || '',
   };
 }
+
+/**
+ * Build ordered list of providers to try based on user preferences.
+ * Returns array of provider names, filtered to those with valid API keys.
+ */
+function getProviderOrder(config, capability = 'text') {
+  const providers = [];
+
+  // Add default provider first
+  if (config.ai_default_provider && config.ai_default_provider !== 'none') {
+    providers.push(config.ai_default_provider);
+  }
+
+  // Add fallback provider second
+  if (config.ai_fallback_provider && config.ai_fallback_provider !== 'none' && config.ai_fallback_provider !== config.ai_default_provider) {
+    providers.push(config.ai_fallback_provider);
+  }
+
+  // If somehow neither is set, fall back to legacy order
+  if (providers.length === 0) {
+    providers.push('gemini', 'anthropic', 'openai');
+  }
+
+  // Filter to providers that have valid keys and support the capability
+  return providers.filter(p => {
+    if (capability === 'image' && p === 'anthropic') return false; // Anthropic has no image generation
+    const keyMap = { gemini: 'gemini_api_key', anthropic: 'anthropic_api_key', openai: 'openai_api_key' };
+    const key = config[keyMap[p]];
+    return key && key !== 'demo';
+  });
+}
+
+/**
+ * Call Gemini for text generation (JSON mode).
+ */
+async function callGeminiText(config, systemPrompt, userPrompt, model, jsonMode = true) {
+  const geminiModel = model || config.gemini_model;
+  const body = {
+    system_instruction: {
+      parts: [{ text: jsonMode ? systemPrompt + "\n\nCRITICAL: Return ONLY a valid JSON object. No preamble, no explanation." : systemPrompt }]
+    },
+    contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+  };
+  if (jsonMode) body.generationConfig = { responseMimeType: "application/json" };
+
+  const response = await axios.post(
+    `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${config.gemini_api_key}`,
+    body,
+    { headers: { 'Content-Type': 'application/json' } }
+  );
+  return { text: response.data.candidates[0].content.parts[0].text, model: geminiModel };
+}
+
+/**
+ * Call Anthropic for text generation.
+ */
+async function callAnthropicText(config, systemPrompt, userPrompt, model, jsonMode = true) {
+  const anthropicModel = model || config.anthropic_model;
+  const response = await axios.post(
+    config.anthropic_api_url,
+    {
+      model: anthropicModel,
+      max_tokens: jsonMode ? 4096 : 8192,
+      system: jsonMode ? systemPrompt + "\n\nCRITICAL: Return ONLY a valid JSON object. No preamble, no explanation." : systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }]
+    },
+    {
+      headers: {
+        'x-api-key': config.anthropic_api_key,
+        'anthropic-version': '2023-06-01',
+        'Content-Type': 'application/json',
+      },
+    }
+  );
+  return { text: response.data.content[0].text, model: anthropicModel };
+}
+
+/**
+ * Call OpenAI for text generation.
+ */
+async function callOpenAIText(config, systemPrompt, userPrompt, model, jsonMode = true) {
+  const openaiModel = model || config.openai_model;
+  const body = {
+    model: openaiModel,
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt }
+    ],
+    temperature: jsonMode ? 0.7 : 0.3,
+  };
+  if (jsonMode) body.response_format = { type: "json_object" };
+
+  const response = await axios.post(
+    `${config.openai_api_url}/chat/completions`,
+    body,
+    {
+      headers: {
+        'Authorization': `Bearer ${config.openai_api_key}`,
+        'Content-Type': 'application/json',
+      },
+    }
+  );
+  return { text: response.data.choices[0].message.content, model: openaiModel };
+}
+
+/**
+ * Route a text generation call to the appropriate provider.
+ */
+const textCallers = {
+  gemini: callGeminiText,
+  anthropic: callAnthropicText,
+  openai: callOpenAIText,
+};
 
 /**
  * Generate text content using an LLM
  */
 export async function generateText(systemPrompt, userPrompt, model = null, req = null) {
   const config = await getAiSettings();
-  
+
   // Create prompt hash for caching
   const targetModel = model || config.gemini_model || 'gpt-4o';
   const promptHash = crypto.createHash('sha256')
@@ -142,10 +264,10 @@ export async function generateText(systemPrompt, userPrompt, model = null, req =
   if (config.ai_simulation_mode || (hasNoKeys && isDemoKey)) {
     console.log(`[AI-DEBUG] 💡 Running in SIMULATION MODE.`);
     await new Promise(resolve => setTimeout(resolve, 1500));
-    
+
     const industry = userPrompt.replace('Create a theme for:', '').trim();
     const slug = industry.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-    
+
     const result = {
       slug: `${slug}-mock`,
       name: `${industry} (Simulated)`,
@@ -169,143 +291,30 @@ export async function generateText(systemPrompt, userPrompt, model = null, req =
     return result;
   }
 
-  // 2. GEMINI MODE (AI Studio)
-  if (config.gemini_api_key && config.gemini_api_key !== 'demo') {
-    const geminiModel = model || config.gemini_model;
-    info(req || 'system', 'AI_GEN_GEMINI', `Model: ${geminiModel}\nSystem: ${systemPrompt}\nUser: ${userPrompt.substring(0, 1000)}${userPrompt.length > 1000 ? '...' : ''}`);
+  // 2. Try providers in configured order (default → fallback)
+  const providers = getProviderOrder(config, 'text');
+  let lastError = null;
+
+  for (const provider of providers) {
+    const caller = textCallers[provider];
+    const logTag = `AI_GEN_${provider.toUpperCase()}`;
+    info(req || 'system', logTag, `System: ${systemPrompt}\nUser: ${userPrompt.substring(0, 1000)}${userPrompt.length > 1000 ? '...' : ''}`);
 
     try {
-      const response = await axios.post(
-        `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${config.gemini_api_key}`,
-        {
-          system_instruction: {
-            parts: [{ text: systemPrompt + "\n\nCRITICAL: Return ONLY a valid JSON object. No preamble, no explanation." }]
-          },
-          contents: [
-            { role: "user", parts: [{ text: userPrompt }] }
-          ],
-          generationConfig: {
-            responseMimeType: "application/json"
-          }
-        },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-
-      console.log(`[AI-DEBUG] 📥 Received response from Gemini.`);
-      const content = response.data.candidates[0].content.parts[0].text;
-      const parsed = JSON.parse(content);
-      
-      // Save to cache
-      await setCachedAiResponse(promptHash, parsed, geminiModel);
-      
+      const { text, model: usedModel } = await caller(config, systemPrompt, userPrompt, model, true);
+      console.log(`[AI-DEBUG] 📥 Received response from ${provider}.`);
+      const parsed = JSON.parse(text);
+      await setCachedAiResponse(promptHash, parsed, usedModel);
       return parsed;
     } catch (error) {
       const errorData = error.response?.data;
-      logError(req || 'system', errorData || error, 'AI_TEXT_GEN_GEMINI');
-      
-      if (errorData?.error?.message) {
-        throw new Error(`Gemini AI Error: ${errorData.error.message}`);
-      }
-      throw new Error(`Failed to generate content via Gemini: ${error.message}`);
+      logError(req || 'system', errorData || error, `AI_TEXT_GEN_${provider.toUpperCase()}`);
+      lastError = errorData?.error?.message || error.message;
+      console.warn(`[AI-DEBUG] ⚠️ ${provider} failed: ${lastError}, trying next provider...`);
     }
   }
 
-  // 3. ANTHROPIC MODE (Prioritized if key exists)
-  if (config.anthropic_api_key && config.anthropic_api_key !== 'demo') {
-    const anthropicModel = model || 'claude-3-5-sonnet-20240620';
-    info(req || 'system', 'AI_GEN_ANTHROPIC', `Model: ${anthropicModel}\nSystem: ${systemPrompt}\nUser: ${userPrompt.substring(0, 1000)}${userPrompt.length > 1000 ? '...' : ''}`);
-
-    try {
-      const response = await axios.post(
-        config.anthropic_api_url,
-        {
-          model: anthropicModel,
-          max_tokens: 4096,
-          system: systemPrompt + "\n\nCRITICAL: Return ONLY a valid JSON object. No preamble, no explanation.",
-          messages: [
-            { role: 'user', content: userPrompt }
-          ]
-        },
-        {
-          headers: {
-            'x-api-key': config.anthropic_api_key,
-            'anthropic-version': '2023-06-01',
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-
-      console.log(`[AI-DEBUG] 📥 Received response from Anthropic.`);
-      const content = response.data.content[0].text;
-      const parsed = JSON.parse(content);
-      
-      // Save to cache
-      await setCachedAiResponse(promptHash, parsed, anthropicModel);
-      
-      return parsed;
-    } catch (error) {
-      const errorData = error.response?.data;
-      logError(req || 'system', errorData || error, 'AI_TEXT_GEN_ANTHROPIC');
-      
-      if (errorData?.error?.message) {
-        throw new Error(`Anthropic AI Error: ${errorData.error.message}`);
-      }
-      throw new Error(`Failed to generate content via Anthropic: ${error.message}`);
-    }
-  }
-
-  // 3. OPENAI MODE (Fallback)
-  if (config.openai_api_key && config.openai_api_key !== 'demo') {
-    const openaiModel = model || 'gpt-4o';
-    info(req || 'system', 'AI_GEN_OPENAI', `Model: ${openaiModel}\nSystem: ${systemPrompt}\nUser: ${userPrompt.substring(0, 1000)}${userPrompt.length > 1000 ? '...' : ''}`);
-
-    try {
-      const response = await axios.post(
-        `${config.openai_api_url}/chat/completions`,
-      {
-        model: openaiModel,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        response_format: { type: "json_object" },
-        temperature: 0.7,
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${config.openai_api_key}`,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
-
-    console.log(`[AI-DEBUG] 📥 Received response from OpenAI.`);
-    const content = response.data.choices[0].message.content;
-    const parsed = JSON.parse(content);
-    
-    // Save to cache
-    await setCachedAiResponse(promptHash, parsed, openaiModel);
-    
-    return parsed;
-  } catch (error) {
-    const errorData = error.response?.data;
-    logError(req || 'system', errorData || error, 'AI_TEXT_GEN_OPENAI');
-    
-    if (errorData?.error?.message) {
-      throw new Error(`OpenAI Error: ${errorData.error.message}`);
-    }
-    if (error.message) {
-      throw new Error(`OpenAI Service Error: ${error.message}`);
-    }
-    throw new Error('Failed to generate text content');
-    }
-  }
-
-  throw new Error('No valid AI Text Generation provider configured (Missing API Key)');
+  throw new Error(lastError ? `All AI providers failed. Last error: ${lastError}` : 'No valid AI Text Generation provider configured (Missing API Key)');
 }
 
 /**
@@ -330,90 +339,124 @@ export async function generateRawText(systemPrompt, userPrompt, model = null) {
     }
   }
 
-  // Gemini
-  if (config.gemini_api_key && config.gemini_api_key !== 'demo') {
-    const geminiModel = model || config.gemini_model;
-    info('system', 'AI_GEN_RAW_GEMINI', `Model: ${geminiModel}\nSystem: ${systemPrompt}\nUser: ${userPrompt.substring(0, 500)}...`);
-    const response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${config.gemini_api_key}`,
-      {
-        system_instruction: { parts: [{ text: systemPrompt }] },
-        contents: [{ role: "user", parts: [{ text: userPrompt }] }],
-      },
-      { headers: { 'Content-Type': 'application/json' } }
-    );
-    const result = response.data.candidates[0].content.parts[0].text;
-    await setCachedAiResponse(promptHash, result, geminiModel);
-    return result;
+  // Try providers in configured order (default → fallback)
+  const providers = getProviderOrder(config, 'text');
+  let lastError = null;
+
+  for (const provider of providers) {
+    const caller = textCallers[provider];
+    info('system', `AI_GEN_RAW_${provider.toUpperCase()}`, `System: ${systemPrompt}\nUser: ${userPrompt.substring(0, 500)}...`);
+
+    try {
+      const { text, model: usedModel } = await caller(config, systemPrompt, userPrompt, model, false);
+      await setCachedAiResponse(promptHash, text, usedModel);
+      return text;
+    } catch (error) {
+      const errorData = error.response?.data;
+      lastError = errorData?.error?.message || error.message;
+      console.warn(`[AI-DEBUG] ⚠️ ${provider} (raw) failed: ${lastError}, trying next provider...`);
+    }
   }
 
-  // Anthropic
-  if (config.anthropic_api_key && config.anthropic_api_key !== 'demo') {
-    const anthropicModel = model || 'claude-3-5-sonnet-20240620';
-    info('system', 'AI_GEN_RAW_ANTHROPIC', `Model: ${anthropicModel}\nSystem: ${systemPrompt}\nUser: ${userPrompt.substring(0, 500)}...`);
-    const response = await axios.post(
-      config.anthropic_api_url,
-      {
-        model: anthropicModel,
-        max_tokens: 8192,
-        system: systemPrompt,
-        messages: [{ role: 'user', content: userPrompt }]
-      },
-      {
-        headers: {
-          'x-api-key': config.anthropic_api_key,
-          'anthropic-version': '2023-06-01',
-          'Content-Type': 'application/json',
-        },
-      }
-    );
-    const result = response.data.content[0].text;
-    await setCachedAiResponse(promptHash, result, anthropicModel);
-    return result;
-  }
-
-  // OpenAI
-  if (config.openai_api_key && config.openai_api_key !== 'demo') {
-    const openaiModel = model || 'gpt-4o';
-    info('system', 'AI_GEN_RAW_OPENAI', `Model: ${openaiModel}\nSystem: ${systemPrompt}\nUser: ${userPrompt.substring(0, 500)}...`);
-    const response = await axios.post(
-      `${config.openai_api_url}/chat/completions`,
-      {
-        model: openaiModel,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        temperature: 0.3,
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${config.openai_api_key}`,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
-    const result = response.data.choices[0].message.content;
-    await setCachedAiResponse(promptHash, result, openaiModel);
-    return result;
-  }
-
-  throw new Error('No valid AI Text Generation provider configured (Missing API Key)');
+  throw new Error(lastError ? `All AI providers failed. Last error: ${lastError}` : 'No valid AI Text Generation provider configured (Missing API Key)');
 }
 
 /**
- * Generate an image using AI (DALL-E 3 or Gemini)
+ * Generate image via Gemini Imagen.
+ */
+async function callGeminiImage(config, prompt, skipSave, userId) {
+  // Use configured image model or auto-discover
+  let modelsToTry;
+  if (config.gemini_image_model) {
+    modelsToTry = [config.gemini_image_model];
+  } else {
+    const availableModels = await discoverImagenModels(config.gemini_api_key);
+    modelsToTry = availableModels.length > 0
+      ? availableModels
+      : ['imagen-4.0-generate-preview-06-06', 'imagen-3.0-generate-002', 'imagen-3.0-generate-001'];
+  }
+
+  console.log(`[AI-DEBUG] 🎨 Generating image via Gemini Imagen: "${prompt}" (models to try: ${modelsToTry.join(', ')})`);
+
+  let lastError = null;
+  for (const model of modelsToTry) {
+    try {
+      console.log(`[AI-DEBUG] Trying Imagen model: ${model}`);
+      const response = await axios.post(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${config.gemini_api_key}`,
+        { contents: [{ parts: [{ text: prompt }] }] },
+        { timeout: 60000 }
+      );
+
+      const imageData = response.data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+      if (imageData) {
+        console.log(`[AI-DEBUG] 📥 Base64 image received from Gemini (model: ${model}). Processing...`);
+        const dataUri = `data:image/png;base64,${imageData}`;
+        if (skipSave) return dataUri;
+        const localUrl = await downloadImage(dataUri, prompt, userId, true);
+        console.log(`[AI-DEBUG] ✅ Gemini Image processed: ${localUrl}`);
+        return localUrl;
+      }
+      throw new Error('Gemini returned no image data');
+    } catch (e) {
+      const errorMsg = e.response?.data?.error?.message || e.message;
+      console.error(`[AI-DEBUG] ❌ Gemini model ${model} failed: ${errorMsg}`);
+      lastError = errorMsg;
+      if (e.response?.status === 404) {
+        imagenModelsCache = null;
+        imagenModelsCacheExpiry = 0;
+      }
+    }
+  }
+  throw new Error(`Gemini Imagen: All models failed. Last error: ${lastError}`);
+}
+
+/**
+ * Generate image via OpenAI DALL-E.
+ */
+async function callOpenAIImage(config, prompt, size, skipSave, userId) {
+  const imageModel = config.openai_image_model;
+  console.log(`[AI-DEBUG] 🎨 Generating image via ${imageModel}: "${prompt}"...`);
+
+  const response = await axios.post(
+    `${config.openai_api_url}/images/generations`,
+    {
+      model: imageModel,
+      prompt: prompt,
+      n: 1,
+      size: size,
+      response_format: "url",
+    },
+    {
+      headers: {
+        'Authorization': `Bearer ${config.openai_api_key}`,
+        'Content-Type': 'application/json',
+      },
+      timeout: 60000
+    }
+  );
+
+  const imageUrl = response.data.data[0].url;
+  console.log(`[AI-DEBUG] 📥 Image URL received. skipSave: ${skipSave}`);
+  if (skipSave) return imageUrl;
+  const localUrl = await downloadImage(imageUrl, prompt, userId, true);
+  console.log(`[AI-DEBUG] ✅ Image processed: ${localUrl}`);
+  return localUrl;
+}
+
+/**
+ * Generate an image using AI (Gemini Imagen or DALL-E)
  * Downloads the image locally and returns the local path.
  */
 export async function generateImage(prompt, size = "1024x1024", userId = null, skipSave = false) {
   const config = await getAiSettings();
-  
+
   const hasNoKeys = !config.openai_api_key && !config.gemini_api_key;
   const isDemoKey = config.openai_api_key === 'demo' || config.gemini_api_key === 'demo';
 
-  console.log(`[AI-DEBUG] generateImage keys check:`, { 
-    hasGemini: !!config.gemini_api_key, 
-    hasOpenAI: !!config.openai_api_key, 
+  console.log(`[AI-DEBUG] generateImage keys check:`, {
+    hasGemini: !!config.gemini_api_key,
+    hasOpenAI: !!config.openai_api_key,
     isDemo: isDemoKey,
     hasNoKeys,
     skipSave
@@ -425,115 +468,24 @@ export async function generateImage(prompt, size = "1024x1024", userId = null, s
     return '/images/placeholders/800x450.svg';
   }
 
-  // 1. GEMINI MODE (Vertex / AI Studio Imagen API)
-  if (config.gemini_api_key && config.gemini_api_key !== 'demo') {
-    // Discover available imagen models dynamically
-    const availableModels = await discoverImagenModels(config.gemini_api_key);
-    const modelsToTry = availableModels.length > 0
-      ? availableModels
-      : ['imagen-4.0-generate-preview-06-06', 'imagen-3.0-generate-002', 'imagen-3.0-generate-001'];
+  // Try providers in configured order (default → fallback), skipping Anthropic for images
+  const providers = getProviderOrder(config, 'image');
+  let lastError = null;
 
-    console.log(`[AI-DEBUG] 🎨 Generating image via Gemini Imagen: "${prompt}" (models to try: ${modelsToTry.join(', ')})`);
-
-    let lastError = null;
-    for (const model of modelsToTry) {
-      try {
-        console.log(`[AI-DEBUG] Trying Imagen model: ${model}`);
-        const response = await axios.post(
-          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${config.gemini_api_key}`,
-          {
-            contents: [{ parts: [{ text: prompt }] }]
-          },
-          { timeout: 60000 }
-        );
-
-        // Gemini Imagen returns base64 data in the response
-        const imageData = response.data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-
-        if (imageData) {
-          console.log(`[AI-DEBUG] 📥 Base64 image received from Gemini (model: ${model}). Processing...`);
-          const dataUri = `data:image/png;base64,${imageData}`;
-          
-          if (skipSave) {
-            return dataUri;
-          }
-
-          const localUrl = await downloadMedia(dataUri, prompt, userId, true);
-
-          console.log(`[AI-DEBUG] ✅ Gemini Image processed: ${localUrl}`);
-          return localUrl;
-        }
-
-        throw new Error('Gemini returned no image data');
-      } catch (e) {
-        const errorMsg = e.response?.data?.error?.message || e.message;
-        console.error(`[AI-DEBUG] ❌ Gemini model ${model} failed: ${errorMsg}`);
-        lastError = errorMsg;
-
-        // If model not found, clear cache so next call re-discovers
-        if (e.response?.status === 404) {
-          imagenModelsCache = null;
-          imagenModelsCacheExpiry = 0;
-        }
-        // Continue to next model
-      }
-    }
-
-    // All Gemini models exhausted
-    if (!config.openai_api_key || config.openai_api_key === 'demo') {
-      throw new Error(`Gemini Imagen Error: All models failed. Last error: ${lastError}`);
-    }
-    // Otherwise continue to DALL-E fallback
-  }
-
-  // 2. DALL-E 3 (Primary for now as it's more stable in AI Studio/OpenAI)
-  if (config.openai_api_key && config.openai_api_key !== 'demo') {
+  for (const provider of providers) {
     try {
-      console.log(`[AI-DEBUG] 🎨 Generating image via DALL-E 3: "${prompt}"...`);
-      
-      const response = await axios.post(
-        `${config.openai_api_url}/images/generations`,
-        {
-          model: "dall-e-3",
-          prompt: prompt,
-          n: 1,
-          size: size,
-          response_format: "url",
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${config.openai_api_key}`,
-            'Content-Type': 'application/json',
-          },
-          timeout: 60000 // Image gen can be slow
-        }
-      );
-
-      const imageUrl = response.data.data[0].url;
-      console.log(`[AI-DEBUG] 📥 Image URL received. skipSave: ${skipSave}`);
-
-      if (skipSave) {
-        return imageUrl;
+      if (provider === 'gemini') {
+        return await callGeminiImage(config, prompt, skipSave, userId);
+      } else if (provider === 'openai') {
+        return await callOpenAIImage(config, prompt, size, skipSave, userId);
       }
-
-      // Use mediaService to download and register in DB (strict: true)
-      const localUrl = await downloadImage(imageUrl, prompt, userId, true);
-      
-      console.log(`[AI-DEBUG] ✅ Image processed: ${localUrl}`);
-      return localUrl;
-
     } catch (error) {
-      const errorData = error.response?.data;
-      console.error('[AI-DEBUG] ❌ AI Image Generation Error:', errorData || error.message);
-      
-      if (errorData?.error?.message) {
-        throw new Error(`AI Image Error: ${errorData.error.message}`);
-      }
-      throw new Error(`Failed to generate image: ${error.message}`);
+      lastError = error.message;
+      console.warn(`[AI-DEBUG] ⚠️ ${provider} image gen failed: ${lastError}, trying next provider...`);
     }
   }
 
-  throw new Error(`No valid AI Image Generation provider configured. Gemini: ${config.gemini_api_key ? 'Present' : 'Missing'}, OpenAI: ${config.openai_api_key ? 'Present' : 'Missing'}, Anthropic: ${config.anthropic_api_key ? 'Present' : 'Missing'}`);
+  throw new Error(lastError ? `All image providers failed. Last error: ${lastError}` : `No valid AI Image Generation provider configured.`);
 }
 
 /**

@@ -79,6 +79,12 @@ export default function Settings() {
     gemini_api_key: '',
     gemini_model: '',
     ai_simulation_mode: 'false',
+    ai_default_provider: 'gemini',
+    ai_fallback_provider: 'none',
+    anthropic_model: '',
+    openai_model: '',
+    openai_image_model: '',
+    gemini_image_model: '',
     s3_bucket_name: '',
     s3_region: 'us-east-1',
     s3_auth_method: 'access_key',
@@ -545,25 +551,70 @@ export default function Settings() {
             </div>
 
             <div className="card p-6 space-y-4">
+              <h2 className="font-semibold text-gray-900 pb-2 border-b border-gray-200">{_('settings.ai.provider_preferences', 'Provider Preferences')}</h2>
+              <div>
+                <label className="label">{_('settings.ai.default_provider', 'Default Provider')}</label>
+                <select
+                  value={settings.ai_default_provider}
+                  onChange={(e) => setSettings({ ...settings, ai_default_provider: e.target.value })}
+                  className="input"
+                >
+                  <option value="gemini">Google Gemini</option>
+                  <option value="anthropic">Anthropic</option>
+                  <option value="openai">OpenAI</option>
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  {_('settings.ai.default_provider_hint', 'The primary provider used for all AI operations. Make sure you have a valid API key configured for this provider.')}
+                </p>
+              </div>
+              <div>
+                <label className="label">{_('settings.ai.fallback_provider', 'Fallback Provider')}</label>
+                <select
+                  value={settings.ai_fallback_provider}
+                  onChange={(e) => setSettings({ ...settings, ai_fallback_provider: e.target.value })}
+                  className="input"
+                >
+                  <option value="none">{_('settings.ai.fallback.none', 'None')}</option>
+                  <option value="gemini">Google Gemini</option>
+                  <option value="anthropic">Anthropic</option>
+                  <option value="openai">OpenAI</option>
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  {_('settings.ai.fallback_provider_hint', 'If the default provider fails, this provider will be tried next. Choose a different provider than your default.')}
+                </p>
+              </div>
+            </div>
+
+            <div className={`card p-6 space-y-4 ${settings.ai_default_provider === 'gemini' ? 'ring-2 ring-primary-200' : ''}`}>
               <h2 className="font-semibold text-gray-900 pb-2 border-b border-gray-200 flex items-center gap-2">
-                Google Gemini ({_('common.preferred', 'Preferred')})
+                Google Gemini
+                {settings.ai_default_provider === 'gemini' && <span className="text-xs font-normal text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full">{_('common.default', 'Default')}</span>}
+                {settings.ai_fallback_provider === 'gemini' && <span className="text-xs font-normal text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">{_('common.fallback', 'Fallback')}</span>}
               </h2>
               {field('gemini_api_key', _('settings.ai.gemini_key', 'Gemini API Key'), { type: 'password', placeholder: 'AIza...', hint: _('settings.ai.gemini_hint', 'Get from Google AI Studio') })}
-              {field('gemini_model', _('settings.ai.gemini_model', 'Gemini Model'), { placeholder: 'gemini-1.5-flash', hint: _('settings.ai.gemini_model_hint', 'Default: gemini-1.5-flash') })}
+              {field('gemini_model', _('settings.ai.gemini_model', 'Text Model'), { placeholder: 'gemini-3-flash-preview', hint: _('settings.ai.gemini_model_hint', 'Default: gemini-3-flash-preview') })}
+              {field('gemini_image_model', _('settings.ai.gemini_image_model', 'Image Model'), { placeholder: _('settings.ai.auto_detected', 'auto-detected'), hint: _('settings.ai.gemini_image_model_hint', 'Leave blank to auto-detect the best Imagen model available.') })}
             </div>
 
-            <div className="card p-6 space-y-4">
+            <div className={`card p-6 space-y-4 ${settings.ai_default_provider === 'anthropic' ? 'ring-2 ring-primary-200' : ''}`}>
               <h2 className="font-semibold text-gray-900 pb-2 border-b border-gray-200 flex items-center gap-2">
                 Anthropic
+                {settings.ai_default_provider === 'anthropic' && <span className="text-xs font-normal text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full">{_('common.default', 'Default')}</span>}
+                {settings.ai_fallback_provider === 'anthropic' && <span className="text-xs font-normal text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">{_('common.fallback', 'Fallback')}</span>}
               </h2>
               {field('anthropic_api_key', _('settings.ai.anthropic_key', 'Anthropic API Key'), { type: 'password', placeholder: 'sk-ant-api03-...', hint: _('settings.ai.anthropic_hint', 'Used for Claude models') })}
+              {field('anthropic_model', _('settings.ai.anthropic_model', 'Text Model'), { placeholder: 'claude-sonnet-4-20250514', hint: _('settings.ai.anthropic_model_hint', 'Default: claude-sonnet-4-20250514. Anthropic does not support image generation.') })}
             </div>
 
-            <div className="card p-6 space-y-4">
+            <div className={`card p-6 space-y-4 ${settings.ai_default_provider === 'openai' ? 'ring-2 ring-primary-200' : ''}`}>
               <h2 className="font-semibold text-gray-900 pb-2 border-b border-gray-200 flex items-center gap-2">
                 OpenAI
+                {settings.ai_default_provider === 'openai' && <span className="text-xs font-normal text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full">{_('common.default', 'Default')}</span>}
+                {settings.ai_fallback_provider === 'openai' && <span className="text-xs font-normal text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">{_('common.fallback', 'Fallback')}</span>}
               </h2>
               {field('openai_api_key', _('settings.ai.openai_key', 'OpenAI API Key'), { type: 'password', placeholder: 'sk-...', hint: _('settings.ai.openai_hint', 'Used for GPT models and DALL-E') })}
+              {field('openai_model', _('settings.ai.openai_model', 'Text Model'), { placeholder: 'gpt-4o', hint: _('settings.ai.openai_model_hint', 'Default: gpt-4o') })}
+              {field('openai_image_model', _('settings.ai.openai_image_model', 'Image Model'), { placeholder: 'dall-e-3', hint: _('settings.ai.openai_image_model_hint', 'Default: dall-e-3') })}
               {field('openai_api_url', _('settings.ai.api_url_override', 'API URL Override'), { placeholder: 'https://api.openai.com/v1', hint: _('settings.ai.api_url_hint', 'Useful for proxies or Azure OpenAI') })}
             </div>
           </div>

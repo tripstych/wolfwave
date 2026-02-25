@@ -161,4 +161,42 @@ router.post('/sites/:id/transform', requireAuth, requireEditor, async (req, res)
   }
 });
 
+/**
+ * Stop an active Assisted import
+ */
+router.post('/sites/:id/stop', requireAuth, requireEditor, async (req, res) => {
+  try {
+    const { jobRegistry } = await import('../services/assisted-import/JobRegistry.js');
+    const siteId = parseInt(req.params.id);
+    jobRegistry.cancel(siteId);
+    
+    await prisma.imported_sites.update({
+      where: { id: siteId },
+      data: { status: 'cancelled', last_action: 'Import stopped by user.' }
+    });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * Delete an Assisted site and all staged items
+ */
+router.delete('/sites/:id', requireAuth, requireEditor, async (req, res) => {
+  try {
+    const { jobRegistry } = await import('../services/assisted-import/JobRegistry.js');
+    const siteId = parseInt(req.params.id);
+    jobRegistry.cancel(siteId);
+
+    // Cascading delete handles staged_items via DB constraints
+    await prisma.imported_sites.delete({
+      where: { id: siteId }
+    });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;
