@@ -80,9 +80,21 @@ export class SPARenderer {
       }, url);
 
       if (clicked) {
+        // WAIT FOR URL CHANGE (SPA safe) instead of waitForNavigation
         try {
-          await this.page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 5000 }).catch(() => {});
-        } catch {}
+          await this.page.waitForFunction(
+            (target) => {
+              const current = window.location.href.split('#')[0].replace(/\/$/, '');
+              const targetBase = target.split('#')[0].replace(/\/$/, '');
+              return current === targetBase || window.location.href.includes(target);
+            },
+            { timeout: 5000 },
+            normalizedTarget
+          );
+        } catch {
+          info(this.dbName, 'LOVABLE_RENDER_TIMEOUT', `Click navigation timed out for ${url}, trying direct goto`);
+          await this.page.goto(url, { waitUntil: 'networkidle0', timeout: 20000 }).catch(() => {});
+        }
       } else {
         info(this.dbName, 'LOVABLE_RENDER_FALLBACK', `No link found for ${url}, falling back to direct navigation`);
         await this.page.goto(url, { waitUntil: 'networkidle0', timeout: 30000 });
@@ -138,27 +150,30 @@ export class SPARenderer {
 
   async discoverRoutes() {
     try {
-      const html = await this.page.content();
-      const $ = cheerio.load(html);
       const rootHostname = new URL(this.rootUrl).hostname;
+      
+      // Discover directly from the browser DOM
+      const links = await this.page.evaluate((hostname) => {
+        return Array.from(document.querySelectorAll('a[href]'))
+          .map(a => a.href)
+          .filter(href => {
+            try {
+              const url = new URL(href);
+              return url.hostname === hostname && 
+                     !url.pathname.match(/\.(jpg|jpeg|png|gif|svg|pdf|zip|css|js)$/i);
+            } catch { return false; }
+          });
+      }, rootHostname);
+
       const discovered = new Set();
-
-      $('a[href]').each((i, el) => {
-        const href = $(el).attr('href');
-        if (!href || href.startsWith('javascript:')) return;
-
-        try {
-          const abs = new URL(href, this.page.url());
-          if (abs.hostname === rootHostname) {
-            const clean = this.normalizeUrl(abs.toString());
-            if (clean) discovered.add(clean);
-          }
-        } catch {}
-      });
+      for (const link of links) {
+        const clean = this.normalizeUrl(link);
+        if (clean) discovered.add(clean);
+      }
 
       return Array.from(discovered);
     } catch (err) {
-      logError(this.dbName, err, 'LOVABLE_DISCOVER_ROUTES_FAILED');
+      logError(this.dbName, err, 'LOVABLE_DISCOVER_FAILED');
       return [];
     }
   }
