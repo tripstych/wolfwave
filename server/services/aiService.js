@@ -742,7 +742,7 @@ RULES:
 /**
  * Generate a Nunjucks template from HTML and a selector map.
  */
-export async function generateTemplateFromHtml(html, selectorMap, pageType, model = null, req = null) {
+export async function generateTemplateFromHtml(html, selectorMap, pageType, assets = null, model = null, req = null) {
   const systemPrompt = `You are a Nunjucks template expert for the WebWolf CMS.
 Your goal is to convert a static HTML page into a dynamic Nunjucks template (.njk).
 
@@ -753,9 +753,13 @@ RULES:
 - Format: <div data-cms-region="field_name" data-cms-type="text|richtext|image">{{ data.field_name | safe }}</div>
 - For images: <img data-cms-region="image_field" data-cms-type="image" src="{{ data.image_field | default('/placeholder.png') }}">
 - Use 'richtext' for descriptions and long content, 'text' for titles/prices.
+- THEME ASSETS: If local assets are provided, include them in the <head> or at the end of the body as appropriate.
 - Maintain the original CSS structure and classes.
 - If the HTML contains a header or footer that should be shared, identify them and suggest where to split using comments.
 - Return ONLY the Nunjucks code. No explanation.
+
+THEME ASSETS (Local paths):
+${JSON.stringify(assets, null, 2)}
 
 SELECTOR MAP:
 ${JSON.stringify(selectorMap, null, 2)}

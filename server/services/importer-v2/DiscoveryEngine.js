@@ -35,6 +35,7 @@ export class DiscoveryEngine {
       await ImporterServiceV2.updateStatus(this.siteId, 'analyzing', `Found ${contentAnalysis.page_type} structure on homepage.`);
       
       const ruleset = {
+        root_url: this.rootUrl,
         platform: assetAnalysis.platform,
         theme: {
           name: assetAnalysis.theme_name,

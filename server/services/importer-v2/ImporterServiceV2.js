@@ -1,4 +1,5 @@
 import { DiscoveryEngine } from './DiscoveryEngine.js';
+import { AssetSideloader } from './AssetSideloader.js';
 import { CrawlEngine } from './CrawlEngine.js';
 import { RuleGenerator } from './RuleGenerator.js';
 import { TemplateGenerator } from './TemplateGenerator.js';
@@ -70,6 +71,12 @@ export class ImporterServiceV2 {
         // Phase 1: Discovery
         const discovery = new DiscoveryEngine(siteId, rootUrl, dbName);
         await discovery.run();
+
+        await ImporterServiceV2.updateStatus(siteId, 'analyzing', 'Sideloading theme assets...');
+        
+        // Phase 1b: Asset Sideloading
+        const sideloader = new AssetSideloader(siteId, dbName);
+        await sideloader.run();
 
         await ImporterServiceV2.updateStatus(siteId, 'crawling', 'Starting site crawl...');
 

@@ -68,7 +68,8 @@ export class TemplateGenerator {
         const njkCode = await generateTemplateFromHtml(
           sample.raw_html,
           group.selector_map,
-          group.page_type
+          group.page_type,
+          ruleset.theme?.local_assets || null
         );
 
         let contentType = 'pages';
