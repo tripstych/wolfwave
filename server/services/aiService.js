@@ -781,9 +781,9 @@ ${JSON.stringify(assets, null, 2)}
 SELECTOR MAP:
 ${JSON.stringify(selectorMap, null, 2)}
 
-PAGE TYPE: \${pageType}\`;
+PAGE TYPE: ${pageType}`;
 
-  const userPrompt = \`SOURCE HTML:\\n\${html.substring(0, 25000)}\`;
+  const userPrompt = `SOURCE HTML:\n${html.substring(0, 25000)}`;
 
   // Retry once on transient errors (502, 503, timeout)
   for (let attempt = 1; attempt <= 2; attempt++) {
