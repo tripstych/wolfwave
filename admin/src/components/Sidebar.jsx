@@ -66,7 +66,7 @@ export default function Sidebar({ isOpen, onClose, contentTypes = [] }) {
       items: [
         { name: _('nav.manual_import', 'Manual Import'), href: '/import', icon: Download },
         { name: _('nav.assisted_import', 'Assisted Import'), href: '/assisted-import', icon: Zap },
-        { name: _('nav.lovable_import', 'Lovable Import'), href: '/import-lovable', icon: Sparkles }
+        { name: _('nav.lovable_import', 'Lovable Import'), href: '/import-lovable', icon: Heart }
       ]
     },
     {
