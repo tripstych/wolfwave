@@ -599,7 +599,8 @@ export async function suggestSelectors(fields, html, model = null, req = null) {
     fields.forEach(f => {
       if (f.name === 'title') mock[f.name] = 'h1';
       else if (f.name.includes('price')) mock[f.name] = '.price';
-      else if (f.name.includes('description')) mock[f.name] = '.product-description';
+      else if (f.name === 'content') mock[f.name] = '.main-content-area, .entry-content, .article-body';
+      else if (f.name.includes('description')) mock[f.name] = '.product-description, .short-description, .summary';
       else if (f.name.includes('image')) mock[f.name] = '.product-main-image img';
       else mock[f.name] = `.${f.name}`;
     });
@@ -753,8 +754,8 @@ RULES:
   * Incorrect: <h1 data-cms-region="title">Static Title</h1>
   * Correct: <h1 data-cms-region="title" data-cms-type="text">{{ content.title }}</h1>
 - NO NESTING: Do not put a data-cms-region inside another data-cms-region. 
-  * If 'main' is used as a region, it must NOT wrap 'title' or 'description'. 
-  * Choose either specific fields (title, description) OR a broad 'main' field, but never both in a parent-child relationship.
+  * If 'main' or 'content' is used as a region, it must NOT wrap 'title' or 'description'. 
+  * Choose either specific fields (title, description, content) OR a broad 'main' field, but never both in a parent-child relationship.
 - CRITICAL: Every dynamic field MUST be wrapped in an element with 'data-cms-region' and 'data-cms-type' attributes.
 - Format: <div data-cms-region="field_name" data-cms-type="text|richtext|image">{{ content.field_name | safe }}</div>
 - For images: <img data-cms-region="image_field" data-cms-type="image" src="{{ content.image_field | default('/placeholder.png') }}">
@@ -865,7 +866,8 @@ RESPOND WITH ONLY VALID JSON in this exact format:
   "page_type": "product|article|blog_post|listing|contact|about|homepage|gallery|other",
   "selector_map": {
     "title": "CSS selector for the unique page title (e.g. h1.product-title)",
-    "description": "CSS selector for the innermost container that holds the actual body/description text — the element whose direct children are <p>, <h2>, <ul> etc. NOT a wrapper div. OMIT this field entirely if you cannot find a clean, specific container.",
+    "description": "CSS selector for a short introductory blurb or summary (typically plain text or a single paragraph).",
+    "content": "CSS selector for the main rich-text body. Target the container with the highest density of structural tags like <p>, <h2>, <h3>, <ul>, and <li>. This is the primary article or product body.",
     "price": "CSS selector for price (if product, otherwise omit)",
     "images": "CSS selector for the primary content images (exclude layout/UI icons)"
   },
@@ -874,17 +876,18 @@ RESPOND WITH ONLY VALID JSON in this exact format:
 }
 
 RULES:
-- NO "main" FIELD: Do NOT include a "main" key in selector_map. Every field must map to a specific, named content region (title, description, price, images, etc).
-- DESCRIPTION MUST BE PRECISE: The "description" selector must point to the tightest container around the actual readable text. Walk DOWN the DOM tree until you find the element whose children are the actual content tags (<p>, <h2>, <ul>), not a layout wrapper. If the page has no clear body text area, OMIT "description" entirely.
-- AVOID WRAPPERS: Do not select top-level #main, section-wrapper, or shopify-section elements. These contain layout noise (spacers, scripts, empty columns).
+- NO "main" FIELD: Do NOT include a "main" key in selector_map.
+- CONTENT VS DESCRIPTION: "content" is the substantial main body. It is easily identified because it typically contains SEVERAL <p> tags, heading tags, or lists. "description" is ONLY for a short introductory blurb or snippet.
+- CONTENT MUST BE PRECISE: The "content" selector must point to the tightest container around the actual readable body text. Walk DOWN the DOM tree until you find the element whose children are the actual content tags, not a layout wrapper.
+- AVOID WRAPPERS: Do not select top-level #main, section-wrapper, or shopify-section elements. These contain layout noise.
 - TARGET DENSITY: Find the element where actual content tags (p, h1, h2, img, ul) are concentrated as direct children.
 - Example: If #main-content contains a spacer div and THEN a div.columns with all the text, your selector MUST be "div.columns".
 - BE SURGICAL: Avoid any selector that captures "Share this", "Related posts", breadcrumbs, or sidebars.
 - Use the MOST SPECIFIC selector possible (e.g. ".entry-content" or ".article-body").
 - If a selector would include extraneous layout elements or empty divs, it is WRONG. Omit the field instead.
 - The selectors MUST exist in the provided HTML.
-- For PRODUCT pages: include "title", "description" (product description text), "price", and "images". Omit any field you cannot precisely target.
-- For ARTICLE/POST pages: include "title", "description" (article body), and optionally "images". Omit "price".
+- For PRODUCT pages: include "title", "content" (the full product details), "description" (short blurb), "price", and "images".
+- For ARTICLE/POST pages: include "title", "content" (the full article body), "description" (short intro), and optionally "images".
 - For LISTING pages: include "title" and optionally "description". Product grid items will be handled separately.`;
 
   const userPrompt = `URL: ${url}\n\nHTML:\n${cleanHtml}`;
