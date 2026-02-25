@@ -247,39 +247,65 @@ export const renderContent = async (req, res) => {
       }
     }
 
-    // Look up content by slug
+    // Look up content by slug (Exact match)
     let contentRows = await query(
-      'SELECT id, module, title, data FROM content WHERE slug = ?',
+      'SELECT id, module, title, data, slug FROM content WHERE slug = ?',
       [slug]
     );
 
-    // Fallback resolution
+    // Flexible Fallback Resolution
     if (!contentRows[0] && slug !== '/') {
-      const prefixes = ['/products', '/pages', '/posts'];
+      // 1. Try matching only the last segment of the path
+      const parts = slug.split('/').filter(Boolean);
+      const lastSegment = parts[parts.length - 1];
       
-      // Case A: Prepend prefix (e.g. /my-product -> /products/my-product)
-      for (const p of prefixes) {
-        if (!slug.startsWith(p)) {
-          const fallbackSlug = p + (slug.startsWith('/') ? slug : '/' + slug);
-          const rows = await query('SELECT id, module, title, data FROM content WHERE slug = ?', [fallbackSlug]);
-          if (rows && rows.length > 0 && rows[0]) {
-            contentRows = rows;
-            slug = fallbackSlug;
-            break;
-          }
+      if (lastSegment) {
+        // Find all content that matches this last segment (either as full slug or last part of slash-slug)
+        const possibleMatches = await query(
+          "SELECT id, module, title, data, slug FROM content WHERE slug = ? OR slug LIKE ?",
+          [lastSegment, `%/${lastSegment}`]
+        );
+
+        if (possibleMatches.length === 1) {
+          // Unambiguous match
+          contentRows = [possibleMatches[0]];
+        } else if (possibleMatches.length > 1) {
+          // Ambiguous: try to find the one that best fits the current path
+          // e.g. if path is /products/my-item, and we have a product with slug 'my-item'
+          const bestMatch = possibleMatches.find(m => {
+            const moduleInPath = parts[0]; // e.g. 'products'
+            return m.module === moduleInPath || m.module === (moduleInPath + 's');
+          });
+          contentRows = [bestMatch || possibleMatches[0]];
         }
       }
 
-      // Case B: Strip prefix (e.g. /products/my-product -> /my-product)
+      // 2. Legacy Prefix Fallbacks (if still not found)
       if (!contentRows[0]) {
+        const prefixes = ['/products', '/pages', '/posts'];
+        
+        // Case A: Prepend prefix (e.g. /my-product -> /products/my-product)
         for (const p of prefixes) {
-          if (slug.startsWith(p + '/')) {
-            const strippedSlug = slug.slice(p.length);
-            const rows = await query('SELECT id, module, title, data FROM content WHERE slug = ? AND module = ?', [strippedSlug, p.slice(1)]);
+          if (!slug.startsWith(p)) {
+            const fallbackSlug = p + (slug.startsWith('/') ? slug : '/' + slug);
+            const rows = await query('SELECT id, module, title, data, slug FROM content WHERE slug = ?', [fallbackSlug]);
             if (rows && rows.length > 0 && rows[0]) {
               contentRows = rows;
-              slug = strippedSlug;
               break;
+            }
+          }
+        }
+
+        // Case B: Strip prefix (e.g. /products/my-product -> /my-product)
+        if (!contentRows[0]) {
+          for (const p of prefixes) {
+            if (slug.startsWith(p + '/')) {
+              const strippedSlug = slug.slice(p.length);
+              const rows = await query('SELECT id, module, title, data, slug FROM content WHERE slug = ? AND module = ?', [strippedSlug, p.slice(1)]);
+              if (rows && rows.length > 0 && rows[0]) {
+                contentRows = rows;
+                break;
+              }
             }
           }
         }
@@ -292,6 +318,8 @@ export const renderContent = async (req, res) => {
 
     const contentRow = contentRows[0];
     const contentType = contentRow.module;
+    // Use the actual slug from the DB for canonicals/SEO if we matched via fallback
+    const matchedSlug = contentRow.slug;
 
     // Query the appropriate module table based on content type
     let pageData;
@@ -396,13 +424,13 @@ export const renderContent = async (req, res) => {
     const seo = {
       title: pageData.meta_title || contentRow.title,
       description: pageData.meta_description || '',
-      canonical: pageData.canonical_url || `${site.site_url}${slug}`,
+      canonical: pageData.canonical_url || `${site.site_url}${matchedSlug}`,
       robots: pageData.robots || 'index, follow',
       og: {
         title: pageData.og_title || pageData.meta_title || contentRow.title,
         description: pageData.og_description || pageData.meta_description || '',
         image: pageData.image || (pageData.images && pageData.images[0]?.url) || pageData.og_image || '',
-        url: `${site.site_url}${slug}`,
+        url: `${site.site_url}${matchedSlug}`,
         type: 'website'
       },
       schema: schemaMarkup
