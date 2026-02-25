@@ -86,7 +86,14 @@ export class SPARenderer {
     const html = await this.page.content();
     const title = await this.page.title();
 
-    return { html, title };
+    // Capture Stylesheets and Inline Styles for WYSIWYG
+    const styles = await this.page.evaluate(() => {
+      const links = Array.from(document.querySelectorAll('link[rel="stylesheet"]')).map(l => l.href);
+      const inline = Array.from(document.querySelectorAll('style')).map(s => s.innerHTML);
+      return { links, inline };
+    });
+
+    return { html, title, styles };
   }
 
   async discoverRoutes() {
@@ -129,7 +136,7 @@ export class SPARenderer {
 
         try {
           info(this.dbName, 'LOVABLE_RENDER_PAGE', `Rendering: ${url}`);
-          const { html, title } = await this.renderPage(url);
+          const { html, title, styles } = await this.renderPage(url);
 
           // Store raw rendered HTML (sanitization happens in Phase 2)
           await prisma.staged_items.upsert({
@@ -137,14 +144,16 @@ export class SPARenderer {
             update: {
               title: (title || url).substring(0, 255),
               raw_html: html,
-              status: 'rendered'
+              status: 'rendered',
+              metadata: { styles } // Store styles for Phase 2/3
             },
             create: {
               site_id: this.siteId,
               url,
               title: (title || url).substring(0, 255),
               raw_html: html,
-              status: 'rendered'
+              status: 'rendered',
+              metadata: { styles }
             }
           });
 

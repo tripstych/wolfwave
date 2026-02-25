@@ -13,6 +13,38 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const UPLOADS_ROOT = path.join(__dirname, '../../uploads');
 
 /**
+ * Download any generic asset (CSS, JS) and save it locally.
+ * Does not register in the media library table.
+ */
+export async function downloadAsset(url) {
+  const dbName = getCurrentDbName();
+  try {
+    if (!url || !url.startsWith('http')) return url;
+
+    const response = await axios.get(url, {
+      responseType: 'arraybuffer',
+      timeout: 10000,
+      headers: { 'User-Agent': 'Mozilla/5.0' }
+    });
+
+    const date = new Date();
+    const subdir = `assets/${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}`;
+    const filename = `${uuidv4()}${path.extname(new URL(url).pathname) || '.css'}`;
+    const relativePath = `/${subdir}/${filename}`.replace(/\\/g, '/');
+
+    const tenantDir = getTenantUploadsDir();
+    const fullPath = path.join(tenantDir, subdir);
+    await fs.mkdir(fullPath, { recursive: true });
+    await fs.writeFile(path.join(fullPath, filename), response.data);
+
+    return `/uploads${relativePath}`;
+  } catch (err) {
+    console.error(`[mediaService] Failed to download asset ${url}:`, err.message);
+    return url;
+  }
+}
+
+/**
  * Get the tenant-specific uploads directory.
  */
 function getTenantUploadsDir() {

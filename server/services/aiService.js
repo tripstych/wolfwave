@@ -777,8 +777,11 @@ RULES:
   {% endif %}
 - Return ONLY the Nunjucks code. No explanation.
 
-THEME ASSETS (Local paths):
+THEME ASSETS (Local paths and Styles):
 ${JSON.stringify(assets, null, 2)}
+- If 'lovable_styles' are provided:
+  * Include all 'links' as <link rel="stylesheet" href="..."> tags in the <head>.
+  * Include all 'inline' strings as <style>...</style> blocks in the <head>.
 
 SELECTOR MAP:
 ${JSON.stringify(selectorMap, null, 2)}

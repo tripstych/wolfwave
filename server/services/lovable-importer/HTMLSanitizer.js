@@ -21,67 +21,35 @@ export class HTMLSanitizer {
   static KEEP_ATTRS = new Set(['id', 'href', 'src', 'alt', 'for', 'name', 'type', 'action', 'method']);
 
   /**
-   * Main sanitization: strips Tailwind, React artifacts, collapses wrapper divs
+   * Main sanitization: Removes React/Vite artifacts but PRESERVES classes for WYSIWYG.
    */
   sanitize(html) {
     const $ = cheerio.load(html);
 
-    // 1. Remove non-content elements
-    $('script, style, noscript, link[rel="stylesheet"], link[rel="preload"], link[rel="modulepreload"], meta, svg, canvas').remove();
+    // 1. Remove non-content elements (but we will sideload the styles later)
+    $('script, noscript, link[rel="preload"], link[rel="modulepreload"], meta, canvas').remove();
 
     // 2. Remove React error overlays / dev tools
-    $('#webpack-dev-server-client-overlay, [data-nextjs-scroll-focus-boundary]').remove();
+    $('#webpack-dev-server-client-overlay, [data-nextjs-scroll-focus-boundary], #lovable-badge').remove();
 
-    // 3. Remove ALL class attributes (strips Tailwind completely)
-    $('*').removeAttr('class');
-
-    // 4. Remove React/Radix/shadcn-specific attributes + inline styles
+    // 3. Remove React/Radix/shadcn-specific attributes + inline styles
+    // NOTE: We KEEP 'class' here for WYSIWYG
     $('*').each((i, el) => {
       const attribs = el.attribs || {};
       for (const key in attribs) {
-        if (!HTMLSanitizer.KEEP_ATTRS.has(key)) {
+        if (!HTMLSanitizer.KEEP_ATTRS.has(key) && key !== 'class') {
           $(el).removeAttr(key);
         }
       }
     });
 
-    // 5. Unwrap the #root wrapper
+    // 4. Unwrap the #root wrapper
     const rootContent = $('#root').html();
     if (rootContent) {
       $('body').html(rootContent);
     }
 
-    // 6. Collapse meaningless wrapper divs (no attrs, single child element)
-    let changed = true;
-    let passes = 0;
-    while (changed && passes < 5) {
-      changed = false;
-      passes++;
-      $('div').each((i, el) => {
-        const $el = $(el);
-        if (Object.keys(el.attribs || {}).length === 0) {
-          const children = $el.children();
-          if (children.length === 1) {
-            const child = children.first();
-            const childTag = child[0]?.name;
-            if (['div', 'section', 'article', 'main', 'header', 'footer', 'nav', 'aside'].includes(childTag)) {
-              $el.replaceWith(child);
-              changed = true;
-            }
-          }
-        }
-      });
-    }
-
-    // 7. Remove empty elements (leftover wrappers with no text or children)
-    $('div, span').each((i, el) => {
-      const $el = $(el);
-      if ($el.text().trim() === '' && $el.children().length === 0 && !$el.find('img, video, picture').length) {
-        $el.remove();
-      }
-    });
-
-    // 8. Clean up <head> — keep only charset and title
+    // 5. Clean up <head> — keep title
     const title = $('title').text();
     $('head').html(`<meta charset="UTF-8"><title>${title}</title>`);
 
@@ -176,7 +144,8 @@ export class HTMLSanitizer {
             stripped_html: strippedHtml,
             llm_html: llmHtml,
             structural_hash: structuralHash,
-            status: 'crawled' // Match status expected by RuleGenerator
+            status: 'crawled',
+            metadata: item.metadata // Preserve styles captured in Phase 1
           }
         });
 
