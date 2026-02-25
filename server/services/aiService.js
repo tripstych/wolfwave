@@ -876,7 +876,7 @@ RESPOND WITH ONLY VALID JSON in this exact format:
   "selector_map": {
     "title": "CSS selector for the unique page title (e.g. h1.product-title)",
     "description": "CSS selector for a short introductory blurb or summary (typically plain text or a single paragraph).",
-    "content": "CSS selector for the main rich-text body. Target the container with the highest density of structural tags like <p>, <h2>, <h3>, <ul>, and <li>. This is the primary article or product body.",
+    "content": "Scan this HTML and identify the container that holds the highest density of 'meaningful text' (paragraphs and headers). Exclude boilerplate elements like menus, sidebars, and social sharing widgets. Identify the most specific parent element that wraps this primary content block.",
     "price": "CSS selector for price (if product, otherwise omit)",
     "images": {
       "selector": "CSS selector targeting ALL primary media elements (e.g. '.product-slideshow img' or 'a.zoom-link')",
