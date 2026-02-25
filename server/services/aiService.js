@@ -879,7 +879,7 @@ RESPOND WITH ONLY VALID JSON in this exact format:
   "selector_map": {
     "title": "CSS selector for the unique page title (e.g. h1.product-title)",
     "description": "CSS selector for a short introductory blurb or summary (typically plain text or a single paragraph).",
-    "content": "Scan this HTML and identify the container that holds the highest density of 'meaningful text' (paragraphs and headers). Exclude boilerplate elements like menus, sidebars, and social sharing widgets. Identify the most specific parent element that wraps this primary content block.",
+    "content": "Identify the primary main body container. This element MUST have the highest density of 'meaningful text' (paragraphs and headers) and a high text-to-link ratio. EXCLUDE elements that contain navigation menus, breadcrumbs, or site-wide header/footer links. It should wrap the primary article or product body only.",
     "price": "CSS selector for price (if product, otherwise omit)",
     "images": {
       "selector": "CSS selector targeting ALL primary media elements (e.g. '.product-slideshow img' or 'a.zoom-link')",
@@ -894,7 +894,9 @@ RESPOND WITH ONLY VALID JSON in this exact format:
 
 RULES:
 - NO "main" FIELD: Do NOT include a "main" key in selector_map.
-- CONTENT VS DESCRIPTION: "content" is the substantial main body. It is easily identified because it typically contains SEVERAL <p> tags, heading tags, or lists. "description" is ONLY for a short introductory blurb or snippet.
+- CONTENT VS NAVIGATION: "content" must be purely informative. It should NOT contain <ul> or <nav> elements that function as menus. If a container has more than 20% of its text wrapped in <a> tags, it is likely a navigation block and should be EXCLUDED from the "content" selector.
+- INFORMATIVE LINKS VS MENUS: Distinguish between links inside an article (citations, "read more") and structural navigation links (menus, sidebars). "content" should capture the former, never the latter.
+- CONTENT VS DESCRIPTION: "content" is the substantial main body. "description" is ONLY for a short introductory blurb.
 - MEDIA REASONING: Do not just grab the first <img>. Look for elements that suggest high-quality sources. If a site uses a zoom plugin, the high-res image is often in a 'data-zoom' or 'href' attribute of a link wrapping the image. Identify the selector that captures ALL unique media items for the product/article.
 - CONTENT MUST BE PRECISE: The "content" selector must point to the tightest container around the actual readable body text. Walk DOWN the DOM tree until you find the element whose children are the actual content tags, not a layout wrapper.
 - AVOID WRAPPERS: Do not select top-level #main, section-wrapper, or shopify-section elements. These contain layout noise.
