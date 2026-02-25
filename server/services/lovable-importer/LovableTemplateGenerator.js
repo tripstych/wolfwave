@@ -86,22 +86,13 @@ export class LovableTemplateGenerator extends TemplateGenerator {
         await fs.mkdir(path.dirname(fullPath), { recursive: true });
         await fs.writeFile(fullPath, njkCode);
 
-        // Standard region mapping
-        const regions = Object.keys(group.selector_map || {}).map(name => {
-          let type = 'text';
-          const lowerName = name.toLowerCase();
-          const config = group.selector_map[name];
-          const isMultiple = typeof config === 'object' ? config.multiple : (name === 'images' || name === 'gallery');
-
-          if (['content', 'body', 'about', 'details', 'main', 'article'].some(k => lowerName.includes(k))) {
-            type = 'richtext';
-          }
-          if (['image', 'img', 'thumbnail', 'photo', 'picture', 'banner', 'logo', 'images'].some(k => lowerName.includes(k))) {
-            type = 'image';
-          }
-
-          return { name, label: name.charAt(0).toUpperCase() + name.slice(1).replace(/_/g, ' '), type, multiple: isMultiple };
-        });
+        // Convert dynamic regions to standard CMS regions format
+        const cmsRegions = (group.regions || []).map(r => ({
+          name: r.key,
+          label: r.label,
+          type: r.type === 'richtext' ? 'richtext' : (r.type === 'image' ? 'image' : 'text'),
+          multiple: !!r.multiple
+        }));
 
         const template = await prisma.templates.upsert({
           where: { filename: filename },
@@ -111,7 +102,7 @@ export class LovableTemplateGenerator extends TemplateGenerator {
             content: njkCode,
             description: group.summary,
             blueprint: group.selector_map,
-            regions: JSON.stringify(regions),
+            regions: JSON.stringify(cmsRegions),
             updated_at: new Date()
           },
           create: {
@@ -121,7 +112,7 @@ export class LovableTemplateGenerator extends TemplateGenerator {
             content_type: contentType,
             description: group.summary,
             blueprint: group.selector_map,
-            regions: JSON.stringify(regions)
+            regions: JSON.stringify(cmsRegions)
           }
         });
 

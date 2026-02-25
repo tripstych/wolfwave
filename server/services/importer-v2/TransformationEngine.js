@@ -179,17 +179,17 @@ export class TransformationEngine {
     for (const [field, selectorData] of Object.entries(selectorMap)) {
       if (!selectorData) continue;
       
-      // Handle both simple string selectors and complex objects
       const selector = typeof selectorData === 'object' ? selectorData.selector : selectorData;
       const attr = typeof selectorData === 'object' ? selectorData.attr : null;
+      const type = typeof selectorData === 'object' ? selectorData.type : 'text';
       const isMultiple = typeof selectorData === 'object' ? selectorData.multiple : (field === 'images' || field === 'gallery');
 
       const $el = $(selector);
       if ($el.length === 0) continue;
 
-      if (field === 'image' || field === 'images' || field === 'gallery' || field === 'thumbnail') {
+      // 1. Media Extraction (Images/Gallery)
+      if (type === 'image' || field === 'image' || field === 'images' || field === 'gallery' || field === 'thumbnail') {
         const images = $el.map((i, el) => {
-          // Priority: 1. AI suggested attribute, 2. Common high-res attrs, 3. src
           const src = attr ? $(el).attr(attr) : (
             $(el).attr('data-zoom') || 
             $(el).attr('data-src') || 
@@ -202,21 +202,18 @@ export class TransformationEngine {
           return src;
         }).get().filter(Boolean);
         
-        // Ensure uniqueness
         const uniqueImages = [...new Set(images)];
         results[field] = isMultiple ? uniqueImages : uniqueImages[0];
       } 
-      else if (['content', 'body', 'richtext', 'main', 'article', 'post'].includes(field)) {
+      // 2. Rich Text Extraction
+      else if (type === 'richtext' || ['content', 'body', 'richtext', 'main', 'article', 'post'].includes(field)) {
         results[field] = $el.html()?.trim();
       } 
-      else if (field === 'description') {
-        results[field] = $el.first().text().trim();
-      }
+      // 3. Plain Text Extraction (Default)
       else {
-        // Fallback: If the field name doesn't match but the content has tags, it's probably HTML
-        const html = $el.html()?.trim();
-        if (html && (html.includes('<p') || html.includes('<div') || html.includes('<br'))) {
-          results[field] = html;
+        // If an attribute is specified (e.g. 'href' for a link region)
+        if (attr) {
+          results[field] = $el.attr(attr)?.trim();
         } else {
           results[field] = $el.first().text().trim();
         }

@@ -842,16 +842,16 @@ RESPOND WITH ONLY VALID JSON:
 }
 
 /**
- * Analyze a sample page from a structural group and suggest CSS selectors for content extraction.
- * This is the core AI intelligence for the site importer.
+ * Analyze a sample page from a structural group and suggest logical "Editable Regions".
+ * This is the core "Autonomous Architect" logic for the site importer.
  */
 export async function analyzeSiteImport(html, url = '', model = null, req = null) {
   const $ = (await import('cheerio')).load(html);
 
-  // Clean non-visible elements but keep full page structure (header/footer/nav stay — LLM needs them for context)
+  // Clean non-visible elements
   $('script, style, noscript, svg, iframe, canvas, link[rel="stylesheet"], meta').remove();
 
-  // Strip noisy attributes but keep class/id (critical for selector suggestions)
+  // Strip noisy attributes but keep class/id
   $('*').each((i, el) => {
     const attribs = el.attribs || {};
     for (const key in attribs) {
@@ -861,58 +861,41 @@ export async function analyzeSiteImport(html, url = '', model = null, req = null
     }
   });
 
-  // Send the full body to the LLM — it needs the complete page structure to write accurate selectors
   const cleanHtml = ($('body').html() || $.html())
     .replace(/\s+/g, ' ')
     .substring(0, 30000);
 
-  const systemPrompt = `You are a web content analysis expert. You analyze HTML to identify content structure and recommend CSS selectors for automated content extraction.
+  const systemPrompt = `You are an autonomous CMS Page Architect. Your goal is to analyze a webpage's HTML and identify the logical "Editable Regions" that should be managed by a CMS.
 
-Given a page's HTML, determine:
-1. What TYPE of page this is
-2. What CSS selectors should be used to extract each content field
-3. How confident you are in your analysis
+Instead of following a rigid schema, you must decide which sections of the page are content-rich and deserve to be editable by a user.
 
-RESPOND WITH ONLY VALID JSON in this exact format:
+RESPOND WITH ONLY VALID JSON:
 {
-  "page_type": "product|article|blog_post|listing|contact|about|homepage|gallery|other",
-  "selector_map": {
-    "title": "CSS selector for the unique page title (e.g. h1.product-title)",
-    "description": "CSS selector for a short introductory blurb or summary (typically plain text or a single paragraph).",
-    "content": "Identify the primary main body container. This element MUST have the highest density of 'meaningful text' (paragraphs and headers) and a high text-to-link ratio. EXCLUDE elements that contain navigation menus, breadcrumbs, or site-wide header/footer links. It should wrap the primary article or product body only.",
-    "price": "CSS selector for price (if product, otherwise omit)",
-    "images": {
-      "selector": "CSS selector targeting ALL primary media elements (e.g. '.product-slideshow img' or 'a.zoom-link')",
-      "attr": "The attribute containing the HIGHEST resolution URL (e.g. 'data-zoom', 'data-src', 'srcset', 'href', or 'src').",
+  "page_type": "product|article|blog_post|listing|contact|about|homepage|other",
+  "regions": [
+    {
+      "key": "unique_camel_case_key",
+      "label": "User-friendly label (e.g. 'Main Headline', 'Product Features')",
+      "type": "text|richtext|image|link",
+      "selector": "The most specific and resilient CSS selector for this region",
+      "attr": "Optional: Specific attribute to extract (e.g. 'src', 'data-zoom', 'href'). Default is innerHTML for richtext and textContent for text.",
       "multiple": true,
-      "reasoning": "Briefly explain why this selector/attribute captures the actual high-res product media and avoids thumbnails."
+      "reasoning": "Briefly explain why this section is a meaningful editable unit."
     }
-  },
-  "confidence": 0.85,
-  "summary": "Brief 1-sentence description of what this page is and its layout structure"
+  ],
+  "confidence": 0.9,
+  "summary": "1-sentence summary of the page layout"
 }
 
 RULES:
-- NO "main" FIELD: Do NOT include a "main" key in selector_map.
-- CONTENT VS NAVIGATION: "content" must be purely informative. It should NOT contain <ul> or <nav> elements that function as menus. If a container has more than 20% of its text wrapped in <a> tags, it is likely a navigation block and should be EXCLUDED from the "content" selector.
-- INFORMATIVE LINKS VS MENUS: Distinguish between links inside an article (citations, "read more") and structural navigation links (menus, sidebars). "content" should capture the former, never the latter.
-- CONTENT VS DESCRIPTION: "content" is the substantial main body. "description" is ONLY for a short introductory blurb.
-- MEDIA REASONING: Do not just grab the first <img>. Look for elements that suggest high-quality sources. If a site uses a zoom plugin, the high-res image is often in a 'data-zoom' or 'href' attribute of a link wrapping the image. Identify the selector that captures ALL unique media items for the product/article.
-- CONTENT MUST BE PRECISE: The "content" selector must point to the tightest container around the actual readable body text. Walk DOWN the DOM tree until you find the element whose children are the actual content tags, not a layout wrapper.
-- AVOID WRAPPERS: Do not select top-level #main, section-wrapper, or shopify-section elements. These contain layout noise.
-- TARGET DENSITY: Find the element where actual content tags (p, h1, h2, img, ul) are concentrated as direct children.
-- Example: If #main-content contains a spacer div and THEN a div.columns with all the text, your selector MUST be "div.columns".
-- BE SURGICAL: Avoid any selector that captures "Share this", "Related posts", breadcrumbs, or sidebars.
-- Use the MOST SPECIFIC selector possible (e.g. ".entry-content" or ".article-body").
-- BE RESILIENT: Structural groups may contain pages with slightly different class names. Prefer selectors that are likely to be stable across the entire group. 
-  * Good: 'main > article', 'section[data-content]', '.content-body'
-  * Brittle: '.product-123-description', '.unique-page-class'
-  * If classes look dynamic or page-specific, use a tag sequence (e.g. 'main > div:nth-of-type(2)') instead.
-- If a selector would include extraneous layout elements or empty divs, it is WRONG. Omit the field instead.
-- The selectors MUST exist in the provided HTML.
-- For PRODUCT pages: include "title", "content" (the full product details), "description" (short blurb), "price", and "images".
-- For ARTICLE/POST pages: include "title", "content" (the full article body), "description" (short intro), and optionally "images".
-- For LISTING pages: include "title" and optionally "content". Product grid items will be handled separately.`;
+1. IDENTIFY EDITABLE ZONES: Look for headlines, body text blocks, primary images, and price/data points.
+2. TEXT VS RICHTEXT: Use 'text' for simple strings (h1, span, prices). Use 'richtext' for substantial blocks containing multiple paragraphs, lists, or structural formatting.
+3. EXCLUDE NOISE: Do NOT create regions for site-wide navigation, footers, social sharing widgets, or 'Related Products' grids. Focus ONLY on the unique content of the current page.
+4. BE SURGICAL: Find the tightest possible parent element for each region. Avoid broad layout wrappers like #main or .container.
+5. PREFER SEMANTICS: For the main body, look for elements with high text density and low link density.
+6. MEDIA: If a page has a gallery or multiple product images, mark it as 'image' with "multiple": true.
+7. RESILIENCE: Avoid volatile class names. Prefer semantic tags or stable tag sequences (e.g. 'main > section > div:nth-of-type(2)') if class names look dynamic.
+8. CONSISTENCY: Use standard keys where possible (title, content, price, images) but add custom keys for unique page sections.`;
 
   const userPrompt = `URL: ${url}\n\nHTML:\n${cleanHtml}`;
 

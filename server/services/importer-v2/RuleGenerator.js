@@ -55,41 +55,47 @@ export class RuleGenerator {
         // Use LLM to analyze the ultra-clean LLM HTML
         const analysis = await analyzeSiteImport(sample.stripped_html, sample.url);
 
-        // --- VALIDATION STEP: Test selectors against other group members ---
-        info(this.dbName, 'IMPORT_V2_RULEGEN_VALIDATE', `Validating selectors for group ${group.structural_hash}`);
+        // --- VALIDATION STEP: Test regions against other group members ---
+        info(this.dbName, 'IMPORT_V2_RULEGEN_VALIDATE', `Validating ${analysis.regions?.length || 0} regions for group ${group.structural_hash}`);
         const groupMembers = await prisma.staged_items.findMany({
           where: { site_id: this.siteId, structural_hash: group.structural_hash },
-          take: 5, // Sample up to 5 members
+          take: 5,
           select: { url: true, stripped_html: true }
         });
 
-        const validationResults = {};
-        for (const [field, selectorData] of Object.entries(analysis.selector_map || {})) {
-          const selector = typeof selectorData === 'object' ? selectorData.selector : selectorData;
-          if (!selector) continue;
-
+        const validatedRegions = (analysis.regions || []).map(region => {
           let successCount = 0;
           for (const member of groupMembers) {
             const $ = (await import('cheerio')).load(member.stripped_html);
-            if ($(selector).length > 0) successCount++;
+            if ($(region.selector).length > 0) successCount++;
           }
 
           const successRate = successCount / groupMembers.length;
-          validationResults[field] = {
-            success_rate: successRate,
-            is_brittle: successRate < 1.0,
-            is_invalid: successRate === 0
+          return {
+            ...region,
+            validation: {
+              success_rate: successRate,
+              is_brittle: successRate < 1.0,
+              is_invalid: successRate === 0
+            }
           };
+        });
 
-          if (successRate < 0.5 && successRate > 0) {
-            info(this.dbName, 'IMPORT_V2_RULEGEN_BRITTLE', `Selector for '${field}' is brittle (${Math.round(successRate * 100)}% match): ${selector}`);
-          }
-        }
+        // Convert to selector_map for Transformation Engine compatibility
+        const selectorMap = {};
+        validatedRegions.forEach(r => {
+          selectorMap[r.key] = {
+            selector: r.selector,
+            attr: r.attr,
+            multiple: r.multiple,
+            type: r.type
+          };
+        });
 
         ruleset.types[group.structural_hash] = {
           page_type: analysis.page_type,
-          selector_map: analysis.selector_map,
-          validation: validationResults, // Store validation for UI/Debugging
+          regions: validatedRegions, // Rich metadata for Template Gen and UI
+          selector_map: selectorMap,   // Simplified map for Transformation Engine
           confidence: analysis.confidence,
           summary: analysis.summary,
           sample_url: sample.url

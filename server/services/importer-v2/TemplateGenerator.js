@@ -82,39 +82,15 @@ export class TemplateGenerator {
         await fs.mkdir(path.dirname(fullPath), { recursive: true });
         await fs.writeFile(fullPath, njkCode);
 
-        // Convert selector map to standard regions format for CMS compatibility
-        // Heuristic: Determine field types based on name and content patterns
-        const regions = Object.keys(group.selector_map || {}).map(name => {
-          let type = 'text';
-          const lowerName = name.toLowerCase();
-          const config = group.selector_map[name];
-          const isMultiple = typeof config === 'object' ? config.multiple : (name === 'images' || name === 'gallery');
-          
-          // 1. Richtext Detection (Long content or specific keywords)
-          if (['content', 'body', 'about', 'bio', 'details', 'main', 'article', 'post'].some(k => lowerName.includes(k))) {
-            type = 'richtext';
-          }
-          
-          // 2. Image Detection
-          if (['image', 'img', 'thumbnail', 'photo', 'picture', 'banner', 'logo', 'icon', 'images'].some(k => lowerName.includes(k))) {
-            type = 'image';
-          }
-
-          // 3. Price/Number (fallback to text for flexibility, but could be number)
-          if (['price', 'cost', 'amount', 'total'].some(k => lowerName.includes(k))) {
-            type = 'text'; 
-          }
-
-          return {
-            name,
-            label: name.charAt(0).toUpperCase() + name.slice(1).replace(/_/g, ' '),
-            type,
-            multiple: isMultiple
-          };
-        });
+        // Convert dynamic regions to standard CMS regions format
+        const cmsRegions = (group.regions || []).map(r => ({
+          name: r.key,
+          label: r.label,
+          type: r.type === 'richtext' ? 'richtext' : (r.type === 'image' ? 'image' : 'text'),
+          multiple: !!r.multiple
+        }));
 
         // Clean name: "Imported Homepage", "Imported Product", etc.
-        // We add a number only if we have multiple of the same type
         const typeCount = generatedTemplates.filter(t => t.page_type === group.page_type).length;
         const displayName = `Imported ${group.page_type.charAt(0).toUpperCase() + group.page_type.slice(1)}${typeCount > 0 ? ` (${typeCount + 1})` : ''}`;
 
@@ -126,7 +102,7 @@ export class TemplateGenerator {
             content: njkCode,
             description: group.summary,
             blueprint: group.selector_map,
-            regions: JSON.stringify(regions),
+            regions: JSON.stringify(cmsRegions),
             updated_at: new Date()
           },
           create: {
@@ -136,7 +112,7 @@ export class TemplateGenerator {
             content_type: contentType,
             description: group.summary,
             blueprint: group.selector_map,
-            regions: JSON.stringify(regions)
+            regions: JSON.stringify(cmsRegions)
           }
         });
 
