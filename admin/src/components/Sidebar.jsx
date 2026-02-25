@@ -62,12 +62,17 @@ export default function Sidebar({ isOpen, onClose, contentTypes = [] }) {
       ]
     },
     {
+      section: _('nav.section.import', 'Import'),
+      items: [
+        { name: _('nav.manual_import', 'Manual Import'), href: '/import', icon: Download },
+        { name: _('nav.assisted_import', 'Assisted Import'), href: '/assisted-import', icon: Zap },
+        { name: _('nav.lovable_import', 'Lovable Import'), href: '/import-lovable', icon: Sparkles }
+      ]
+    },
+    {
       section: _('nav.section.settings', 'Settings'),
       items: [
         { name: _('nav.themes', 'Themes'), href: '/themes', icon: Palette },
-        { name: _('nav.site_importer', 'Site Importer'), href: '/import', icon: Download },
-        { name: 'WolfImporter V2', href: '/import-v2', icon: Zap },
-        { name: 'Lovable Importer', href: '/import-lovable', icon: Download },
         { name: _('nav.styles', 'Styles'), href: '/styles', icon: Palette },
         { name: _('nav.users', 'Users'), href: '/users', icon: Users },
         { name: _('nav.sites', 'Sites'), href: '/tenants', icon: Globe },

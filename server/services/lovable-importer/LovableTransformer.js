@@ -1,4 +1,4 @@
-import { TransformationEngine } from '../importer-v2/TransformationEngine.js';
+import { TransformationEngine } from '../assisted-import/TransformationEngine.js';
 
 /**
  * Lovable-specific transformation engine.

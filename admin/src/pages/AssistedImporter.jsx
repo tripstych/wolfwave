@@ -22,7 +22,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 
-export default function SiteImporterV2() {
+export default function AssistedImporter() {
   const [url, setUrl] = useState('');
   const [maxPages, setMaxPages] = useState(500);
   const [nuke, setNuke] = useState(false);
@@ -49,7 +49,7 @@ export default function SiteImporterV2() {
 
   const loadSites = async () => {
     try {
-      const data = await api.get('/import-v2/sites');
+      const data = await api.get('/assisted-import/sites');
       setSites(data || []);
       
       // Update lastActionRef with current actions to prevent initial toasts
@@ -66,7 +66,7 @@ export default function SiteImporterV2() {
   const refreshSite = useCallback(async () => {
     if (!selectedSite) return;
     try {
-      const updated = await api.get(`/import-v2/sites/${selectedSite.id}`);
+      const updated = await api.get(`/assisted-import/sites/${selectedSite.id}`);
       if (updated) {
         // Handle Toast Notification
         if (updated.last_action && updated.last_action !== lastActionRef.current[updated.id]) {
@@ -82,7 +82,7 @@ export default function SiteImporterV2() {
 
         setSelectedSite(updated);
         if (view === 'staged') {
-          const items = await api.get(`/import-v2/sites/${selectedSite.id}/staged`);
+          const items = await api.get(`/assisted-import/sites/${selectedSite.id}/staged`);
           setStagedItems(items || []);
         }
       }
@@ -105,11 +105,11 @@ export default function SiteImporterV2() {
     if (!url) return;
     setIsStarting(true);
     try {
-      const res = await api.post('/import-v2', { url, config: { maxPages: parseInt(maxPages), nuke } });
+      const res = await api.post('/assisted-import', { url, config: { maxPages: parseInt(maxPages), nuke } });
       if (res.success) {
         setUrl('');
         loadSites();
-        const newSite = await api.get(`/import-v2/sites/${res.site_id}`);
+        const newSite = await api.get(`/assisted-import/sites/${res.site_id}`);
         setSelectedSite(newSite);
       }
     } catch (err) {
@@ -123,7 +123,7 @@ export default function SiteImporterV2() {
     setSelectedSite(site);
     setView('overview');
     try {
-      const items = await api.get(`/import-v2/sites/${site.id}/staged`);
+      const items = await api.get(`/assisted-import/sites/${site.id}/staged`);
       setStagedItems(items || []);
     } catch (err) {
       console.error('Failed to load items:', err);
@@ -133,7 +133,7 @@ export default function SiteImporterV2() {
   const triggerRuleGen = async () => {
     if (!selectedSite) return;
     try {
-      await api.post(`/import-v2/sites/${selectedSite.id}/generate-rules`);
+      await api.post(`/assisted-import/sites/${selectedSite.id}/generate-rules`);
       refreshSite();
     } catch (err) {
       alert('Rule generation failed: ' + err.message);
@@ -143,7 +143,7 @@ export default function SiteImporterV2() {
   const triggerTemplateGen = async () => {
     if (!selectedSite) return;
     try {
-      await api.post(`/import-v2/sites/${selectedSite.id}/generate-templates`);
+      await api.post(`/assisted-import/sites/${selectedSite.id}/generate-templates`);
       toast.success('Templates generated successfully!');
       refreshSite();
     } catch (err) {
@@ -156,7 +156,7 @@ export default function SiteImporterV2() {
     if (!confirm('This will use the AI rules to migrate all staged content into your CMS tables. Continue?')) return;
     setIsFinalizing(true);
     try {
-      await api.post(`/import-v2/sites/${selectedSite.id}/transform`);
+      await api.post(`/assisted-import/sites/${selectedSite.id}/transform`);
       toast.success('Migration started in background...');
       refreshSite();
     } catch (err) {
@@ -169,7 +169,7 @@ export default function SiteImporterV2() {
   const handleDeleteSite = async (id) => {
     if (!confirm('Are you sure you want to delete this site and all its staged content?')) return;
     try {
-      await api.delete(`/import/sites/${id}`);
+      await api.delete(`/assisted-import/sites/${id}`);
       if (selectedSite?.id === id) setSelectedSite(null);
       loadSites();
     } catch (err) {
@@ -183,7 +183,7 @@ export default function SiteImporterV2() {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Zap className="w-6 h-6 text-amber-500 fill-amber-500" />
-            WolfImporter V2
+            Assisted Import
           </h1>
           <p className="text-sm text-gray-500">Autonomous AI-powered theme and site migration</p>
         </div>

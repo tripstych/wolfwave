@@ -3,7 +3,7 @@ import * as cheerio from 'cheerio';
 import crypto from 'crypto';
 import prisma from '../../lib/prisma.js';
 import { info, error as logError } from '../../lib/logger.js';
-import { ImporterServiceV2 } from './ImporterServiceV2.js';
+import { AssistedImportService } from './AssistedImportService.js';
 import { jobRegistry } from './JobRegistry.js';
 
 export class CrawlEngine {
@@ -125,11 +125,11 @@ export class CrawlEngine {
     this.queue.push(this.normalizeUrl(this.rootUrl));
     const rootHostname = new URL(this.rootUrl).hostname;
 
-    info(this.dbName, 'IMPORT_V2_CRAWL_START', `Crawling up to ${this.maxPages} pages`);
+    info(this.dbName, 'ASSISTED_IMPORT_CRAWL_START', `Crawling up to ${this.maxPages} pages`);
 
     while (this.queue.length > 0 && this.pageCount < this.maxPages) {
       if (jobRegistry.isCancelled(this.siteId)) {
-        info(this.dbName, 'IMPORT_V2_CRAWL_CANCELLED', `Crawler stopped for site ${this.siteId} due to cancellation.`);
+        info(this.dbName, 'ASSISTED_IMPORT_CRAWL_CANCELLED', `Crawler stopped for site ${this.siteId} due to cancellation.`);
         return;
       }
 
@@ -138,9 +138,9 @@ export class CrawlEngine {
       this.visited.add(url);
 
       try {
-        info(this.dbName, 'IMPORT_V2_CRAWL_PAGE', `Fetching: ${url}`);
+        info(this.dbName, 'ASSISTED_IMPORT_CRAWL_PAGE', `Fetching: ${url}`);
         const { data: html } = await axios.get(url, {
-          headers: { 'User-Agent': 'WebWolf-Importer-V2/1.0' },
+          headers: { 'User-Agent': 'WebWolf-AssistedImport/1.0' },
           timeout: 10000,
           validateStatus: s => s < 400
         });
@@ -176,7 +176,7 @@ export class CrawlEngine {
         this.pageCount++;
         
         if (this.pageCount % 10 === 0) {
-          await ImporterServiceV2.updateStatus(this.siteId, 'crawling', `Crawled ${this.pageCount} pages...`);
+          await AssistedImportService.updateStatus(this.siteId, 'crawling', `Crawled ${this.pageCount} pages...`);
         }
 
         // Discover links
@@ -202,7 +202,7 @@ export class CrawlEngine {
         // Delay to be polite
         await new Promise(r => setTimeout(r, 100));
       } catch (err) {
-        logError(this.dbName, err, 'IMPORT_V2_CRAWL_PAGE_FAILED', { url });
+        logError(this.dbName, err, 'ASSISTED_IMPORT_CRAWL_PAGE_FAILED', { url });
       }
     }
 
@@ -211,6 +211,6 @@ export class CrawlEngine {
       data: { status: 'crawled' }
     });
     
-    info(this.dbName, 'IMPORT_V2_CRAWL_COMPLETE', `Finished with ${this.pageCount} pages`);
+    info(this.dbName, 'ASSISTED_IMPORT_CRAWL_COMPLETE', `Finished with ${this.pageCount} pages`);
   }
 }

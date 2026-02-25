@@ -19,7 +19,7 @@ import WidgetEditor from './widgets/WidgetEditor';
 import Settings from './settings/Settings';
 import SEO from './settings/SEO';
 import SiteImporter from './pages/SiteImporter';
-import SiteImporterV2 from './pages/SiteImporterV2';
+import AssistedImporter from './pages/AssistedImporter';
 import LovableImporter from './pages/LovableImporter';
 import ContentList from './content/ContentList';
 import ContentEditor from './content/ContentEditor';
@@ -99,7 +99,7 @@ function App() {
                 <Route path="/seo" element={<SEO />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/import" element={<SiteImporter />} />
-                <Route path="/import-v2" element={<SiteImporterV2 />} />
+                <Route path="/assisted-import" element={<AssistedImporter />} />
                 <Route path="/import-lovable" element={<LovableImporter />} />
                 <Route path="/products" element={<ProductList />} />
                 <Route path="/products/new" element={<ProductEditor />} />

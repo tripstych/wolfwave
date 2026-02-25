@@ -1,6 +1,7 @@
-import { RuleGenerator } from '../importer-v2/RuleGenerator.js';
+import { RuleGenerator } from '../assisted-import/RuleGenerator.js';
 import prisma from '../../lib/prisma.js';
 import { info } from '../../lib/logger.js';
+import { AssistedImportService } from '../assisted-import/AssistedImportService.js';
 
 /**
  * Lovable-specific rule generator.

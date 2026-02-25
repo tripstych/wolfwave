@@ -191,7 +191,7 @@ export default function LovableImporter() {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Heart className="w-6 h-6 text-pink-500 fill-pink-500" />
-            Lovable Importer
+            Lovable Import
           </h1>
           <p className="text-sm text-gray-500">Import Lovable-generated sites as base themes</p>
         </div>

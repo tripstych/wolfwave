@@ -3,7 +3,7 @@ import * as cheerio from 'cheerio';
 import { analyzeSiteAssets, analyzeSiteImport } from '../aiService.js';
 import { info, error as logError } from '../../lib/logger.js';
 import prisma from '../../lib/prisma.js';
-import { ImporterServiceV2 } from './ImporterServiceV2.js';
+import { AssistedImportService } from './AssistedImportService.js';
 
 /**
  * DiscoveryEngine is responsible for the initial analysis of a site.
@@ -18,21 +18,21 @@ export class DiscoveryEngine {
 
   async run() {
     try {
-      info(this.dbName, 'IMPORT_V2_DISCOVERY_START', `Analyzing ${this.rootUrl}`);
+      info(this.dbName, 'ASSISTED_IMPORT_DISCOVERY_START', `Analyzing ${this.rootUrl}`);
 
       const { data: html } = await axios.get(this.rootUrl, {
-        headers: { 'User-Agent': 'WebWolf-Importer-V2/1.0' },
+        headers: { 'User-Agent': 'WebWolf-AssistedImport/1.0' },
         timeout: 15000
       });
 
       // 1. Analyze Assets & Platform
       const assetAnalysis = await analyzeSiteAssets(html, this.rootUrl);
-      info(this.dbName, 'IMPORT_V2_PLATFORM_DETECTED', `Platform: ${assetAnalysis.platform}`);
-      await ImporterServiceV2.updateStatus(this.siteId, 'analyzing', `Detected ${assetAnalysis.platform} platform. Analyzing structure...`);
+      info(this.dbName, 'ASSISTED_IMPORT_PLATFORM_DETECTED', `Platform: ${assetAnalysis.platform}`);
+      await AssistedImportService.updateStatus(this.siteId, 'analyzing', `Detected ${assetAnalysis.platform} platform. Analyzing structure...`);
 
       // 2. Initial Content Structure Analysis
       const contentAnalysis = await analyzeSiteImport(html, this.rootUrl);
-      await ImporterServiceV2.updateStatus(this.siteId, 'analyzing', `Found ${contentAnalysis.page_type} structure on homepage.`);
+      await AssistedImportService.updateStatus(this.siteId, 'analyzing', `Found ${contentAnalysis.page_type} structure on homepage.`);
       
       // Convert regions to selector_map for initial extraction_rules
       const homepageSelectors = {};
@@ -76,7 +76,7 @@ export class DiscoveryEngine {
 
       return ruleset;
     } catch (err) {
-      logError(this.dbName, err, 'IMPORT_V2_DISCOVERY_FAILED');
+      logError(this.dbName, err, 'ASSISTED_IMPORT_DISCOVERY_FAILED');
       throw err;
     }
   }

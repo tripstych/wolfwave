@@ -1,15 +1,15 @@
 import { Router } from 'express';
 import { requireAuth, requireEditor } from '../middleware/auth.js';
 import prisma from '../lib/prisma.js';
-import { ImporterServiceV2 } from '../services/importer-v2/ImporterServiceV2.js';
-import { RuleGenerator } from '../services/importer-v2/RuleGenerator.js';
-import { TemplateGenerator } from '../services/importer-v2/TemplateGenerator.js';
-import { TransformationEngine } from '../services/importer-v2/TransformationEngine.js';
+import { AssistedImportService } from '../services/assisted-import/AssistedImportService.js';
+import { RuleGenerator } from '../services/assisted-import/RuleGenerator.js';
+import { TemplateGenerator } from '../services/assisted-import/TemplateGenerator.js';
+import { TransformationEngine } from '../services/assisted-import/TransformationEngine.js';
 
 const router = Router();
 
 /**
- * Start a new V2 import process
+ * Start a new Assisted import process
  */
 router.post('/', requireAuth, requireEditor, async (req, res) => {
   try {
@@ -24,7 +24,7 @@ router.post('/', requireAuth, requireEditor, async (req, res) => {
       }
     });
 
-    const result = await ImporterServiceV2.startImport(site.id, url);
+    const result = await AssistedImportService.startImport(site.id, url);
     res.json({ success: true, site_id: site.id, ...result });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -32,7 +32,7 @@ router.post('/', requireAuth, requireEditor, async (req, res) => {
 });
 
 /**
- * Get all V2 sites
+ * Get all Assisted sites
  */
 router.get('/sites', requireAuth, async (req, res) => {
   try {
@@ -152,7 +152,7 @@ router.post('/sites/:id/transform', requireAuth, requireEditor, async (req, res)
     };
 
     runFullFinalize().catch(err => {
-      console.error('[IMPORT-V2] Background Finalize Failed:', err);
+      console.error('[ASSISTED_IMPORT] Background Finalize Failed:', err);
     });
 
     res.json({ success: true, message: 'Finalization and Migration started in background' });

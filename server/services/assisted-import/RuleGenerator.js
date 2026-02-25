@@ -1,7 +1,7 @@
 import prisma from '../../lib/prisma.js';
 import { analyzeSiteImport } from '../aiService.js';
 import { info, error as logError } from '../../lib/logger.js';
-import { ImporterServiceV2 } from './ImporterServiceV2.js';
+import { AssistedImportService } from './AssistedImportService.js';
 
 /**
  * RuleGenerator analyzes the crawled pages and creates fine-grained extraction rules.
@@ -15,7 +15,7 @@ export class RuleGenerator {
 
   async run() {
     try {
-      info(this.dbName, 'IMPORT_V2_RULEGEN_START', `Generating rules for site ${this.siteId}`);
+      info(this.dbName, 'ASSISTED_IMPORT_RULEGEN_START', `Generating rules for site ${this.siteId}`);
 
       const site = await prisma.imported_sites.findUnique({
         where: { id: this.siteId }
@@ -32,7 +32,7 @@ export class RuleGenerator {
         _count: { id: true }
       });
 
-      info(this.dbName, 'IMPORT_V2_RULEGEN_GROUPS', `Found ${groups.length} unique structural groups`);
+      info(this.dbName, 'ASSISTED_IMPORT_RULEGEN_GROUPS', `Found ${groups.length} unique structural groups`);
 
       let processedGroups = 0;
       for (const group of groups) {
@@ -49,8 +49,8 @@ export class RuleGenerator {
 
         if (!sample || !sample.llm_html) continue;
 
-        info(this.dbName, 'IMPORT_V2_RULEGEN_ANALYZE', `Analyzing group ${group.structural_hash} (Sample: ${sample.url})`);
-        await ImporterServiceV2.updateStatus(this.siteId, 'generating_rules', `Analyzing group ${processedGroups}/${groups.length} (${group.structural_hash.substring(0,8)})...`);
+        info(this.dbName, 'ASSISTED_IMPORT_RULEGEN_ANALYZE', `Analyzing group ${group.structural_hash} (Sample: ${sample.url})`);
+        await AssistedImportService.updateStatus(this.siteId, 'generating_rules', `Analyzing group ${processedGroups}/${groups.length} (${group.structural_hash.substring(0,8)})...`);
 
         // Use LLM to analyze the ultra-clean LLM HTML
         const analysis = await analyzeSiteImport(sample.stripped_html, sample.url);
@@ -167,7 +167,7 @@ export class RuleGenerator {
 
       return ruleset;
     } catch (err) {
-      logError(this.dbName, err, 'IMPORT_V2_RULEGEN_FAILED');
+      logError(this.dbName, err, 'ASSISTED_IMPORT_RULEGEN_FAILED');
       throw err;
     }
   }

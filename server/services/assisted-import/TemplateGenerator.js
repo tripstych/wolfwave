@@ -1,7 +1,7 @@
 import prisma from '../../lib/prisma.js';
 import { generateTemplateFromHtml, comparePageStructures } from '../aiService.js';
 import { info, error as logError } from '../../lib/logger.js';
-import { ImporterServiceV2 } from './ImporterServiceV2.js';
+import { AssistedImportService } from './AssistedImportService.js';
 import path from 'path';
 import fs from 'fs/promises';
 
@@ -18,7 +18,7 @@ export class TemplateGenerator {
 
   async run() {
     try {
-      info(this.dbName, 'IMPORT_V2_TEMPLATE_GEN_START', `Generating templates for site ${this.siteId}`);
+      info(this.dbName, 'ASSISTED_IMPORT_TEMPLATE_GEN_START', `Generating templates for site ${this.siteId}`);
 
       const site = await prisma.imported_sites.findUnique({
         where: { id: this.siteId }
@@ -40,8 +40,8 @@ export class TemplateGenerator {
 
         if (!sample || !sample.stripped_html) continue;
 
-        info(this.dbName, 'IMPORT_V2_TEMPLATE_GEN_TYPE', `Processing ${group.page_type} (${hash})`);
-        await ImporterServiceV2.updateStatus(this.siteId, 'generating_templates', `Analyzing structure ${i + 1}/${hashes.length} (${group.page_type})...`);
+        info(this.dbName, 'ASSISTED_IMPORT_TEMPLATE_GEN_TYPE', `Processing ${group.page_type} (${hash})`);
+        await AssistedImportService.updateStatus(this.siteId, 'generating_templates', `Analyzing structure ${i + 1}/${hashes.length} (${group.page_type})...`);
 
         // --- Deduplication Check ---
         let existingTemplateId = null;
@@ -50,7 +50,7 @@ export class TemplateGenerator {
         for (const candidate of candidates) {
           const comparison = await comparePageStructures(sample.llm_html, candidate.llm_html);
           if (comparison.can_share) {
-            info(this.dbName, 'IMPORT_V2_TEMPLATE_DEDUPE', `Group ${hash} will share template with ${candidate.hash} (${comparison.reason})`);
+            info(this.dbName, 'ASSISTED_IMPORT_TEMPLATE_DEDUPE', `Group ${hash} will share template with ${candidate.hash} (${comparison.reason})`);
             existingTemplateId = candidate.template_id;
             break;
           }
@@ -63,7 +63,7 @@ export class TemplateGenerator {
         }
 
         // --- Generate New Template ---
-        await ImporterServiceV2.updateStatus(this.siteId, 'generating_templates', `Creating unique Nunjucks template for ${group.page_type}...`);
+        await AssistedImportService.updateStatus(this.siteId, 'generating_templates', `Creating unique Nunjucks template for ${group.page_type}...`);
 
         const njkCode = await generateTemplateFromHtml(
           sample.stripped_html,
@@ -142,10 +142,10 @@ export class TemplateGenerator {
         }
       }
 
-      info(this.dbName, 'IMPORT_V2_TEMPLATE_GEN_COMPLETE', `Templates generated and deduplicated`);
+      info(this.dbName, 'ASSISTED_IMPORT_TEMPLATE_GEN_COMPLETE', `Templates generated and deduplicated`);
 
     } catch (err) {
-      logError(this.dbName, err, 'IMPORT_V2_TEMPLATE_GEN_FAILED');
+      logError(this.dbName, err, 'ASSISTED_IMPORT_TEMPLATE_GEN_FAILED');
       throw err;
     }
   }

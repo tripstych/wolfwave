@@ -1,9 +1,9 @@
-import { TemplateGenerator } from '../importer-v2/TemplateGenerator.js';
+import { TemplateGenerator } from '../assisted-import/TemplateGenerator.js';
 import prisma from '../../lib/prisma.js';
 import { info, error as logError } from '../../lib/logger.js';
 import { downloadAsset } from '../mediaService.js';
 import { generateTemplateFromHtml, comparePageStructures } from '../aiService.js';
-import { ImporterServiceV2 } from '../importer-v2/ImporterServiceV2.js';
+import { AssistedImportService } from '../assisted-import/AssistedImportService.js';
 import path from 'path';
 import fs from 'fs/promises';
 

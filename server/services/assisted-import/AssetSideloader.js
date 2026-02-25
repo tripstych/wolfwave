@@ -3,7 +3,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import prisma from '../../lib/prisma.js';
 import { info, error as logError } from '../../lib/logger.js';
-import { ImporterServiceV2 } from './ImporterServiceV2.js';
+import { AssistedImportService } from './AssistedImportService.js';
 
 /**
  * AssetSideloader downloads CSS and JS files identified during discovery
@@ -17,21 +17,21 @@ export class AssetSideloader {
 
   async run() {
     try {
-      info(this.dbName, 'IMPORT_V2_ASSETS_START', `Sideloading assets for site ${this.siteId}`);
+      info(this.dbName, 'ASSISTED_IMPORT_ASSETS_START', `Sideloading assets for site ${this.siteId}`);
 
       const site = await prisma.imported_sites.findUnique({
         where: { id: this.siteId }
       });
 
       if (!site || !site.llm_ruleset) {
-        info(this.dbName, 'IMPORT_V2_ASSETS_SKIP', 'No ruleset found, skipping asset sideloading');
+        info(this.dbName, 'ASSISTED_IMPORT_ASSETS_SKIP', 'No ruleset found, skipping asset sideloading');
         return;
       }
       const ruleset = site.llm_ruleset;
       const rootUrl = ruleset.root_url || site.root_url;
       const theme = ruleset.theme;
       if (!theme) {
-        info(this.dbName, 'IMPORT_V2_ASSETS_SKIP', 'No theme info in ruleset, skipping asset sideloading');
+        info(this.dbName, 'ASSISTED_IMPORT_ASSETS_SKIP', 'No theme info in ruleset, skipping asset sideloading');
         return;
       }
       const assets = theme.assets || {};
@@ -84,11 +84,11 @@ export class AssetSideloader {
         data: { llm_ruleset: ruleset }
       });
 
-      info(this.dbName, 'IMPORT_V2_ASSETS_COMPLETE', `Sideloaded ${localAssets.stylesheets.length} CSS and ${localAssets.scripts.length} JS files`);
-      await ImporterServiceV2.updateStatus(this.siteId, 'assets_loaded', 'Theme assets sideloaded successfully.');
+      info(this.dbName, 'ASSISTED_IMPORT_ASSETS_COMPLETE', `Sideloaded ${localAssets.stylesheets.length} CSS and ${localAssets.scripts.length} JS files`);
+      await AssistedImportService.updateStatus(this.siteId, 'assets_loaded', 'Theme assets sideloaded successfully.');
 
     } catch (err) {
-      logError(this.dbName, err, 'IMPORT_V2_ASSETS_FAILED');
+      logError(this.dbName, err, 'ASSISTED_IMPORT_ASSETS_FAILED');
       throw err;
     }
   }
@@ -109,12 +109,12 @@ export class AssetSideloader {
       const filename = path.basename(new URL(absoluteUrl).pathname) || `asset-${Date.now()}.${type}`;
       const destPath = path.join(baseDir, filename);
 
-      info(this.dbName, 'IMPORT_V2_ASSET_DL', `Downloading ${absoluteUrl}`);
+      info(this.dbName, 'ASSISTED_IMPORT_ASSET_DL', `Downloading ${absoluteUrl}`);
 
       const response = await axios.get(absoluteUrl, {
         timeout: 10000,
         responseType: 'arraybuffer',
-        headers: { 'User-Agent': 'WebWolf-Importer-V2/1.0' }
+        headers: { 'User-Agent': 'WebWolf-AssistedImport/1.0' }
       });
 
       await fs.writeFile(destPath, response.data);
