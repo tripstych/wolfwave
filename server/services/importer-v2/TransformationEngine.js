@@ -109,7 +109,7 @@ export class TransformationEngine {
           cleanPrice = parseFloat(priceStr) || 0;
         }
         
-        if (moduleName === 'pages') {
+        if (moduleName === 'pages' || moduleName === 'posts') {
           // Find existing page manually since relation is removed
           const existingPage = await prisma.pages.findFirst({
             where: { content_id: content.id }
@@ -117,8 +117,19 @@ export class TransformationEngine {
 
           await prisma.pages.upsert({
             where: { id: existingPage?.id || -1 },
-            update: { title: content.title, template_id: templateId, status: 'published' },
-            create: { content_id: content.id, title: content.title, template_id: templateId, status: 'published' }
+            update: { 
+              title: content.title, 
+              template_id: templateId, 
+              status: 'published',
+              content_type: moduleName 
+            },
+            create: { 
+              content_id: content.id, 
+              title: content.title, 
+              template_id: templateId, 
+              status: 'published',
+              content_type: moduleName
+            }
           });
         } 
         else if (moduleName === 'products') {
