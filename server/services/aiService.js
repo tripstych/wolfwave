@@ -336,7 +336,7 @@ export async function generateText(systemPrompt, userPrompt, model = null, req =
   for (const provider of providers) {
     const caller = textCallers[provider];
     const logTag = `AI_GEN_${provider.toUpperCase()}`;
-    info(req || 'system', logTag, `System: ${systemPrompt}\nUser: ${userPrompt}`);
+    info(req || 'system', logTag, `System: ${systemPrompt}\nUser: ${userPrompt.substring(0, 1000)}${userPrompt.length > 1000 ? '...' : ''}`);
 
     try {
       const { text, model: usedModel } = await caller(config, systemPrompt, userPrompt, model, true);
