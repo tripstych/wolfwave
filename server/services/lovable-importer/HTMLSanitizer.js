@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import prisma from '../../lib/prisma.js';
 import { info, error as logError } from '../../lib/logger.js';
 import { LovableImporterService } from './LovableImporterService.js';
-import { jobRegistry } from '../importer-v2/JobRegistry.js';
+import { jobRegistry } from '../assisted-import/JobRegistry.js';
 
 /**
  * HTMLSanitizer strips Tailwind utility classes, React/Radix artifacts,

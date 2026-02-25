@@ -15,7 +15,7 @@ import * as menuService from '../services/menuService.js';
 import prisma from '../lib/prisma.js';
 import { getTask } from '../lib/progressStore.js';
 import { CRAWLER_PRESETS } from '../lib/crawlerPresets.js';
-import { jobRegistry } from '../services/importer-v2/JobRegistry.js';
+import { jobRegistry } from '../services/assisted-import/JobRegistry.js';
 
 // Multer for WP theme ZIP uploads (memory storage, 50MB limit)
 const wpUpload = multer({

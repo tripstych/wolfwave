@@ -318,25 +318,25 @@ export default function AssistedImporter() {
                     <button 
                       onClick={() => setView('overview')} 
                       className={`px-4 py-1.5 text-xs font-bold rounded-md flex items-center gap-2 transition-all ${view === 'overview' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
-                      id="admin-site-importer-v2-overview-tab"
+                      id="admin-assisted-importer-overview-tab"
                     >
                       <Layers className="w-3.5 h-3.5" /> OVERVIEW
                     </button>
                     <button 
                       onClick={() => setView('staged')} 
                       className={`px-4 py-1.5 text-xs font-bold rounded-md flex items-center gap-2 transition-all ${view === 'staged' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
-                      id="admin-site-importer-v2-staged-tab"
+                      id="admin-assisted-importer-staged-tab"
                     >
                       <Database className="w-3.5 h-3.5" /> STAGED ITEMS
                     </button>
                   </div>
                   {selectedSite.status === 'crawled' && (
-                    <button onClick={triggerRuleGen} id="admin-site-importer-v2-generate-rules-button" className="btn btn-primary btn-sm bg-amber-500 hover:bg-amber-600 border-none">
+                    <button onClick={triggerRuleGen} id="admin-assisted-importer-generate-rules-button" className="btn btn-primary btn-sm bg-amber-500 hover:bg-amber-600 border-none">
                       Generate Rules
                     </button>
                   )}
                   {selectedSite.status === 'rules_generated' && (
-                    <button onClick={triggerTemplateGen} id="admin-site-importer-v2-generate-templates-button" className="btn btn-primary btn-sm bg-blue-500 hover:bg-blue-600 border-none">
+                    <button onClick={triggerTemplateGen} id="admin-assisted-importer-generate-templates-button" className="btn btn-primary btn-sm bg-blue-500 hover:bg-blue-600 border-none">
                       Generate Templates
                     </button>
                   )}
@@ -344,7 +344,7 @@ export default function AssistedImporter() {
                     <button 
                       onClick={triggerTransform} 
                       disabled={isFinalizing}
-                      id="admin-site-importer-v2-finalize-migrate-button" 
+                      id="admin-assisted-importer-finalize-migrate-button" 
                       className="btn btn-primary btn-sm flex items-center gap-2"
                     >
                       {isFinalizing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
@@ -409,7 +409,7 @@ export default function AssistedImporter() {
                     <div className="p-4">
                       {selectedSite.llm_ruleset ? (
                         <div className="space-y-4">
-                          <div id="admin-site-importer-v2-structural-groups" className="text-xs text-gray-600 leading-relaxed bg-amber-50 p-3 rounded border border-amber-100 italic">
+                          <div id="admin-assisted-importer-structural-groups" className="text-xs text-gray-600 leading-relaxed bg-amber-50 p-3 rounded border border-amber-100 italic">
                             "{selectedSite.llm_ruleset.discovery_info}"
                           </div>
                           <div className="space-y-2">
@@ -517,7 +517,7 @@ export default function AssistedImporter() {
                     </div>
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400" />
-                      <input type="text" placeholder="Search items..." id="admin-site-importer-v2-search-input" className="input py-1 pl-8 text-xs w-48" />
+                      <input type="text" placeholder="Search items..." id="admin-assisted-importer-search-input" className="input py-1 pl-8 text-xs w-48" />
                     </div>
                   </div>
                   <div className="overflow-x-auto">

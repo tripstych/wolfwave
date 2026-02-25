@@ -5,7 +5,7 @@ import { LovableImporterService } from '../services/lovable-importer/LovableImpo
 import { LovableRuleGenerator } from '../services/lovable-importer/LovableRuleGenerator.js';
 import { LovableTemplateGenerator } from '../services/lovable-importer/LovableTemplateGenerator.js';
 import { LovableTransformer } from '../services/lovable-importer/LovableTransformer.js';
-import { jobRegistry } from '../services/importer-v2/JobRegistry.js';
+import { jobRegistry } from '../services/assisted-import/JobRegistry.js';
 
 const router = Router();
 
