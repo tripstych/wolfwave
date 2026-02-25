@@ -388,7 +388,7 @@ export async function generateRawText(systemPrompt, userPrompt, model = null) {
 
   for (const provider of providers) {
     const caller = textCallers[provider];
-    info('system', `AI_GEN_RAW_${provider.toUpperCase()}`, `System: ${systemPrompt}\nUser: ${userPrompt}`);
+    info('system', `AI_GEN_RAW_${provider.toUpperCase()}`, `System: ${systemPrompt}\nUser: ${userPrompt.substring(0, 500)}...`);
 
     try {
       const { text, model: usedModel } = await caller(config, systemPrompt, userPrompt, model, false);
