@@ -781,9 +781,9 @@ ${JSON.stringify(assets, null, 2)}
 SELECTOR MAP:
 ${JSON.stringify(selectorMap, null, 2)}
 
-PAGE TYPE: ${pageType}`;
+PAGE TYPE: \${pageType}\`;
 
-  const userPrompt = `SOURCE HTML:\n${html}`;
+  const userPrompt = \`SOURCE HTML:\\n\${html.substring(0, 25000)}\`;
 
   // Retry once on transient errors (502, 503, timeout)
   for (let attempt = 1; attempt <= 2; attempt++) {
@@ -879,7 +879,7 @@ RESPOND WITH ONLY VALID JSON:
   "confidence": 0.9
 }`;
 
-  const userPrompt = `HTML A:\n${htmlA}\n\nHTML B:\n${htmlB}`;
+  const userPrompt = `HTML A:\n${htmlA.substring(0, 15000)}\n\nHTML B:\n${htmlB.substring(0, 15000)}`;
 
   try {
     return await generateText(systemPrompt, userPrompt, model);
@@ -900,7 +900,8 @@ export async function analyzeSiteImport(html, url = '', model = null, req = null
   $('script, style, noscript, svg, iframe, canvas, link[rel="stylesheet"], meta').remove();
 
   const cleanHtml = ($.html('body') || $.html())
-    .replace(/\s+/g, ' ');
+    .replace(/\s+/g, ' ')
+    .substring(0, 40000);
 
   const systemPrompt = `Role: You are a Technical Content Engineer specializing in CMS migrations.
 

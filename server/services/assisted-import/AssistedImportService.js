@@ -19,9 +19,12 @@ export class AssistedImportService {
       throw new Error('IMPORT_CANCELLED');
     }
 
+    // Safety: Truncate message to avoid DB length errors
+    const safeAction = lastAction?.substring(0, 250);
+
     return await prisma.imported_sites.update({
       where: { id: siteId },
-      data: { status, last_action: lastAction }
+      data: { status, last_action: safeAction }
     });
   }
 
