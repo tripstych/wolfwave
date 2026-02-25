@@ -336,7 +336,7 @@ export async function generateText(systemPrompt, userPrompt, model = null, req =
   for (const provider of providers) {
     const caller = textCallers[provider];
     const logTag = `AI_GEN_${provider.toUpperCase()}`;
-    info(req || 'system', logTag, `System: ${systemPrompt}\nUser: ${userPrompt.substring(0, 1000)}${userPrompt.length > 1000 ? '...' : ''}`);
+    info(req || 'system', logTag, `System: ${systemPrompt}\nUser: ${userPrompt}`);
 
     try {
       const { text, model: usedModel } = await caller(config, systemPrompt, userPrompt, model, true);
@@ -388,7 +388,7 @@ export async function generateRawText(systemPrompt, userPrompt, model = null) {
 
   for (const provider of providers) {
     const caller = textCallers[provider];
-    info('system', `AI_GEN_RAW_${provider.toUpperCase()}`, `System: ${systemPrompt}\nUser: ${userPrompt.substring(0, 500)}...`);
+    info('system', `AI_GEN_RAW_${provider.toUpperCase()}`, `System: ${systemPrompt}\nUser: ${userPrompt}`);
 
     try {
       const { text, model: usedModel } = await caller(config, systemPrompt, userPrompt, model, false);
@@ -783,7 +783,7 @@ ${JSON.stringify(selectorMap, null, 2)}
 
 PAGE TYPE: ${pageType}`;
 
-  const userPrompt = `SOURCE HTML:\n${html.substring(0, 25000)}`;
+  const userPrompt = `SOURCE HTML:\n${html}`;
 
   // Retry once on transient errors (502, 503, timeout)
   for (let attempt = 1; attempt <= 2; attempt++) {
@@ -879,7 +879,7 @@ RESPOND WITH ONLY VALID JSON:
   "confidence": 0.9
 }`;
 
-  const userPrompt = `HTML A:\n${htmlA.substring(0, 15000)}\n\nHTML B:\n${htmlB.substring(0, 15000)}`;
+  const userPrompt = `HTML A:\n${htmlA}\n\nHTML B:\n${htmlB}`;
 
   try {
     return await generateText(systemPrompt, userPrompt, model);
@@ -899,9 +899,8 @@ export async function analyzeSiteImport(html, url = '', model = null, req = null
   // Clean non-visible elements
   $('script, style, noscript, svg, iframe, canvas, link[rel="stylesheet"], meta').remove();
 
-  const cleanHtml = ($('body').html() || $.html())
-    .replace(/\s+/g, ' ')
-    .substring(0, 30000);
+  const cleanHtml = ($.html('body') || $.html())
+    .replace(/\s+/g, ' ');
 
   const systemPrompt = `Role: You are a Technical Content Engineer specializing in CMS migrations.
 
