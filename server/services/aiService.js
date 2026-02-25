@@ -775,13 +775,22 @@ ${JSON.stringify(selectorMap, null, 2)}
 
 PAGE TYPE: ${pageType}`;
 
-  const userPrompt = `SOURCE HTML:\n${html.substring(0, 40000)}`;
+  const userPrompt = `SOURCE HTML:\n${html.substring(0, 25000)}`;
 
-  try {
-    return await generateRawText(systemPrompt, userPrompt, model);
-  } catch (err) {
-    console.error('[AI-Template] Template generation failed:', err.message);
-    throw err;
+  // Retry once on transient errors (502, 503, timeout)
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      return await generateRawText(systemPrompt, userPrompt, model);
+    } catch (err) {
+      const status = err.response?.status;
+      if (attempt < 2 && (status === 502 || status === 503 || status === 429 || err.code === 'ECONNABORTED')) {
+        console.warn(`[AI-Template] Attempt ${attempt} failed (${status || err.code}), retrying in 5s...`);
+        await new Promise(r => setTimeout(r, 5000));
+        continue;
+      }
+      console.error('[AI-Template] Template generation failed:', err.message);
+      throw err;
+    }
   }
 }
 
