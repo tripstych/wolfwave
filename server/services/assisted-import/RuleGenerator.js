@@ -42,7 +42,7 @@ export class RuleGenerator {
         let attempts = 0;
         const maxAttempts = 3;
         let bestAnalysis = null;
-        let feedback = null;
+        let accumulatedFeedback = []; // Historical list of all failed selectors
         const attemptedSamples = new Set();
 
         while (attempts < maxAttempts) {
@@ -65,7 +65,7 @@ export class RuleGenerator {
           await AssistedImportService.updateStatus(this.siteId, 'generating_rules', `Analyzing group ${processedGroups}/${groups.length} (Attempt ${attempts})...`);
 
           // 2. AI Analysis (Technical Content Engineer Prompt)
-          const analysis = await analyzeSiteImport(sample.stripped_html, sample.url, null, null, feedback);
+          const analysis = await analyzeSiteImport(sample.stripped_html, sample.url, null, null, accumulatedFeedback);
 
           // --- TRANSLATE NEW SCHEMA TO INTERNAL REGIONS ---
           const suggestedRegions = [];
@@ -82,19 +82,17 @@ export class RuleGenerator {
                 label: cleanKey.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
                 selector: selector,
                 type: type,
-                multiple: false // Default for this schema, can be overridden by specific logic if needed
+                multiple: false 
               });
             });
           }
 
           // Handle Media
           if (analysis.media && analysis.media.length > 0) {
-            // Find a common selector for media if the LLM didn't provide one
-            // For now, we'll create a generic 'images' region
             suggestedRegions.push({
               key: 'images',
               label: 'Primary Media',
-              selector: 'img', // Fallback, will be validated below
+              selector: 'img',
               type: 'image',
               multiple: true
             });
@@ -138,12 +136,12 @@ export class RuleGenerator {
             const avgDensity = successCount > 0 ? totalDensityScore / successCount : 0;
             const isLowDensity = (region.key.includes('content') || region.type === 'richtext') && avgDensity < 5;
 
-            if (successRate < 1.0) { // We care most about selector matching in this phase
+            if (successRate < 1.0) { 
               groupHasFailures = true;
               currentFailures.push({
                 key: region.key,
                 selector: region.selector,
-                reason: 'Selector not found on all pages'
+                reason: `Only matched ${Math.round(successRate * 100)}% of pages. FAILED ON: ${failures.join(', ')}`
               });
             }
 
@@ -173,14 +171,15 @@ export class RuleGenerator {
             attempts: attempts
           };
 
-          // 5. If perfect, stop. Otherwise, prepare feedback and retry.
+          // 5. If perfect, stop. Otherwise, add to accumulated feedback and retry.
           if (!groupHasFailures) {
             info(this.dbName, 'ASSISTED_IMPORT_RULEGEN_SUCCESS', `Found perfect selectors for group ${group.structural_hash.substring(0,8)} after ${attempts} attempts`);
             break; 
           }
 
-          feedback = currentFailures;
-          info(this.dbName, 'ASSISTED_IMPORT_RULEGEN_RETRY', `Group ${group.structural_hash.substring(0,8)} failed validation. Retrying with different sample...`);
+          // BLACKLIST: Add these failures to the next prompt
+          accumulatedFeedback.push(...currentFailures);
+          info(this.dbName, 'ASSISTED_IMPORT_RULEGEN_RETRY', `Group ${group.structural_hash.substring(0,8)} failed validation (Attempt ${attempts}). Retrying with different sample...`);
         }
 
         // --- Post-Loop: Finalize with best result ---
