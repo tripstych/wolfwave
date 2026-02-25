@@ -64,6 +64,8 @@ model content {
   slug           String?          @unique(map: "slug") @db.VarChar(255)
   content_groups content_groups[]
   history        content_history[]
+  pages          pages[]
+  products       products[]
 
   @@index([module], map: "idx_type")
 }
@@ -341,6 +343,7 @@ model pages {
   updated_at                    DateTime      @default(now()) @db.Timestamp(0)
   menu_items                    menu_items[]
   templates                     templates     @relation(fields: [template_id], references: [id], onUpdate: Restrict, map: "pages_ibfk_1")
+  content                       content?      @relation(fields: [content_id], references: [id], onUpdate: Restrict, map: "pages_content_fk")
   users_pages_created_byTousers users?        @relation("pages_created_byTousers", fields: [created_by], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "pages_ibfk_3")
   users_pages_updated_byTousers users?        @relation("pages_updated_byTousers", fields: [updated_by], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "pages_ibfk_4")
 
@@ -418,6 +421,7 @@ model products {
   product_variants     product_variants[]
   product_images       product_images[]
   digital_downloads    digital_downloads[]
+  content              content?              @relation(fields: [content_id], references: [id], onUpdate: Restrict, map: "products_content_fk")
 
   @@index([content_id], map: "content_id")
   @@index([sku], map: "idx_sku")
