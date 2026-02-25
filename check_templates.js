@@ -1,16 +1,11 @@
 import prisma from './server/lib/prisma.js';
 
 async function check() {
-  const templates = await prisma.templates.findMany({
-    where: {
-      OR: [
-        { content: null },
-        { content: '' }
-      ]
-    },
-    select: { filename: true }
+  const filename = 'imported/30/listing-6df2fce7.njk';
+  const template = await prisma.templates.findUnique({
+    where: { filename }
   });
-  console.log(JSON.stringify(templates, null, 2));
+  console.log(JSON.stringify(template, null, 2));
   process.exit(0);
 }
 
