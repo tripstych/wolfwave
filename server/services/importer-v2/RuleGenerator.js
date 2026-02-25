@@ -64,21 +64,62 @@ export class RuleGenerator {
         });
 
         const validatedRegions = [];
+        const failureReport = [];
+
         for (const region of (analysis.regions || [])) {
           let successCount = 0;
+          let totalDensityScore = 0;
+          const failures = [];
+
           for (const member of groupMembers) {
             const cheerio = await import('cheerio');
             const $ = cheerio.load(member.stripped_html);
-            if ($(region.selector).length > 0) successCount++;
+            const $el = $(region.selector);
+            
+            if ($el.length > 0) {
+              successCount++;
+              
+              // --- SEMANTIC DENSITY CALCULATION ---
+              const text = $el.text().trim();
+              const html = $el.html() || '';
+              
+              // Clues: Paragraphs, headers, and lists are "semantic"
+              const semanticTags = $el.find('p, h1, h2, h3, h4, h5, h6, li, article, section').length;
+              // Noise: Too many links relative to text is a "navigation" block
+              const linkTags = $el.find('a').length;
+              const linkTextLength = $el.find('a').text().length;
+              
+              const textDensity = text.length > 0 ? (text.length - linkTextLength) / text.length : 0;
+              
+              // Score Formula: Reward text and semantic tags, penalize high link ratios
+              const densityScore = (text.length / 200) + (semanticTags * 2) - (linkTags * 3);
+              totalDensityScore += densityScore;
+            } else {
+              failures.push(member.url);
+            }
           }
 
           const successRate = successCount / groupMembers.length;
+          const avgDensity = successCount > 0 ? totalDensityScore / successCount : 0;
+
+          if (successRate < 1.0) {
+            failureReport.push({
+              field: region.key,
+              selector: region.selector,
+              success_rate: successRate,
+              failed_urls: failures
+            });
+          }
+
           validatedRegions.push({
             ...region,
             validation: {
               success_rate: successRate,
+              density_score: Math.round(avgDensity * 10) / 10,
               is_brittle: successRate < 1.0,
-              is_invalid: successRate === 0
+              is_low_density: (region.key === 'content' || region.type === 'richtext') && avgDensity < 5,
+              is_invalid: successRate === 0,
+              failed_urls: failures
             }
           });
         }
@@ -96,8 +137,9 @@ export class RuleGenerator {
 
         ruleset.types[group.structural_hash] = {
           page_type: analysis.page_type,
-          regions: validatedRegions, // Rich metadata for Template Gen and UI
-          selector_map: selectorMap,   // Simplified map for Transformation Engine
+          regions: validatedRegions,
+          selector_map: selectorMap,
+          validation_report: failureReport, // Detailed report for this group
           confidence: analysis.confidence,
           summary: analysis.summary,
           sample_url: sample.url

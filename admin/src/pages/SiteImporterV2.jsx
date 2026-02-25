@@ -438,29 +438,49 @@ export default function SiteImporterV2() {
                                   {expandedGroups.has(hash) && (
                                     <div className="bg-gray-50 p-3 border-t border-gray-100">
                                       <h5 className="text-[9px] font-bold text-gray-400 uppercase mb-2">Selector Mapping</h5>
-                                      <div className="space-y-1">
-                                        {Object.entries(type.selector_map || {}).map(([field, selector]) => (
-                                          <div key={field} className="flex items-start gap-2 text-[10px]">
-                                            <span className="font-bold text-primary-700 min-w-[60px] mt-0.5">{field}:</span>
-                                            <div className="flex-1 space-y-1">
-                                              {typeof selector === 'object' ? (
-                                                <div className="flex flex-col gap-1">
-                                                  <code className="bg-white border rounded px-1.5 py-0.5 text-gray-600 font-mono">
-                                                    {selector.selector}
+                                      <div className="space-y-3">
+                                        {type.regions?.map((region) => (
+                                          <div key={region.key} className="space-y-1">
+                                            <div className="flex items-start gap-2 text-[10px]">
+                                              <span className="font-bold text-primary-700 min-w-[80px] mt-0.5">{region.label}:</span>
+                                              <div className="flex-1">
+                                                <div className="flex items-center justify-between">
+                                                  <code className="bg-white border rounded px-1.5 py-0.5 text-gray-600 font-mono text-[9px]">
+                                                    {region.selector}
                                                   </code>
-                                                  <div className="flex gap-2">
-                                                    <span className="text-[9px] text-gray-400 uppercase">Attr: <span className="text-amber-600 font-bold">{selector.attr}</span></span>
-                                                    {selector.multiple && <span className="text-[9px] text-blue-500 font-bold uppercase">Multiple</span>}
-                                                  </div>
-                                                  {selector.reasoning && (
-                                                    <div className="text-[9px] text-gray-500 italic">Reason: {selector.reasoning}</div>
+                                                  {region.validation && (
+                                                    <div className="flex gap-2">
+                                                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                                                        region.validation.success_rate === 1 ? 'bg-green-100 text-green-700' :
+                                                        region.validation.success_rate === 0 ? 'bg-red-100 text-red-700' :
+                                                        'bg-amber-100 text-amber-700'
+                                                      }`}>
+                                                        {Math.round(region.validation.success_rate * 100)}% match
+                                                      </span>
+                                                      <span className="text-[9px] font-bold px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded-full" title="Semantic Density Score">
+                                                        Density: {region.validation.density_score}
+                                                      </span>
+                                                      {region.validation.is_low_density && (
+                                                        <span className="text-[9px] font-bold px-1.5 py-0.5 bg-red-100 text-red-700 rounded-full flex items-center gap-1">
+                                                          <AlertCircle className="w-2.5 h-2.5" /> Low Content
+                                                        </span>
+                                                      )}
+                                                    </div>
                                                   )}
                                                 </div>
-                                              ) : (
-                                                <code className="bg-white border rounded px-1.5 py-0.5 text-gray-600 font-mono block">
-                                                  {selector}
-                                                </code>
-                                              )}
+                                                {region.validation?.failed_urls?.length > 0 && (
+                                                  <div className="mt-1 p-1.5 bg-red-50 border border-red-100 rounded text-[8px] text-red-600">
+                                                    <div className="font-bold uppercase mb-0.5 flex items-center gap-1">
+                                                      <AlertCircle className="w-2.5 h-2.5" /> FAILED ON {region.validation.failed_urls.length} PAGES:
+                                                    </div>
+                                                    <ul className="list-disc pl-3 max-h-20 overflow-y-auto">
+                                                      {region.validation.failed_urls.map((url, i) => (
+                                                        <li key={i} className="truncate">{url}</li>
+                                                      ))}
+                                                    </ul>
+                                                  </div>
+                                                )}
+                                              </div>
                                             </div>
                                           </div>
                                         ))}
