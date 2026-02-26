@@ -7,14 +7,14 @@ const dbName = process.env.DB_NAME || 'wolfwave_default';
 
 const migrations = [
   // Add access_rules to products table
-  `ALTER TABLE products ADD COLUMN IF NOT EXISTS access_rules JSON`,
+  `ALTER TABLE products ADD COLUMN access_rules JSON`,
 
   // Add digital product fields to products table
   `ALTER TABLE products
-   ADD COLUMN IF NOT EXISTS is_digital BOOLEAN DEFAULT FALSE AFTER requires_shipping,
-   ADD COLUMN IF NOT EXISTS download_url VARCHAR(500) AFTER is_digital,
-   ADD COLUMN IF NOT EXISTS download_limit INT DEFAULT 5 AFTER download_url,
-   ADD COLUMN IF NOT EXISTS download_expiry_days INT DEFAULT 30 AFTER download_limit`,
+   ADD COLUMN is_digital BOOLEAN DEFAULT FALSE AFTER requires_shipping,
+   ADD COLUMN download_url VARCHAR(500) AFTER is_digital,
+   ADD COLUMN download_limit INT DEFAULT 5 AFTER download_url,
+   ADD COLUMN download_expiry_days INT DEFAULT 30 AFTER download_limit`,
 
   // Create digital downloads tracking table
   `CREATE TABLE IF NOT EXISTS digital_downloads (
@@ -33,13 +33,13 @@ const migrations = [
   )`,
 
   // Add access_rules to pages
-  `ALTER TABLE pages ADD COLUMN IF NOT EXISTS access_rules JSON`,
+  `ALTER TABLE pages ADD COLUMN access_rules JSON`,
 
   // Add access_rules to blocks
-  `ALTER TABLE blocks ADD COLUMN IF NOT EXISTS access_rules JSON`,
+  `ALTER TABLE blocks ADD COLUMN access_rules JSON`,
 
   // Add stripe_customer_id to customers
-  `ALTER TABLE customers ADD COLUMN IF NOT EXISTS stripe_customer_id VARCHAR(255)`,
+  `ALTER TABLE customers ADD COLUMN stripe_customer_id VARCHAR(255)`,
 
   // Create API keys table for site-level and per-user API access
   `CREATE TABLE IF NOT EXISTS api_keys (
@@ -71,10 +71,11 @@ async function migrate() {
         await pool.query(migration);
         console.log('✓ Migration executed successfully');
       } catch (err) {
-        if (err.code === 'ER_DUP_COLUMNNAME' || err.code === 'ER_TABLE_EXISTS_ERROR') {
+        if (err.code === 'ER_DUP_COLUMNNAME' || err.code === 'ER_TABLE_EXISTS_ERROR' || err.errno === 1060) {
           console.log('⚠ Migration already applied, skipping...');
         } else {
           console.error('✗ Migration failed:', err.message);
+          console.error('Error code:', err.code, 'errno:', err.errno);
           throw err;
         }
       }
