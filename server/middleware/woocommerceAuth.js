@@ -82,7 +82,7 @@ function verifyOAuthSignature(req, consumerSecret) {
 /**
  * Basic Auth verification (simpler alternative to OAuth)
  */
-async function verifyBasicAuth(authHeader) {
+async function verifyBasicAuth(authHeader, req) {
   if (!authHeader || !authHeader.startsWith('Basic ')) {
     return null;
   }
@@ -174,7 +174,7 @@ export async function authenticateWooCommerce(req, res, next) {
 
     // Try Basic Auth first (most common for REST API)
     if (authHeader && authHeader.startsWith('Basic ')) {
-      apiKey = await verifyBasicAuth(authHeader);
+      apiKey = await verifyBasicAuth(authHeader, req);
     }
     // Try OAuth 1.0a
     else if (req.query.oauth_consumer_key) {
