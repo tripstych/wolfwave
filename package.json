@@ -16,6 +16,8 @@
     "db:seed": "node server/db/seed.js",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:shipstation": "node test-shipstation.js",
+    "deploy:test": "bash test-and-deploy.sh",
     "start": "pm2 start server/index.js --name wolfwave --update-env && pm2 logs wolfwave",
     "postinstall": "cd admin && npm install"
   },

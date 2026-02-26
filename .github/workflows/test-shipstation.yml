@@ -1,0 +1,31 @@
+name: Test ShipStation Integration
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'server/api/shipstation-rest.js'
+      - 'server/middleware/woocommerceAuth.js'
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+    
+    - name: Install dependencies
+      run: npm install
+    
+    - name: Run ShipStation integration tests
+      run: node test-shipstation.js
+      env:
+        TEST_BASE_URL: https://wolfwave.shop
+        TEST_CONSUMER_KEY: ${{ secrets.WOOCOMMERCE_CONSUMER_KEY }}
+        TEST_CONSUMER_SECRET: ${{ secrets.WOOCOMMERCE_CONSUMER_SECRET }}
