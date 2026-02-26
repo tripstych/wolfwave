@@ -20,6 +20,7 @@ import woocommerceApiRoutes from './api/woocommerce.js';
 import woocommerceLegacyRoutes from './api/woocommerceLegacy.js';
 import shipstationRoutes from './api/shipstation.js';
 import { authenticateWooCommerce } from './middleware/woocommerceAuth.js';
+import { requireAdminDomain } from './middleware/adminDomainCheck.js';
 
 // Patch console FIRST so all console.log/error/warn calls go to log files
 maybePatchConsole();
@@ -108,10 +109,10 @@ app.use('/imported', express.static(path.join(__dirname, '../templates/imported'
 // Static files — template CSS (editable stylesheets in templates directory)
 app.use('/templates/css', express.static(path.join(__dirname, '../templates/css')));
 
-// Serve React admin in production
+// Serve React admin in production (restricted to admin subdomain)
 if (process.env.NODE_ENV === 'production') {
-  app.use('/admin', express.static(path.join(__dirname, '../admin/dist')));
-  app.get('/admin/*', (req, res) => {
+  app.use('/admin', requireAdminDomain, express.static(path.join(__dirname, '../admin/dist')));
+  app.get('/admin/*', requireAdminDomain, (req, res) => {
     res.sendFile(path.join(__dirname, '../admin/dist/index.html'));
   });
 }
