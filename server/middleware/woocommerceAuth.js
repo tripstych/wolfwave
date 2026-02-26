@@ -6,7 +6,7 @@
  */
 
 import crypto from 'crypto';
-import { query } from '../db/connection.js';
+import prisma from '../lib/prisma.js';
 
 /**
  * OAuth 1.0a signature verification
@@ -71,10 +71,11 @@ async function verifyBasicAuth(authHeader) {
   }
 
   // Look up API key
-  const [apiKey] = await query(
+  const results = await prisma.$queryRawUnsafe(
     `SELECT * FROM woocommerce_api_keys WHERE consumer_key = ?`,
-    [consumerKey]
+    consumerKey
   );
+  const apiKey = results[0];
 
   if (!apiKey) {
     return null;
@@ -91,9 +92,9 @@ async function verifyBasicAuth(authHeader) {
   }
 
   // Update last access
-  await query(
+  await prisma.$executeRawUnsafe(
     `UPDATE woocommerce_api_keys SET last_access = NOW() WHERE key_id = ?`,
-    [apiKey.key_id]
+    apiKey.key_id
   );
 
   return apiKey;
@@ -110,10 +111,11 @@ async function verifyOAuth(req) {
   }
 
   // Look up API key
-  const [apiKey] = await query(
+  const results = await prisma.$queryRawUnsafe(
     `SELECT * FROM woocommerce_api_keys WHERE consumer_key = ?`,
-    [consumerKey]
+    consumerKey
   );
+  const apiKey = results[0];
 
   if (!apiKey) {
     return null;
@@ -130,9 +132,9 @@ async function verifyOAuth(req) {
   }
 
   // Update last access
-  await query(
+  await prisma.$executeRawUnsafe(
     `UPDATE woocommerce_api_keys SET last_access = NOW() WHERE key_id = ?`,
-    [apiKey.key_id]
+    apiKey.key_id
   );
 
   return apiKey;
@@ -203,12 +205,12 @@ export function generateConsumerCredentials() {
 export async function createWooCommerceApiKey(userId, description, permissions = 'read_write') {
   const { consumerKey, consumerSecret, truncatedKey } = generateConsumerCredentials();
 
-  const result = await query(
+  const result = await prisma.$executeRawUnsafe(
     `INSERT INTO woocommerce_api_keys (
       user_id, description, permissions, consumer_key, consumer_secret, 
       truncated_key, created_at
     ) VALUES (?, ?, ?, ?, ?, ?, NOW())`,
-    [userId, description, permissions, consumerKey, consumerSecret, truncatedKey]
+    userId, description, permissions, consumerKey, consumerSecret, truncatedKey
   );
 
   return {
@@ -236,14 +238,14 @@ export async function listWooCommerceApiKeys(userId = null) {
 
   sql += ` ORDER BY created_at DESC`;
 
-  return await query(sql, params);
+  return await prisma.$queryRawUnsafe(sql, ...params);
 }
 
 /**
  * Revoke (delete) an API key
  */
 export async function revokeWooCommerceApiKey(keyId) {
-  await query(`DELETE FROM woocommerce_api_keys WHERE key_id = ?`, [keyId]);
+  await prisma.$executeRawUnsafe(`DELETE FROM woocommerce_api_keys WHERE key_id = ?`, keyId);
 }
 
 export default authenticateWooCommerce;
