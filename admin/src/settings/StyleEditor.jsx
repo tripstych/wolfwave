@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../lib/api';
-import { Save, ArrowLeft, Type, Layout, Palette, Loader2, Code } from 'lucide-react';
+import { Save, ArrowLeft, Type, Layout, Palette, Loader2, Code, FileCode, Plus, Trash2, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import CodeEditor from '../components/CodeEditor';
 
@@ -21,10 +21,15 @@ export default function StyleEditor() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('visual');
+  const [stylesheets, setStylesheets] = useState([]);
+  const [selectedStylesheet, setSelectedStylesheet] = useState(null);
+  const [stylesheetContent, setStylesheetContent] = useState('');
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     loadTemplates();
     loadCustomCss();
+    loadStylesheets();
   }, []);
 
   const loadCustomCss = async () => {
@@ -33,6 +38,81 @@ export default function StyleEditor() {
       setCustomCss(data.value || '');
     } catch (err) {
       console.error('Failed to load custom CSS:', err);
+    }
+  };
+
+  const loadStylesheets = async () => {
+    try {
+      const data = await api.get('/stylesheets');
+      setStylesheets(data.stylesheets || []);
+    } catch (err) {
+      console.error('Failed to load stylesheets:', err);
+      toast.error('Failed to load stylesheets');
+    }
+  };
+
+  const handleSelectStylesheet = async (stylesheet) => {
+    setSelectedStylesheet(stylesheet);
+    setStylesheetContent(stylesheet.content || '');
+  };
+
+  const handleSaveStylesheet = async () => {
+    if (!selectedStylesheet) return;
+    try {
+      setSaving(true);
+      await api.put(`/stylesheets/${selectedStylesheet.id}`, { content: stylesheetContent });
+      toast.success('Stylesheet saved successfully');
+      await loadStylesheets();
+    } catch (err) {
+      toast.error('Failed to save stylesheet');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteStylesheet = async (id) => {
+    if (!confirm('Are you sure you want to delete this stylesheet?')) return;
+    try {
+      await api.delete(`/stylesheets/${id}`);
+      toast.success('Stylesheet deleted');
+      if (selectedStylesheet?.id === id) {
+        setSelectedStylesheet(null);
+        setStylesheetContent('');
+      }
+      await loadStylesheets();
+    } catch (err) {
+      toast.error('Failed to delete stylesheet');
+    }
+  };
+
+  const handleSyncFromFilesystem = async () => {
+    try {
+      setSyncing(true);
+      const result = await api.post('/stylesheets/sync-from-filesystem');
+      toast.success(`Synced ${result.synced} stylesheets from filesystem`);
+      await loadStylesheets();
+    } catch (err) {
+      toast.error('Failed to sync stylesheets');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const handleCreateStylesheet = async () => {
+    const filename = prompt('Enter stylesheet filename (e.g., custom-styles.css):');
+    if (!filename) return;
+    try {
+      await api.post('/stylesheets', {
+        filename,
+        content: '/* New stylesheet */\n',
+        description: 'Custom stylesheet',
+        type: 'custom',
+        is_active: true
+      });
+      toast.success('Stylesheet created');
+      await loadStylesheets();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to create stylesheet');
     }
   };
 
@@ -117,6 +197,9 @@ export default function StyleEditor() {
       if (activeTab === 'css') {
         await api.put('/settings/global_custom_css', { value: customCss });
         toast.success('Custom CSS saved');
+      } else if (activeTab === 'stylesheets') {
+        await handleSaveStylesheet();
+        return;
       } else if (selectedId === 'global') {
         await api.put('/settings/global_styles', { value: JSON.stringify(options) });
         toast.success('Global site styles saved');
@@ -192,6 +275,17 @@ export default function StyleEditor() {
             <Code className="w-4 h-4" />
             Custom CSS
           </button>
+          <button
+            onClick={() => setActiveTab('stylesheets')}
+            className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
+              activeTab === 'stylesheets'
+                ? 'border-primary-500 text-primary-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <FileCode className="w-4 h-4" />
+            Stylesheets
+          </button>
         </nav>
       </div>
 
@@ -209,6 +303,103 @@ export default function StyleEditor() {
           <p className="text-xs text-gray-500 bg-gray-50 p-3 rounded border border-gray-200">
             <strong>Note:</strong> This CSS will be injected into the <code>&lt;head&gt;</code> of all pages, after all other styles.
           </p>
+        </div>
+      ) : activeTab === 'stylesheets' ? (
+        <div className="space-y-4">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-semibold">Manage Stylesheets</h2>
+            <div className="flex gap-2">
+              <button onClick={handleSyncFromFilesystem} disabled={syncing} className="btn btn-secondary">
+                <RefreshCw className={`w-4 h-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
+                {syncing ? 'Syncing...' : 'Sync from Filesystem'}
+              </button>
+              <button onClick={handleCreateStylesheet} className="btn btn-primary">
+                <Plus className="w-4 h-4 mr-2" />
+                New Stylesheet
+              </button>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-1">
+              <div className="card overflow-hidden">
+                <div className="divide-y divide-gray-200">
+                  {stylesheets.length === 0 ? (
+                    <div className="p-6 text-center text-gray-500">
+                      <FileCode className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                      <p>No stylesheets found.</p>
+                    </div>
+                  ) : (
+                    stylesheets.map((stylesheet) => (
+                      <div
+                        key={stylesheet.id}
+                        className={`p-4 flex items-center justify-between hover:bg-gray-50 cursor-pointer ${
+                          selectedStylesheet?.id === stylesheet.id ? 'bg-primary-50 ring-1 ring-inset ring-primary-500' : ''
+                        }`}
+                        onClick={() => handleSelectStylesheet(stylesheet)}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-sm font-medium truncate ${
+                            selectedStylesheet?.id === stylesheet.id ? 'text-primary-900' : 'text-gray-900'
+                          }`}>
+                            {stylesheet.filename}
+                          </p>
+                          <p className="text-xs text-gray-500 truncate">{stylesheet.type || 'custom'}</p>
+                          {stylesheet.is_active && (
+                            <span className="inline-block mt-1 px-2 py-0.5 text-[10px] font-medium bg-green-100 text-green-800 rounded">
+                              Active
+                            </span>
+                          )}
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteStylesheet(stylesheet.id);
+                          }}
+                          className="ml-2 p-1 text-red-600 hover:bg-red-50 rounded"
+                          title="Delete stylesheet"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+            
+            <div className="lg:col-span-2">
+              {selectedStylesheet ? (
+                <div className="space-y-4">
+                  <div className="card p-4">
+                    <h3 className="font-semibold text-gray-900 mb-2">{selectedStylesheet.filename}</h3>
+                    {selectedStylesheet.description && (
+                      <p className="text-sm text-gray-600 mb-2">{selectedStylesheet.description}</p>
+                    )}
+                    {selectedStylesheet.source_file && (
+                      <p className="text-xs text-gray-500">
+                        Source: <code className="bg-gray-100 px-1 rounded">{selectedStylesheet.source_file}</code>
+                      </p>
+                    )}
+                  </div>
+                  <div className="card p-0 overflow-hidden">
+                    <CodeEditor
+                      mode="css"
+                      value={stylesheetContent}
+                      onChange={setStylesheetContent}
+                      height="500px"
+                      theme="monokai"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="card p-12 text-center text-gray-500">
+                  <FileCode className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>Select a stylesheet to edit</p>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       ) : (
         <>

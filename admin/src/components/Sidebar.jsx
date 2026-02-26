@@ -57,6 +57,7 @@ export default function Sidebar({ isOpen, onClose, contentTypes = [] }) {
         { name: _('nav.blocks', 'Blocks'), href: '/blocks', icon: Boxes },
         { name: _('nav.widgets', 'Widgets'), href: '/widgets', icon: Puzzle },
         { name: _('nav.templates', 'Templates'), href: '/templates', icon: Layers },
+        { name: _('nav.styles', 'Styles'), href: '/styles', icon: Palette },
         { name: _('nav.menus', 'Menus'), href: '/menus', icon: List },
         { name: _('nav.groups', 'Groups'), href: '/groups', icon: Tag },
       ]
@@ -73,7 +74,6 @@ export default function Sidebar({ isOpen, onClose, contentTypes = [] }) {
       section: _('nav.section.settings', 'Settings'),
       items: [
         { name: _('nav.themes', 'Themes'), href: '/themes', icon: Palette },
-        { name: _('nav.styles', 'Styles'), href: '/styles', icon: Palette },
         { name: _('nav.users', 'Users'), href: '/users', icon: Users },
         { name: _('nav.sites', 'Sites'), href: '/tenants', icon: Globe },
         { name: _('nav.email_templates', 'Email Templates'), href: '/email-templates', icon: Mail },
