@@ -286,6 +286,9 @@ export async function syncTemplatesToDb(prisma, themeName = 'default') {
   for (const template of templates) {
     const contentType = extractContentType(template.filename);
     
+    // Normalize filename: use forward slashes, no leading slash
+    const normalizedFilename = template.filename.replace(/\\/g, '/').replace(/^\//, '');
+    
     // Read the content from the file to populate the DB
     let content = null;
     try {
@@ -301,23 +304,41 @@ export async function syncTemplatesToDb(prisma, themeName = 'default') {
       console.error(`Failed to read content for ${template.filename}:`, e.message);
     }
 
-    // Use upsert to insert or update
-    await prisma.templates.upsert({
-      where: { filename: template.filename },
-      create: {
-        name: template.name,
-        filename: template.filename,
-        regions: template.regions,
-        content_type: contentType,
-        content: content
-      },
-      update: {
-        name: template.name,
-        regions: template.regions,
-        content_type: contentType,
-        content: content
+    // Try to find existing template with any path format variation
+    const existingTemplate = await prisma.templates.findFirst({
+      where: {
+        OR: [
+          { filename: normalizedFilename },
+          { filename: '/' + normalizedFilename },
+          { filename: normalizedFilename.replace(/\//g, '\\') }
+        ]
       }
     });
+
+    if (existingTemplate) {
+      // Update existing template
+      await prisma.templates.update({
+        where: { id: existingTemplate.id },
+        data: {
+          name: template.name,
+          filename: normalizedFilename,
+          regions: template.regions,
+          content_type: contentType,
+          content: content
+        }
+      });
+    } else {
+      // Create new template
+      await prisma.templates.create({
+        data: {
+          name: template.name,
+          filename: normalizedFilename,
+          regions: template.regions,
+          content_type: contentType,
+          content: content
+        }
+      });
+    }
   }
 
   // ── CLEANUP STALE TEMPLATES ──
