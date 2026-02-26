@@ -1,0 +1,237 @@
+/* Customer Auth Styles (Login, Register, Forgot Password, Reset Password) */
+.auth-container {
+  min-height: calc(100vh - 200px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+}
+
+.auth-card {
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 450px;
+}
+
+.auth-card h1 {
+  font-size: 1.75rem;
+  margin-bottom: 0.5rem;
+  color: #1f2937;
+}
+
+.auth-subtitle {
+  color: #6b7280;
+  margin-bottom: 2rem;
+  font-size: 0.95rem;
+}
+
+.auth-form {
+  margin-bottom: 1.5rem;
+}
+
+.customer-login-form {
+  background: #f9fafb;
+  padding: 1.5rem;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+/* Customer Account Styles */
+.account-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.account-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.account-header h1 {
+  margin: 0;
+  font-size: 2rem;
+}
+
+.account-content {
+  display: grid;
+  gap: 2rem;
+}
+
+.account-section {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.account-section h2 {
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  font-size: 1.25rem;
+  color: #1f2937;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.section-header h2 {
+  margin-bottom: 0;
+}
+
+.limits-badge {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #3b82f6;
+  background: #eff6ff;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+}
+
+.sites-grid {
+  display: grid;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.site-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+}
+
+.site-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.site-name {
+  font-weight: 600;
+  color: #111827;
+}
+
+.site-url {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.site-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btn-sm {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.875rem;
+}
+
+/* Subscription Styles */
+.subscription-container {
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.subscription-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.subscription-header h1 {
+  margin: 0;
+  font-size: 2rem;
+}
+
+.alert {
+  padding: 1rem;
+  border-radius: 6px;
+  margin-bottom: 1.5rem;
+  font-size: 0.95rem;
+}
+
+.alert-success {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #065f46;
+}
+
+.alert-warning {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+}
+
+.alert-info {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1e40af;
+}
+
+.subscription-card {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 2rem;
+}
+
+.subscribe-container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+/* Customer Messages Styles */
+.conv-card {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.conv-card:hover {
+  background: #f9fafb;
+}
+
+.chat-wrapper {
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+  border-radius: 8px;
+  padding: 1rem;
+  background: #f9fafb;
+}
+
+/* Customer Ads Styles */
+.ads-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+  margin-top: 2rem;
+}
+
+/* Downloads Styles */
+.downloads-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem;
+}

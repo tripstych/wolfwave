@@ -94,9 +94,20 @@ async function detectBlueprint(rootUrl, dbName) {
 function discoverLinks($, currentUrl, rootDomain, visited, queue, config = {}) {
   const priorityPatterns = config.priorityPatterns || ['/products/'];
   const excludePatterns = config.excludePatterns || ['/tagged/', '/search', 'sort_by='];
+  const blacklistRegex = config.blacklistRegex || [];
   
   // Add all system routes to exclude list
   const systemPaths = SYSTEM_ROUTES.map(r => r.url);
+  
+  // Compile blacklist regex patterns
+  const compiledBlacklist = blacklistRegex.map(pattern => {
+    try {
+      return new RegExp(pattern, 'i');
+    } catch (err) {
+      console.warn(`Invalid blacklist regex pattern: ${pattern}`);
+      return null;
+    }
+  }).filter(Boolean);
   
   let found = 0;
 
@@ -107,9 +118,13 @@ function discoverLinks($, currentUrl, rootDomain, visited, queue, config = {}) {
       const absoluteUrl = new URL(href, currentUrl);
       const path = absoluteUrl.pathname.toLowerCase();
       const search = absoluteUrl.search.toLowerCase();
+      const fullUrl = absoluteUrl.toString();
 
       if (absoluteUrl.hostname === rootDomain && ['http:', 'https:'].includes(absoluteUrl.protocol)) {
         if (path.match(/\.(jpg|jpeg|png|gif|pdf|zip|gz|mp4|mp3|css|js|svg|woff|woff2)$/)) return;
+        
+        // Check blacklist regex patterns against full URL
+        if (compiledBlacklist.some(regex => regex.test(fullUrl))) return;
         
         // Exclude custom patterns AND system paths
         if (excludePatterns.some(p => path.includes(p) || search.includes(p))) return;

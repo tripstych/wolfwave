@@ -110,7 +110,7 @@ export default function SiteImporter() {
   // Crawl form state
   const [url, setUrl] = useState('');
   const [showOptions, setShowOptions] = useState(false);
-  const [config, setConfig] = useState({ maxPages: 500, feedUrl: '', priorityPatterns: '/products/', excludePatterns: '/tagged/, /search, sort_by=', rules: [], autoDetect: true, hashOptions: {} });
+  const [config, setConfig] = useState({ maxPages: 500, feedUrl: '', priorityPatterns: '/products/', excludePatterns: '/tagged/, /search, sort_by=', blacklistRegex: [], rules: [], autoDetect: true, hashOptions: {} });
 
   // Data
   const [systemRoutes, setSystemRoutes] = useState([]);
@@ -288,7 +288,7 @@ export default function SiteImporter() {
       if (finalFeedUrl && finalFeedUrl.startsWith('/')) finalFeedUrl = new URL(finalFeedUrl, targetUrl).toString();
       const hashOpts = config.hashOptions || {};
       const cleanHashOptions = Object.fromEntries(Object.entries(hashOpts).filter(([, v]) => v !== undefined && v !== false && !(Array.isArray(v) && v.length === 0)));
-      await api.post('/import/crawl', { url: targetUrl, config: { maxPages: parseInt(config.maxPages) || 500, feedUrl: finalFeedUrl, priorityPatterns: config.priorityPatterns.split(',').map(p => p.trim()).filter(Boolean), excludePatterns: config.excludePatterns.split(',').map(p => p.trim()).filter(Boolean), rules: config.rules, autoDetect: config.autoDetect, ...(Object.keys(cleanHashOptions).length > 0 ? { hashOptions: cleanHashOptions } : {}) } });
+      await api.post('/import/crawl', { url: targetUrl, config: { maxPages: parseInt(config.maxPages) || 500, feedUrl: finalFeedUrl, priorityPatterns: config.priorityPatterns.split(',').map(p => p.trim()).filter(Boolean), excludePatterns: config.excludePatterns.split(',').map(p => p.trim()).filter(Boolean), blacklistRegex: config.blacklistRegex || [], rules: config.rules, autoDetect: config.autoDetect, ...(Object.keys(cleanHashOptions).length > 0 ? { hashOptions: cleanHashOptions } : {}) } });
       loadSites();
     } catch (err) { alert(err.message); }
     finally { setLoading(false); }
@@ -567,6 +567,18 @@ export default function SiteImporter() {
                   <div>
                     <label className="text-[10px] uppercase font-bold text-gray-500 block mb-1">Exclude (comma separated)</label>
                     <input type="text" value={config.excludePatterns} onChange={e => setConfig({...config, excludePatterns: e.target.value})} id="admin-site-importer-exclude-patterns-input" className="input py-1 text-sm" placeholder={systemRoutes.length > 0 ? systemRoutes.map(r => r.url).slice(0, 5).join(', ') + '...' : '/tagged/, /search'} />
+                  </div>
+                  <div>
+                    <label className="text-[10px] uppercase font-bold text-gray-500 block mb-1">Blacklist Regex (one per line)</label>
+                    <textarea 
+                      value={(config.blacklistRegex || []).join('\n')} 
+                      onChange={e => setConfig({...config, blacklistRegex: e.target.value.split('\n').map(s => s.trim()).filter(Boolean)})} 
+                      id="admin-site-importer-blacklist-regex-input" 
+                      className="input py-1 text-sm font-mono" 
+                      rows="3"
+                      placeholder="e.g.&#10;/account/.*&#10;/cart.*&#10;\\?page=\\d+"
+                    />
+                    <p className="text-[9px] text-gray-400 mt-1">Enter regex patterns to exclude URLs. Patterns are case-insensitive.</p>
                   </div>
                   <div className="pt-2 border-t border-gray-200">
                     <label className="text-[10px] uppercase font-bold text-gray-500 block mb-2">Layout Grouping</label>

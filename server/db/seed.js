@@ -364,6 +364,59 @@ async function seed() {
     }
     console.log('✅ Demo customers seeded (demo1@wolfwave.shop, demo2@wolfwave.shop, demo3@wolfwave.shop)');
 
+    // Seed stylesheets from consolidated CSS files
+    const fs = require('fs');
+    const path = require('path');
+    
+    const stylesheets = [
+      {
+        filename: 'shop.css',
+        description: 'Shop, cart, checkout, and order confirmation styles',
+        type: 'template',
+        load_order: 10
+      },
+      {
+        filename: 'customer.css',
+        description: 'Customer authentication, account, subscription, and messaging styles',
+        type: 'template',
+        load_order: 20
+      },
+      {
+        filename: 'products.css',
+        description: 'Product pages and product card component styles',
+        type: 'template',
+        load_order: 30
+      },
+      {
+        filename: 'pages.css',
+        description: 'Pages index and general page styles',
+        type: 'template',
+        load_order: 40
+      },
+      {
+        filename: 'components.css',
+        description: 'Common components, forms, buttons, and utility classes',
+        type: 'template',
+        load_order: 50
+      }
+    ];
+
+    for (const stylesheet of stylesheets) {
+      const cssPath = path.join(__dirname, '../../public/css', stylesheet.filename);
+      try {
+        const content = fs.readFileSync(cssPath, 'utf8');
+        await query(
+          `INSERT INTO stylesheets (filename, content, description, type, is_active, load_order, source_file)
+           VALUES (?, ?, ?, ?, ?, ?, ?)
+           ON DUPLICATE KEY UPDATE content = VALUES(content), description = VALUES(description)`,
+          [stylesheet.filename, content, stylesheet.description, stylesheet.type, true, stylesheet.load_order, cssPath]
+        );
+      } catch (err) {
+        console.warn(`⚠️  Could not read ${stylesheet.filename}: ${err.message}`);
+      }
+    }
+    console.log('✅ Stylesheets seeded from consolidated CSS files');
+
     // Seed zenblock tenant for testing
     await query(
       `INSERT INTO tenants (name, subdomain, database_name, status)

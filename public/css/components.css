@@ -1,0 +1,157 @@
+/* Cart View Block Component */
+.cart-view-block {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+/* Common Form Styles */
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: #374151;
+}
+
+.form-input,
+.form-group input,
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-family: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-input:focus,
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+/* Common Button Styles */
+.btn {
+  display: inline-block;
+  padding: 0.75rem 1.5rem;
+  background: #3b82f6;
+  color: white;
+  text-decoration: none;
+  border: none;
+  border-radius: 4px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+  font-size: 1rem;
+}
+
+.btn:hover {
+  background: #2563eb;
+}
+
+.btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: #3b82f6;
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.btn-secondary {
+  background: #f3f4f6;
+  color: #333;
+  border: 1px solid #ddd;
+}
+
+.btn-secondary:hover {
+  background: #e5e7eb;
+}
+
+.btn-danger {
+  background: #dc2626;
+  color: white;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: #b91c1c;
+}
+
+/* Utility Classes */
+.loading {
+  text-align: center;
+  padding: 2rem;
+  color: #666;
+}
+
+.error-message {
+  background: #fee2e2;
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+  margin-bottom: 1rem;
+}
+
+.success-message {
+  background: #d1fae5;
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid #a7f3d0;
+  color: #065f46;
+  margin-bottom: 1rem;
+}
+
+.text-muted {
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+.text-center {
+  text-align: center;
+}
+
+/* Grid Utilities */
+.grid {
+  display: grid;
+}
+
+.md\:grid-cols-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 768px) {
+  .md\:grid-cols-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Label Styles */
+.label {
+  display: block;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: #374151;
+  margin-bottom: 0.5rem;
+}
