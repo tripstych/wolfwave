@@ -19,10 +19,12 @@ const router = express.Router();
 router.get('/', async (req, res) => {
   try {
     const keys = await listWooCommerceApiKeys();
-    res.json(keys);
+    // Ensure we always return an array
+    res.json(Array.isArray(keys) ? keys : []);
   } catch (error) {
     console.error('Error listing WooCommerce keys:', error);
-    res.status(500).json({ error: 'Failed to list API keys' });
+    console.error(error.stack);
+    res.status(500).json({ error: 'Failed to list API keys', details: error.message });
   }
 });
 
