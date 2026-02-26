@@ -19,8 +19,12 @@ const router = express.Router();
 router.get('/', async (req, res) => {
   try {
     const keys = await listWooCommerceApiKeys();
+    // Convert BigInt to Number for JSON serialization
+    const serializable = JSON.parse(JSON.stringify(keys, (key, value) =>
+      typeof value === 'bigint' ? Number(value) : value
+    ));
     // Ensure we always return an array
-    res.json(Array.isArray(keys) ? keys : []);
+    res.json(Array.isArray(serializable) ? serializable : []);
   } catch (error) {
     console.error('Error listing WooCommerce keys:', error);
     console.error(error.stack);
