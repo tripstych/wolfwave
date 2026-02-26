@@ -11,6 +11,7 @@
 import express from 'express';
 import prisma from '../lib/prisma.js';
 import { trackModuleUsage } from '../services/moduleManager.js';
+import { authenticateWooCommerce } from '../middleware/woocommerceAuth.js';
 
 const router = express.Router();
 
@@ -35,8 +36,9 @@ async function queryRaw(sql, ...params) {
 /**
  * GET /wp-json/wc-shipstation/v1/orders
  * Return orders in JSON format for ShipStation
+ * Requires WooCommerce API authentication (consumer key/secret)
  */
-router.get('/orders', async (req, res) => {
+router.get('/orders', authenticateWooCommerce, async (req, res) => {
   try {
     const { modified_after, page = 1, per_page = 100 } = req.query;
     

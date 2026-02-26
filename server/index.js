@@ -141,7 +141,7 @@ app.use('/styles', styleRoutes);
 app.use('/wp-json/wc/v3', authenticateWooCommerce, woocommerceApiRoutes);
 
 // ShipStation REST API (WooCommerce ShipStation plugin format)
-app.use('/wp-json/wc-shipstation/v1', shipstationRestRoutes);
+app.use('/wp-json/wc-shipstation/v1', authenticateWooCommerce, shipstationRestRoutes);
 
 // WooCommerce Legacy XML API (for ShipStation compatibility)
 app.use('/wc-api/v3', woocommerceLegacyRoutes);
