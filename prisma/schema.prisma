@@ -840,3 +840,30 @@ model stylesheets {
   @@index([load_order], map: "idx_load_order")
   @@index([site_id, filename, is_active], map: "idx_site_filename_active")
 }
+
+// WooCommerce Integration Tables
+model woocommerce_api_keys {
+  key_id          BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  user_id         BigInt    @db.UnsignedBigInt
+  description     String?   @db.LongText
+  permissions     String    @db.VarChar(10)
+  consumer_key    String    @unique @db.VarChar(128)
+  consumer_secret String    @db.VarChar(128)
+  nonces          String?   @db.LongText
+  truncated_key   String    @db.Char(7)
+  last_access     DateTime? @db.DateTime
+  created_at      DateTime  @default(now()) @db.Timestamp(0)
+
+  @@index([consumer_secret])
+  @@index([user_id])
+}
+
+model modules {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique @db.VarChar(100)
+  description String?   @db.Text
+  category    String?   @db.VarChar(50)
+  is_active   Boolean   @default(true)
+  created_at  DateTime  @default(now()) @db.Timestamp(0)
+  updated_at  DateTime  @default(now()) @db.Timestamp(0)
+}
