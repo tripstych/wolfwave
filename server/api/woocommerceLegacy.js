@@ -6,29 +6,21 @@
  */
 
 import express from 'express';
-import prisma from '../lib/prisma.js';
 import crypto from 'crypto';
+import { queryRaw } from '../lib/queryRaw.js';
 
 const router = express.Router();
 
 /**
- * Helper to execute raw SQL queries safely
+ * Hash a consumer secret for comparison against stored hash.
  */
-async function queryRaw(sql, ...params) {
-  try {
-    const results = await prisma.$queryRawUnsafe(sql, ...params);
-    const converted = JSON.parse(JSON.stringify(results, (key, value) =>
-      typeof value === 'bigint' ? Number(value) : value
-    ));
-    return Array.isArray(converted) ? converted : [];
-  } catch (error) {
-    console.error('Query error:', error);
-    throw error;
-  }
+function hashSecret(secret) {
+  return crypto.createHash('sha256').update(secret).digest('hex');
 }
 
 /**
  * Basic Auth middleware for legacy API
+ * Username = consumer_key, Password = consumer_secret
  */
 async function authenticateLegacy(req, res, next) {
   const authHeader = req.headers.authorization;
@@ -38,15 +30,28 @@ async function authenticateLegacy(req, res, next) {
   }
 
   const credentials = Buffer.from(authHeader.substring(6), 'base64').toString();
-  const [username, password] = credentials.split(':');
+  const [consumerKey, consumerSecret] = credentials.split(':');
 
-  // Check if it's a valid API key
+  if (!consumerKey || !consumerSecret) {
+    return res.status(401).send('Unauthorized');
+  }
+
+  // Look up API key by consumer_key
   const [apiKey] = await queryRaw(
-    `SELECT * FROM woocommerce_api_keys WHERE truncated_key = ? OR consumer_key = ?`,
-    password, username
+    `SELECT * FROM woocommerce_api_keys WHERE consumer_key = ?`,
+    consumerKey
   );
 
   if (!apiKey) {
+    return res.status(401).send('Unauthorized');
+  }
+
+  // Verify consumer_secret (stored as SHA256 hash)
+  const providedHash = hashSecret(consumerSecret);
+  const storedHash = apiKey.consumer_secret;
+  const hashesMatch = providedHash.length === storedHash.length
+    && crypto.timingSafeEqual(Buffer.from(providedHash), Buffer.from(storedHash));
+  if (!hashesMatch) {
     return res.status(401).send('Unauthorized');
   }
 
@@ -60,13 +65,15 @@ async function authenticateLegacy(req, res, next) {
  */
 router.get('/orders', authenticateLegacy, async (req, res) => {
   try {
-    // Get orders from WooCommerce tables
+    const cdata = (str) => `<![CDATA[${str || ''}]]>`;
+
+    // Get orders from WolfWave orders table
     const orders = await queryRaw(`
-      SELECT p.*, pm.meta_value as order_data
-      FROM wp_posts p
-      LEFT JOIN wp_postmeta pm ON p.ID = pm.post_id AND pm.meta_key = '_order_data'
-      WHERE p.post_type = 'shop_order'
-      ORDER BY p.post_date DESC
+      SELECT o.*, c.email as customer_email, c.first_name, c.last_name
+      FROM orders o
+      LEFT JOIN customers c ON o.customer_id = c.id
+      WHERE o.status IN ('pending', 'processing', 'on-hold', 'completed')
+      ORDER BY o.created_at DESC
       LIMIT 100
     `);
 
@@ -75,33 +82,43 @@ router.get('/orders', authenticateLegacy, async (req, res) => {
     xml += '<orders>\n';
 
     for (const order of orders) {
-      const orderData = order.order_data ? JSON.parse(order.order_data) : {};
-      
+      // Parse JSON address fields
+      let billing = {};
+      let shipping = {};
+      try {
+        billing = typeof order.billing_address === 'string'
+          ? JSON.parse(order.billing_address) : (order.billing_address || {});
+        shipping = typeof order.shipping_address === 'string'
+          ? JSON.parse(order.shipping_address) : (order.shipping_address || {});
+      } catch (e) {
+        console.error('Error parsing address JSON:', e);
+      }
+
       xml += '  <order>\n';
-      xml += `    <order_id>${order.ID}</order_id>\n`;
-      xml += `    <order_number>${order.ID}</order_number>\n`;
-      xml += `    <order_date>${order.post_date}</order_date>\n`;
-      xml += `    <status>${order.post_status}</status>\n`;
-      xml += `    <total>${orderData.total || '0.00'}</total>\n`;
-      xml += `    <currency>${orderData.currency || 'USD'}</currency>\n`;
+      xml += `    <order_id>${order.id}</order_id>\n`;
+      xml += `    <order_number>${cdata(order.order_number || order.id)}</order_number>\n`;
+      xml += `    <order_date>${order.created_at}</order_date>\n`;
+      xml += `    <status>${cdata(order.status)}</status>\n`;
+      xml += `    <total>${order.total || '0.00'}</total>\n`;
+      xml += `    <currency>${order.currency || 'USD'}</currency>\n`;
       
       // Customer info
       xml += '    <customer>\n';
-      xml += `      <email>${orderData.billing?.email || ''}</email>\n`;
-      xml += `      <first_name>${orderData.billing?.first_name || ''}</first_name>\n`;
-      xml += `      <last_name>${orderData.billing?.last_name || ''}</last_name>\n`;
+      xml += `      <email>${cdata(order.email || order.customer_email || '')}</email>\n`;
+      xml += `      <first_name>${cdata(billing.first_name || order.first_name || '')}</first_name>\n`;
+      xml += `      <last_name>${cdata(billing.last_name || order.last_name || '')}</last_name>\n`;
       xml += '    </customer>\n';
       
       // Shipping address
       xml += '    <shipping_address>\n';
-      xml += `      <first_name>${orderData.shipping?.first_name || ''}</first_name>\n`;
-      xml += `      <last_name>${orderData.shipping?.last_name || ''}</last_name>\n`;
-      xml += `      <address_1>${orderData.shipping?.address_1 || ''}</address_1>\n`;
-      xml += `      <address_2>${orderData.shipping?.address_2 || ''}</address_2>\n`;
-      xml += `      <city>${orderData.shipping?.city || ''}</city>\n`;
-      xml += `      <state>${orderData.shipping?.state || ''}</state>\n`;
-      xml += `      <postcode>${orderData.shipping?.postcode || ''}</postcode>\n`;
-      xml += `      <country>${orderData.shipping?.country || ''}</country>\n`;
+      xml += `      <first_name>${cdata(shipping.first_name || '')}</first_name>\n`;
+      xml += `      <last_name>${cdata(shipping.last_name || '')}</last_name>\n`;
+      xml += `      <address_1>${cdata(shipping.address1 || '')}</address_1>\n`;
+      xml += `      <address_2>${cdata(shipping.address2 || '')}</address_2>\n`;
+      xml += `      <city>${cdata(shipping.city || '')}</city>\n`;
+      xml += `      <state>${cdata(shipping.province || shipping.state || '')}</state>\n`;
+      xml += `      <postcode>${cdata(shipping.postal_code || shipping.zip || '')}</postcode>\n`;
+      xml += `      <country>${cdata(shipping.country || '')}</country>\n`;
       xml += '    </shipping_address>\n';
       
       xml += '  </order>\n';

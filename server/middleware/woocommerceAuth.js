@@ -6,36 +6,23 @@
  */
 
 import crypto from 'crypto';
-import prisma from '../lib/prisma.js';
+import { queryRaw, executeRaw } from '../lib/queryRaw.js';
 
 /**
- * Helper to execute raw SQL queries safely
+ * Hash a consumer secret for secure storage.
+ * Uses SHA256 which matches WooCommerce's approach.
  */
-async function queryRaw(sql, ...params) {
-  try {
-    // Prisma requires params as individual arguments, not an array
-    const results = params.length > 0 
-      ? await prisma.$queryRawUnsafe(sql, ...params)
-      : await prisma.$queryRawUnsafe(sql);
-    // Convert BigInt to Number for JSON serialization
-    const converted = JSON.parse(JSON.stringify(results, (key, value) =>
-      typeof value === 'bigint' ? Number(value) : value
-    ));
-    return Array.isArray(converted) ? converted : [];
-  } catch (error) {
-    console.error('Query error:', error);
-    throw error;
-  }
-}
-
-async function executeRaw(sql, ...params) {
-  return await prisma.$executeRawUnsafe(sql, ...params);
+function hashSecret(secret) {
+  return crypto.createHash('sha256').update(secret).digest('hex');
 }
 
 /**
  * OAuth 1.0a signature verification
+ * 
+ * @param {object} req - Express request
+ * @param {string} storedHashedSecret - The SHA256-hashed consumer secret from the DB
  */
-function verifyOAuthSignature(req, consumerSecret) {
+function verifyOAuthSignature(req, storedHashedSecret) {
   const params = { ...req.query };
   
   // Extract OAuth parameters
@@ -47,6 +34,7 @@ function verifyOAuthSignature(req, consumerSecret) {
   }
 
   const signature = oauthParams.oauth_signature;
+  if (!signature) return false;
   delete oauthParams.oauth_signature;
 
   // Build signature base string
@@ -69,14 +57,18 @@ function verifyOAuthSignature(req, consumerSecret) {
     encodeURIComponent(sortedParams)
   ].join('&');
 
-  // Create signature
-  const signingKey = `${encodeURIComponent(consumerSecret)}&`;
+  // Use the hashed secret as the signing key (clients must also use the hashed secret)
+  const signingKey = `${encodeURIComponent(storedHashedSecret)}&`;
   const computedSignature = crypto
     .createHmac('sha256', signingKey)
     .update(signatureBaseString)
     .digest('base64');
 
-  return signature === computedSignature;
+  // Timing-safe comparison for the signature
+  const sigBuf = Buffer.from(signature);
+  const computedBuf = Buffer.from(computedSignature);
+  return sigBuf.length === computedBuf.length
+    && crypto.timingSafeEqual(sigBuf, computedBuf);
 }
 
 /**
@@ -96,7 +88,7 @@ async function verifyBasicAuth(authHeader, req) {
     return null;
   }
 
-  console.log(`[WC Auth] Looking up key: ${consumerKey.substring(0, 20)}...`);
+  console.log(`[WC Auth] Looking up key: ...${consumerKey.slice(-7)}`);
 
   // Look up API key
   const results = await queryRaw(
@@ -112,8 +104,12 @@ async function verifyBasicAuth(authHeader, req) {
 
   console.log(`[WC Auth] Found API key: ${apiKey.description}, permissions: ${apiKey.permissions}`);
 
-  // Verify secret
-  if (apiKey.consumer_secret !== consumerSecret) {
+  // Verify secret (compare hashed values using timing-safe comparison)
+  const providedHash = hashSecret(consumerSecret);
+  const storedHash = apiKey.consumer_secret;
+  const hashesMatch = providedHash.length === storedHash.length
+    && crypto.timingSafeEqual(Buffer.from(providedHash), Buffer.from(storedHash));
+  if (!hashesMatch) {
     console.log('[WC Auth] Secret mismatch');
     return null;
   }
@@ -233,6 +229,7 @@ export function generateConsumerCredentials() {
   return {
     consumerKey,
     consumerSecret,
+    hashedSecret: hashSecret(consumerSecret),
     truncatedKey
   };
 }
@@ -241,14 +238,15 @@ export function generateConsumerCredentials() {
  * Create a new WooCommerce API key
  */
 export async function createWooCommerceApiKey(userId, description, permissions = 'read_write') {
-  const { consumerKey, consumerSecret, truncatedKey } = generateConsumerCredentials();
+  const { consumerKey, consumerSecret, hashedSecret, truncatedKey } = generateConsumerCredentials();
 
+  // Store the hashed secret, not the plaintext
   await executeRaw(
     `INSERT INTO woocommerce_api_keys (
       user_id, description, permissions, consumer_key, consumer_secret, 
       truncated_key, created_at
     ) VALUES (?, ?, ?, ?, ?, ?, NOW())`,
-    userId, description, permissions, consumerKey, consumerSecret, truncatedKey
+    userId, description, permissions, consumerKey, hashedSecret, truncatedKey
   );
   
   // Get the inserted ID

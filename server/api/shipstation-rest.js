@@ -9,29 +9,10 @@
  */
 
 import express from 'express';
-import prisma from '../lib/prisma.js';
+import { queryRaw } from '../lib/queryRaw.js';
 import { trackModuleUsage } from '../services/moduleManager.js';
-import { authenticateWooCommerce } from '../middleware/woocommerceAuth.js';
 
 const router = express.Router();
-
-/**
- * Helper to execute raw SQL queries safely
- */
-async function queryRaw(sql, ...params) {
-  try {
-    const results = params.length > 0 
-      ? await prisma.$queryRawUnsafe(sql, ...params)
-      : await prisma.$queryRawUnsafe(sql);
-    const converted = JSON.parse(JSON.stringify(results, (key, value) =>
-      typeof value === 'bigint' ? Number(value) : value
-    ));
-    return Array.isArray(converted) ? converted : [];
-  } catch (error) {
-    console.error('Query error:', error);
-    throw error;
-  }
-}
 
 /**
  * GET /wp-json/wc-shipstation/v1/orders
