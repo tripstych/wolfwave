@@ -57,8 +57,8 @@ INSERT INTO orders (
 SET @order_id = LAST_INSERT_ID();
 
 -- Create dummy product if it doesn't exist
-INSERT IGNORE INTO products (id, title, description, price, sku, status, created_at, updated_at)
-VALUES (1, 'Test Product', 'Test product for ShipStation validation', 24.99, 'TEST-SKU-001', 'active', NOW(), NOW());
+INSERT IGNORE INTO products (id, content_id, template_id, title, price, sku, status, created_at, updated_at)
+VALUES (1, NULL, 1, 'Test Product', 24.99, 'TEST-SKU-001', 'active', NOW(), NOW());
 
 -- Insert order line item
 INSERT INTO order_items (
