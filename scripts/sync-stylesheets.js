@@ -2,13 +2,16 @@
 
 /**
  * Sync CSS files from templates/css directory to the database
- * Usage: node scripts/sync-stylesheets.js
+ * Usage: node scripts/sync-stylesheets.js [database_name]
+ * 
+ * If no database name is provided, uses DB_NAME from environment
  */
 
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { query, initDb } from '../server/db/connection.js';
+import { runWithTenant } from '../server/lib/tenantContext.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -17,7 +20,10 @@ const CSS_DIR = path.join(TEMPLATES_DIR, 'css');
 
 async function syncStylesheets() {
   try {
-    console.log('🎨 Syncing stylesheets from filesystem to database...\n');
+    const dbName = process.argv[2] || process.env.DB_NAME || 'wolfwave_default';
+    
+    console.log('🎨 Syncing stylesheets from filesystem to database...');
+    console.log(`📊 Database: ${dbName}\n`);
 
     await initDb();
 
