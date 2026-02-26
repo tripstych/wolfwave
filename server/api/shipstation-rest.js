@@ -97,13 +97,9 @@ router.get('/orders', async (req, res) => {
         SELECT * FROM customers WHERE id = ?
       `, order.customer_id);
 
-      // Parse JSON address fields
-      const billingAddress = typeof order.billing_address === 'string' 
-        ? JSON.parse(order.billing_address) 
-        : order.billing_address || {};
-      const shippingAddress = typeof order.shipping_address === 'string'
-        ? JSON.parse(order.shipping_address)
-        : order.shipping_address || {};
+      // Parse JSON address fields - they come as objects from Prisma
+      const billingAddress = order.billing_address || {};
+      const shippingAddress = order.shipping_address || {};
 
       return {
         id: order.id,
