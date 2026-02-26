@@ -199,9 +199,9 @@ async function seedDemo() {
     const templates = await query('SELECT id FROM templates WHERE filename = ?', ['pages/homepage.njk']);
 
     await query(
-      `INSERT INTO pages (template_id, content_id, title, slug, status, meta_title, meta_description, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [templates[0].id, homeContentId, 'Home', '/', 'published', 'Modern Apparel - Premium Clothing', 'Discover our curated collection of premium apparel and lifestyle products', adminUserId]
+      `INSERT INTO pages (template_id, content_id, title, status, meta_title, meta_description, created_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [templates[0].id, homeContentId, 'Home', 'published', 'Modern Apparel - Premium Clothing', 'Discover our curated collection of premium apparel and lifestyle products', adminUserId]
     );
 
     // About Page
@@ -222,9 +222,9 @@ async function seedDemo() {
     }
 
     await query(
-      `INSERT INTO pages (template_id, content_id, title, slug, status, meta_title, meta_description, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [stdTemplate[0].id, aboutResult.insertId, 'About Us', '/about', 'published', 'About Modern Apparel', 'Learn about our mission and values', adminUserId]
+      `INSERT INTO pages (template_id, content_id, title, status, meta_title, meta_description, created_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [stdTemplate[0].id, aboutResult.insertId, 'About Us', 'published', 'About Modern Apparel', 'Learn about our mission and values', adminUserId]
     );
 
     console.log('✅ Pages created');
@@ -538,9 +538,9 @@ async function seedDemo() {
       );
 
       await query(
-        `INSERT INTO pages (template_id, content_id, title, slug, status, meta_title, meta_description, created_by)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [blogTemplate[0].id, contentResult.insertId, post.title, post.slug, 'published', post.title, post.excerpt, adminUserId]
+        `INSERT INTO pages (template_id, content_id, title, status, meta_title, meta_description, created_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [blogTemplate[0].id, contentResult.insertId, post.title, 'published', post.title, post.excerpt, adminUserId]
       );
     }
 

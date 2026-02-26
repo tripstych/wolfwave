@@ -251,31 +251,36 @@ async function seed() {
 
       // Get or create content record
       let contentId;
-      const existingContent = await query('SELECT id FROM content WHERE slug = ?', ['/pages/home']);
+      const contentSlug = 'content-home';
+      const pageSlug = 'home';
+      const existingContent = await query('SELECT id FROM content WHERE slug = ?', [contentSlug]);
 
       if (existingContent && existingContent.length > 0 && existingContent[0]) {
         contentId = existingContent[0].id;
         // Update existing content
         await query(
           'UPDATE content SET module = ?, title = ?, data = ? WHERE slug = ?',
-          ['pages', 'Home', JSON.stringify(homeContent), '/pages/home']
+          ['pages', 'Home', JSON.stringify(homeContent), contentSlug]
         );
       } else {
         // Create new content
         const contentResult = await query(
           `INSERT INTO content (module, slug, title, data)
            VALUES (?, ?, ?, ?)`,
-          ['pages', '/pages/home', 'Home', JSON.stringify(homeContent)]
+          ['pages', contentSlug, 'Home', JSON.stringify(homeContent)]
         );
         contentId = contentResult.insertId;
       }
 
-      const pageResult = await query(
-        `INSERT INTO pages (template_id, content_id, title, slug, status, meta_title, meta_description, created_by)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE content_id = VALUES(content_id)`,
-        [templates[0].id, contentId, 'Home', '/pages/home', 'published', 'Welcome to WolfWave CMS', 'A powerful SEO-centric content management system', 1]
-      );
+      // Check if page already exists
+      const existingPage = await query('SELECT id FROM pages WHERE content_id = ?', [contentId]);
+      if (!existingPage || existingPage.length === 0) {
+        await query(
+          `INSERT INTO pages (template_id, content_id, title, status, meta_title, meta_description, created_by)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          [templates[0].id, contentId, 'Home', 'published', 'Welcome to WolfWave CMS', 'A powerful SEO-centric content management system', 1]
+        );
+      }
 
       // Get the page ID (either inserted or existing)
       const pageIdResult = await query('SELECT id FROM pages WHERE content_id = ?', [contentId]);
@@ -329,14 +334,35 @@ async function seed() {
             ['pages', sp.slug, sp.title, JSON.stringify(sp.content)]
           );
           await query(
-            `INSERT INTO pages (template_id, content_id, title, slug, status, meta_title, meta_description, created_by)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-            [stdTemplateId, contentResult.insertId, sp.title, sp.slug, 'published', sp.metaTitle, sp.metaDescription, 1]
+            `INSERT INTO pages (template_id, content_id, title, status, meta_title, meta_description, created_by)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [stdTemplateId, contentResult.insertId, sp.title, 'published', sp.metaTitle, sp.metaDescription, 1]
           );
         }
       }
       console.log('✅ About and Contact pages created');
     }
+
+    // Seed demo customers
+    const demoCustomers = [
+      { email: 'demo1@wolfwave.shop', firstName: 'Demo', lastName: 'Customer One' },
+      { email: 'demo2@wolfwave.shop', firstName: 'Demo', lastName: 'Customer Two' },
+      { email: 'demo3@wolfwave.shop', firstName: 'Demo', lastName: 'Customer Three' }
+    ];
+
+    for (const customer of demoCustomers) {
+      const customerPassword = 'demo123';
+      const customerSalt = await bcrypt.genSalt(10);
+      const customerHash = await bcrypt.hash(customerPassword, customerSalt);
+
+      await query(
+        `INSERT INTO customers (email, first_name, last_name, password, email_verified)
+         VALUES (?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE first_name = VALUES(first_name), last_name = VALUES(last_name)`,
+        [customer.email, customer.firstName, customer.lastName, customerHash, true]
+      );
+    }
+    console.log('✅ Demo customers seeded (demo1@wolfwave.shop, demo2@wolfwave.shop, demo3@wolfwave.shop)');
 
     // Seed zenblock tenant for testing
     await query(
