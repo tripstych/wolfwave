@@ -998,45 +998,43 @@ RESPOND WITH ONLY VALID JSON:
 /**
  * REBUILD: Convert React Component to WolfWave Nunjucks (Senior Systems Engineer persona)
  */
-export async function convertReactToNunjucks(code, regions, pageType, styles = '', liveHtml = null, model = null) {
+export async function convertReactToNunjucks(code, regions, pageType, styles = '', liveHtml = null, links = [], scripts = [], fonts = [], model = null) {
   const systemPrompt = `Role: Senior Systems Engineer.
 Project: WolfWave CMS.
 Task: Transpile React/JSX source code into a WolveWave Nunjucks (.njk) template, using Live Rendered HTML as the "Look & Feel" source of truth.
 
 CRITICAL MANDATE:
 - The LIVE RENDERED HTML provided below is exactly how the page must look.
-- Use the React SOURCE CODE only to understand the dynamic logic, loops, and conditional content.
-- Your output must be a Nunjucks template that produces the EXACT visual structure and CSS (Tailwind/Inline) of the Live Rendered HTML.
+- Your output must be a COMPLETE STANDALONE HTML document.
+- DO NOT use {% extends %} or {% block %}.
 
 Requirements:
-1. LAYOUT: You MUST extend the base layout and place all HTML within blocks.
-   - Start the file with: {% extends "layouts/base.njk" %}
-   - Place styles in: {% block styles %} ... styles here ... {% endblock %}
-   - Place page HTML in: {% block content %} ... html here ... {% endblock %}
-2. LOOK & FEEL: Capture every Tailwind class, inline style, and structural div from the Live Rendered HTML. Do not simplify the design.
-3. GLOBAL STYLES: Include the provided global CSS styles in the {% block styles %} block.
-4. NO MISSING PARTIALS: Do NOT use {% include "partials/..." %}. If the source code has a <Navbar /> or <Footer />, you MUST find their rendered equivalent in the Live HTML and transpile them directly into the template.
-5. CMS INTEGRATION: Replace identified content regions (from the Source Code) with Nunjucks tags inside the structure derived from the Live HTML.
-6. Logic Conversion: Replace React map() loops with Nunjucks {% for %} and ternary/if logic with {% if %}.
-7. Path Mapping: 
+1. DESIGN FIDELITY: Capture every Tailwind class, Navbar, Footer, and Wrapper from the Live Rendered HTML.
+2. FONTS: Include the following Google Fonts in the <head>:
+   ${fonts.map(f => `<link href="https://fonts.googleapis.com/css2?family=${f.replace(/\s+/g, '+')}:wght@400;700&display=swap" rel="stylesheet">`).join('\n')}
+3. ASSETS:
+   - Links (CSS): ${links.map(l => `<link rel="stylesheet" href="${l}">`).join('\n')}
+   - Inline CSS: <style>${styles}</style>
+   - Scripts (JS): ${scripts.map(s => `<script src="${s}"></script>`).join('\n')}
+4. CMS INTEGRATION: Replace identified content regions (from the Source Code) with Nunjucks tags inside the structure derived from the Live HTML.
+5. Path Mapping: 
    - Update all image src paths starting with '/src/assets/', 'src/assets/', or '/assets/' to start with '/uploads/assets/'.
    - Update all other root-relative paths like '/logo.png' (from the public folder) to start with '/uploads/'.
-
-Format for regions:
-- Text: <span data-cms-region="key" data-cms-type="text">{{ content.key | default('original_literal') }}</span>
-- RichText: <div data-cms-region="key" data-cms-type="richtext">{{ content.key | safe }}</div>
-- Image: <img data-cms-region="key" data-cms-type="image" src="{{ content.key | default('/uploads/assets/original') }}">
-
-GLOBAL STYLES TO INCLUDE IN {% block styles %}:
-${styles}
+6. CMS SEO & EDITING: 
+   - In the <head>, include: <title>{{ seo.title }}</title><meta name="description" content="{{ seo.description }}">
+   - Before </body>, add: 
+     {% if user %}
+       <link rel="stylesheet" href="/css/edit-in-place.css">
+       <script src="/js/edit-in-place.js"></script>
+     {% endif %}
 
 Return ONLY the Nunjucks code. No preamble.
 
 IDENTIFIED REGIONS FOR INJECTION:
 ${JSON.stringify(regions, null, 2)}
 
-LIVE RENDERED HTML (SOURCE OF TRUTH FOR DESIGN):
-${liveHtml ? liveHtml.substring(0, 30000) : 'Not available - fallback to Source Code only'}
+LIVE RENDERED HTML:
+${liveHtml ? liveHtml.substring(0, 30000) : 'Not available'}
 `;
 
   const userPrompt = `React Source Code:\n${code}`;
@@ -1056,17 +1054,29 @@ ${liveHtml ? liveHtml.substring(0, 30000) : 'Not available - fallback to Source 
 export async function analyzeSiteAssets(html, url = '', model = null, req = null) {
   const $ = (await import('cheerio')).load(html);
 
+  const resolveUrl = (href) => {
+    try {
+      if (!href) return null;
+      if (href.startsWith('http')) return href;
+      return new URL(href, url).toString();
+    } catch (e) {
+      return href;
+    }
+  };
+
   // Extract raw asset references from <head> before cleaning
   const stylesheets = [];
   $('link[rel="stylesheet"]').each((i, el) => {
     const href = $(el).attr('href');
-    if (href) stylesheets.push(href);
+    const resolved = resolveUrl(href);
+    if (resolved) stylesheets.push(resolved);
   });
 
   const scripts = [];
   $('script[src]').each((i, el) => {
     const src = $(el).attr('src');
-    if (src) scripts.push(src);
+    const resolved = resolveUrl(src);
+    if (resolved) scripts.push(resolved);
   });
 
   // Extract inline style blocks for color analysis

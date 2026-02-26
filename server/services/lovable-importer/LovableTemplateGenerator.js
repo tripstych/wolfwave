@@ -22,6 +22,7 @@ export class LovableTemplateGenerator {
       if (!ruleset || !ruleset.pages) throw new Error('No pages mapped in ruleset');
 
       const themeStyles = ruleset.theme?.styles || '';
+      const liveAssets = ruleset.theme?.live_assets || {};
 
       for (const [pathKey, pageConfig] of Object.entries(ruleset.pages)) {
         info(this.dbName, 'LOVABLE_TEMPLATE_GEN_CONVERT', `Converting ${pathKey}...`);
@@ -38,7 +39,10 @@ export class LovableTemplateGenerator {
           pageConfig.regions, 
           pageConfig.page_type,
           themeStyles,
-          pageConfig.live_rendered_html // THE LOOK & FEEL
+          pageConfig.live_rendered_html,
+          liveAssets.stylesheets || [],
+          liveAssets.scripts || [],
+          liveAssets.fonts || []
         );
 
         const filename = `imported/${this.siteId}/${pathKey.split('/').pop().replace(/\.(tsx|jsx)$/, '')}.njk`;

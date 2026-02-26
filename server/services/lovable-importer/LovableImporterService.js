@@ -70,10 +70,31 @@ export class LovableImporterService {
           const platformInfo = await disco.run();
           
           liveAssets = {
-            fonts: platformInfo.fonts,
-            colors: platformInfo.color_palette,
-            stylesheets: platformInfo.stylesheets?.filter(s => s.recommend).map(s => s.url)
+            fonts: platformInfo.fonts || [],
+            colors: platformInfo.color_palette || [],
+            stylesheets: [],
+            scripts: []
           };
+
+          const { downloadAsset } = await import('../mediaService.js');
+          
+          // Localize Stylesheets
+          const remoteStylesheets = platformInfo.stylesheets?.filter(s => s.recommend).map(s => s.url) || [];
+          for (const remoteUrl of remoteStylesheets) {
+            try {
+              const localUrl = await downloadAsset(remoteUrl);
+              liveAssets.stylesheets.push(localUrl);
+            } catch (err) { console.error('CSS Download Fail:', remoteUrl); }
+          }
+
+          // Localize Scripts (for UI interactions)
+          const remoteScripts = platformInfo.scripts?.filter(s => s.recommend).map(s => s.url) || [];
+          for (const remoteUrl of remoteScripts) {
+            try {
+              const localUrl = await downloadAsset(remoteUrl);
+              liveAssets.scripts.push(localUrl);
+            } catch (err) { console.error('JS Download Fail:', remoteUrl); }
+          }
 
           // Basic crawl of primary pages to match them later
           const { CrawlEngine } = await import('../assisted-import/CrawlEngine.js');

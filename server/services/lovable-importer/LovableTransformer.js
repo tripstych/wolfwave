@@ -13,7 +13,7 @@ export class LovableTransformer {
 
   async run() {
     try {
-      info(this.dbName, 'LOVABLE_TRANSFORM_START', `Starting explicit Prisma ingestion for site ${this.siteId}`);
+      info(this.dbName, 'LOVABLE_TRANSFORM_START', `Starting explicit CMS ingestion for site ${this.siteId}`);
 
       const site = await prisma.imported_sites.findUnique({
         where: { id: this.siteId }
@@ -24,7 +24,8 @@ export class LovableTransformer {
 
       // Iterate through the discovered manifest
       for (const [pathKey, pageConfig] of Object.entries(ruleset.pages)) {
-        info(this.dbName, 'LOVABLE_TRANSFORM_PAGE', `Ingesting: ${pathKey} -> /${pageConfig.route_slug}`);
+        const routeSlug = pageConfig.route_slug === 'home' ? '/' : `/${pageConfig.route_slug.replace(/^\//, '')}`;
+        info(this.dbName, 'LOVABLE_TRANSFORM_PAGE', `Ingesting: ${pathKey} -> ${routeSlug}`);
 
         // Construct the content data object from extracted literals
         const contentData = {};
@@ -32,11 +33,13 @@ export class LovableTransformer {
           contentData[region.key] = region.raw_value;
         });
 
-        // 3. Explicit Prisma Creation (Requirement 3)
         // Step A: Upsert the content record
-        info(this.dbName, 'LOVABLE_TRANSFORM_PRISMA', `Upserting content for ${pageConfig.route_slug}`);
+        // We use a unique slug per site import to avoid clobbering other sites
+        const finalSlug = pageConfig.route_slug === 'home' ? `imported-${this.siteId}-home` : pageConfig.route_slug;
+        
+        info(this.dbName, 'LOVABLE_TRANSFORM_PRISMA', `Upserting content for ${finalSlug}`);
         const contentRecord = await prisma.content.upsert({
-          where: { slug: pageConfig.route_slug },
+          where: { slug: finalSlug },
           update: {
             title: pageConfig.title || pathKey.split('/').pop(),
             data: contentData,
@@ -45,21 +48,31 @@ export class LovableTransformer {
           create: {
             module: 'pages',
             title: pageConfig.title || pathKey.split('/').pop(),
-            slug: pageConfig.route_slug,
+            slug: finalSlug,
             data: contentData
           }
         });
 
         // Step B: Manage the page record
-        info(this.dbName, 'LOVABLE_TRANSFORM_PRISMA', `Managing page record for ${pageConfig.route_slug}`);
+        info(this.dbName, 'LOVABLE_TRANSFORM_PRISMA', `Managing page record for ${routeSlug}`);
+        
+        // Try to find existing page by slug and site context if possible, 
+        // but for now we'll use title + template as a proxy
         const existingPage = await prisma.pages.findFirst({
-          where: { title: pageConfig.title, template_id: pageConfig.template_id }
+          where: { 
+            title: pageConfig.title || pathKey.split('/').pop(),
+            template_id: pageConfig.template_id 
+          }
         });
 
         if (existingPage) {
           await prisma.pages.update({
             where: { id: existingPage.id },
-            data: { content_id: contentRecord.id, updated_at: new Date() }
+            data: { 
+              content_id: contentRecord.id, 
+              status: 'published',
+              updated_at: new Date() 
+            }
           });
         } else {
           await prisma.pages.create({
@@ -68,12 +81,22 @@ export class LovableTransformer {
               template_id: pageConfig.template_id,
               content_id: contentRecord.id,
               content_type: 'pages',
-              status: 'draft'
+              status: 'published'
             }
           });
         }
 
-        info(this.dbName, 'LOVABLE_TRANSFORM_SUCCESS', `Created CMS page for ${pageConfig.route_slug}`);
+        // Update the site home_page_id if this is the home page
+        if (pageConfig.route_slug === 'home') {
+          const page = await prisma.pages.findFirst({
+             where: { content_id: contentRecord.id }
+          });
+          if (page) {
+            await query('UPDATE settings SET setting_value = ? WHERE setting_key = ?', [page.id, 'home_page_id']);
+          }
+        }
+
+        info(this.dbName, 'LOVABLE_TRANSFORM_SUCCESS', `Created CMS page for ${routeSlug}`);
       }
 
       info(this.dbName, 'LOVABLE_TRANSFORM_COMPLETE', `Successfully ingested all pages from manifest`);
