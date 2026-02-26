@@ -958,15 +958,20 @@ RESPOND WITH ONLY VALID JSON:
 export async function analyzeLovableSource(code, filePath, model = null, req = null) {
   const systemPrompt = `Role: Senior Systems Engineer.
 Project: WolfWave CMS.
-Task: Analyze provided React source code (.tsx/.jsx) for a scoped content migration.
+Task: Analyze provided React source code (.tsx/.jsx) for a granular content migration.
 
 Requirements:
 1. Discovery: Build a route manifest from the component structure.
-2. Identify Primary Content Region: Look for the semantically dense area characterized by a high density of paragraphs (<p>), headings (<h1>-<h6>), and lists. Mark this as a single 'richtext' region.
-3. EXCLUDE SUB-REGIONS: Once this Primary Content Region is identified, do NOT create any sub-regions for strings or images found INSIDE that block. They will be handled as part of the rich text.
-4. Identify External Literals: Identify headlines, buttons, or metadata found OUTSIDE the Primary Content area.
+2. Granular Extraction: Identify ALL distinct editable regions. Do NOT collapse the whole page into one 'main' or 'richtext' block.
+3. Identify Specific Literals: 
+   - Extract headlines (h1-h3) as 'text'.
+   - Extract subheadlines or short descriptions as 'text' or 'textarea'.
+   - Extract CTA button text as 'text'.
+   - Extract feature titles and bodies separately.
+   - Use 'richtext' ONLY for large, semantically dense blocks of multiple paragraphs and lists.
+4. Key Naming: Use unique, descriptive camelCase keys (e.g., heroHeadline, feature1Title, ctaButtonLabel).
 5. STRICT CONSTRAINT: Do not rewrite or summarize. For 'text' types, extract the RAW string literal. For 'richtext' types, extract the FULL JSX/HTML SUB-TREE including all tags.
-6. Categorize: Mark as 'text' (single string), 'richtext' (full HTML/JSX block), or 'image'.
+6. Categorize: Mark as 'text' (single string), 'textarea' (multiline string), 'richtext' (full HTML/JSX block), or 'image'.
 
 RESPOND WITH ONLY VALID JSON:
 {
@@ -977,7 +982,7 @@ RESPOND WITH ONLY VALID JSON:
     {
       "key": "unique_camel_case_key",
       "label": "User-friendly label",
-      "type": "text|richtext|image",
+      "type": "text|textarea|richtext|image",
       "raw_value": "EXACT_LITERAL_OR_FULL_HTML_BLOCK"
     }
   ],
@@ -1027,6 +1032,12 @@ Requirements:
        <link rel="stylesheet" href="/css/edit-in-place.css">
        <script src="/js/edit-in-place.js"></script>
      {% endif %}
+
+Format for regions:
+- Text: <span data-cms-region="key" data-cms-type="text">{{ content.key | default('original_literal') }}</span>
+- TextArea: <div data-cms-region="key" data-cms-type="textarea">{{ content.key | default('original_literal') | nl2br }}</div>
+- RichText: <div data-cms-region="key" data-cms-type="richtext">{{ content.key | safe }}</div>
+- Image: <img data-cms-region="key" data-cms-type="image" src="{{ content.key | default('/uploads/assets/original') }}">
 
 Return ONLY the Nunjucks code. No preamble.
 
