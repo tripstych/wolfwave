@@ -958,20 +958,20 @@ RESPOND WITH ONLY VALID JSON:
 export async function analyzeLovableSource(code, filePath, model = null, req = null) {
   const systemPrompt = `Role: Senior Systems Engineer.
 Project: WolfWave CMS.
-Task: Analyze provided React source code (.tsx/.jsx) for a granular content migration.
+Task: Map React Source Code to CMS Editable Regions.
 
-Requirements:
-1. Discovery: Build a route manifest from the component structure.
-2. Granular Extraction: Identify ALL distinct editable regions. Do NOT collapse the whole page into one 'main' or 'richtext' block.
-3. Identify Specific Literals: 
-   - Extract headlines (h1-h3) as 'text'.
-   - Extract subheadlines or short descriptions as 'text' or 'textarea'.
-   - Extract CTA button text as 'text'.
-   - Extract feature titles and bodies separately.
-   - Use 'richtext' ONLY for large, semantically dense blocks of multiple paragraphs and lists.
-4. Key Naming: Use unique, descriptive camelCase keys (e.g., heroHeadline, feature1Title, ctaButtonLabel).
-5. STRICT CONSTRAINT: Do not rewrite or summarize. For 'text' types, extract the RAW string literal. For 'richtext' types, extract the FULL JSX/HTML SUB-TREE including all tags.
-6. Categorize: Mark as 'text' (single string), 'textarea' (multiline string), 'richtext' (full HTML/JSX block), or 'image'.
+Mandate: The Javascript source code IS the schema. Do not guess or summarize.
+1. Extract every string literal used as a prop (e.g. <Hero title="TEXT" /> -> heroTitle: "TEXT").
+2. Extract every text node inside JSX tags (e.g. <h1>TEXT</h1> -> mainHeading: "TEXT").
+3. Identify Image Paths: Any 'src' attribute or image import.
+4. Categorize by Type:
+   - 'text': Single line strings or labels.
+   - 'textarea': Multi-line paragraphs or descriptions.
+   - 'richtext': Complex JSX blocks containing multiple internal tags.
+   - 'image': Image source paths.
+5. Key Generation: Use camelCase based on Component names or semantic tags (e.g. featureTitle, heroDescription, ctaLabel).
+
+STRICT CONSTRAINT: Do not leave any user-facing text literal unmapped. If it's visible to the user, it must be a region.
 
 RESPOND WITH ONLY VALID JSON:
 {
@@ -986,7 +986,7 @@ RESPOND WITH ONLY VALID JSON:
       "raw_value": "EXACT_LITERAL_OR_FULL_HTML_BLOCK"
     }
   ],
-  "media_paths": ["/src/assets/image.png", "logo.svg"],
+  "media_paths": ["/src/assets/image.png"],
   "summary": "Technical layout summary"
 }`;
 
@@ -1015,17 +1015,20 @@ CRITICAL MANDATE:
 
 Requirements:
 1. DESIGN FIDELITY: Capture every Tailwind class, Navbar, Footer, and Wrapper from the Live Rendered HTML.
-2. FONTS: Include the following Google Fonts in the <head>:
+2. ZERO HARDCODED TEXT: You MUST replace every string literal, prop, or text node identified in the 'REGIONS' list with a Nunjucks tag. DO NOT leave them hardcoded.
+3. FONTS: Include the following Google Fonts in the <head>:
    ${fonts.map(f => `<link href="https://fonts.googleapis.com/css2?family=${f.replace(/\s+/g, '+')}:wght@400;700&display=swap" rel="stylesheet">`).join('\n')}
-3. ASSETS:
+4. ASSETS:
    - Links (CSS): ${links.map(l => `<link rel="stylesheet" href="${l}">`).join('\n')}
    - Inline CSS: <style>${styles}</style>
    - Scripts (JS): ${scripts.map(s => `<script src="${s}"></script>`).join('\n')}
-4. CMS INTEGRATION: Replace identified content regions (from the Source Code) with Nunjucks tags inside the structure derived from the Live HTML.
-5. Path Mapping: 
+5. CMS INTEGRATION: Match the 'raw_value' of each region to the corresponding spot in the structure. 
+   - If a prop value matches a region's 'raw_value', replace it with {{ content.key }}.
+   - If a text node matches a region's 'raw_value', replace it with {{ content.key }}.
+6. Path Mapping: 
    - Update all image src paths starting with '/src/assets/', 'src/assets/', or '/assets/' to start with '/uploads/assets/'.
    - Update all other root-relative paths like '/logo.png' (from the public folder) to start with '/uploads/'.
-6. CMS SEO & EDITING: 
+7. CMS SEO & EDITING: 
    - In the <head>, include: <title>{{ seo.title }}</title><meta name="description" content="{{ seo.description }}">
    - Before </body>, add: 
      {% if user %}
