@@ -1,6 +1,9 @@
 import 'dotenv/config';
-import { query } from '../db/connection.js';
+import { getPoolForDb } from '../lib/poolManager.js';
 import { woocommerceTables } from './migrations/woocommerce-tables.js';
+
+// Get the database name from environment or default
+const dbName = process.env.DB_NAME || 'wolfwave_default';
 
 const migrations = [
   // Add access_rules to products table
@@ -60,11 +63,12 @@ const migrations = [
 
 async function migrate() {
   try {
-    console.log('Running database migrations...');
+    console.log(`Running database migrations on ${dbName}...`);
+    const pool = getPoolForDb(dbName);
     
     for (const migration of migrations) {
       try {
-        await query(migration);
+        await pool.query(migration);
         console.log('✓ Migration executed successfully');
       } catch (err) {
         if (err.code === 'ER_DUP_COLUMNNAME' || err.code === 'ER_TABLE_EXISTS_ERROR') {
@@ -77,6 +81,7 @@ async function migrate() {
     }
     
     console.log('All migrations completed successfully!');
+    process.exit(0);
   } catch (err) {
     console.error('Migration failed:', err);
     process.exit(1);
