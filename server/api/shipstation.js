@@ -172,8 +172,9 @@ function buildOrderXML(order, orderItems, customer) {
 }
 
 /**
- * GET /wc-api/v3/?action=export
+ * GET/POST /wc-api/v3/?action=export
  * Export orders to ShipStation in XML format
+ * ShipStation uses POST for test connections, GET for actual polling
  */
 router.get('/', authenticateShipStation, async (req, res) => {
   const { action, start_date, end_date, page = 1 } = req.query;
@@ -263,11 +264,84 @@ router.get('/', authenticateShipStation, async (req, res) => {
 });
 
 /**
- * POST /wc-api/v3/?action=shipnotify
- * Receive shipping notifications from ShipStation
+ * POST /wc-api/v3/?action=export or action=shipnotify
+ * ShipStation uses POST for test connections and shipnotify
  */
 router.post('/', authenticateShipStation, async (req, res) => {
-  const { action } = req.query;
+  const { action, start_date, end_date, page = 1 } = req.query;
+
+  // Handle export via POST (used for test connections)
+  if (action === 'export') {
+    try {
+      if (!start_date || !end_date) {
+        return res.status(400).type('text/xml').send(
+          '<?xml version="1.0" encoding="UTF-8"?><error>start_date and end_date are required</error>'
+        );
+      }
+
+      const startDate = parseShipStationDate(decodeURIComponent(start_date));
+      const endDate = parseShipStationDate(decodeURIComponent(end_date));
+
+      if (!startDate || !endDate) {
+        return res.status(400).type('text/xml').send(
+          '<?xml version="1.0" encoding="UTF-8"?><error>Invalid date format</error>'
+        );
+      }
+
+      const pageNum = Math.max(1, parseInt(page));
+      const offset = (pageNum - 1) * EXPORT_LIMIT;
+
+      const orders = await queryRaw(`
+        SELECT * FROM orders
+        WHERE updated_at >= ? AND updated_at <= ?
+        AND status IN ('pending', 'processing', 'on-hold', 'completed')
+        ORDER BY updated_at DESC
+        LIMIT ? OFFSET ?
+      `, startDate, endDate, EXPORT_LIMIT, offset);
+
+      const [countResult] = await queryRaw(`
+        SELECT COUNT(*) as total FROM orders
+        WHERE updated_at >= ? AND updated_at <= ?
+        AND status IN ('pending', 'processing', 'on-hold', 'completed')
+      `, startDate, endDate);
+
+      const totalOrders = countResult?.total || 0;
+      const totalPages = Math.ceil(totalOrders / EXPORT_LIMIT);
+
+      let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
+      xml += `<Orders page="${pageNum}" pages="${totalPages}">\n`;
+
+      for (const order of orders) {
+        const orderItems = await queryRaw(`
+          SELECT oi.*, p.sku, p.image_url, p.weight
+          FROM order_items oi
+          LEFT JOIN products p ON oi.product_id = p.id
+          WHERE oi.order_id = ?
+        `, order.id);
+
+        const [customer] = await queryRaw(`
+          SELECT * FROM customers WHERE id = ?
+        `, order.customer_id);
+
+        xml += buildOrderXML(order, orderItems, customer);
+      }
+
+      xml += '</Orders>';
+
+      res.type('text/xml').send(xml);
+      console.log(`ShipStation: Exported ${orders.length} orders via POST (page ${pageNum}/${totalPages})`);
+      
+      if (orders.length > 0 && orders[0].customer_id) {
+        await trackModuleUsage(orders[0].customer_id, 'shipstation', 'export', orders.length);
+      }
+    } catch (error) {
+      console.error('ShipStation export error (POST):', error);
+      res.status(500).type('text/xml').send(
+        '<?xml version="1.0" encoding="UTF-8"?><error>Internal server error</error>'
+      );
+    }
+    return;
+  }
 
   if (action === 'shipnotify') {
     try {
