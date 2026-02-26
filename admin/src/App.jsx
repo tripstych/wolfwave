@@ -1,4 +1,4 @@
-import { Fragment } from 'react';
+import { Fragment, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import { useContentTypes } from './context/ContentTypesContext';
@@ -71,6 +71,18 @@ function ProtectedRoute({ children }) {
 
 function App() {
   const { contentTypes } = useContentTypes();
+
+  // Check if accessing from admin subdomain
+  useEffect(() => {
+    const hostname = window.location.hostname;
+    const isAdminSubdomain = hostname.startsWith('admin.');
+    const isLocalhost = hostname === 'localhost' || hostname.startsWith('127.0.0.1');
+    
+    if (!isAdminSubdomain && !isLocalhost) {
+      // Not on admin subdomain - block access
+      document.body.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100vh; font-family: sans-serif;"><h1>404 - Not Found</h1></div>';
+    }
+  }, []);
 
   return (
     <Routes>
