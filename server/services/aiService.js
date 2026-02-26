@@ -1006,29 +1006,24 @@ RESPOND WITH ONLY VALID JSON:
 export async function convertReactToNunjucks(code, regions, pageType, styles = '', liveHtml = null, links = [], scripts = [], fonts = [], model = null) {
   const systemPrompt = `Role: Senior Systems Engineer.
 Project: WolfWave CMS.
-Task: Transpile React/JSX source code into a WolveWave Nunjucks (.njk) template, using Live Rendered HTML as the "Look & Feel" source of truth.
+Task: Transpile React/JSX source code into a WolveWave Nunjucks (.njk) template, using Live Rendered HTML as the "Source-First design truth".
 
 CRITICAL MANDATE:
-- The LIVE RENDERED HTML provided below is exactly how the page must look.
 - Your output must be a COMPLETE STANDALONE HTML document.
-- DO NOT use {% extends %} or {% block %}.
+- The <head> MUST contain ALL assets provided below. If you omit them, the page will have no styles.
+- The structural layout (divs, classes, Navbar, Footer) MUST match the Live Rendered HTML.
 
 Requirements:
-1. DESIGN FIDELITY: Capture every Tailwind class, Navbar, Footer, and Wrapper from the Live Rendered HTML.
-2. ZERO HARDCODED TEXT: You MUST replace every string literal, prop, or text node identified in the 'REGIONS' list with a Nunjucks tag. DO NOT leave them hardcoded.
-3. FONTS: Include the following Google Fonts in the <head>:
-   ${fonts.map(f => `<link href="https://fonts.googleapis.com/css2?family=${f.replace(/\s+/g, '+')}:wght@400;700&display=swap" rel="stylesheet">`).join('\n')}
-4. ASSETS:
-   - Links (CSS): ${links.map(l => `<link rel="stylesheet" href="${l}">`).join('\n')}
-   - Inline CSS: <style>${styles}</style>
-   - Scripts (JS): ${scripts.map(s => `<script src="${s}"></script>`).join('\n')}
-5. CMS INTEGRATION: Match the 'raw_value' of each region to the corresponding spot in the structure. 
-   - If a prop value matches a region's 'raw_value', replace it with {{ content.key }}.
-   - If a text node matches a region's 'raw_value', replace it with {{ content.key }}.
-6. Path Mapping: 
+1. HEAD ASSETS (MANDATORY):
+   - FONTS: ${fonts.map(f => `<link href="https://fonts.googleapis.com/css2?family=${f.replace(/\s+/g, '+')}:wght@400;700&display=swap" rel="stylesheet">`).join('\n')}
+   - STYLESHEET LINKS: ${links.map(l => `<link rel="stylesheet" href="${l}">`).join('\n')}
+   - GLOBAL STYLES (Inline): <style>${styles}</style>
+   - SCRIPTS: ${scripts.map(s => `<script src="${s}"></script>`).join('\n')}
+2. ZERO HARDCODED TEXT: Replace every literal, prop value, or text node identified in the 'REGIONS' list with its corresponding Nunjucks tag: {{ content.key }}.
+3. Path Mapping: 
    - Update all image src paths starting with '/src/assets/', 'src/assets/', or '/assets/' to start with '/uploads/assets/'.
    - Update all other root-relative paths like '/logo.png' (from the public folder) to start with '/uploads/'.
-7. CMS SEO & EDITING: 
+4. CMS SEO & EDITING: 
    - In the <head>, include: <title>{{ seo.title }}</title><meta name="description" content="{{ seo.description }}">
    - Before </body>, add: 
      {% if user %}
@@ -1047,8 +1042,8 @@ Return ONLY the Nunjucks code. No preamble.
 IDENTIFIED REGIONS FOR INJECTION:
 ${JSON.stringify(regions, null, 2)}
 
-LIVE RENDERED HTML:
-${liveHtml ? liveHtml.substring(0, 30000) : 'Not available'}
+LIVE RENDERED HTML (SOURCE OF TRUTH FOR DESIGN):
+${liveHtml ? liveHtml.substring(0, 35000) : 'Not available'}
 `;
 
   const userPrompt = `React Source Code:\n${code}`;

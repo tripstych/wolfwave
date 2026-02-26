@@ -1,0 +1,28 @@
+{# Welcome Email Template #}
+{% extends "emails/base-email.njk" %}
+
+{% block subject %}Welcome to {{ siteName }}, {{ user.firstName }}!{% endblock %}
+
+{% block content %}
+<tr>
+  <td class="email-body">
+    <h1>Hey {{ user.firstName }} 👋</h1>
+    <p>Thanks for joining <strong>{{ siteName }}</strong>. We're excited to have you on board.</p>
+
+    {% if user.plan == "pro" %}
+    <p>As a <em>Pro</em> member, you get access to:</p>
+    <ul>
+      {% for feature in proFeatures %}
+      <li>{{ feature }}</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+
+    <a href="{{ ctaUrl }}" class="btn">Get Started →</a>
+
+    <p>If you have any questions, feel free to reply to this email.</p>
+    
+    <p>Best regards,<br>The {{ siteName }} Team</p>
+  </td>
+</tr>
+{% endblock %}

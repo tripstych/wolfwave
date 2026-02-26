@@ -1,21 +1,25 @@
 # WebWolf CMS
 
-An SEO-centric Content Management System built with React, Express, and Nunjucks.
+A multi-tenant, "Look & Feel" first CMS designed to import industrial-grade sites (specifically Lovable.app/React exports) and turn them into editable, dynamic Nunjucks-based themes.
 
 ## Features
 
+- **Lovable Importer** - Hybrid AI engine that converts React repositories into CMS themes
+- **Multi-Tenancy** - Database-per-tenant isolation with subdomain routing
 - **SEO-First Design** - Server-side rendering with Nunjucks for optimal SEO
-- **Template-Driven Content** - Define content regions using `data-cms-*` attributes in templates
+- **Template-Driven Content** - Define content regions using `data-cms-*` attributes
 - **React Admin UI** - Modern, responsive admin interface
-- **Rich Text Editor** - TipTap-powered WYSIWYG editing
+- **Classifieds System** - Built-in classified ads with categories, search, and messaging
+- **E-commerce** - Product management, cart, and checkout functionality
 - **Media Library** - Upload and manage images and documents
-- **SEO Tools** - Meta tags, Open Graph, redirects, sitemap generation
-- **MySQL Database** - Reliable, scalable data storage
+- **AI Integration** - Hybrid extraction (JSX source + Rendered HTML design truth)
 
 ## Tech Stack
 
-- **Backend**: Express.js, MySQL, Nunjucks
-- **Frontend Admin**: React, Vite, TailwindCSS, TipTap
+- **Backend**: Node.js (Express)
+- **Database**: PostgreSQL (via Prisma for schema/logic, Raw SQL for tenant performance)
+- **Templating**: Nunjucks (standalone document approach)
+- **Frontend Admin**: React (Vite), TailwindCSS
 - **Public Site**: Server-rendered Nunjucks templates
 
 ## Quick Start
@@ -23,7 +27,7 @@ An SEO-centric Content Management System built with React, Express, and Nunjucks
 ### Prerequisites
 
 - Node.js 18+
-- MySQL 8.0+
+- PostgreSQL 14+
 
 ### Installation
 
@@ -37,13 +41,13 @@ cd admin && npm install && cd ..
 2. Configure environment:
 ```bash
 cp .env.example .env
-# Edit .env with your MySQL credentials
+# Edit .env with your PostgreSQL credentials and tenant settings
 ```
 
-3. Create database and run migrations:
+3. Generate Prisma client and run migrations:
 ```bash
+npm run db:generate
 npm run db:migrate
-npm run db:seed
 ```
 
 4. Start development servers:
@@ -63,23 +67,26 @@ This starts:
 ## Project Structure
 
 ```
-webwolf/
+wolfwave/
 ├── server/                 # Express backend
-│   ├── api/               # REST API routes
-│   ├── db/                # Database connection & migrations
-│   ├── middleware/        # Auth middleware
-│   ├── render/            # Public site renderer
-│   └── services/          # Template parser, etc.
+│   ├── api/               # REST API routes (AI, classifieds, products, etc.)
+│   ├── controllers/       # Page rendering and business logic
+│   ├── db/                # Database connection & Prisma client
+│   ├── middleware/        # Auth & tenant resolution
+│   ├── lib/               # Renderer, logger, tenant context
+│   └── services/          # AI, Media, Lovable Importer
 ├── admin/                  # React admin interface
 │   └── src/
 │       ├── components/    # Reusable components
-│       ├── context/       # React context (auth)
-│       ├── lib/           # API client
-│       └── pages/         # Admin pages
+│       ├── blocks/        # Block editor components
+│       └── classifieds/   # Classifieds management
 ├── templates/              # Nunjucks site templates
 │   ├── layouts/           # Base layouts
-│   └── pages/             # Page templates
-├── uploads/                # Media storage
+│   ├── imported/          # AI-generated tenant templates
+│   ├── classifieds/       # Classifieds templates
+│   └── customer/          # Customer portal templates
+├── prisma/                 # Prisma schema & migrations
+├── uploads/                # Multi-tenant media storage
 └── public/                 # Static assets
 ```
 
@@ -177,13 +184,12 @@ In production, the admin UI is served from `/admin` on the Express server.
 |----------|-------------|---------|
 | `PORT` | Server port | `3000` |
 | `NODE_ENV` | Environment | `development` |
-| `DB_HOST` | MySQL host | `localhost` |
-| `DB_PORT` | MySQL port | `3306` |
-| `DB_USER` | MySQL user | `root` |
-| `DB_PASSWORD` | MySQL password | - |
-| `DB_NAME` | Database name | `wolfwave_cms` |
+| `DATABASE_URL` | PostgreSQL connection string | - |
+| `MASTER_DB_NAME` | Master database name | `wolfwave_master` |
 | `JWT_SECRET` | JWT signing secret | - |
 | `SESSION_SECRET` | Session secret | - |
+| `OPENAI_API_KEY` | OpenAI API key for AI features | - |
+| `ANTHROPIC_API_KEY` | Anthropic API key (optional) | - |
 
 ## License
 

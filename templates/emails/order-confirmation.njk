@@ -1,0 +1,45 @@
+{# Order Confirmation Email #}
+{% extends "emails/base-email.njk" %}
+
+{% block subject %}Order #{{ order.id }} Confirmed{% endblock %}
+
+{% block content %}
+<tr>
+  <td class="email-body">
+    <h1>Order Confirmed ✓</h1>
+    <p>Hi {{ customer.name }}, your order has been placed successfully.</p>
+
+    <table width="100%" cellpadding="8" style="margin: 20px 0; border: 1px solid #e5e7eb; border-radius: 6px;">
+      <tr style="background: #f9fafb; font-weight: 600;">
+        <th align="left" style="padding: 12px;">Item</th>
+        <th align="right" style="padding: 12px;">Qty</th>
+        <th align="right" style="padding: 12px;">Price</th>
+      </tr>
+      {% for item in order.items %}
+      <tr style="border-top: 1px solid #e5e7eb;">
+        <td style="padding: 12px;">{{ item.name }}</td>
+        <td align="right" style="padding: 12px;">{{ item.quantity }}</td>
+        <td align="right" style="padding: 12px;">${{ item.price | round(2) }}</td>
+      </tr>
+      {% endfor %}
+      <tr style="border-top: 2px solid #e5e7eb; font-weight: 600;">
+        <td colspan="2" align="right" style="padding: 12px;"><strong>Total</strong></td>
+        <td align="right" style="padding: 12px;"><strong>${{ order.total | round(2) }}</strong></td>
+      </tr>
+    </table>
+
+    {% if order.shippingAddress %}
+    <h3 style="margin: 24px 0 12px; font-size: 16px;">Shipping to</h3>
+    <p style="background: #f9fafb; padding: 12px; border-radius: 6px; margin: 0;">
+      {{ order.shippingAddress.line1 }}<br>
+      {% if order.shippingAddress.line2 %}{{ order.shippingAddress.line2 }}<br>{% endif %}
+      {{ order.shippingAddress.city }}, {{ order.shippingAddress.state }} {{ order.shippingAddress.zip }}
+    </p>
+    {% endif %}
+
+    <p style="margin-top: 24px;">We'll send you another email when your order ships.</p>
+    
+    <p>Thanks for your order!<br>The {{ siteName }} Team</p>
+  </td>
+</tr>
+{% endblock %}
