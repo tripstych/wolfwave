@@ -36,9 +36,9 @@ async function queryRaw(sql, ...params) {
 /**
  * GET /wp-json/wc-shipstation/v1/orders
  * Return orders in JSON format for ShipStation
- * Requires WooCommerce API authentication (consumer key/secret)
+ * Authentication is handled at router level
  */
-router.get('/orders', authenticateWooCommerce, async (req, res) => {
+router.get('/orders', async (req, res) => {
   try {
     const { modified_after, page = 1, per_page = 100 } = req.query;
     
