@@ -40,6 +40,7 @@ import amazonRoutes from './amazon.js';
 import classifiedAdsRoutes from './classifieds.js';
 import messagesRoutes from './messages.js';
 import shopifyRoutes from './shopify.js';
+import stylesheetsRoutes from './stylesheets.js';
 
 const router = Router();
 
@@ -84,6 +85,7 @@ router.use('/amazon', amazonRoutes);
 router.use('/classifieds', classifiedAdsRoutes);
 router.use('/messages', messagesRoutes);
 router.use('/shopify', shopifyRoutes);
+router.use('/stylesheets', stylesheetsRoutes);
 
 // Health check
 router.get('/health', (req, res) => {

@@ -6,10 +6,33 @@ This document explains how to manage the external stylesheets for templates in W
 
 Template styles have been extracted from inline `<style>` blocks into separate CSS files for easier editing and maintenance.
 
-## Stylesheet Locations
+## Stylesheet System
+
+WebWolf CMS uses a **database-backed stylesheet system** that allows you to:
+- Edit CSS through the admin UI or directly in files
+- Sync changes between filesystem and database
+- Manage site-specific and global stylesheets
+- Control load order and activation status
+
+### Stylesheet Locations
+
+#### Database (Primary)
+Stylesheets are served from the `stylesheets` database table via the `/styles/` route.
+
+**URL Format:** `/styles/{filename}.css`
+
+Examples:
+- `/styles/classifieds.css` - Classifieds listing styles
+- `/styles/emails.css` - Email template styles
+- `/styles/custom.css` - Global custom CSS
+
+#### Filesystem (Source)
+Source CSS files are stored in `/templates/css/` and synced to the database.
 
 ### Classifieds Styles
-**File:** `/templates/css/classifieds.css`
+**Database:** `stylesheets` table, filename: `classifieds.css`  
+**Source File:** `/templates/css/classifieds.css`  
+**URL:** `/styles/classifieds.css`
 
 **Used by:**
 - `templates/classifieds/index.njk` - Classified listings page
@@ -21,11 +44,10 @@ Template styles have been extracted from inline `<style>` blocks into separate C
 - `.listing-card` - Individual ad cards
 - `.post-ad-btn` - Call-to-action button
 
-**Editing:**
-You can edit this file directly in the `/templates/css/` directory. Changes will be reflected immediately on the classifieds pages. This file is part of the templates directory, making it easy to manage alongside your template files.
-
 ### Email Styles
-**File:** `/templates/css/emails.css`
+**Database:** `stylesheets` table, filename: `emails.css`  
+**Source File:** `/templates/css/emails.css`  
+**URL:** `/styles/emails.css`
 
 **Used by:**
 - `templates/emails/base-email.njk` - Base email layout
@@ -36,28 +58,66 @@ You can edit this file directly in the `/templates/css/` directory. Changes will
 - Email templates **keep inline styles** for maximum email client compatibility
 - The external stylesheet is provided as a **reference** for editing
 - When editing email styles:
-  1. Edit `/templates/css/emails.css` first
-  2. Copy the updated styles back into `templates/emails/base-email.njk` inline `<style>` block
-  3. This ensures emails render correctly in all email clients
+  1. Edit via admin UI or `/templates/css/emails.css`
+  2. Sync to database: `node scripts/sync-stylesheets.js`
+  3. Copy the updated styles into `templates/emails/base-email.njk` inline `<style>` block
+  4. This ensures emails render correctly in all email clients
 
 **Email Client Compatibility:**
 Most email clients (Gmail, Outlook, etc.) strip out `<link>` tags and external stylesheets. Inline styles are required for reliable rendering.
 
 ## How to Edit Styles
 
-### For Classifieds (Web Templates)
+### Method 1: Edit in Database (Recommended)
+
+**Via Admin UI:**
+1. Go to **Settings** → **Stylesheets**
+2. Find the stylesheet you want to edit
+3. Click **Edit**
+4. Make your changes in the editor
+5. Click **Save**
+6. Changes are live immediately at `/styles/{filename}.css`
+
+**Via API:**
+```bash
+PUT /api/stylesheets/:id
+{
+  "content": "/* your updated CSS */"
+}
+```
+
+### Method 2: Edit Filesystem and Sync
+
+**For Classifieds (Web Templates):**
 1. Open `/templates/css/classifieds.css`
 2. Make your changes
 3. Save the file
-4. Refresh the browser (hard refresh: Ctrl+Shift+R)
+4. Sync to database: `node scripts/sync-stylesheets.js`
+5. Refresh the browser (hard refresh: Ctrl+Shift+R)
 
-### For Emails
+**For Emails:**
 1. Open `/templates/css/emails.css`
 2. Make your changes
-3. Copy the updated CSS
-4. Open `templates/emails/base-email.njk`
-5. Paste the CSS into the `<style>` block (lines 11-24)
-6. Save both files
+3. Sync to database: `node scripts/sync-stylesheets.js`
+4. Copy the updated CSS into `templates/emails/base-email.njk` inline `<style>` block
+5. Save both files
+
+### Sync Commands
+
+**Sync all CSS files from filesystem to database:**
+```bash
+node scripts/sync-stylesheets.js
+```
+
+**Sync via API:**
+```bash
+POST /api/stylesheets/sync-from-filesystem
+```
+
+**Sync a single stylesheet back to filesystem:**
+```bash
+POST /api/stylesheets/:id/sync-to-filesystem
+```
 
 ## Template References
 
@@ -65,14 +125,14 @@ Most email clients (Gmail, Outlook, etc.) strip out `<link>` tags and external s
 ```html
 {% block head %}
 {{ super() }}
-<link rel="stylesheet" href="/templates/css/classifieds.css">
+<link rel="stylesheet" href="/styles/classifieds.css">
 {% endblock %}
 ```
 
 ### Email Template
 ```html
 {# Optional: Link external stylesheet for web-based previews #}
-{% if webPreview %}<link rel="stylesheet" href="/templates/css/emails.css">{% endif %}
+{% if webPreview %}<link rel="stylesheet" href="/styles/emails.css">{% endif %}
 {# Inline styles required for email client compatibility #}
 <style>
   /* Styles here */
