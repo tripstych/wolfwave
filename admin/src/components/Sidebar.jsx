@@ -29,21 +29,6 @@ export default function Sidebar({ isOpen, onClose, contentTypes = [] }) {
       items: [{ name: _('nav.dashboard', 'Dashboard'), href: '/', icon: LayoutDashboard }]
     },
     {
-      section: _('nav.section.store', 'Store'),
-      items: [
-        { name: _('nav.my_sites', 'My Sites'), href: '/my-sites', icon: Globe },
-        { name: _('nav.products', 'Products'), href: '/products', icon: Package },
-        { name: _('nav.orders', 'Orders'), href: '/orders', icon: Briefcase },
-        { name: _('nav.customers', 'Customers'), href: '/customers', icon: Users },
-        { name: _('nav.subscriptions', 'Subscriptions'), href: '/subscriptions', icon: CreditCard },
-        { name: _('nav.classifieds', 'Classifieds'), href: '/classifieds', icon: Megaphone }
-      ]
-    },
-    {
-      section: _('nav.section.marketing', 'Marketing'),
-      items: [{ name: _('nav.coupons', 'Coupons'), href: '/marketing/coupons', icon: Tag }]
-    },
-    {
       section: _('nav.section.content', 'Content'),
       items: [
         { name: _('nav.media', 'Media'), href: '/media', icon: Image },
@@ -60,6 +45,18 @@ export default function Sidebar({ isOpen, onClose, contentTypes = [] }) {
         { name: _('nav.styles', 'Styles'), href: '/styles', icon: Palette },
         { name: _('nav.menus', 'Menus'), href: '/menus', icon: List },
         { name: _('nav.groups', 'Groups'), href: '/groups', icon: Tag },
+      ]
+    },
+    {
+      section: _('nav.section.store', 'Store'),
+      items: [
+        { name: _('nav.my_sites', 'My Sites'), href: '/my-sites', icon: Globe },
+        { name: _('nav.products', 'Products'), href: '/products', icon: Package },
+        { name: _('nav.orders', 'Orders'), href: '/orders', icon: Briefcase },
+        { name: _('nav.customers', 'Customers'), href: '/customers', icon: Users },
+        { name: _('nav.subscriptions', 'Subscriptions'), href: '/subscriptions', icon: CreditCard },
+        { name: _('nav.coupons', 'Coupons'), href: '/marketing/coupons', icon: Tag },
+        { name: _('nav.classifieds', 'Classifieds'), href: '/classifieds', icon: Megaphone }
       ]
     },
     {
