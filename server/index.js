@@ -16,6 +16,8 @@ import { closePrisma } from './lib/prisma.js';
 import { getNunjucksEnv, getThemesDir } from './services/themeResolver.js';
 import { accessLog, errorLog, closeLogs, info, error as logError } from './lib/logger.js';
 import { maybePatchConsole } from './lib/consolePatch.js';
+import woocommerceApiRoutes from './api/woocommerce.js';
+import { authenticateWooCommerce } from './middleware/woocommerceAuth.js';
 
 // Patch console FIRST so all console.log/error/warn calls go to log files
 maybePatchConsole();
@@ -127,6 +129,9 @@ app.use('/uploads', (req, res, next) => {
 
 // Database-backed styles
 app.use('/styles', styleRoutes);
+
+// WooCommerce REST API (must be before /api to avoid conflicts)
+app.use('/wp-json/wc/v3', authenticateWooCommerce, woocommerceApiRoutes);
 
 // API routes
 app.use('/api', apiRoutes);
