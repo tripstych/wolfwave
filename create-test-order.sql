@@ -19,13 +19,15 @@ INSERT INTO orders (
   order_number,
   status,
   payment_status,
-  total_amount,
+  total,
   subtotal,
-  tax_amount,
-  shipping_amount,
-  currency,
-  shipping_address_id,
-  billing_address_id,
+  tax,
+  shipping,
+  discount,
+  email,
+  billing_address,
+  shipping_address,
+  payment_method,
   created_at,
   updated_at
 ) VALUES (
@@ -37,9 +39,11 @@ INSERT INTO orders (
   24.99,
   2.00,
   3.00,
-  'USD',
-  @address_id,
-  @address_id,
+  0.00,
+  'test@shipstation.local',
+  JSON_OBJECT('first_name', 'Test', 'last_name', 'Customer', 'address1', '123 Test St', 'city', 'Test City', 'province', 'CA', 'postal_code', '90210', 'country', 'US'),
+  JSON_OBJECT('first_name', 'Test', 'last_name', 'Customer', 'address1', '123 Test St', 'city', 'Test City', 'province', 'CA', 'postal_code', '90210', 'country', 'US'),
+  'stripe',
   NOW(),
   NOW()
 );
@@ -50,17 +54,23 @@ SET @order_id = LAST_INSERT_ID();
 INSERT INTO order_items (
   order_id,
   product_id,
-  product_name,
-  quantity,
+  variant_id,
+  product_title,
+  variant_title,
+  sku,
   price,
-  total,
+  quantity,
+  subtotal,
   created_at
 ) VALUES (
   @order_id,
   1,
+  NULL,
   'Test Product for ShipStation',
-  1,
+  NULL,
+  'TEST-SKU-001',
   24.99,
+  1,
   24.99,
   NOW()
 );
@@ -70,15 +80,10 @@ SELECT
   o.id,
   o.order_number,
   o.status,
-  o.total_amount,
-  c.email,
+  o.total,
+  o.email,
   CONCAT(c.first_name, ' ', c.last_name) as customer_name,
-  a.address1,
-  a.city,
-  a.province,
-  a.postal_code,
-  a.country
+  o.shipping_address
 FROM orders o
 JOIN customers c ON o.customer_id = c.id
-JOIN addresses a ON o.shipping_address_id = a.id
 WHERE o.id = @order_id;

@@ -97,6 +97,14 @@ router.get('/orders', async (req, res) => {
         SELECT * FROM customers WHERE id = ?
       `, order.customer_id);
 
+      // Parse JSON address fields
+      const billingAddress = typeof order.billing_address === 'string' 
+        ? JSON.parse(order.billing_address) 
+        : order.billing_address || {};
+      const shippingAddress = typeof order.shipping_address === 'string'
+        ? JSON.parse(order.shipping_address)
+        : order.shipping_address || {};
+
       return {
         id: order.id,
         order_number: order.order_number || order.id.toString(),
@@ -104,59 +112,59 @@ router.get('/orders', async (req, res) => {
         created_via: 'wolfwave',
         version: '1.0',
         status: order.status,
-        currency: order.currency || 'USD',
+        currency: 'USD',
         date_created: order.created_at,
         date_created_gmt: order.created_at,
         date_modified: order.updated_at,
         date_modified_gmt: order.updated_at,
-        discount_total: '0.00',
+        discount_total: order.discount?.toString() || '0.00',
         discount_tax: '0.00',
-        shipping_total: order.shipping_total || '0.00',
+        shipping_total: order.shipping?.toString() || '0.00',
         shipping_tax: '0.00',
-        cart_tax: order.tax_total || '0.00',
-        total: order.total,
-        total_tax: order.tax_total || '0.00',
+        cart_tax: order.tax?.toString() || '0.00',
+        total: order.total?.toString() || '0.00',
+        total_tax: order.tax?.toString() || '0.00',
         prices_include_tax: false,
         customer_id: order.customer_id || 0,
         customer_ip_address: '',
         customer_user_agent: '',
         customer_note: order.customer_note || '',
         billing: {
-          first_name: order.billing_first_name || '',
-          last_name: order.billing_last_name || '',
-          company: order.billing_company || '',
-          address_1: order.billing_address1 || '',
-          address_2: order.billing_address2 || '',
-          city: order.billing_city || '',
-          state: order.billing_state || '',
-          postcode: order.billing_zip || '',
-          country: order.billing_country || '',
-          email: order.billing_email || customer?.email || '',
-          phone: order.billing_phone || ''
+          first_name: billingAddress.first_name || '',
+          last_name: billingAddress.last_name || '',
+          company: billingAddress.company || '',
+          address_1: billingAddress.address1 || '',
+          address_2: billingAddress.address2 || '',
+          city: billingAddress.city || '',
+          state: billingAddress.province || billingAddress.state || '',
+          postcode: billingAddress.postal_code || billingAddress.zip || '',
+          country: billingAddress.country || '',
+          email: order.email || customer?.email || '',
+          phone: billingAddress.phone || ''
         },
         shipping: {
-          first_name: order.shipping_first_name || '',
-          last_name: order.shipping_last_name || '',
-          company: order.shipping_company || '',
-          address_1: order.shipping_address1 || '',
-          address_2: order.shipping_address2 || '',
-          city: order.shipping_city || '',
-          state: order.shipping_state || '',
-          postcode: order.shipping_zip || '',
-          country: order.shipping_country || '',
-          phone: order.shipping_phone || order.billing_phone || ''
+          first_name: shippingAddress.first_name || '',
+          last_name: shippingAddress.last_name || '',
+          company: shippingAddress.company || '',
+          address_1: shippingAddress.address1 || '',
+          address_2: shippingAddress.address2 || '',
+          city: shippingAddress.city || '',
+          state: shippingAddress.province || shippingAddress.state || '',
+          postcode: shippingAddress.postal_code || shippingAddress.zip || '',
+          country: shippingAddress.country || '',
+          phone: shippingAddress.phone || billingAddress.phone || ''
         },
         payment_method: order.payment_method || '',
         payment_method_title: order.payment_method || '',
-        transaction_id: order.transaction_id || '',
+        transaction_id: order.payment_intent_id || '',
         line_items: orderItems.map((item, index) => ({
           id: item.id,
-          name: item.name,
+          name: item.product_title || item.name || '',
           product_id: item.product_id || 0,
-          variation_id: 0,
+          variation_id: item.variant_id || 0,
           quantity: item.quantity,
           tax_class: '',
-          subtotal: (item.price * item.quantity).toFixed(2),
+          subtotal: item.subtotal?.toString() || '0.00',
           subtotal_tax: '0.00',
           total: (item.price * item.quantity).toFixed(2),
           total_tax: '0.00',
