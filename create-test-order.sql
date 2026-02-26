@@ -1,6 +1,12 @@
 -- Create a test order for ShipStation validation
 -- This inserts a complete order with customer, address, and line items
 
+-- Clean up any existing test data
+DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE order_number LIKE 'TEST-%');
+DELETE FROM orders WHERE order_number LIKE 'TEST-%';
+DELETE FROM addresses WHERE customer_id IN (SELECT id FROM customers WHERE email = 'test@shipstation.local');
+DELETE FROM customers WHERE email = 'test@shipstation.local';
+
 -- Insert test customer
 INSERT INTO customers (email, first_name, last_name, created_at, updated_at)
 VALUES ('test@shipstation.local', 'Test', 'Customer', NOW(), NOW());
