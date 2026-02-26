@@ -5,7 +5,7 @@
  * This allows third-party integrations to work with WooCommerce API while maintaining WolfWave's data structure.
  */
 
-import { query } from '../db/connection.js';
+import prisma from '../lib/prisma.js';
 
 class WooCommerceSync {
   /**

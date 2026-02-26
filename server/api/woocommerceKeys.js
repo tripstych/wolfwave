@@ -24,6 +24,12 @@ router.get('/', async (req, res) => {
   } catch (error) {
     console.error('Error listing WooCommerce keys:', error);
     console.error(error.stack);
+    
+    // If table doesn't exist, return empty array
+    if (error.code === 'ER_NO_SUCH_TABLE' || error.message.includes("doesn't exist")) {
+      return res.json([]);
+    }
+    
     res.status(500).json({ error: 'Failed to list API keys', details: error.message });
   }
 });
