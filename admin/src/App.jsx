@@ -41,6 +41,7 @@ import ThemeEditor from './settings/ThemeEditor';
 import StyleEditor from './settings/StyleEditor';
 import EmailTemplates from './settings/EmailTemplates';
 import ApiKeys from './settings/ApiKeys';
+import WooCommerceKeys from './pages/WooCommerceKeys';
 import PlanList from './subscriptions/PlanList';
 import PlanEditor from './subscriptions/PlanEditor';
 import CouponList from './marketing/CouponList';
@@ -128,6 +129,7 @@ function App() {
                 <Route path="/styles" element={<StyleEditor />} />
                 <Route path="/email-templates" element={<EmailTemplates />} />
                 <Route path="/api-keys" element={<ApiKeys />} />
+                <Route path="/woocommerce-keys" element={<WooCommerceKeys />} />
                 <Route path="/classifieds" element={<ClassifiedList />} />
                 <Route path="/classifieds/settings" element={<ClassifiedSettings />} />
                 <Route path="/classifieds/my-ads" element={<MyClassifieds />} />
