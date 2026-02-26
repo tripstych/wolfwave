@@ -63,23 +63,33 @@ function authenticateShipStation(req, res, next) {
 
 /**
  * Parse ShipStation date format to timestamp
- * ShipStation sends dates in PST/PDT timezone in format: MMDDYYYYxHHMM or standard date strings
+ * ShipStation sends dates in PST/PDT timezone in format: MMDDYYYY or MMDDYYYYxHHMM or standard date strings
  */
 function parseShipStationDate(dateString) {
   if (!dateString) return null;
 
-  // Handle compact format (MMDDYYYYxHHMM)
+  // Handle compact format (MMDDYYYY or MMDDYYYYxHHMM)
   if (!/[:\-\/]/.test(dateString)) {
     const month = dateString.substring(0, 2);
     const day = dateString.substring(2, 4);
     const year = dateString.substring(4, 8);
-    const time = dateString.substring(9, 13);
-    dateString = `${year}-${month}-${day} ${time.substring(0, 2)}:${time.substring(2, 4)}:00`;
+    
+    // Check if time component exists (position 8 should be 'x' or similar separator)
+    if (dateString.length > 8 && dateString[8] !== undefined) {
+      const time = dateString.substring(9, 13) || '0000';
+      dateString = `${year}-${month}-${day} ${time.substring(0, 2)}:${time.substring(2, 4)}:00`;
+    } else {
+      // No time component - use start of day
+      dateString = `${year}-${month}-${day} 00:00:00`;
+    }
   }
 
   try {
     // ShipStation uses PST/PDT (America/Los_Angeles)
     const date = new Date(dateString + ' PST');
+    if (isNaN(date.getTime())) {
+      return null;
+    }
     return date.toISOString();
   } catch (e) {
     return null;
