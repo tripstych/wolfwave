@@ -17,6 +17,7 @@ import { getNunjucksEnv, getThemesDir } from './services/themeResolver.js';
 import { accessLog, errorLog, closeLogs, info, error as logError } from './lib/logger.js';
 import { maybePatchConsole } from './lib/consolePatch.js';
 import woocommerceApiRoutes from './api/woocommerce.js';
+import woocommerceLegacyRoutes from './api/woocommerceLegacy.js';
 import { authenticateWooCommerce } from './middleware/woocommerceAuth.js';
 
 // Patch console FIRST so all console.log/error/warn calls go to log files
@@ -132,6 +133,9 @@ app.use('/styles', styleRoutes);
 
 // WooCommerce REST API (must be before /api to avoid conflicts)
 app.use('/wp-json/wc/v3', authenticateWooCommerce, woocommerceApiRoutes);
+
+// WooCommerce Legacy XML API (for ShipStation)
+app.use('/wc-api/v3', woocommerceLegacyRoutes);
 
 // API routes
 app.use('/api', apiRoutes);

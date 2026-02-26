@@ -100,7 +100,27 @@ export default function WooCommerceKeys() {
           <div className="space-y-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Consumer Key
+                Authentication Key <span className="text-xs font-normal text-gray-500">(ShipStation field name)</span>
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={createdKey.truncatedKey}
+                  readOnly
+                  className="flex-1 px-3 py-2 border rounded font-mono text-sm"
+                />
+                <button
+                  onClick={() => copyToClipboard(createdKey.truncatedKey, 'truncated')}
+                  className="px-4 py-2 bg-white border rounded hover:bg-gray-50"
+                >
+                  {copiedField === 'truncated' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Consumer Key <span className="text-xs font-normal text-gray-500">(ShipStation field name)</span>
               </label>
               <div className="flex gap-2">
                 <input
@@ -120,7 +140,7 @@ export default function WooCommerceKeys() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Consumer Secret
+                Consumer Secret <span className="text-xs font-normal text-gray-500">(ShipStation field name)</span>
               </label>
               <div className="flex gap-2">
                 <input
@@ -134,6 +154,26 @@ export default function WooCommerceKeys() {
                   className="px-4 py-2 bg-white border rounded hover:bg-gray-50"
                 >
                   {copiedField === 'secret' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                URL to Custom XML Page <span className="text-xs font-normal text-gray-500">(ShipStation field name)</span>
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={`${window.location.origin}/wc-api/v3/orders`}
+                  readOnly
+                  className="flex-1 px-3 py-2 border rounded font-mono text-sm"
+                />
+                <button
+                  onClick={() => copyToClipboard(`${window.location.origin}/wc-api/v3/orders`, 'url')}
+                  className="px-4 py-2 bg-white border rounded hover:bg-gray-50"
+                >
+                  {copiedField === 'url' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                 </button>
               </div>
             </div>
