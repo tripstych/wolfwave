@@ -1,24 +1,29 @@
 {% extends "layouts/base.njk" %}
 
+{% block head %}
+{{ super() }}
+<link rel="stylesheet" href="/styles/classifieds-detail.css">
+{% endblock %}
+
 {% block content %}
-<div class="ad-detail-container max-w-6xl mx-auto px-4 py-8">
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-12">
+<div class="ad-detail-container">
+  <div class="ad-detail-grid">
     {# Left: Images #}
-    <div class="space-y-4">
-      <div class="aspect-square bg-gray-100 rounded-xl overflow-hidden border">
+    <div class="ad-images">
+      <div class="ad-main-image">
         {% if ad.image %}
-          <img src="{{ ad.image }}" alt="{{ ad.title }}" class="w-full h-full object-cover">
+          <img src="{{ ad.image }}" alt="{{ ad.title }}">
         {% else %}
-          <div class="w-full h-full flex items-center justify-center text-gray-400">No Image Provided</div>
+          <div class="ad-image-placeholder">No Image Provided</div>
         {% endif %}
       </div>
       
       {# Gallery (if multiple images implemented) #}
       {% if ad.images and ad.images.length > 0 %}
-        <div class="grid grid-cols-4 gap-4">
+        <div class="ad-image-gallery">
           {% for img in ad.images %}
-            <div class="aspect-square rounded-lg border overflow-hidden bg-gray-50 cursor-pointer hover:ring-2 hover:ring-primary-500 transition-all">
-              <img src="{{ img.url or img }}" class="w-full h-full object-cover">
+            <div class="ad-gallery-thumb">
+              <img src="{{ img.url or img }}" alt="Gallery image">
             </div>
           {% endfor %}
         </div>
@@ -26,89 +31,88 @@
     </div>
 
     {# Right: Info #}
-    <div class="space-y-6">
-      <div class="border-b pb-6">
-        <nav class="text-xs font-bold uppercase text-gray-400 mb-2 flex gap-2">
-          <a href="/classifieds" class="hover:text-primary-600">Classifieds</a>
+    <div class="ad-info">
+      <div class="ad-header">
+        <nav class="ad-breadcrumb">
+          <a href="/classifieds">Classifieds</a>
           <span>/</span>
           <span>{{ ad.category_name }}</span>
         </nav>
-        <h1 class="text-3xl font-black text-gray-900 leading-tight">{{ ad.title }}</h1>
-        <div class="mt-4 flex items-baseline gap-4">
-          <span class="text-4xl font-black text-green-600">
+        <h1 class="ad-title">{{ ad.title }}</h1>
+        <div class="ad-price-row">
+          <span class="ad-price">
             {% if ad.price %}${{ ad.price }}{% else %}Contact for Price{% endif %}
           </span>
-          <span class="px-2 py-1 bg-gray-100 text-gray-600 text-[10px] font-bold uppercase rounded">{{ ad.condition | replace('_', ' ') }}</span>
+          <span class="ad-condition">{{ ad.condition | replace('_', ' ') }}</span>
         </div>
       </div>
 
-      <div class="grid grid-cols-2 gap-6 py-6 border-b border-gray-100">
-        <div>
-          <label class="text-[10px] uppercase font-black text-gray-400 block mb-1">Location</label>
-          <p class="font-bold text-gray-700">{{ ad.location or 'Not specified' }}</p>
+      <div class="ad-meta-grid">
+        <div class="ad-meta-item">
+          <label>Location</label>
+          <p>{{ ad.location or 'Not specified' }}</p>
         </div>
-        <div>
-          <label class="text-[10px] uppercase font-black text-gray-400 block mb-1">Posted By</label>
-          <p class="font-bold text-gray-700">{{ ad.owner_first_name }} {{ ad.owner_last_name }}</p>
+        <div class="ad-meta-item">
+          <label>Posted By</label>
+          <p>{{ ad.owner_first_name }} {{ ad.owner_last_name }}</p>
         </div>
       </div>
 
-      <div class="prose prose-sm max-w-none text-gray-600 leading-relaxed">
-        <label class="text-[10px] uppercase font-black text-gray-400 block mb-2">Description</label>
+      <div class="ad-description">
+        <label>Description</label>
         {{ ad.description | nl2br | safe }}
       </div>
 
       {# Dynamic Regions #}
       {% for region_name, val in content %}
         {% if region_name != 'description' and val %}
-          <div class="mt-8">
-            <label class="text-[10px] uppercase font-black text-gray-400 block mb-2">{{ region_name | replace('_', ' ') }}</label>
-            <div class="bg-gray-50 p-4 rounded-lg border border-gray-100">
+          <div class="ad-region">
+            <label>{{ region_name | replace('_', ' ') }}</label>
+            <div class="ad-region-content">
               {{ val | safe }}
             </div>
           </div>
         {% endif %}
       {% endfor %}
 
-      <div class="pt-8 space-y-4">
-        <div class="bg-white border-2 border-gray-100 rounded-2xl p-6 shadow-sm">
-          <h3 class="text-lg font-black text-gray-900 mb-4 uppercase tracking-tight">Message Seller</h3>
+      <div class="ad-actions">
+        <div class="message-seller-card">
+          <h3>Message Seller</h3>
           
           {% if customer %}
             {% if customer.id == ad.customer_id %}
-              <div class="p-4 bg-gray-50 rounded-xl text-sm text-gray-500 italic">
-                This is your ad. You can view replies in your <a href="/customer/messages" class="text-primary-600 font-bold hover:underline">Inbox</a>.
+              <div class="own-ad-notice">
+                This is your ad. You can view replies in your <a href="/customer/messages">Inbox</a>.
               </div>
             {% else %}
-              <form id="message-form" class="space-y-4">
+              <form id="message-form" class="message-form">
                 <input type="hidden" name="ad_id" value="{{ ad.id }}">
                 <textarea 
                   name="content" 
                   required 
                   rows="3" 
-                  placeholder="Is this still available? I'm interested..." 
-                  class="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-xl focus:border-primary-500 outline-none transition-all text-sm"
+                  placeholder="Is this still available? I'm interested..."
                 ></textarea>
                 
-                <div class="flex items-center gap-2">
-                  <input type="url" name="image" placeholder="Optional image URL..." class="flex-1 p-2 bg-gray-50 border-2 border-gray-100 rounded-xl text-xs outline-none">
+                <div class="message-form-row">
+                  <input type="url" name="image" placeholder="Optional image URL...">
                 </div>
 
-                <button type="submit" id="send-btn" class="w-full bg-primary-600 text-white py-3 rounded-xl font-black uppercase tracking-widest hover:bg-primary-700 transition-colors">
+                <button type="submit" id="send-btn">
                   Send Message
                 </button>
               </form>
-              <div id="message-status" class="hidden mt-4 p-3 rounded-xl text-sm font-bold text-center"></div>
+              <div id="message-status" class="message-status hidden"></div>
             {% endif %}
           {% else %}
-            <div class="p-6 bg-gray-50 rounded-2xl text-center">
-              <p class="text-sm text-gray-600 mb-4 font-bold">You must be logged in to message the seller.</p>
-              <a href="/customer/login?redirect={{ ad.slug }}" class="btn btn-primary w-full">Login to Message</a>
+            <div class="login-prompt">
+              <p>You must be logged in to message the seller.</p>
+              <a href="/customer/login?redirect={{ ad.slug }}" class="btn">Login to Message</a>
             </div>
           {% endif %}
         </div>
 
-        <div class="p-4 bg-gray-50 rounded-xl text-[10px] text-gray-400 font-bold uppercase tracking-widest text-center">
+        <div class="contact-info">
           Direct Contact: {{ ad.contact_info }}
         </div>
       </div>
@@ -140,16 +144,14 @@
         
         if (response.ok) {
           status.textContent = 'Message sent! You can follow up in your inbox.';
-          status.className = 'mt-4 p-3 rounded-xl text-sm font-bold text-center bg-green-50 text-green-700';
-          status.classList.remove('hidden');
+          status.className = 'message-status success';
           e.target.reset();
         } else {
           throw new Error('Failed to send message');
         }
       } catch (err) {
         status.textContent = err.message;
-        status.className = 'mt-4 p-3 rounded-xl text-sm font-bold text-center bg-red-50 text-red-700';
-        status.classList.remove('hidden');
+        status.className = 'message-status error';
       } finally {
         btn.disabled = false;
         btn.textContent = 'Send Message';
@@ -157,8 +159,4 @@
     });
   }
 </script>
-
-<style>
-  .font-black { font-weight: 900; }
-</style>
 {% endblock %}

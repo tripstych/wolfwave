@@ -1,0 +1,365 @@
+/* Classifieds Detail Page Styles */
+
+.ad-detail-container {
+  max-width: 1152px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.ad-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 3rem;
+}
+
+@media (min-width: 768px) {
+  .ad-detail-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* Image Gallery */
+.ad-images {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.ad-main-image {
+  aspect-ratio: 1;
+  background: #f3f4f6;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+}
+
+.ad-main-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ad-image-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9ca3af;
+}
+
+.ad-image-gallery {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+
+.ad-gallery-thumb {
+  aspect-ratio: 1;
+  border-radius: 0.5rem;
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+  background: #f9fafb;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.ad-gallery-thumb:hover {
+  box-shadow: 0 0 0 2px #2563eb;
+}
+
+.ad-gallery-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Ad Info Section */
+.ad-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.ad-header {
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 1.5rem;
+}
+
+.ad-breadcrumb {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #9ca3af;
+  margin-bottom: 0.5rem;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.ad-breadcrumb a {
+  color: #9ca3af;
+}
+
+.ad-breadcrumb a:hover {
+  color: #2563eb;
+}
+
+.ad-title {
+  font-size: 1.875rem;
+  font-weight: 900;
+  color: #111827;
+  line-height: 1.2;
+}
+
+.ad-price-row {
+  margin-top: 1rem;
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+}
+
+.ad-price {
+  font-size: 2.25rem;
+  font-weight: 900;
+  color: #059669;
+}
+
+.ad-condition {
+  padding: 0.125rem 0.5rem;
+  background: #f3f4f6;
+  color: #4b5563;
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  border-radius: 0.25rem;
+}
+
+/* Ad Meta Grid */
+.ad-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+  padding: 1.5rem 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.ad-meta-item label {
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  font-weight: 900;
+  color: #9ca3af;
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.ad-meta-item p {
+  font-weight: 700;
+  color: #374151;
+  margin: 0;
+}
+
+/* Description */
+.ad-description {
+  color: #4b5563;
+  line-height: 1.6;
+  font-size: 0.875rem;
+}
+
+.ad-description label {
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  font-weight: 900;
+  color: #9ca3af;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+/* Dynamic Regions */
+.ad-region {
+  margin-top: 2rem;
+}
+
+.ad-region label {
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  font-weight: 900;
+  color: #9ca3af;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.ad-region-content {
+  background: #f9fafb;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid #f3f4f6;
+}
+
+/* Message Seller Section */
+.ad-actions {
+  padding-top: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.message-seller-card {
+  background: #ffffff;
+  border: 2px solid #f3f4f6;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.message-seller-card h3 {
+  font-size: 1.125rem;
+  font-weight: 900;
+  color: #111827;
+  margin-bottom: 1rem;
+  text-transform: uppercase;
+  letter-spacing: -0.025em;
+}
+
+.message-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.message-form textarea {
+  width: 100%;
+  padding: 1rem;
+  background: #f9fafb;
+  border: 2px solid #f3f4f6;
+  border-radius: 0.75rem;
+  outline: none;
+  transition: all 0.2s;
+  font-size: 0.875rem;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.message-form textarea:focus {
+  border-color: #2563eb;
+}
+
+.message-form-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.message-form input[type="url"] {
+  flex: 1;
+  padding: 0.5rem;
+  background: #f9fafb;
+  border: 2px solid #f3f4f6;
+  border-radius: 0.75rem;
+  font-size: 0.75rem;
+  outline: none;
+  font-family: inherit;
+}
+
+.message-form button[type="submit"] {
+  width: 100%;
+  background: #2563eb;
+  color: #ffffff;
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.message-form button[type="submit"]:hover {
+  background: #1d4ed8;
+}
+
+.message-status {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.message-status.hidden {
+  display: none;
+}
+
+.message-status.success {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.message-status.error {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* Own Ad Notice */
+.own-ad-notice {
+  padding: 1rem;
+  background: #f9fafb;
+  border-radius: 0.75rem;
+  font-size: 0.875rem;
+  color: #6b7280;
+  font-style: italic;
+}
+
+.own-ad-notice a {
+  color: #2563eb;
+  font-weight: 700;
+}
+
+.own-ad-notice a:hover {
+  text-decoration: underline;
+}
+
+/* Login Prompt */
+.login-prompt {
+  padding: 1.5rem;
+  background: #f9fafb;
+  border-radius: 1rem;
+  text-align: center;
+}
+
+.login-prompt p {
+  font-size: 0.875rem;
+  color: #4b5563;
+  margin-bottom: 1rem;
+  font-weight: 700;
+}
+
+.login-prompt .btn {
+  display: inline-block;
+  width: 100%;
+  padding: 0.75rem 1.5rem;
+  background: #2563eb;
+  color: #ffffff;
+  text-decoration: none;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+
+.login-prompt .btn:hover {
+  background: #1d4ed8;
+}
+
+/* Contact Info */
+.contact-info {
+  padding: 1rem;
+  background: #f9fafb;
+  border-radius: 0.75rem;
+  font-size: 0.625rem;
+  color: #9ca3af;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  text-align: center;
+}
