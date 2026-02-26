@@ -160,22 +160,25 @@ export default function WooCommerceKeys() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                URL to Custom XML Page <span className="text-xs font-normal text-gray-500">(ShipStation field name)</span>
+                Store URL <span className="text-xs font-normal text-gray-500">(ShipStation "Store URL" field)</span>
               </label>
               <div className="flex gap-2">
                 <input
                   type="text"
-                  value={`${window.location.origin}/wc-api/v3/orders`}
+                  value={window.location.origin.replace('admin.', '')}
                   readOnly
                   className="flex-1 px-3 py-2 border rounded font-mono text-sm"
                 />
                 <button
-                  onClick={() => copyToClipboard(`${window.location.origin}/wc-api/v3/orders`, 'url')}
+                  onClick={() => copyToClipboard(window.location.origin.replace('admin.', ''), 'url')}
                   className="px-4 py-2 bg-white border rounded hover:bg-gray-50"
                 >
                   {copiedField === 'url' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                 </button>
               </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Enter just the base domain in ShipStation. ShipStation will automatically append the correct endpoint path.
+              </p>
             </div>
           </div>
 
