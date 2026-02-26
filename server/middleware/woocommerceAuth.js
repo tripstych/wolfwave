@@ -14,7 +14,11 @@ import prisma from '../lib/prisma.js';
 async function queryRaw(sql, ...params) {
   try {
     const results = await prisma.$queryRawUnsafe(sql, ...params);
-    return Array.isArray(results) ? results : [];
+    // Convert BigInt to Number for JSON serialization
+    const converted = JSON.parse(JSON.stringify(results, (key, value) =>
+      typeof value === 'bigint' ? Number(value) : value
+    ));
+    return Array.isArray(converted) ? converted : [];
   } catch (error) {
     console.error('Query error:', error);
     throw error;
