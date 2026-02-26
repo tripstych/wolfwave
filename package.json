@@ -9,7 +9,7 @@
     "dev:admin": "npm run dev --prefix admin",
     "export:static": "node server/static/export.js",
     "build:admin": "npm run build --prefix admin",
-    "db:migrate": "prisma db push --accept-data-loss",
+    "db:migrate": "prisma db push --accept-data-loss && node server/db/migrate.js",
     "db:reset": "prisma generate && prisma db push --force-reset --accept-data-loss",
     "db:deploy": "prisma migrate deploy && prisma generate",
     "db:generate": "prisma generate",
