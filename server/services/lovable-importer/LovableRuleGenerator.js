@@ -7,9 +7,10 @@ import { analyzeLovableSource } from '../aiService.js';
  * Task: Discovery & Route Mapping.
  */
 export class LovableRuleGenerator {
-  constructor(siteId, dbName) {
+  constructor(siteId, dbName, liveUrl = null) {
     this.siteId = siteId;
     this.dbName = dbName;
+    this.liveUrl = liveUrl;
   }
 
   async run() {
@@ -18,6 +19,7 @@ export class LovableRuleGenerator {
 
       const ruleset = {
         importer_type: 'lovable_industrial',
+        live_url: this.liveUrl,
         pages: {}, // The Route Manifest: Correlates file -> route -> content
         theme: {}
       };
@@ -29,7 +31,12 @@ export class LovableRuleGenerator {
 
       // Scan src/pages for primary routes
       const sourcePages = stagedFiles.filter(f => 
-        f.url.includes('src/pages/') && f.url.match(/\.(tsx|jsx)$/)
+        f.url.includes('src/pages/') && f.url.match(/\.(tsx|jsx)$/) && !f.url.includes('node_modules')
+      );
+
+      // Extract crawled pages if liveUrl was provided
+      const crawledPages = stagedFiles.filter(f => 
+        f.status === 'crawled' && f.url.startsWith('http')
       );
 
       info(this.dbName, 'LOVABLE_MANIFEST_PAGES', `Discovered ${sourcePages.length} potential routes`);
@@ -41,14 +48,32 @@ export class LovableRuleGenerator {
         // AI analyzes source for RAW literals only
         const analysis = await analyzeLovableSource(pageItem.raw_html, pageItem.url);
         
+        const slug = analysis.route_slug || this.deriveSlug(pageItem.url);
+
+        // Attempt to match with a crawled page for rendered HTML (Look & Feel)
+        let renderedHtml = null;
+        if (this.liveUrl) {
+          const targetUrlPart = slug === 'home' ? '' : slug;
+          const match = crawledPages.find(p => 
+            p.url.endsWith(targetUrlPart) || 
+            p.url.endsWith(targetUrlPart + '/') ||
+            p.url === this.liveUrl + (targetUrlPart ? '/' + targetUrlPart : '')
+          );
+          if (match) {
+            renderedHtml = match.raw_html;
+            info(this.dbName, 'LOVABLE_MATCH_FOUND', `Matched ${pageItem.url} to live URL ${match.url}`);
+          }
+        }
+
         // Correlate route to manifest
         ruleset.pages[pageItem.url] = {
           file_path: pageItem.url,
-          route_slug: analysis.route_slug || this.deriveSlug(pageItem.url),
+          route_slug: slug,
           title: analysis.title,
           page_type: analysis.page_type,
           regions: analysis.regions, // Extracted literals
-          media_paths: analysis.media_paths
+          media_paths: analysis.media_paths,
+          live_rendered_html: renderedHtml // The key for "Look & Feel"
         };
 
         // Update item type for visibility

@@ -998,30 +998,48 @@ RESPOND WITH ONLY VALID JSON:
 /**
  * REBUILD: Convert React Component to WolfWave Nunjucks (Senior Systems Engineer persona)
  */
-export async function convertReactToNunjucks(code, regions, pageType, model = null) {
+export async function convertReactToNunjucks(code, regions, pageType, styles = '', liveHtml = null, model = null) {
   const systemPrompt = `Role: Senior Systems Engineer.
 Project: WolfWave CMS.
-Task: Transpile React/JSX source code into a WolveWave Nunjucks (.njk) template.
+Task: Transpile React/JSX source code into a WolveWave Nunjucks (.njk) template, using Live Rendered HTML as the "Look & Feel" source of truth.
+
+CRITICAL MANDATE:
+- The LIVE RENDERED HTML provided below is exactly how the page must look.
+- Use the React SOURCE CODE only to understand the dynamic logic, loops, and conditional content.
+- Your output must be a Nunjucks template that produces the EXACT visual structure and CSS (Tailwind/Inline) of the Live Rendered HTML.
 
 Requirements:
-1. Structural Fidelity: Maintain every single div, class (Tailwind), and layout element exactly as defined in the source.
-2. NO MISSING PARTIALS: Do NOT use {% include "partials/..." %}. We do not have those files yet. If the source code has a <Navbar /> or <Footer />, you MUST transpile the actual HTML/Tailwind for those components directly into the template.
-3. CMS INTEGRATION: Replace identified content regions with Nunjucks tags. For 'richtext' types, ensure the entire JSX/HTML sub-tree is transpiled into Nunjucks-safe HTML (do not strip internal tags).
-4. Logic Conversion: Replace React map() loops with Nunjucks {% for %} and ternary/if logic with {% if %}.
-4. NO REACT FLUFF: Remove all React-specific imports, hooks (useState, useEffect), and event handlers.
-5. Path Mapping: Update all asset paths to point to '/uploads/assets/'.
+1. LAYOUT: You MUST extend the base layout and place all HTML within blocks.
+   - Start the file with: {% extends "layouts/base.njk" %}
+   - Place styles in: {% block styles %} ... styles here ... {% endblock %}
+   - Place page HTML in: {% block content %} ... html here ... {% endblock %}
+2. LOOK & FEEL: Capture every Tailwind class, inline style, and structural div from the Live Rendered HTML. Do not simplify the design.
+3. GLOBAL STYLES: Include the provided global CSS styles in the {% block styles %} block.
+4. NO MISSING PARTIALS: Do NOT use {% include "partials/..." %}. If the source code has a <Navbar /> or <Footer />, you MUST find their rendered equivalent in the Live HTML and transpile them directly into the template.
+5. CMS INTEGRATION: Replace identified content regions (from the Source Code) with Nunjucks tags inside the structure derived from the Live HTML.
+6. Logic Conversion: Replace React map() loops with Nunjucks {% for %} and ternary/if logic with {% if %}.
+7. Path Mapping: 
+   - Update all image src paths starting with '/src/assets/', 'src/assets/', or '/assets/' to start with '/uploads/assets/'.
+   - Update all other root-relative paths like '/logo.png' (from the public folder) to start with '/uploads/'.
 
 Format for regions:
 - Text: <span data-cms-region="key" data-cms-type="text">{{ content.key | default('original_literal') }}</span>
 - RichText: <div data-cms-region="key" data-cms-type="richtext">{{ content.key | safe }}</div>
 - Image: <img data-cms-region="key" data-cms-type="image" src="{{ content.key | default('/uploads/assets/original') }}">
 
+GLOBAL STYLES TO INCLUDE IN {% block styles %}:
+${styles}
+
 Return ONLY the Nunjucks code. No preamble.
 
 IDENTIFIED REGIONS FOR INJECTION:
-${JSON.stringify(regions, null, 2)}`;
+${JSON.stringify(regions, null, 2)}
 
-  const userPrompt = `Source Code:\n${code}`;
+LIVE RENDERED HTML (SOURCE OF TRUTH FOR DESIGN):
+${liveHtml ? liveHtml.substring(0, 30000) : 'Not available - fallback to Source Code only'}
+`;
+
+  const userPrompt = `React Source Code:\n${code}`;
 
   try {
     return await generateRawText(systemPrompt, userPrompt, model);

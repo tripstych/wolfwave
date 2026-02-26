@@ -21,6 +21,8 @@ export class LovableTemplateGenerator {
       const ruleset = site.llm_ruleset;
       if (!ruleset || !ruleset.pages) throw new Error('No pages mapped in ruleset');
 
+      const themeStyles = ruleset.theme?.styles || '';
+
       for (const [pathKey, pageConfig] of Object.entries(ruleset.pages)) {
         info(this.dbName, 'LOVABLE_TEMPLATE_GEN_CONVERT', `Converting ${pathKey}...`);
 
@@ -31,7 +33,13 @@ export class LovableTemplateGenerator {
         if (!sourceItem) continue;
 
         // Ask AI to convert .tsx to .njk
-        const njkCode = await convertReactToNunjucks(sourceItem.raw_html, pageConfig.regions, pageConfig.page_type);
+        const njkCode = await convertReactToNunjucks(
+          sourceItem.raw_html, 
+          pageConfig.regions, 
+          pageConfig.page_type,
+          themeStyles,
+          pageConfig.live_rendered_html // THE LOOK & FEEL
+        );
 
         const filename = `imported/${this.siteId}/${pathKey.split('/').pop().replace(/\.(tsx|jsx)$/, '')}.njk`;
         const fullPath = path.join(process.cwd(), 'templates', filename);

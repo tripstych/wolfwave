@@ -235,3 +235,35 @@ export async function processHtmlMedia(html, userId = null) {
 
 // Alias for backward compatibility
 export const processHtmlImages = processHtmlMedia;
+
+/**
+ * Register a local file in the media library.
+ */
+export async function registerMediaFile(relativePath, originalName, mimeType, size, userId = null) {
+  const dbName = getCurrentDbName();
+  try {
+    const filename = path.basename(relativePath);
+    const title = originalName || filename;
+    
+    // Check if already registered
+    const existing = await query('SELECT id FROM media WHERE path = ? LIMIT 1', [relativePath]);
+    if (existing && existing.length > 0) return existing[0].id;
+
+    await query(`
+      INSERT INTO media (filename, original_name, mime_type, size, path, alt_text, title, uploaded_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
+      filename.substring(0, 255),
+      (originalName || filename).substring(0, 255),
+      (mimeType || 'application/octet-stream').substring(0, 100),
+      size,
+      relativePath.substring(0, 500),
+      '',
+      title.substring(0, 255),
+      userId
+    ]);
+  } catch (err) {
+    logError(dbName, err, 'MEDIA_REGISTRATION_FAILED', { path: relativePath });
+  }
+}
+

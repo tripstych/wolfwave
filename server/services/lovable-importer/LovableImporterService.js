@@ -4,7 +4,7 @@ import { LovableTemplateGenerator } from './LovableTemplateGenerator.js';
 import { LovableTransformer } from './LovableTransformer.js';
 import { info, error as logError } from '../../lib/logger.js';
 import { runWithTenant, getCurrentDbName } from '../../lib/tenantContext.js';
-import { getTenantUploadsDir } from '../mediaService.js';
+import { getTenantUploadsDir, registerMediaFile } from '../mediaService.js';
 import prisma from '../../lib/prisma.js';
 import { jobRegistry } from '../assisted-import/JobRegistry.js';
 
@@ -43,15 +43,15 @@ export class LovableImporterService {
   /**
    * Start a new Lovable Git-based import process
    */
-  static async startImport(siteId, repoUrl) {
+  static async startImport(siteId, repoUrl, liveUrl) {
     const dbName = getCurrentDbName();
-    LovableImporterService._runFullProcess(siteId, repoUrl, dbName).catch(err => {
+    LovableImporterService._runFullProcess(siteId, repoUrl, liveUrl, dbName).catch(err => {
       logError(dbName, err, 'LOVABLE_GIT_IMPORT_CRITICAL');
     });
     return { status: 'started', siteId };
   }
 
-  static async _runFullProcess(siteId, repoUrl, dbName) {
+  static async _runFullProcess(siteId, repoUrl, liveUrl, dbName) {
     jobRegistry.register(siteId);
     const repo = new RepoManager(siteId, repoUrl, dbName);
 
@@ -60,7 +60,28 @@ export class LovableImporterService {
         const site = await prisma.imported_sites.findUnique({ where: { id: siteId } });
         if (!site) throw new Error('Site record not found');
 
-        // 1. Clone & Scan
+        // 1. Live Crawl (Optional but recommended for Look & Feel)
+        let liveAssets = null;
+        if (liveUrl) {
+          await LovableImporterService.updateStatus(siteId, 'crawling', `Crawling live site: ${liveUrl}`);
+          // We can use the existing DiscoveryEngine if available
+          const { DiscoveryEngine } = await import('../assisted-import/DiscoveryEngine.js');
+          const disco = new DiscoveryEngine(siteId, liveUrl, dbName);
+          const platformInfo = await disco.run();
+          
+          liveAssets = {
+            fonts: platformInfo.fonts,
+            colors: platformInfo.color_palette,
+            stylesheets: platformInfo.stylesheets?.filter(s => s.recommend).map(s => s.url)
+          };
+
+          // Basic crawl of primary pages to match them later
+          const { CrawlEngine } = await import('../assisted-import/CrawlEngine.js');
+          const crawler = new CrawlEngine(siteId, liveUrl, dbName);
+          await crawler.run(); // This populates staged_items with rendered HTML
+        }
+
+        // 2. Clone & Scan Git Repo
         await LovableImporterService.updateStatus(siteId, 'cloning', `Cloning repository: ${repoUrl}`);
         await repo.clone();
 
@@ -69,11 +90,33 @@ export class LovableImporterService {
         
         // Sideload assets programmatically
         const tenantUploadsDir = getTenantUploadsDir();
-        await repo.deployAssets(tenantUploadsDir);
+        const deployedAssets = await repo.deployAssets(tenantUploadsDir);
+        
+        // Register assets in media library for visibility
+        for (const asset of deployedAssets) {
+          const ext = asset.relPath.split('.').pop().toLowerCase();
+          if (['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'mp4', 'webm', 'woff', 'woff2', 'ttf', 'otf'].includes(ext)) {
+            let mimeType = 'application/octet-stream';
+            if (['jpg', 'jpeg'].includes(ext)) mimeType = 'image/jpeg';
+            else if (ext === 'png') mimeType = 'image/png';
+            else if (ext === 'svg') mimeType = 'image/svg+xml';
+            else if (ext === 'webp') mimeType = 'image/webp';
+            else if (ext === 'mp4') mimeType = 'video/mp4';
+
+            await registerMediaFile(
+              asset.relPath, 
+              asset.name, 
+              mimeType, 
+              asset.size
+            );
+          }
+        }
 
         await LovableImporterService.updateStatus(siteId, 'analyzing', 'Scanning source files...');
         
         const files = await repo.scan();
+        const globalStyles = await repo.getGlobalStyles();
+        
         info(dbName, 'LOVABLE_REPO_SCANNED', `Found ${files.length} source files`);
 
         // Create staged items from source files (Phase 1 equivalent)
@@ -101,8 +144,20 @@ export class LovableImporterService {
         // 2. Rule Generation (AI analyzes source files)
         if (jobRegistry.isCancelled(siteId)) throw new Error('IMPORT_CANCELLED');
         await LovableImporterService.updateStatus(siteId, 'generating_rules', 'AI mapping source components to CMS regions...');
-        const ruleGen = new LovableRuleGenerator(siteId, dbName);
-        await ruleGen.run();
+        const ruleGen = new LovableRuleGenerator(siteId, dbName, liveUrl);
+        const ruleset = await ruleGen.run();
+        
+        // Add global styles and assets to ruleset
+        ruleset.theme = ruleset.theme || {};
+        ruleset.theme.styles = globalStyles;
+        if (liveAssets) {
+          ruleset.theme.live_assets = liveAssets;
+        }
+        
+        await prisma.imported_sites.update({
+          where: { id: siteId },
+          data: { llm_ruleset: ruleset }
+        });
 
         // 3. Template Generation (Source to Nunjucks)
         if (jobRegistry.isCancelled(siteId)) throw new Error('IMPORT_CANCELLED');

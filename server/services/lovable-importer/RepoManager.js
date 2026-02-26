@@ -48,13 +48,15 @@ export class RepoManager {
   async deployAssets(targetBaseDir) {
     const publicDir = path.join(this.workDir, 'public');
     const srcAssetsDir = path.join(this.workDir, 'src', 'assets');
+    const deployed = [];
 
     // 1. Copy Public folder (root of the web server in Lovable)
     try {
       const stats = await fs.stat(publicDir).catch(() => null);
       if (stats && stats.isDirectory()) {
         info(this.dbName, 'LOVABLE_REPO_DEPLOY', 'Deploying /public assets...');
-        await this.copyDir(publicDir, targetBaseDir);
+        const files = await this.copyDir(publicDir, targetBaseDir);
+        deployed.push(...files.map(f => ({ ...f, relPath: f.relPath })));
       }
     } catch (err) {
       logError(this.dbName, err, 'LOVABLE_DEPLOY_PUBLIC_FAILED');
@@ -67,30 +69,43 @@ export class RepoManager {
         info(this.dbName, 'LOVABLE_REPO_DEPLOY', 'Deploying /src/assets...');
         const dest = path.join(targetBaseDir, 'assets');
         await fs.mkdir(dest, { recursive: true });
-        await this.copyDir(srcAssetsDir, dest);
+        const files = await this.copyDir(srcAssetsDir, dest, 'assets/');
+        deployed.push(...files);
       }
     } catch (err) {
       logError(this.dbName, err, 'LOVABLE_DEPLOY_SRC_ASSETS_FAILED');
     }
+
+    return deployed;
   }
 
   /**
    * Helper to recursively copy directories
    */
-  async copyDir(src, dest) {
+  async copyDir(src, dest, prefix = '') {
+    const files = [];
     await fs.mkdir(dest, { recursive: true });
     const entries = await fs.readdir(src, { withFileTypes: true });
 
     for (const entry of entries) {
       const srcPath = path.join(src, entry.name);
       const destPath = path.join(dest, entry.name);
+      const relPath = prefix + entry.name;
 
       if (entry.isDirectory()) {
-        await this.copyDir(srcPath, destPath);
+        const nested = await this.copyDir(srcPath, destPath, relPath + '/');
+        files.push(...nested);
       } else {
         await fs.copyFile(srcPath, destPath);
+        const stats = await fs.stat(srcPath);
+        files.push({
+          name: entry.name,
+          relPath: '/' + relPath,
+          size: stats.size
+        });
       }
     }
+    return files;
   }
 
   /**
@@ -124,6 +139,31 @@ export class RepoManager {
   async readFile(relativePath) {
     const fullPath = path.join(this.workDir, relativePath);
     return await fs.readFile(fullPath, 'utf8');
+  }
+
+  /**
+   * Find and read global CSS files (index.css, App.css, globals.css)
+   */
+  async getGlobalStyles() {
+    const candidates = [
+      'src/index.css',
+      'src/App.css',
+      'src/globals.css',
+      'src/style.css',
+      'index.css',
+      'App.css'
+    ];
+    
+    let styles = '';
+    for (const relPath of candidates) {
+      try {
+        const content = await this.readFile(relPath);
+        styles += `\n/* From ${relPath} */\n${content}`;
+      } catch (e) {
+        // Skip missing candidates
+      }
+    }
+    return styles;
   }
 
   /**

@@ -14,18 +14,18 @@ const router = Router();
  */
 router.post('/', requireAuth, requireEditor, async (req, res) => {
   try {
-    const { url, config = {} } = req.body;
+    const { url, liveUrl, config = {} } = req.body;
     if (!url) return res.status(400).json({ error: 'Git repository URL required' });
 
     const site = await prisma.imported_sites.create({
       data: {
         root_url: url,
         status: 'pending',
-        config: { ...config, importer_type: 'lovable_git' }
+        config: { ...config, importer_type: 'lovable_git', live_url: liveUrl }
       }
     });
 
-    const result = await LovableImporterService.startImport(site.id, url);
+    const result = await LovableImporterService.startImport(site.id, url, liveUrl);
     res.json({ success: true, site_id: site.id, ...result });
   } catch (err) {
     res.status(500).json({ error: err.message });

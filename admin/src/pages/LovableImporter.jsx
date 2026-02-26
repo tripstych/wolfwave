@@ -23,6 +23,7 @@ import {
 
 export default function LovableImporter() {
   const [url, setUrl] = useState('');
+  const [liveUrl, setLiveUrl] = useState('');
   const [nuke, setNuke] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sites, setSites] = useState([]);
@@ -82,7 +83,7 @@ export default function LovableImporter() {
   }, [selectedSite, view]);
 
   useEffect(() => {
-    const activeStatuses = ['pending', 'rendering', 'sanitizing', 'generating_rules', 'generating_templates', 'transforming', 'nuking'];
+    const activeStatuses = ['pending', 'cloning', 'crawling', 'rendering', 'sanitizing', 'generating_rules', 'generating_templates', 'transforming', 'nuking'];
     const interval = setInterval(() => {
       if (selectedSite && activeStatuses.includes(selectedSite.status)) {
         refreshSite();
@@ -96,9 +97,10 @@ export default function LovableImporter() {
     if (!url) return;
     setIsStarting(true);
     try {
-      const res = await api.post('/import-lovable', { url, config: { nuke } });
+      const res = await api.post('/import-lovable', { url, liveUrl, config: { nuke } });
       if (res.success) {
         setUrl('');
+        setLiveUrl('');
         loadSites();
         const newSite = await api.get(`/import-lovable/sites/${res.site_id}`);
         setSelectedSite(newSite);
@@ -215,6 +217,20 @@ export default function LovableImporter() {
                 />
                 <p className="text-[9px] text-gray-400 mt-1 leading-tight">
                   Public HTTPS URL recommended.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-400 mb-1 uppercase">Live Deployed URL (Optional)</label>
+                <input
+                  type="text"
+                  value={liveUrl}
+                  onChange={(e) => setLiveUrl(e.target.value)}
+                  placeholder="https://your-app.lovable.app"
+                  className="input text-sm"
+                />
+                <p className="text-[9px] text-gray-400 mt-1 leading-tight">
+                  Highly recommended for better look & feel.
                 </p>
               </div>
               <button
