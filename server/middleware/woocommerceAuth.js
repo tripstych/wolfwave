@@ -13,7 +13,10 @@ import prisma from '../lib/prisma.js';
  */
 async function queryRaw(sql, ...params) {
   try {
-    const results = await prisma.$queryRawUnsafe(sql, ...params);
+    // Prisma requires params as individual arguments, not an array
+    const results = params.length > 0 
+      ? await prisma.$queryRawUnsafe(sql, ...params)
+      : await prisma.$queryRawUnsafe(sql);
     // Convert BigInt to Number for JSON serialization
     const converted = JSON.parse(JSON.stringify(results, (key, value) =>
       typeof value === 'bigint' ? Number(value) : value
