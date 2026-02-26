@@ -7,6 +7,7 @@
  * If no database name is provided, uses DB_NAME from environment
  */
 
+import 'dotenv/config';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
