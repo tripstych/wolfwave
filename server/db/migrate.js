@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import { query } from '../db/connection.js';
+import { woocommerceTables } from './migrations/woocommerce-tables.js';
 
 const migrations = [
   // Add access_rules to products table
@@ -51,7 +52,10 @@ const migrations = [
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-  )`
+  )`,
+
+  // WooCommerce compatibility tables
+  ...woocommerceTables
 ];
 
 async function migrate() {
