@@ -39,6 +39,7 @@ import apiKeysRoutes from './api-keys.js';
 import amazonRoutes from './amazon.js';
 import classifiedAdsRoutes from './classifieds.js';
 import messagesRoutes from './messages.js';
+import shopifyRoutes from './shopify.js';
 
 const router = Router();
 
@@ -82,6 +83,7 @@ router.use('/api-keys', apiKeysRoutes);
 router.use('/amazon', amazonRoutes);
 router.use('/classifieds', classifiedAdsRoutes);
 router.use('/messages', messagesRoutes);
+router.use('/shopify', shopifyRoutes);
 
 // Health check
 router.get('/health', (req, res) => {

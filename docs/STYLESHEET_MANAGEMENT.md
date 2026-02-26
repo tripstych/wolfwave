@@ -9,7 +9,7 @@ Template styles have been extracted from inline `<style>` blocks into separate C
 ## Stylesheet Locations
 
 ### Classifieds Styles
-**File:** `/public/css/classifieds.css`
+**File:** `/templates/css/classifieds.css`
 
 **Used by:**
 - `templates/classifieds/index.njk` - Classified listings page
@@ -22,10 +22,10 @@ Template styles have been extracted from inline `<style>` blocks into separate C
 - `.post-ad-btn` - Call-to-action button
 
 **Editing:**
-You can edit this file directly. Changes will be reflected immediately on the classifieds pages.
+You can edit this file directly in the `/templates/css/` directory. Changes will be reflected immediately on the classifieds pages. This file is part of the templates directory, making it easy to manage alongside your template files.
 
 ### Email Styles
-**File:** `/public/css/emails.css`
+**File:** `/templates/css/emails.css`
 
 **Used by:**
 - `templates/emails/base-email.njk` - Base email layout
@@ -36,7 +36,7 @@ You can edit this file directly. Changes will be reflected immediately on the cl
 - Email templates **keep inline styles** for maximum email client compatibility
 - The external stylesheet is provided as a **reference** for editing
 - When editing email styles:
-  1. Edit `/public/css/emails.css` first
+  1. Edit `/templates/css/emails.css` first
   2. Copy the updated styles back into `templates/emails/base-email.njk` inline `<style>` block
   3. This ensures emails render correctly in all email clients
 
@@ -46,13 +46,13 @@ Most email clients (Gmail, Outlook, etc.) strip out `<link>` tags and external s
 ## How to Edit Styles
 
 ### For Classifieds (Web Templates)
-1. Open `/public/css/classifieds.css`
+1. Open `/templates/css/classifieds.css`
 2. Make your changes
 3. Save the file
 4. Refresh the browser (hard refresh: Ctrl+Shift+R)
 
 ### For Emails
-1. Open `/public/css/emails.css`
+1. Open `/templates/css/emails.css`
 2. Make your changes
 3. Copy the updated CSS
 4. Open `templates/emails/base-email.njk`
@@ -65,14 +65,14 @@ Most email clients (Gmail, Outlook, etc.) strip out `<link>` tags and external s
 ```html
 {% block head %}
 {{ super() }}
-<link rel="stylesheet" href="/css/classifieds.css">
+<link rel="stylesheet" href="/templates/css/classifieds.css">
 {% endblock %}
 ```
 
 ### Email Template
 ```html
 {# Optional: Link external stylesheet for web-based previews #}
-{% if webPreview %}<link rel="stylesheet" href="/css/emails.css">{% endif %}
+{% if webPreview %}<link rel="stylesheet" href="/templates/css/emails.css">{% endif %}
 {# Inline styles required for email client compatibility #}
 <style>
   /* Styles here */

@@ -1,0 +1,176 @@
+/* Classifieds Listing Styles */
+
+.classifieds-search {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+  font-family: system-ui, sans-serif;
+  color: #1a1a2e;
+}
+
+.classifieds-search h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+}
+
+/* Search Bar */
+.search-bar {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.search-bar input[type="text"] {
+  flex: 1;
+  min-width: 200px;
+  padding: 0.6rem 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.95rem;
+}
+
+.search-bar select {
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 0.9rem;
+}
+
+.search-bar .btn {
+  padding: 0.6rem 1.25rem;
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.search-bar .btn:hover {
+  background: #1d4ed8;
+}
+
+/* Result Count */
+.result-count {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-bottom: 1.5rem;
+}
+
+/* Listing Grid */
+.listing-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.25rem;
+}
+
+/* Listing Card */
+.listing-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fff;
+  transition: box-shadow 0.2s;
+  text-decoration: none;
+  display: block;
+}
+
+.listing-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.listing-card__image {
+  position: relative;
+}
+
+.listing-card__image img {
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+}
+
+.listing-card__body {
+  padding: 1rem;
+}
+
+.listing-card__meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: #9ca3af;
+  margin-bottom: 0.5rem;
+}
+
+.listing-card__meta .category {
+  background: #eff6ff;
+  color: #2563eb;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.listing-card__body h2 {
+  font-size: 1.05rem;
+  margin: 0 0 0.25rem;
+  color: #1a1a2e;
+}
+
+.listing-card:hover h2 {
+  color: #2563eb;
+}
+
+/* Price and Location */
+.price {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #059669;
+  margin: 0.25rem 0;
+}
+
+.location {
+  font-size: 0.85rem;
+  color: #6b7280;
+  margin: 0.25rem 0;
+}
+
+.excerpt {
+  font-size: 0.85rem;
+  color: #4b5563;
+  margin: 0.5rem 0 0;
+}
+
+/* No Results */
+.no-results {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 3rem 1rem;
+  color: #6b7280;
+}
+
+/* Post Ad Button */
+.post-ad-btn {
+  display: inline-block;
+  margin-bottom: 1rem;
+  padding: 0.6rem 1.25rem;
+  background: #059669;
+  color: #fff;
+  text-decoration: none;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.post-ad-btn:hover {
+  background: #047857;
+}
+
+/* Header Flex Container */
+.classifieds-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}

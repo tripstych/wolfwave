@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 
 import apiRoutes, { registerContentTypeApis } from './api/index.js';
 import publicRoutes from './render/public.js';
+import styleRoutes from './render/styles.js';
 import { initDb, query } from './db/connection.js';
 import { tenantMiddleware } from './middleware/tenant.js';
 import { closeAllPools } from './lib/poolManager.js';
@@ -100,6 +101,9 @@ app.use('/themes', express.static(getThemesDir()));
 // Static files — imported assets (from site importer)
 app.use('/imported', express.static(path.join(__dirname, '../templates/imported')));
 
+// Static files — template CSS (editable stylesheets in templates directory)
+app.use('/templates/css', express.static(path.join(__dirname, '../templates/css')));
+
 // Serve React admin in production
 if (process.env.NODE_ENV === 'production') {
   app.use('/admin', express.static(path.join(__dirname, '../admin/dist')));
@@ -120,6 +124,9 @@ app.use('/uploads', (req, res, next) => {
     express.static(uploadsRoot)(req, res, next);
   });
 });
+
+// Database-backed styles
+app.use('/styles', styleRoutes);
 
 // API routes
 app.use('/api', apiRoutes);
