@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { X, LayoutDashboard, FileText, Boxes, Puzzle, Layers, Image, List, Tag, Package, Briefcase, Users, CreditCard, Palette, Building, Mail, Search, Settings, Download, Globe, Key, Megaphone, BookOpen, Zap, Heart } from 'lucide-react';
+import { X, LayoutDashboard, FileText, Boxes, Puzzle, Layers, Image, List, Tag, Package, Briefcase, Users, CreditCard, Palette, Building, Mail, Search, Settings, Download, Globe, Key, Megaphone, BookOpen, Zap, Heart, ShoppingCart } from 'lucide-react';
 import SidebarItem from './SidebarItem';
 import { useTranslation } from '../context/TranslationContext';
 
@@ -79,6 +79,7 @@ export default function Sidebar({ isOpen, onClose, contentTypes = [] }) {
         { name: _('nav.email_templates', 'Email Templates'), href: '/email-templates', icon: Mail },
         { name: _('nav.seo', 'SEO'), href: '/seo', icon: Search },
         { name: _('nav.api_keys', 'API Keys'), href: '/api-keys', icon: Key },
+        { name: _('nav.woocommerce_keys', 'WooCommerce Keys'), href: '/woocommerce-keys', icon: ShoppingCart },
         { name: _('nav.configuration', 'Configuration'), href: '/settings', icon: Settings }
       ]
     }
