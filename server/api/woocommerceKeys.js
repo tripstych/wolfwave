@@ -32,10 +32,11 @@ router.get('/', async (req, res) => {
  */
 router.post('/', async (req, res) => {
   try {
+    console.log('POST /api/woocommerce-keys - req.body:', req.body);
     const { description, permissions } = req.body;
 
     if (!description) {
-      return res.status(400).json({ error: 'Description is required' });
+      return res.status(400).json({ error: 'Description is required', receivedBody: req.body });
     }
 
     const validPermissions = ['read', 'write', 'read_write'];
