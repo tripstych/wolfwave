@@ -179,11 +179,30 @@ router.get('/orders', async (req, res) => {
       };
     }));
 
-    // Set pagination headers
+    // Set WooCommerce REST API headers
     res.set('X-WP-Total', totalOrders.toString());
     res.set('X-WP-TotalPages', totalPages.toString());
+    res.set('Content-Type', 'application/json; charset=utf-8');
+    res.set('X-Content-Type-Options', 'nosniff');
+    
+    // Add Link header for pagination if there are multiple pages
+    if (totalPages > 1) {
+      const baseUrl = `${req.protocol}://${req.get('host')}${req.path}`;
+      const links = [];
+      
+      if (pageNum < totalPages) {
+        links.push(`<${baseUrl}?modified_after=${modified_after}&page=${pageNum + 1}&per_page=${perPage}>; rel="next"`);
+      }
+      if (pageNum > 1) {
+        links.push(`<${baseUrl}?modified_after=${modified_after}&page=${pageNum - 1}&per_page=${perPage}>; rel="prev"`);
+      }
+      
+      if (links.length > 0) {
+        res.set('Link', links.join(', '));
+      }
+    }
 
-    res.json(ordersData);
+    res.status(200).json(ordersData);
     
     console.log(`ShipStation REST: Exported ${ordersData.length} orders (page ${pageNum}/${totalPages})`);
     
