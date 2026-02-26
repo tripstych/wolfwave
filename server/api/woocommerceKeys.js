@@ -55,6 +55,7 @@ router.post('/', async (req, res) => {
     const userId = req.user?.id || 1; // Default to admin user
     const apiKey = await createWooCommerceApiKey(userId, description, permissions || 'read_write');
 
+    console.log('Created API key:', apiKey);
     res.status(201).json(apiKey);
   } catch (error) {
     console.error('Error creating WooCommerce key:', error);
