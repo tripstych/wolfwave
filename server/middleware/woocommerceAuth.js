@@ -9,6 +9,23 @@ import crypto from 'crypto';
 import prisma from '../lib/prisma.js';
 
 /**
+ * Helper to execute raw SQL queries safely
+ */
+async function queryRaw(sql, ...params) {
+  try {
+    const results = await prisma.$queryRawUnsafe(sql, ...params);
+    return Array.isArray(results) ? results : [];
+  } catch (error) {
+    console.error('Query error:', error);
+    throw error;
+  }
+}
+
+async function executeRaw(sql, ...params) {
+  return await prisma.$executeRawUnsafe(sql, ...params);
+}
+
+/**
  * OAuth 1.0a signature verification
  */
 function verifyOAuthSignature(req, consumerSecret) {
@@ -71,7 +88,7 @@ async function verifyBasicAuth(authHeader) {
   }
 
   // Look up API key
-  const results = await prisma.$queryRawUnsafe(
+  const results = await queryRaw(
     `SELECT * FROM woocommerce_api_keys WHERE consumer_key = ?`,
     consumerKey
   );
@@ -92,7 +109,7 @@ async function verifyBasicAuth(authHeader) {
   }
 
   // Update last access
-  await prisma.$executeRawUnsafe(
+  await executeRaw(
     `UPDATE woocommerce_api_keys SET last_access = NOW() WHERE key_id = ?`,
     apiKey.key_id
   );
@@ -111,7 +128,7 @@ async function verifyOAuth(req) {
   }
 
   // Look up API key
-  const results = await prisma.$queryRawUnsafe(
+  const results = await queryRaw(
     `SELECT * FROM woocommerce_api_keys WHERE consumer_key = ?`,
     consumerKey
   );
@@ -132,7 +149,7 @@ async function verifyOAuth(req) {
   }
 
   // Update last access
-  await prisma.$executeRawUnsafe(
+  await executeRaw(
     `UPDATE woocommerce_api_keys SET last_access = NOW() WHERE key_id = ?`,
     apiKey.key_id
   );
@@ -205,16 +222,22 @@ export function generateConsumerCredentials() {
 export async function createWooCommerceApiKey(userId, description, permissions = 'read_write') {
   const { consumerKey, consumerSecret, truncatedKey } = generateConsumerCredentials();
 
-  const result = await prisma.$executeRawUnsafe(
+  await executeRaw(
     `INSERT INTO woocommerce_api_keys (
       user_id, description, permissions, consumer_key, consumer_secret, 
       truncated_key, created_at
     ) VALUES (?, ?, ?, ?, ?, ?, NOW())`,
     userId, description, permissions, consumerKey, consumerSecret, truncatedKey
   );
+  
+  // Get the inserted ID
+  const [inserted] = await queryRaw(
+    `SELECT key_id FROM woocommerce_api_keys WHERE consumer_key = ?`,
+    consumerKey
+  );
 
   return {
-    keyId: result.insertId,
+    keyId: inserted?.key_id || 0,
     consumerKey,
     consumerSecret,
     truncatedKey,
@@ -238,14 +261,14 @@ export async function listWooCommerceApiKeys(userId = null) {
 
   sql += ` ORDER BY created_at DESC`;
 
-  return await prisma.$queryRawUnsafe(sql, ...params);
+  return await queryRaw(sql, ...params);
 }
 
 /**
  * Revoke (delete) an API key
  */
 export async function revokeWooCommerceApiKey(keyId) {
-  await prisma.$executeRawUnsafe(`DELETE FROM woocommerce_api_keys WHERE key_id = ?`, keyId);
+  await executeRaw(`DELETE FROM woocommerce_api_keys WHERE key_id = ?`, keyId);
 }
 
 export default authenticateWooCommerce;
