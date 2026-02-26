@@ -84,6 +84,7 @@ function verifyOAuthSignature(req, consumerSecret) {
  */
 async function verifyBasicAuth(authHeader, req) {
   if (!authHeader || !authHeader.startsWith('Basic ')) {
+    console.log('[WC Auth] No Basic Auth header found');
     return null;
   }
 
@@ -91,8 +92,11 @@ async function verifyBasicAuth(authHeader, req) {
   const [consumerKey, consumerSecret] = credentials.split(':');
 
   if (!consumerKey || !consumerSecret) {
+    console.log('[WC Auth] Invalid credentials format');
     return null;
   }
+
+  console.log(`[WC Auth] Looking up key: ${consumerKey.substring(0, 20)}...`);
 
   // Look up API key
   const results = await queryRaw(
@@ -102,18 +106,27 @@ async function verifyBasicAuth(authHeader, req) {
   const apiKey = results[0];
 
   if (!apiKey) {
+    console.log('[WC Auth] API key not found in database');
     return null;
   }
+
+  console.log(`[WC Auth] Found API key: ${apiKey.description}, permissions: ${apiKey.permissions}`);
 
   // Verify secret
   if (apiKey.consumer_secret !== consumerSecret) {
+    console.log('[WC Auth] Secret mismatch');
     return null;
   }
 
+  console.log('[WC Auth] Secret verified');
+
   // Check permissions
   if (apiKey.permissions === 'read' && !['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+    console.log(`[WC Auth] Permission denied: read-only key used for ${req.method}`);
     return null;
   }
+
+  console.log('[WC Auth] Permissions OK');
 
   // Update last access
   await executeRaw(
@@ -121,6 +134,7 @@ async function verifyBasicAuth(authHeader, req) {
     apiKey.key_id
   );
 
+  console.log('[WC Auth] Authentication successful');
   return apiKey;
 }
 
