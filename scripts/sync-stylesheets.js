@@ -8,7 +8,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { query, initDb, closeDb } from '../server/db/connection.js';
+import { query, initDb } from '../server/db/connection.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -91,12 +91,10 @@ async function syncStylesheets() {
 
     console.log('\n✅ Stylesheet sync complete!');
 
-    await closeDb();
     process.exit(0);
   } catch (err) {
     console.error('\n❌ Sync failed:', err.message);
     console.error(err.stack);
-    await closeDb();
     process.exit(1);
   }
 }
