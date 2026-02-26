@@ -110,9 +110,12 @@ app.use('/imported', express.static(path.join(__dirname, '../templates/imported'
 app.use('/templates/css', express.static(path.join(__dirname, '../templates/css')));
 
 // Serve React admin in production (restricted to admin subdomain)
+// Apply domain restriction in all environments for security
+app.use('/admin', requireAdminDomain);
+
 if (process.env.NODE_ENV === 'production') {
-  app.use('/admin', requireAdminDomain, express.static(path.join(__dirname, '../admin/dist')));
-  app.get('/admin/*', requireAdminDomain, (req, res) => {
+  app.use('/admin', express.static(path.join(__dirname, '../admin/dist')));
+  app.get('/admin/*', (req, res) => {
     res.sendFile(path.join(__dirname, '../admin/dist/index.html'));
   });
 }
