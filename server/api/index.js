@@ -43,6 +43,7 @@ import shopifyRoutes from './shopify.js';
 import stylesheetsRoutes from './stylesheets.js';
 import woocommerceKeysRoutes from './woocommerceKeys.js';
 import woocommerceSyncRoutes from './woocommerceSync.js';
+import modulesRoutes from './modules.js';
 
 const router = Router();
 
@@ -90,6 +91,7 @@ router.use('/shopify', shopifyRoutes);
 router.use('/stylesheets', stylesheetsRoutes);
 router.use('/woocommerce-keys', woocommerceKeysRoutes);
 router.use('/woocommerce-sync', woocommerceSyncRoutes);
+router.use('/modules', modulesRoutes);
 
 // Health check
 router.get('/health', (req, res) => {

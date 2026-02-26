@@ -12,6 +12,7 @@
 import express from 'express';
 import prisma from '../lib/prisma.js';
 import crypto from 'crypto';
+import { trackModuleUsage } from '../services/moduleManager.js';
 
 const router = express.Router();
 
@@ -237,6 +238,11 @@ router.get('/', authenticateShipStation, async (req, res) => {
 
       res.type('text/xml').send(xml);
       console.log(`ShipStation: Exported ${orders.length} orders (page ${pageNum}/${totalPages})`);
+      
+      // Track usage for the first customer in the order set (for analytics)
+      if (orders.length > 0 && orders[0].customer_id) {
+        await trackModuleUsage(orders[0].customer_id, 'shipstation', 'export', orders.length);
+      }
     } catch (error) {
       console.error('ShipStation export error:', error);
       res.status(500).type('text/xml').send(

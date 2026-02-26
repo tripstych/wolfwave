@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { getPoolForDb } from '../lib/poolManager.js';
 import { woocommerceTables } from './migrations/woocommerce-tables.js';
+import { modulesSystemTables } from './migrations/modules-system.js';
 
 // Get the database name from environment or default
 const dbName = process.env.DB_NAME || 'wolfwave_default';
@@ -58,7 +59,10 @@ const migrations = [
   )`,
 
   // WooCommerce compatibility tables
-  ...woocommerceTables
+  ...woocommerceTables,
+
+  // Module management system
+  ...modulesSystemTables
 ];
 
 async function migrate() {
