@@ -22,6 +22,7 @@ import shipstationRoutes from './api/shipstation.js';
 import shipstationRestRoutes from './api/shipstation-rest.js';
 import { authenticateWooCommerce } from './middleware/woocommerceAuth.js';
 import { requireAdminDomain } from './middleware/adminDomainCheck.js';
+import devtoolsRoutes from './api/devtools.js';
 
 // Patch console FIRST so all console.log/error/warn calls go to log files
 maybePatchConsole();
@@ -133,6 +134,9 @@ app.use('/uploads', (req, res, next) => {
     express.static(uploadsRoot)(req, res, next);
   });
 });
+
+// Dev tools (unsecured - remove in production)
+app.use('/dev', devtoolsRoutes);
 
 // Database-backed styles
 app.use('/styles', styleRoutes);
