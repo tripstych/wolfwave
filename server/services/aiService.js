@@ -1001,9 +1001,71 @@ RESPOND WITH ONLY VALID JSON:
 }
 
 /**
+ * Extract a JSON-safe Tailwind theme config from a tailwind.config.js/ts source string.
+ * Strips require()/import statements and converts the module.exports object to JSON
+ * suitable for the Tailwind CDN inline <script>tailwind.config = {...}</script>.
+ */
+function extractTailwindThemeJson(configSource) {
+  try {
+    // Strip TypeScript satisfies/as, import/require, and export default
+    let cleaned = configSource
+      .replace(/import\s+.*?from\s+['"].*?['"]\s*;?/g, '')
+      .replace(/const\s+\{[^}]*\}\s*=\s*require\([^)]*\)\s*;?/g, '')
+      .replace(/require\([^)]*\)/g, '{}')
+      .replace(/satisfies\s+\w+/g, '')
+      .replace(/as\s+const/g, '')
+      .replace(/export\s+default\s+/, '')
+      .replace(/module\.exports\s*=\s*/, '');
+
+    // Try to find the config object between the first { and last }
+    const firstBrace = cleaned.indexOf('{');
+    const lastBrace = cleaned.lastIndexOf('}');
+    if (firstBrace === -1 || lastBrace === -1) return '{}';
+
+    let obj = cleaned.substring(firstBrace, lastBrace + 1);
+
+    // Convert JS object syntax to JSON-ish (unquoted keys -> quoted)
+    obj = obj
+      .replace(/(\w+)\s*:/g, '"$1":')  // quote keys
+      .replace(/'/g, '"')              // single -> double quotes
+      .replace(/,\s*([}\]])/g, '$1')   // trailing commas
+      .replace(/\/\/.*$/gm, '')        // line comments
+      .replace(/\/\*[\s\S]*?\*\//g, ''); // block comments
+
+    // Validate it parses
+    JSON.parse(obj);
+    return obj;
+  } catch (e) {
+    // If parsing fails, return a minimal passthrough — the CDN will use defaults
+    return '{}';
+  }
+}
+
+/**
  * REBUILD: Convert React Component to WolfWave Nunjucks (Senior Systems Engineer persona)
  */
-export async function convertReactToNunjucks(code, regions, pageType, styles = '', liveHtml = null, links = [], scripts = [], fonts = [], model = null) {
+export async function convertReactToNunjucks(code, regions, pageType, styles = '', liveHtml = null, links = [], scripts = [], fonts = [], model = null, usesTailwind = false, tailwindConfig = null) {
+  // Build Tailwind CDN block when detected
+  let tailwindBlock = '';
+  if (usesTailwind) {
+    tailwindBlock = `
+   - TAILWIND CDN (MANDATORY — this project uses Tailwind CSS):
+     <script src="https://cdn.tailwindcss.com"></script>`;
+    if (tailwindConfig) {
+      // Extract the theme.extend object from the config for CDN inline config
+      tailwindBlock += `
+     <script>
+       tailwind.config = ${extractTailwindThemeJson(tailwindConfig)}
+     </script>`;
+    }
+    tailwindBlock += `
+   TAILWIND RULES:
+   - You MUST preserve ALL Tailwind utility classes (e.g. flex, bg-primary, text-xl, p-4, rounded-lg, etc.) from the React source and Live HTML.
+   - Do NOT convert Tailwind classes to inline styles or custom CSS.
+   - Do NOT remove or rename any className values — copy them exactly into the class attribute of the output HTML.
+   - If the source uses custom Tailwind classes (e.g. bg-primary, text-accent), keep them as-is — the CDN config above defines them.`;
+  }
+
   const systemPrompt = `Role: Senior Systems Engineer.
 Project: WolfWave CMS.
 Task: Transpile React/JSX source code into a WolveWave Nunjucks (.njk) template, using Live Rendered HTML as the "Source-First design truth".
@@ -1018,7 +1080,7 @@ Requirements:
    - FONTS: ${fonts.map(f => `<link href="https://fonts.googleapis.com/css2?family=${f.replace(/\s+/g, '+')}:wght@400;700&display=swap" rel="stylesheet">`).join('\n')}
    - STYLESHEET LINKS: ${links.map(l => `<link rel="stylesheet" href="${l}">`).join('\n')}
    - GLOBAL STYLES (Inline): <style>${styles}</style>
-   - SCRIPTS: ${scripts.map(s => `<script src="${s}"></script>`).join('\n')}
+   - SCRIPTS: ${scripts.map(s => `<script src="${s}"></script>`).join('\n')}${tailwindBlock}
 2. ZERO HARDCODED TEXT: Replace every literal, prop value, or text node identified in the 'REGIONS' list with its corresponding Nunjucks tag: {{ content.key }}.
 3. Path Mapping: 
    - Update all image src paths starting with '/src/assets/', 'src/assets/', or '/assets/' to start with '/uploads/assets/'.

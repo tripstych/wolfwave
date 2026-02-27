@@ -23,6 +23,27 @@ export class LovableTemplateGenerator {
 
       const themeStyles = ruleset.theme?.styles || '';
       const liveAssets = ruleset.theme?.live_assets || {};
+      const usesTailwind = ruleset.theme?.tailwind || false;
+      const tailwindConfig = ruleset.theme?.tailwind_config || null;
+
+      // Write merged stylesheet to disk so templates can <link> to it
+      const importDir = path.join(process.cwd(), 'templates', 'imported', String(this.siteId));
+      await fs.mkdir(importDir, { recursive: true });
+      let stylesheetUrl = null;
+
+      if (themeStyles.trim().length > 0) {
+        const cssPath = path.join(importDir, 'styles.css');
+        await fs.writeFile(cssPath, themeStyles);
+        stylesheetUrl = `/imported/${this.siteId}/styles.css`;
+        info(this.dbName, 'LOVABLE_STYLES_SAVED', `Wrote ${themeStyles.length} chars to ${cssPath}`);
+      }
+
+      // Build the links array — start with any live-crawled stylesheets
+      const baseLinks = [...(liveAssets.stylesheets || [])];
+      if (stylesheetUrl) baseLinks.push(stylesheetUrl);
+
+      // Build the scripts array — start with any live-crawled scripts
+      const baseScripts = [...(liveAssets.scripts || [])];
 
       for (const [pathKey, pageConfig] of Object.entries(ruleset.pages)) {
         info(this.dbName, 'LOVABLE_TEMPLATE_GEN_CONVERT', `Converting ${pathKey}...`);
@@ -40,9 +61,12 @@ export class LovableTemplateGenerator {
           pageConfig.page_type,
           themeStyles,
           pageConfig.live_rendered_html,
-          liveAssets.stylesheets || [],
-          liveAssets.scripts || [],
-          liveAssets.fonts || []
+          baseLinks,
+          baseScripts,
+          liveAssets.fonts || [],
+          null,
+          usesTailwind,
+          tailwindConfig
         );
 
         const filename = `imported/${this.siteId}/${pathKey.split('/').pop().replace(/\.(tsx|jsx)$/, '')}.njk`;

@@ -142,25 +142,107 @@ export class RepoManager {
   }
 
   /**
-   * Find and read global CSS files (index.css, App.css, globals.css)
+   * Detect whether the repo uses Tailwind CSS
+   */
+  async detectTailwind() {
+    // Check package.json for tailwindcss dependency
+    try {
+      const pkgRaw = await this.readFile('package.json');
+      const pkg = JSON.parse(pkgRaw);
+      const allDeps = { ...pkg.dependencies, ...pkg.devDependencies };
+      if (allDeps['tailwindcss']) {
+        info(this.dbName, 'LOVABLE_TAILWIND_DETECTED', 'Found tailwindcss in package.json');
+        return true;
+      }
+    } catch (e) { /* no package.json */ }
+
+    // Check for tailwind config files
+    for (const name of ['tailwind.config.js', 'tailwind.config.ts', 'tailwind.config.cjs', 'tailwind.config.mjs']) {
+      try {
+        await fs.stat(path.join(this.workDir, name));
+        info(this.dbName, 'LOVABLE_TAILWIND_DETECTED', `Found ${name}`);
+        return true;
+      } catch (e) { /* not found */ }
+    }
+
+    // Check CSS files for @tailwind directives
+    for (const candidate of ['src/index.css', 'src/globals.css', 'src/App.css']) {
+      try {
+        const content = await this.readFile(candidate);
+        if (content.includes('@tailwind')) {
+          info(this.dbName, 'LOVABLE_TAILWIND_DETECTED', `Found @tailwind directive in ${candidate}`);
+          return true;
+        }
+      } catch (e) { /* skip */ }
+    }
+
+    return false;
+  }
+
+  /**
+   * Extract Tailwind config (custom theme values) for CDN play script
+   */
+  async getTailwindConfig() {
+    for (const name of ['tailwind.config.js', 'tailwind.config.ts', 'tailwind.config.cjs', 'tailwind.config.mjs']) {
+      try {
+        const raw = await this.readFile(name);
+        info(this.dbName, 'LOVABLE_TAILWIND_CONFIG', `Read ${name} (${raw.length} chars)`);
+        return raw;
+      } catch (e) { /* not found */ }
+    }
+    return null;
+  }
+
+  /**
+   * Recursively find ALL .css files in the repo
+   */
+  async getAllCssFiles() {
+    const cssFiles = [];
+    const self = this;
+
+    async function traverse(dir) {
+      const entries = await fs.readdir(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          if (['node_modules', '.git', 'dist', 'build'].includes(entry.name)) continue;
+          await traverse(fullPath);
+        } else if (entry.isFile() && entry.name.endsWith('.css')) {
+          const relPath = path.relative(self.workDir, fullPath).replace(/\\/g, '/');
+          cssFiles.push(relPath);
+        }
+      }
+    }
+
+    await traverse(this.workDir);
+    return cssFiles;
+  }
+
+  /**
+   * Find and read global CSS files — collects ALL .css in the repo,
+   * strips bare @tailwind directives (they need the compiler),
+   * and returns usable custom CSS.
    */
   async getGlobalStyles() {
-    const candidates = [
-      'src/index.css',
-      'src/App.css',
-      'src/globals.css',
-      'src/style.css',
-      'index.css',
-      'App.css'
-    ];
-    
+    const allCss = await this.getAllCssFiles();
     let styles = '';
-    for (const relPath of candidates) {
+
+    for (const relPath of allCss) {
       try {
-        const content = await this.readFile(relPath);
-        styles += `\n/* From ${relPath} */\n${content}`;
+        let content = await this.readFile(relPath);
+
+        // Strip @tailwind directives (useless without the compiler)
+        content = content
+          .replace(/@tailwind\s+base\s*;/g, '')
+          .replace(/@tailwind\s+components\s*;/g, '')
+          .replace(/@tailwind\s+utilities\s*;/g, '')
+          .trim();
+
+        if (content.length > 0) {
+          styles += `\n/* From ${relPath} */\n${content}`;
+        }
       } catch (e) {
-        // Skip missing candidates
+        // Skip unreadable files
       }
     }
     return styles;

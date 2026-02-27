@@ -138,6 +138,14 @@ export class LovableImporterService {
         const files = await repo.scan();
         const globalStyles = await repo.getGlobalStyles();
         
+        // Detect Tailwind and extract config
+        const usesTailwind = await repo.detectTailwind();
+        let tailwindConfig = null;
+        if (usesTailwind) {
+          tailwindConfig = await repo.getTailwindConfig();
+          info(dbName, 'LOVABLE_TAILWIND_STATUS', `Tailwind detected, config: ${tailwindConfig ? 'found' : 'default'}`);
+        }
+        
         info(dbName, 'LOVABLE_REPO_SCANNED', `Found ${files.length} source files`);
 
         // Create staged items from source files (Phase 1 equivalent)
@@ -171,6 +179,8 @@ export class LovableImporterService {
         // Add global styles and assets to ruleset
         ruleset.theme = ruleset.theme || {};
         ruleset.theme.styles = globalStyles;
+        ruleset.theme.tailwind = usesTailwind;
+        ruleset.theme.tailwind_config = tailwindConfig;
         if (liveAssets) {
           ruleset.theme.live_assets = liveAssets;
         }
