@@ -96,7 +96,8 @@ export const createAd = async (req, res) => {
     });
 
     const templates = await prisma.templates.findMany({
-      where: { content_type: 'classifieds' }
+      where: { content_type: 'classifieds' },
+      select: { id: true, name: true, regions: true }
     });
 
     themeRender(req, res, 'customer/ads/edit.njk', {
@@ -142,7 +143,8 @@ export const editAd = async (req, res) => {
     });
 
     const templates = await prisma.templates.findMany({
-      where: { content_type: 'classifieds' }
+      where: { content_type: 'classifieds' },
+      select: { id: true, name: true, regions: true }
     });
 
     themeRender(req, res, 'customer/ads/edit.njk', {
