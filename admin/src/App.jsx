@@ -37,6 +37,7 @@ import TenantList from './tenants/TenantList';
 import Sites from './tenants/Sites';
 import MySites from './tenants/MySites';
 import Themes from './settings/Themes';
+import WpThemeImport from './settings/WpThemeImport';
 import ThemeEditor from './settings/ThemeEditor';
 import StyleEditor from './settings/StyleEditor';
 import EmailTemplates from './settings/EmailTemplates';
@@ -137,6 +138,7 @@ function App() {
                 <Route path="/my-sites" element={<MySites />} />
                 <Route path="/tenants" element={<TenantList />} />
                 <Route path="/themes" element={<Themes />} />
+                <Route path="/themes/import" element={<WpThemeImport />} />
                 <Route path="/themes/:themeName/editor" element={<ThemeEditor />} />
                 <Route path="/styles" element={<StyleEditor />} />
                 <Route path="/email-templates" element={<EmailTemplates />} />

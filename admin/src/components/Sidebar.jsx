@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { X, LayoutDashboard, FileText, Boxes, Puzzle, Layers, Image, List, Tag, Package, Briefcase, Users, CreditCard, Palette, Building, Mail, Search, Settings, Download, Globe, Key, Megaphone, BookOpen, Zap, Heart, ShoppingCart } from 'lucide-react';
+import { X, LayoutDashboard, FileText, Boxes, Puzzle, Layers, Image, List, Tag, Package, Briefcase, Users, CreditCard, Palette, Building, Mail, Search, Settings, Download, Globe, Key, Megaphone, BookOpen, Zap, Heart, ShoppingCart, FolderOpen } from 'lucide-react';
 import SidebarItem from './SidebarItem';
 import { useTranslation } from '../context/TranslationContext';
 
@@ -64,7 +64,8 @@ export default function Sidebar({ isOpen, onClose, contentTypes = [] }) {
       items: [
         { name: _('nav.manual_import', 'Manual Import'), href: '/import', icon: Download },
         { name: _('nav.assisted_import', 'Assisted Import'), href: '/assisted-import', icon: Zap },
-        { name: _('nav.lovable_import', 'Lovable Import'), href: '/import-lovable', icon: Heart }
+        { name: _('nav.lovable_import', 'Lovable Import'), href: '/import-lovable', icon: Heart },
+        { name: _('nav.theme_import', 'Theme Import'), href: '/themes/import', icon: FolderOpen }
       ]
     },
     {
