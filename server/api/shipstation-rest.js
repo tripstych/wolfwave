@@ -67,7 +67,7 @@ router.get('/orders', async (req, res) => {
     const ordersData = await Promise.all(orders.map(async (order) => {
       // Get order items
       const orderItems = await queryRaw(`
-        SELECT oi.*, p.sku, p.image_url, p.weight
+        SELECT oi.*, p.sku, p.image, p.weight
         FROM order_items oi
         LEFT JOIN products p ON oi.product_id = p.id
         WHERE oi.order_id = ?
@@ -160,7 +160,7 @@ router.get('/orders', async (req, res) => {
           meta_data: [],
           sku: item.sku || '',
           price: item.price,
-          image: item.image_url ? { src: item.image_url } : null,
+          image: item.image ? { src: item.image } : null,
           weight: item.weight || null
         })),
         shipping_lines: order.shipping_method ? [{
