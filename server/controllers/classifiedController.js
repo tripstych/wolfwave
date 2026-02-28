@@ -95,16 +95,10 @@ export const createAd = async (req, res) => {
       orderBy: { name: 'asc' }
     });
 
-    const templates = await prisma.templates.findMany({
-      where: { content_type: 'classifieds' },
-      select: { id: true, name: true, regions: true }
-    });
-
     themeRender(req, res, 'customer/ads/edit.njk', {
       page: { title: 'Post an Ad', slug: '/customer/ads/create' },
       adId: 'new',
       categories,
-      templates,
       seo: {
         title: `Post an Ad - ${site.site_name}`,
         robots: 'noindex, follow'
@@ -142,11 +136,6 @@ export const editAd = async (req, res) => {
       orderBy: { name: 'asc' }
     });
 
-    const templates = await prisma.templates.findMany({
-      where: { content_type: 'classifieds' },
-      select: { id: true, name: true, regions: true }
-    });
-
     themeRender(req, res, 'customer/ads/edit.njk', {
       page: { title: 'Edit Ad', slug: `/customer/ads/edit/${adId}` },
       adId,
@@ -155,7 +144,6 @@ export const editAd = async (req, res) => {
         content: adContent?.data || {}
       },
       categories,
-      templates,
       seo: {
         title: `Edit Ad - ${site.site_name}`,
         robots: 'noindex, follow'

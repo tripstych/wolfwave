@@ -71,24 +71,6 @@
         </div>
       </div>
 
-      <div class="card p-6">
-        <h2 class="text-lg font-bold mb-4">Extended Content</h2>
-        <div class="space-y-4">
-          <div>
-            <label class="label">Display Template</label>
-            <select id="template_id" name="template_id" class="form-input" onchange="renderRegions()">
-              <option value="">Standard Ad</option>
-              {% for tpl in templates %}
-                <option value="{{ tpl.id }}" {% if ad.template_id == tpl.id %}selected{% endif %}>{{ tpl.name }}</option>
-              {% endfor %}
-            </select>
-          </div>
-
-          <div id="dynamic-regions" class="space-y-4 pt-4 border-t border-gray-100">
-            {# Regions will be injected here via JS #}
-          </div>
-        </div>
-      </div>
 
       <div id="form-error" class="error-message hidden"></div>
       
@@ -104,55 +86,6 @@
 
 <script>
   const adId = '{{ adId }}';
-  const templates = {{ (templates or []) | dump | safe }};
-  const adContent = {{ (ad.content or {}) | dump | safe }};
-
-  function renderRegions() {
-    const templateId = document.getElementById('template_id').value;
-    const container = document.getElementById('dynamic-regions');
-    container.innerHTML = '';
-
-    if (!templateId) return;
-
-    const template = templates.find(t => t.id == templateId);
-    if (!template || !template.regions) return;
-
-    let regions = [];
-    try {
-      regions = typeof template.regions === 'string' ? JSON.parse(template.regions) : template.regions;
-    } catch (e) { console.error('Failed to parse regions', e); }
-
-    regions.forEach(region => {
-      const wrapper = document.createElement('div');
-      wrapper.className = 'form-group';
-      
-      const label = document.createElement('label');
-      label.className = 'label';
-      label.textContent = region.label || region.name;
-      wrapper.appendChild(label);
-
-      const val = adContent[region.name] || '';
-
-      if (region.type === 'richtext' || region.type === 'textarea') {
-        const input = document.createElement('textarea');
-        input.className = 'form-input';
-        input.name = `region_${region.name}`;
-        input.rows = 4;
-        input.value = val;
-        wrapper.appendChild(input);
-      } else {
-        const input = document.createElement('input');
-        input.className = 'form-input';
-        input.name = `region_${region.name}`;
-        input.type = region.type === 'image' ? 'url' : 'text';
-        input.value = val;
-        input.placeholder = region.type === 'image' ? 'https://...' : '';
-        wrapper.appendChild(input);
-      }
-
-      container.appendChild(wrapper);
-    });
-  }
 
   document.getElementById('ad-form').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -163,14 +96,6 @@
     errDiv.classList.add('hidden');
 
     const formData = new FormData(e.target);
-    
-    // Extract dynamic regions
-    const content = {};
-    for (let [key, value] of formData.entries()) {
-      if (key.startsWith('region_')) {
-        content[key.replace('region_', '')] = value;
-      }
-    }
 
     const data = {
       title: formData.get('title'),
@@ -180,9 +105,7 @@
       condition: formData.get('condition'),
       location: formData.get('location'),
       contact_info: formData.get('contact_info'),
-      image: formData.get('image'),
-      template_id: formData.get('template_id'),
-      content: content
+      image: formData.get('image')
     };
 
     try {
@@ -208,8 +131,6 @@
       btn.disabled = false;
     }
   });
-
-  document.addEventListener('DOMContentLoaded', renderRegions);
 </script>
 
 <style>
