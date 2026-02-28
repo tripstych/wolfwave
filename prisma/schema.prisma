@@ -893,8 +893,8 @@ model customer_modules {
   modules       modules   @relation(fields: [module_id], references: [id], onDelete: Cascade)
 
   @@unique([customer_id, module_id])
-  @@index([customer_id])
-  @@index([module_id])
+  @@index([customer_id], map: "idx_customer")
+  @@index([module_id], map: "idx_module")
 }
 
 model plan_modules {
@@ -909,12 +909,12 @@ model plan_modules {
   modules     modules            @relation(fields: [module_id], references: [id], onDelete: Cascade)
 
   @@unique([plan_id, module_id])
-  @@index([plan_id])
-  @@index([module_id])
+  @@index([plan_id], map: "idx_plan")
+  @@index([module_id], map: "idx_module")
 }
 
 model module_usage {
-  id           Int      @id @default(autoincrement())
+  id           BigInt   @id @default(autoincrement())
   customer_id  Int
   module_id    Int
   usage_type   String   @db.VarChar(50)
@@ -924,7 +924,9 @@ model module_usage {
   customers    customers @relation(fields: [customer_id], references: [id], onDelete: Cascade)
   modules      modules   @relation(fields: [module_id], references: [id], onDelete: Cascade)
 
-  @@index([customer_id])
-  @@index([module_id])
-  @@index([created_at])
+  @@index([customer_id], map: "idx_customer")
+  @@index([module_id], map: "idx_module")
+  @@index([usage_type], map: "idx_usage_type")
+  @@index([created_at], map: "idx_created_at")
+  @@index([customer_id, module_id], map: "idx_customer_module")
 }

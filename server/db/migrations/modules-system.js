@@ -66,6 +66,8 @@ export const modulesSystemTables = [
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
     FOREIGN KEY (module_id) REFERENCES modules(id) ON DELETE CASCADE,
+    INDEX idx_customer (customer_id),
+    INDEX idx_module (module_id),
     INDEX idx_customer_module (customer_id, module_id),
     INDEX idx_created_at (created_at),
     INDEX idx_usage_type (usage_type)
