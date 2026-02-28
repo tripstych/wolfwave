@@ -1,7 +1,15 @@
 import { Router } from 'express';
 import axios from 'axios';
 import { requireAuth, requireAdmin } from '../middleware/auth.js';
-import { generateThemeFromIndustry, generateImage, generateText, generateContentForFields, suggestSelectors } from '../services/aiService.js';
+import { 
+  generateThemeFromIndustry, 
+  generateImage, 
+  generateText, 
+  generateContentForFields, 
+  suggestSelectors,
+  getAvailableScaffolds,
+  draftThemePlan
+} from '../services/aiService.js';
 import { downloadImage } from '../services/mediaService.js';
 import fs from 'fs/promises';
 import path from 'path';
@@ -12,66 +20,59 @@ import prisma from '../lib/prisma.js';
 const router = Router();
 
 /**
- * POST /api/ai/generate-theme
+ * GET /api/ai/scaffolds
+ */
+router.get('/scaffolds', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const scaffolds = await getAvailableScaffolds();
+    res.json(scaffolds);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /api/ai/draft-theme
  * Payload: { industry: "Coffee Shop" }
  */
-router.post('/generate-theme', requireAuth, requireAdmin, async (req, res) => {
+router.post('/draft-theme', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { industry } = req.body;
     if (!industry) return res.status(400).json({ error: 'Industry is required' });
 
-    console.log(`[AI-DEBUG] 🚀 Received request to generate theme for industry: "${industry}"`);
+    const plan = await draftThemePlan(industry);
+    res.json({ success: true, plan });
+  } catch (error) {
+    console.error('[AI-DEBUG] ❌ Drafting Failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
-    // 1. SMART CACHE CHECK
-    // Convert "Modern Coffee Shop" -> "modern-coffee-shop"
-    const targetSlug = industry.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+/**
+ * POST /api/ai/generate-theme
+ * Payload: { industry: "Coffee Shop", plan: { ... } }
+ */
+router.post('/generate-theme', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { industry, plan } = req.body;
+    if (!industry && !plan) return res.status(400).json({ error: 'Industry or Plan is required' });
+
+    console.log(`[AI-DEBUG] 🚀 Generating theme for: "${industry || plan.name}"`);
+
+    // Use provided plan or generate a fresh one
+    const { slug, files } = await generateThemeFromIndustry(industry, plan);
     
-    // Check if this theme already exists on disk
-    const existingThemeDir = path.join(getThemesDir(), targetSlug);
-    try {
-      await fs.access(existingThemeDir);
-      console.log(`[AI-DEBUG] 💎 CACHE HIT! Theme "${targetSlug}" already exists.`);
-      console.log(`[AI-DEBUG] 💰 Cost saved: ~$0.08 (GPT-4o + DALL-E 3)`);
-      
-      // Ensure it's synced to DB just in case
-      await syncTemplatesToDb(prisma, targetSlug);
-      
-      return res.json({ 
-        success: true, 
-        slug: targetSlug, 
-        message: 'Theme found in library (Instant Load)',
-        cached: true
-      });
-    } catch (e) {
-      console.log(`[AI-DEBUG] 💨 Cache miss. Proceeding to generation...`);
-    }
-
-    console.log(`[AI-DEBUG] ⏳ Calling AI Service...`);
-    
-    const { slug, files } = await generateThemeFromIndustry(industry);
-    console.log(`[AI-DEBUG] ✅ AI Service returned data for slug: "${slug}"`);
-    console.log(`[AI-DEBUG] 📦 Generated ${Object.keys(files).length} files.`);
-
     // Write files to disk
     const themeDir = path.join(getThemesDir(), slug);
-    console.log(`[AI-DEBUG] 📂 Target directory: ${themeDir}`);
-    
-    // Create directories
     await fs.mkdir(path.join(themeDir, 'pages'), { recursive: true });
     await fs.mkdir(path.join(themeDir, 'assets/css'), { recursive: true });
-    console.log(`[AI-DEBUG] 📁 Directories created.`);
 
-    // Write files
     for (const [relativePath, content] of Object.entries(files)) {
       const filePath = path.join(themeDir, relativePath);
       await fs.writeFile(filePath, content);
-      console.log(`[AI-DEBUG] 📝 Wrote file: ${relativePath} (${content.length} bytes)`);
     }
 
-    console.log(`[AI-DEBUG] 🔄 Syncing templates to database...`);
-    // Sync templates to DB so it's immediately usable
-    const syncResult = await syncTemplatesToDb(prisma, slug);
-    console.log(`[AI-DEBUG] ✅ Database sync complete. ${syncResult.length} templates registered.`);
+    await syncTemplatesToDb(prisma, slug);
 
     res.json({ success: true, slug, message: 'Theme generated successfully' });
 

@@ -1235,44 +1235,53 @@ export async function getAvailableScaffolds() {
 }
 
 /**
- * Generate Theme (Dynamic via Scaffolds)
+ * Generate a draft theme plan (architect's proposal) without building anything.
  */
-export async function generateThemeFromIndustry(industry) {
-  // 1. Get available scaffolds to inform the AI
+export async function draftThemePlan(industry) {
   const scaffolds = await getAvailableScaffolds();
   const scaffoldList = scaffolds.map(s => `- ${s.name}: ${s.regions.map(r => r.name).join(', ')}`).join('\n');
 
-  // 2. Text Generation (Architecting the theme)
   const systemPrompt = `You are a WebWolf Theme Architect. 
-  Your goal is to generate a JSON object containing configuration and content for a new CMS theme.
+  Your goal is to generate a JSON object containing a STRATEGY for a new CMS theme.
   
-  AVAILABLE SCAFFOLDS (Blueprints):
+  AVAILABLE SCAFFOLDS:
   ${scaffoldList}
   
   Task: 
-  1. Pick the best scaffold from the list above for the given industry.
-  2. Generate a professional color palette and description.
-  3. Generate content for EVERY region defined in that scaffold.
+  1. Pick the best scaffold for the industry.
+  2. Generate a professional color palette.
+  3. Generate content for EVERY region in that scaffold.
   
   Output JSON format:
   {
     "slug": "kebab-case-slug",
     "name": "Display Name",
     "description": "Short description",
-    "scaffold": "scaffold-filename-without-ext",
+    "scaffold": "scaffold-name",
     "css_variables": {
       "--nano-brand": "#hex",
       "--nano-bg": "#hex",
       "--nano-text": "#hex"
     },
     "content": {
-      "region_name_1": "Generated text or HTML",
-      "region_name_2": "...",
-      "hero_image_prompt": "A detailed DALL-E 3 prompt for a hero image for this industry."
+      "headline": "...",
+      "subtext": "...",
+      "hero_image_prompt": "A detailed DALL-E 3 prompt for a hero image."
     }
   }`;
 
-  const themeData = await generateText(systemPrompt, `Create a theme for: ${industry}`);
+  return await generateText(systemPrompt, `Create a theme strategy for: ${industry}`);
+}
+
+/**
+ * Generate Theme (Dynamic via Scaffolds)
+ */
+export async function generateThemeFromIndustry(industry, existingPlan = null) {
+  // 1. Get scaffolds (always needed for mapping)
+  const scaffolds = await getAvailableScaffolds();
+  
+  // 2. Get the plan (either from draft or generate a new one)
+  const themeData = existingPlan || await draftThemePlan(industry);
 
   // 3. Image Generation
   let heroImagePath = '/images/placeholders/1920x600.svg';
@@ -1288,18 +1297,6 @@ export async function generateThemeFromIndustry(industry) {
   // Find the selected scaffold details
   const selectedScaffold = scaffolds.find(s => s.name === themeData.scaffold) || scaffolds[0];
 
-  // For homepage.njk, we want to OVERRIDE the default values in the scaffold
-  // with our AI generated content.
-  // The scaffold defines things like {{ content.headline | default("Welcome") }}
-  // We will generate a homepage.njk that sets these variables or overrides blocks.
-  
-  // Since our scaffolds use a single {% block content %}, we need to recreate the 
-  // content structure but with OUR AI values as the defaults.
-  
-  // Actually, the cleanest way is to use Nunjucks globals/set or 
-  // just generate the full content block by copying the scaffold's logic 
-  // but with new defaults.
-  
   const themeFiles = {
     'theme.json': JSON.stringify({
       name: themeData.name,
@@ -1314,8 +1311,8 @@ export async function generateThemeFromIndustry(industry) {
 
     'assets/css/style.css': `:root {
   --nano-brand: ${themeData.css_variables['--nano-brand']};
-  --nano-bg: ${themeData.css_variables['--nano-bg']};
-  --nano-text: ${themeData.css_variables['--nano-text']};
+  --nano-bg: ${themeData.css_variables['--nano-bg'] || '#ffffff'};
+  --nano-text: ${themeData.css_variables['--nano-text'] || '#1f2937'};
 }
 body { background-color: var(--nano-bg); color: var(--nano-text); }
 h1, h2, h3 { color: var(--nano-brand); }
@@ -1329,14 +1326,23 @@ h1, h2, h3 { color: var(--nano-brand); }
   {% set content = content | default({}) %}
   
   {# Inject AI defaults if content is empty #}
-  {% if not content.headline %}{% set _junk = content.update({'headline': "${themeData.content.headline.replace(/"/g, '\\"')}"}) %}{% endif %}
-  {% if not content.subtext %}{% set _junk = content.update({'subtext': "${themeData.content.subtext.replace(/"/g, '\\"')}"}) %}{% endif %}
+  ${Object.entries(themeData.content).map(([key, value]) => {
+    if (key === 'hero_image_prompt') return ''; // Skip the prompt
+    const escapedValue = typeof value === 'string' ? value.replace(/"/g, '\\"') : JSON.stringify(value).replace(/"/g, '\\"');
+    return `{% if not content.${key} %}{% set _junk = content.update({'${key}': "${escapedValue}"}) %}{% endif %}`;
+  }).join('\n  ')}
   {% if not content.hero_image %}{% set _junk = content.update({'hero_image': "${heroImagePath}"}) %}{% endif %}
   
   {# Call super to render the scaffold with our updated content object #}
   {{ super() }}
 {% endblock %}`
   };
+
+  return {
+    slug: themeData.slug,
+    files: themeFiles
+  };
+}
 
   return {
     slug: themeData.slug,
