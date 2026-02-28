@@ -42,14 +42,26 @@ class DbLoader extends nunjucks.Loader {
       return callback(null, this.tplCache.get(name));
     }
 
-    // Try exact name, then normalized path
+    // Resolution Strategy for DB templates:
+    // 1. Exact match (e.g. "scaffolds/hero.njk")
+    // 2. Theme-prefixed (e.g. "my-theme/pages/homepage.njk" when "pages/homepage.njk" requested)
+    // 3. Normalized variants (slashes)
+    
     const searchNames = [name];
-    if (name.startsWith('/')) searchNames.push(name.substring(1));
-    else searchNames.push('/' + name);
+    if (this.themeName && !name.startsWith(this.themeName + '/')) {
+      searchNames.push(`${this.themeName}/${name}`);
+    }
+    
+    // Add variations with/without leading slashes
+    const variations = [];
+    searchNames.forEach(n => {
+      variations.push(n.replace(/\\/g, '/').replace(/^\//, ''));
+      variations.push('/' + n.replace(/\\/g, '/').replace(/^\//, ''));
+    });
 
     prisma.templates.findFirst({
       where: { 
-        filename: { in: searchNames }
+        filename: { in: [...new Set(variations)] }
       }
     }).then(template => {
       if (template && template.content) {
@@ -194,7 +206,18 @@ export function getThemeAssets(themeName) {
       }
       current = config?.inherits || null;
     } else {
-      current = null;
+      // Virtual theme: No directory, but we might have templates in DB
+      // For virtual themes, we assume a standard layout if it exists
+      chain.unshift({ 
+        slug: current, 
+        config: { 
+          assets: { 
+            css: ["assets/css/style.css"] // Standard location for generated themes
+          },
+          inherits: "default" // Virtual themes always inherit default
+        } 
+      });
+      current = "default";
     }
   }
 
@@ -288,19 +311,32 @@ export function applyNunjucksCustomizations(env) {
  * Environments are cached by theme slug and database name — each tenant
  * gets their own environment to ensure isolation of globals and loaders.
  */
-export function getNunjucksEnv(themeName) {
+export async function getNunjucksEnv(themeName) {
   const dbName = getCurrentDbName();
 
-  // Validate theme exists on disk, fall back to default
+  // Validate theme exists on disk or DB
   const themePath = path.join(THEMES_DIR, themeName);
-  if (!fs.existsSync(themePath)) {
-    console.warn(`[ThemeResolver] Theme directory "${themeName}" not found, falling back to "default"`);
+  let themeExists = fs.existsSync(themePath);
+  
+  if (!themeExists) {
+    // Check if it's a virtual theme in the DB
+    const virtualCount = await prisma.templates.count({
+      where: { filename: { startsWith: themeName + '/' } }
+    });
+    if (virtualCount > 0) {
+      themeExists = true;
+    }
+  }
+
+  if (!themeExists) {
+    console.warn(`[ThemeResolver] Theme "${themeName}" not found on disk or DB, falling back to "default"`);
     themeName = 'default';
   }
 
   const config = getThemeConfig(themeName);
-  if (!config) {
-    themeName = 'default';
+  if (!config && themeName !== 'default') {
+    // For virtual themes, we might not have a theme.json, so we provide a minimal default
+    // Or we could store theme config in the settings table.
   }
 
   const cacheKey = `${themeName}:${dbName}`;

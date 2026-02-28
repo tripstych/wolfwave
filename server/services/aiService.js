@@ -1312,32 +1312,14 @@ export async function generateThemeFromIndustry(industry, existingPlan = null) {
   // Find the selected scaffold details
   const selectedScaffold = scaffolds.find(s => s.name === themeData.scaffold) || scaffolds[0];
 
-  const themeFiles = {
-    'theme.json': JSON.stringify({
-      name: themeData.name,
-      slug: themeData.slug,
-      inherits: "default",
-      version: "1.0.0",
-      description: themeData.description,
-      assets: {
-        css: ["assets/css/style.css"]
-      }
-    }, null, 2),
-
-    'assets/css/style.css': `:root {
-  --nano-brand: ${themeData.css_variables['--nano-brand']};
-  --nano-secondary: ${themeData.css_variables['--nano-secondary'] || '#64748b'};
-  --nano-bg: ${themeData.css_variables['--nano-bg'] || '#ffffff'};
-  --nano-text: ${themeData.css_variables['--nano-text'] || '#1f2937'};
-}
-body { background-color: var(--nano-bg); color: var(--nano-text); }
-h1, h2, h3 { color: var(--nano-brand); }
-.btn-primary { background-color: var(--nano-brand); color: white; }
-.btn-outline { border-color: var(--nano-secondary); color: var(--nano-secondary); }
-/* AI Generated Styles for ${themeData.scaffold} */
-`,
-
-    'pages/homepage.njk': `{% extends "scaffolds/${selectedScaffold.filename}" %}
+  return {
+    slug: themeData.slug,
+    name: themeData.name,
+    description: themeData.description,
+    scaffold: themeData.scaffold,
+    css_variables: themeData.css_variables,
+    templates: {
+      'pages/homepage.njk': `{% extends "scaffolds/${selectedScaffold.filename}" %}
 
 {% block content %}
   {# The AI generator populates the content object with industry-specific defaults #}
@@ -1353,11 +1335,19 @@ h1, h2, h3 { color: var(--nano-brand); }
   
   {# Call super to render the scaffold with our updated content object #}
   {{ super() }}
-{% endblock %}`
-  };
-
-  return {
-    slug: themeData.slug,
-    files: themeFiles
+{% endblock %}`,
+      'assets/css/style.css': `:root {
+  --nano-brand: ${themeData.css_variables['--nano-brand']};
+  --nano-secondary: ${themeData.css_variables['--nano-secondary'] || '#64748b'};
+  --nano-bg: ${themeData.css_variables['--nano-bg'] || '#ffffff'};
+  --nano-text: ${themeData.css_variables['--nano-text'] || '#1f2937'};
+}
+body { background-color: var(--nano-bg); color: var(--nano-text); }
+h1, h2, h3 { color: var(--nano-brand); }
+.btn-primary { background-color: var(--nano-brand); color: white; }
+.btn-outline { border-color: var(--nano-secondary); color: var(--nano-secondary); }
+/* AI Generated Styles for ${themeData.scaffold} */
+`
+    }
   };
 }

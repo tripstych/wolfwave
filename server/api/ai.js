@@ -57,24 +57,50 @@ router.post('/generate-theme', requireAuth, requireAdmin, async (req, res) => {
     const { industry, plan } = req.body;
     if (!industry && !plan) return res.status(400).json({ error: 'Industry or Plan is required' });
 
-    console.log(`[AI-DEBUG] 🚀 Generating theme for: "${industry || plan.name}"`);
+    console.log(`[AI-DEBUG] 🚀 Generating VIRTUAL theme for: "${industry || plan.name}"`);
 
-    // Use provided plan or generate a fresh one
-    const { slug, files } = await generateThemeFromIndustry(industry, plan);
-    
-    // Write files to disk
-    const themeDir = path.join(getThemesDir(), slug);
-    await fs.mkdir(path.join(themeDir, 'pages'), { recursive: true });
-    await fs.mkdir(path.join(themeDir, 'assets/css'), { recursive: true });
+    // 1. Generate the theme data (content + templates)
+    const themeData = await generateThemeFromIndustry(industry, plan);
+    const { slug, templates, name } = themeData;
 
-    for (const [relativePath, content] of Object.entries(files)) {
-      const filePath = path.join(themeDir, relativePath);
-      await fs.writeFile(filePath, content);
+    // 2. Save templates to the database (VIRTUAL storage)
+    // We use the slug as a prefix to avoid collisions
+    for (const [relativePath, content] of Object.entries(templates)) {
+      const dbFilename = `${slug}/${relativePath}`;
+      const contentType = relativePath.startsWith('pages/') ? 'pages' : 'assets';
+      
+      await prisma.templates.upsert({
+        where: { filename: dbFilename },
+        update: { 
+          content, 
+          name: `${name} ${path.basename(relativePath)}`,
+          content_type: contentType,
+          updated_at: new Date() 
+        },
+        create: {
+          filename: dbFilename,
+          name: `${name} ${path.basename(relativePath)}`,
+          content,
+          content_type: contentType,
+          created_at: new Date(),
+          updated_at: new Date()
+        }
+      });
+      console.log(`[AI-DEBUG] 💾 Saved virtual template: ${dbFilename}`);
     }
 
-    await syncTemplatesToDb(prisma, slug);
+    // 3. Update the active theme setting
+    await prisma.settings.upsert({
+      where: { setting_key: 'active_theme' },
+      update: { setting_value: slug },
+      create: { setting_key: 'active_theme', setting_value: slug }
+    });
 
-    res.json({ success: true, slug, message: 'Theme generated successfully' });
+    // 4. Clear cache so the new virtual theme is picked up
+    const { clearThemeCache } = await import('../services/themeResolver.js');
+    clearThemeCache();
+
+    res.json({ success: true, slug, message: 'Virtual theme generated and activated' });
 
   } catch (error) {
     console.error('[AI-DEBUG] ❌ Generation Failed:', error);

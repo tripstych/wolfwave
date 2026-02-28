@@ -32,7 +32,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Create a default Nunjucks env at startup (for express error pages, etc.)
-const defaultEnv = getNunjucksEnv('default');
+const defaultEnv = await getNunjucksEnv('default');
 app.locals.nunjucksEnv = defaultEnv;
 // Let express know how to render .njk files via the default env
 defaultEnv.express(app);
