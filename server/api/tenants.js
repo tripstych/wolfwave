@@ -7,9 +7,25 @@ import { syncTemplatesToDb } from '../services/templateParser.js';
 import { seedNewTenant } from '../services/tenantSeeder.js';
 import { generateImpersonationToken } from '../middleware/auth.js';
 import prisma from '../lib/prisma.js';
-import { runWithTenant } from '../lib/tenantContext.js';
+import { runWithTenant, getCurrentDbName } from '../lib/tenantContext.js';
 
 const router = Router();
+
+/**
+ * Middleware: Ensure the current request is executing on the primary global database.
+ * This prevents admins of tenant sites from accessing global tenant management APIs.
+ */
+function requireGlobal(req, res, next) {
+  const currentDb = getCurrentDbName();
+  const primaryDb = process.env.DB_NAME || 'wolfwave_default';
+  if (currentDb !== primaryDb) {
+    return res.status(403).json({ error: 'Access denied: Global administrative action' });
+  }
+  next();
+}
+
+// Apply the global restriction to all routes in this router
+router.use(requireGlobal);
 
 /**
  * Get a connection to the default (primary) database.

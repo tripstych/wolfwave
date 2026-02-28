@@ -104,7 +104,17 @@ router.get('/me', requireAuth, async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
     
-    res.json(users[0]);
+    // Check if we are on the global (primary) database
+    const { getCurrentDbName } = await import('../lib/tenantContext.js');
+    const currentDb = getCurrentDbName();
+    const primaryDb = process.env.DB_NAME || 'wolfwave_default';
+    
+    const userData = {
+      ...users[0],
+      is_global: currentDb === primaryDb
+    };
+    
+    res.json(userData);
   } catch (err) {
     console.error('Get user error:', err);
     res.status(500).json({ error: 'Failed to get user' });

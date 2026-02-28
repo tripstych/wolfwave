@@ -141,7 +141,6 @@ function App() {
                 <Route path="/marketing/coupons/:id" element={<CouponEditor />} />
                 <Route path="/sites" element={<Sites />} />
                 <Route path="/my-sites" element={<MySites />} />
-                <Route path="/tenants" element={<TenantList />} />
                 <Route path="/themes" element={<Themes />} />
                 <Route path="/themes/import" element={<WpThemeImport />} />
                 <Route path="/themes/:themeName/editor" element={<ThemeEditor />} />
@@ -154,7 +153,10 @@ function App() {
                 <Route path="/classifieds/my-ads" element={<MyClassifieds />} />
                 <Route path="/classifieds/:id" element={<ClassifiedDetail />} />
 
-                {/* Dynamic content type routes */}
+                {/* Global Admin Only Routes */}
+                {user?.is_global && (
+                  <Route path="/tenants" element={<TenantList />} />
+                )}
                 {contentTypes.map(type => (
                   <Fragment key={type.name}>
                     <Route

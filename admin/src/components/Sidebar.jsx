@@ -83,7 +83,7 @@ export default function Sidebar({ isOpen, onClose }) {
       items: [
         { name: _('nav.themes', 'Themes'), href: '/themes', icon: Palette },
         { name: _('nav.users', 'Users'), href: '/users', icon: Users },
-        { name: _('nav.sites', 'Sites'), href: '/tenants', icon: Globe },
+        ...(user?.is_global ? [{ name: _('nav.sites', 'Sites'), href: '/tenants', icon: Globe }] : []),
         { name: _('nav.email_templates', 'Email Templates'), href: '/email-templates', icon: Mail },
         { name: _('nav.seo', 'SEO'), href: '/seo', icon: Search },
         { name: _('nav.api_keys', 'API Keys'), href: '/api-keys', icon: Key },
