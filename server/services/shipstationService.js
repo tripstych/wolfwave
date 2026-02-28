@@ -1,9 +1,10 @@
 /**
- * ShipStation API Service (Push-based)
+ * ShipStation API Service
  *
- * Pushes orders from WolfWave to ShipStation using their API.
+ * Full integration with ShipStation's API.
  * Auth: API-Key header
  * Base URL: https://ssapi.shipstation.com
+ * Rate limit: 40 requests/minute
  */
 
 import axios from 'axios';
@@ -47,14 +48,20 @@ async function request(method, path, data = null) {
     config.params = data;
   }
 
+  if (method === 'delete') {
+    // delete requests don't have a body
+  }
+
   const response = await axios(config);
   return response.data;
 }
 
+// ─── Address & Order Mapping ─────────────────────────────────────────
+
 /**
  * Map WolfWave order status to ShipStation status
  */
-function mapOrderStatus(status) {
+export function mapOrderStatus(status) {
   const statusMap = {
     'pending': 'awaiting_payment',
     'processing': 'awaiting_shipment',
@@ -69,7 +76,7 @@ function mapOrderStatus(status) {
 /**
  * Map a WolfWave JSON address to ShipStation address format
  */
-function mapAddress(addr) {
+export function mapAddress(addr) {
   if (!addr) return { name: '', street1: '', city: '', state: '', postalCode: '', country: 'US' };
 
   const parsed = typeof addr === 'string' ? JSON.parse(addr) : addr;
@@ -92,7 +99,7 @@ function mapAddress(addr) {
 /**
  * Transform a WolfWave order (with items and customer) into ShipStation format
  */
-function transformOrder(order, orderItems, customer) {
+export function transformOrder(order, orderItems, customer) {
   const billing = mapAddress(order.billing_address);
   const shipping = mapAddress(order.shipping_address);
 
@@ -130,33 +137,202 @@ function transformOrder(order, orderItems, customer) {
   };
 }
 
-/**
- * Push a single order to ShipStation
- */
-export async function pushOrder(order, orderItems, customer) {
+// ─── Orders ──────────────────────────────────────────────────────────
+
+export async function createOrder(order, orderItems, customer) {
   const payload = transformOrder(order, orderItems, customer);
   return await request('post', '/orders/createorder', payload);
 }
 
-/**
- * Get an order from ShipStation by its ShipStation order ID
- */
-export async function getOrder(shipstationOrderId) {
-  return await request('get', `/orders/${shipstationOrderId}`);
+export async function getOrder(orderId) {
+  return await request('get', `/orders/${orderId}`);
 }
 
-/**
- * List orders from ShipStation with optional filters
- */
 export async function listOrders(params = {}) {
   return await request('get', '/orders', params);
 }
 
-/**
- * Test the API connection
- */
+export async function deleteOrder(orderId) {
+  return await request('delete', `/orders/${orderId}`);
+}
+
+export async function holdOrder(orderId, holdUntilDate) {
+  return await request('post', `/orders/holduntil`, { orderId, holdUntilDate });
+}
+
+export async function restoreOrder(orderId) {
+  return await request('post', `/orders/restorefromhold`, { orderId });
+}
+
+export async function assignTag(orderId, tagId) {
+  return await request('post', '/orders/addtag', { orderId, tagId });
+}
+
+export async function removeTag(orderId, tagId) {
+  return await request('post', '/orders/removetag', { orderId, tagId });
+}
+
+export async function markAsShipped(orderId, carrierCode, shipDate, trackingNumber, notifyCustomer = true, notifySalesChannel = true) {
+  return await request('post', '/orders/markasshipped', {
+    orderId,
+    carrierCode,
+    shipDate,
+    trackingNumber,
+    notifyCustomer,
+    notifySalesChannel
+  });
+}
+
+// ─── Shipments ───────────────────────────────────────────────────────
+
+export async function listShipments(params = {}) {
+  return await request('get', '/shipments', params);
+}
+
+export async function getShippingRates(rateOptions) {
+  return await request('post', '/shipments/getrates', rateOptions);
+}
+
+export async function createLabel(labelData) {
+  return await request('post', '/shipments/createlabel', labelData);
+}
+
+export async function voidLabel(shipmentId) {
+  return await request('post', '/shipments/voidlabel', { shipmentId });
+}
+
+// ─── Carriers ────────────────────────────────────────────────────────
+
+export async function listCarriers() {
+  return await request('get', '/carriers');
+}
+
+export async function getCarrier(carrierCode) {
+  return await request('get', `/carriers/getcarrier`, { carrierCode });
+}
+
+export async function listCarrierServices(carrierCode) {
+  return await request('get', '/carriers/listservices', { carrierCode });
+}
+
+export async function listCarrierPackages(carrierCode) {
+  return await request('get', '/carriers/listpackages', { carrierCode });
+}
+
+// ─── Warehouses ──────────────────────────────────────────────────────
+
+export async function listWarehouses() {
+  return await request('get', '/warehouses');
+}
+
+export async function createWarehouse(warehouseData) {
+  return await request('post', '/warehouses/createwarehouse', warehouseData);
+}
+
+export async function updateWarehouse(warehouseData) {
+  return await request('put', `/warehouses/${warehouseData.warehouseId}`, warehouseData);
+}
+
+export async function deleteWarehouse(warehouseId) {
+  return await request('delete', `/warehouses/${warehouseId}`);
+}
+
+// ─── Products ────────────────────────────────────────────────────────
+
+export async function listProducts(params = {}) {
+  return await request('get', '/products', params);
+}
+
+export async function getProduct(productId) {
+  return await request('get', `/products/${productId}`);
+}
+
+export async function updateProduct(productId, productData) {
+  return await request('put', `/products/${productId}`, productData);
+}
+
+// ─── Customers ───────────────────────────────────────────────────────
+
+export async function listCustomers(params = {}) {
+  return await request('get', '/customers', params);
+}
+
+export async function getCustomer(customerId) {
+  return await request('get', `/customers/${customerId}`);
+}
+
+// ─── Stores ──────────────────────────────────────────────────────────
+
+export async function listStores() {
+  return await request('get', '/stores');
+}
+
+export async function getStore(storeId) {
+  return await request('get', `/stores/${storeId}`);
+}
+
+export async function refreshStore(storeId, refreshDate) {
+  return await request('put', `/stores/${storeId}/refreshstore`, { storeId, refreshDate });
+}
+
+// ─── Fulfillments ────────────────────────────────────────────────────
+
+export async function listFulfillments(params = {}) {
+  return await request('get', '/fulfillments', params);
+}
+
+// ─── Webhooks ────────────────────────────────────────────────────────
+
+export async function listWebhooks() {
+  return await request('get', '/webhooks');
+}
+
+export async function subscribeWebhook(targetUrl, event, storeId = null) {
+  return await request('post', '/webhooks/subscribe', {
+    target_url: targetUrl,
+    event,
+    store_id: storeId
+  });
+}
+
+export async function unsubscribeWebhook(webhookId) {
+  return await request('delete', `/webhooks/${webhookId}`);
+}
+
+// ─── Tags ────────────────────────────────────────────────────────────
+
+export async function listTags() {
+  return await request('get', '/accounts/listtags');
+}
+
+// ─── Test Connection ─────────────────────────────────────────────────
+
 export async function testConnection() {
   return await request('get', '/warehouses');
 }
 
-export default { pushOrder, getOrder, listOrders, testConnection };
+export default {
+  // Orders
+  createOrder, getOrder, listOrders, deleteOrder,
+  holdOrder, restoreOrder, assignTag, removeTag, markAsShipped,
+  // Shipments & Rates
+  listShipments, getShippingRates, createLabel, voidLabel,
+  // Carriers
+  listCarriers, getCarrier, listCarrierServices, listCarrierPackages,
+  // Warehouses
+  listWarehouses, createWarehouse, updateWarehouse, deleteWarehouse,
+  // Products
+  listProducts, getProduct, updateProduct,
+  // Customers
+  listCustomers, getCustomer,
+  // Stores
+  listStores, getStore, refreshStore,
+  // Fulfillments
+  listFulfillments,
+  // Webhooks
+  listWebhooks, subscribeWebhook, unsubscribeWebhook,
+  // Tags
+  listTags,
+  // Utils
+  testConnection, transformOrder, mapAddress, mapOrderStatus
+};
