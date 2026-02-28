@@ -74,14 +74,17 @@ function ProtectedRoute({ children }) {
 function App() {
   const { contentTypes } = useContentTypes();
 
-  // Check if accessing from admin subdomain
+  // Block admin panel on the bare/default domain (no subdomain), but allow it
+  // on any subdomain (admin.*, tenant.*, etc.) and on localhost
   useEffect(() => {
     const hostname = window.location.hostname;
-    const isAdminSubdomain = hostname.startsWith('admin.');
     const isLocalhost = hostname === 'localhost' || hostname.startsWith('127.0.0.1');
-    
-    if (!isAdminSubdomain && !isLocalhost) {
-      // Not on admin subdomain - block access
+    // Count domain parts: "wolfwave.shop" = 2 (bare domain), "anything.wolfwave.shop" = 3+ (has subdomain)
+    const parts = hostname.split('.');
+    const hasSubdomain = parts.length > 2;
+
+    if (!hasSubdomain && !isLocalhost) {
+      // Bare domain with no subdomain - block access
       document.body.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100vh; font-family: sans-serif;"><h1>404 - Not Found</h1></div>';
     }
   }, []);
