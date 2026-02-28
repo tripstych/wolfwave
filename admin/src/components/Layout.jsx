@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+
 import { useAuth } from '../context/AuthContext';
-import { useContentTypes } from '../context/ContentTypesContext';
 import UserMenu from './UserMenu';
 import Sidebar from './Sidebar';
 import { Menu } from 'lucide-react';
@@ -9,14 +8,11 @@ import { Menu } from 'lucide-react';
 export default function Layout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user, logout } = useAuth();
-  const { contentTypes } = useContentTypes();
-
   return (
     <div className="min-h-screen bg-gray-50">
-      <Sidebar 
-        isOpen={sidebarOpen} 
-        onClose={() => setSidebarOpen(false)} 
-        contentTypes={contentTypes} 
+      <Sidebar
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
       />
 
       {/* Main content */}

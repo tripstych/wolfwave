@@ -18,8 +18,9 @@ import { accessLog, errorLog, closeLogs, info, error as logError } from './lib/l
 import { maybePatchConsole } from './lib/consolePatch.js';
 import woocommerceApiRoutes from './api/woocommerce.js';
 import woocommerceLegacyRoutes from './api/woocommerceLegacy.js';
-import shipstationRoutes from './api/shipstation.js';
-import shipstationRestRoutes from './api/shipstation-rest.js';
+// ShipStation v1 disabled - will be replaced with v2 API integration
+// import shipstationRoutes from './api/shipstation.js';
+// import shipstationRestRoutes from './api/shipstation-rest.js';
 import { authenticateWooCommerce } from './middleware/woocommerceAuth.js';
 import { requireAdminDomain } from './middleware/adminDomainCheck.js';
 import devtoolsRoutes from './api/devtools.js';
@@ -144,14 +145,8 @@ app.use('/styles', styleRoutes);
 // WooCommerce REST API (must be before /api to avoid conflicts)
 app.use('/wp-json/wc/v3', authenticateWooCommerce, woocommerceApiRoutes);
 
-// ShipStation REST API (WooCommerce ShipStation plugin format)
-app.use('/wp-json/wc-shipstation/v1', authenticateWooCommerce, shipstationRestRoutes);
-
-// WooCommerce Legacy XML API (for ShipStation compatibility)
+// WooCommerce Legacy XML API
 app.use('/wc-api/v3', woocommerceLegacyRoutes);
-
-// ShipStation Direct Integration API (native WolfWave implementation)
-app.use('/wc-api/v3', shipstationRoutes);
 
 // API routes
 app.use('/api', apiRoutes);

@@ -44,6 +44,7 @@ import stylesheetsRoutes from './stylesheets.js';
 import woocommerceKeysRoutes from './woocommerceKeys.js';
 import woocommerceSyncRoutes from './woocommerceSync.js';
 import modulesRoutes from './modules.js';
+import shipstationV2Routes from './shipstation-v2.js';
 
 const router = Router();
 
@@ -92,6 +93,7 @@ router.use('/stylesheets', stylesheetsRoutes);
 router.use('/woocommerce-keys', woocommerceKeysRoutes);
 router.use('/woocommerce-sync', woocommerceSyncRoutes);
 router.use('/modules', modulesRoutes);
+router.use('/shipstation', shipstationV2Routes);
 
 // Health check
 router.get('/health', (req, res) => {

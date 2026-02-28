@@ -1,26 +1,11 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { X, LayoutDashboard, FileText, Boxes, Puzzle, Layers, Image, List, Tag, Package, Briefcase, Users, CreditCard, Palette, Building, Mail, Search, Settings, Download, Globe, Key, Megaphone, BookOpen, Zap, Heart, ShoppingCart, FolderOpen } from 'lucide-react';
+import { X, LayoutDashboard, Boxes, Puzzle, Layers, Image, List, Tag, Package, Briefcase, Users, CreditCard, Palette, Mail, Search, Settings, Download, Globe, Key, Megaphone, Zap, Heart, ShoppingCart, FolderOpen } from 'lucide-react';
 import SidebarItem from './SidebarItem';
 import { useTranslation } from '../context/TranslationContext';
 
-const ICON_MAP = {
-  'LayoutDashboard': LayoutDashboard,
-  'FileText': FileText,
-  'BookOpen': BookOpen,
-  'Boxes': Boxes,
-  'Package': Package,
-  'Users': Users,
-  'Briefcase': Briefcase,
-  'Layers': Layers,
-  'Image': Image,
-  'List': List,
-  'Search': Search,
-  'Settings': Settings,
-  'Puzzle': Puzzle
-};
 
-export default function Sidebar({ isOpen, onClose, contentTypes = [] }) {
+export default function Sidebar({ isOpen, onClose }) {
   const { _ } = useTranslation();
 
   const navigationSections = [
@@ -32,13 +17,6 @@ export default function Sidebar({ isOpen, onClose, contentTypes = [] }) {
       section: _('nav.section.content', 'Content'),
       items: [
         { name: _('nav.media', 'Media'), href: '/media', icon: Image },
-        ...contentTypes
-          .filter(type => !['products', 'blocks', 'widgets', 'shop', 'shops', 'blog', 'components', 'partials', 'customer'].includes(type.name))
-          .map(type => ({
-            name: _(`content_type.${type.name}.plural`, type.plural_label),
-            href: `/${type.name}`,
-            icon: ICON_MAP[type.icon] || FileText
-          })),
         { name: _('nav.blocks', 'Blocks'), href: '/blocks', icon: Boxes },
         { name: _('nav.widgets', 'Widgets'), href: '/widgets', icon: Puzzle },
         { name: _('nav.templates', 'Templates'), href: '/templates', icon: Layers },

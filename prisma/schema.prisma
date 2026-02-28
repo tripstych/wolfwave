@@ -154,6 +154,8 @@ model customers {
   buyer_conversations    conversations[]          @relation("BuyerConversations")
   seller_conversations   conversations[]          @relation("SellerConversations")
   messages               messages[]
+  customer_modules       customer_modules[]
+  module_usage           module_usage[]
 
   @@index([email], map: "idx_email")
   @@index([user_id], map: "user_id")
@@ -601,6 +603,7 @@ model subscription_plans {
   created_at             DateTime                 @default(now()) @db.Timestamp(0)
   updated_at             DateTime                 @default(now()) @db.Timestamp(0)
   customer_subscriptions customer_subscriptions[]
+  plan_modules           plan_modules[]
 
   @@index([is_active], map: "idx_active")
 }
@@ -859,17 +862,71 @@ model woocommerce_api_keys {
 }
 
 model modules {
-  id               Int       @id @default(autoincrement())
-  name             String    @unique @db.VarChar(100)
-  description      String?   @db.Text
-  category         String?   @default("integration") @db.VarChar(50)
-  icon             String?   @db.VarChar(50)
-  is_system        Boolean   @default(false)
-  requires_config  Boolean   @default(false)
+  id               Int                @id @default(autoincrement())
+  name             String             @db.VarChar(100)
+  slug             String             @unique @db.VarChar(100)
+  description      String?            @db.Text
+  category         String?            @default("integration") @db.VarChar(50)
+  icon             String?            @db.VarChar(50)
+  is_system        Boolean            @default(false)
+  requires_config  Boolean            @default(false)
   config_schema    Json?
-  default_enabled  Boolean   @default(false)
-  created_at       DateTime  @default(now()) @db.Timestamp(0)
-  updated_at       DateTime  @default(now()) @db.Timestamp(0)
+  default_enabled  Boolean            @default(false)
+  created_at       DateTime           @default(now()) @db.Timestamp(0)
+  updated_at       DateTime           @default(now()) @db.Timestamp(0)
+  customer_modules customer_modules[]
+  plan_modules     plan_modules[]
+  module_usage     module_usage[]
 
   @@index([category])
+  @@index([slug])
+}
+
+model customer_modules {
+  id            Int      @id @default(autoincrement())
+  customer_id   Int
+  module_id     Int
+  is_enabled    Boolean  @default(true)
+  config        Json?
+  override_plan Boolean  @default(true)
+  created_at    DateTime @default(now()) @db.Timestamp(0)
+  updated_at    DateTime @default(now()) @db.Timestamp(0)
+  customers     customers @relation(fields: [customer_id], references: [id], onDelete: Cascade)
+  modules       modules   @relation(fields: [module_id], references: [id], onDelete: Cascade)
+
+  @@unique([customer_id, module_id])
+  @@index([customer_id])
+  @@index([module_id])
+}
+
+model plan_modules {
+  id          Int                @id @default(autoincrement())
+  plan_id     Int
+  module_id   Int
+  is_enabled  Boolean            @default(true)
+  config      Json?
+  created_at  DateTime           @default(now()) @db.Timestamp(0)
+  updated_at  DateTime           @default(now()) @db.Timestamp(0)
+  plans       subscription_plans @relation(fields: [plan_id], references: [id], onDelete: Cascade)
+  modules     modules            @relation(fields: [module_id], references: [id], onDelete: Cascade)
+
+  @@unique([plan_id, module_id])
+  @@index([plan_id])
+  @@index([module_id])
+}
+
+model module_usage {
+  id           Int      @id @default(autoincrement())
+  customer_id  Int
+  module_id    Int
+  usage_type   String   @db.VarChar(50)
+  usage_count  Int      @default(1)
+  metadata     Json?
+  created_at   DateTime @default(now()) @db.Timestamp(0)
+  customers    customers @relation(fields: [customer_id], references: [id], onDelete: Cascade)
+  modules      modules   @relation(fields: [module_id], references: [id], onDelete: Cascade)
+
+  @@index([customer_id])
+  @@index([module_id])
+  @@index([created_at])
 }

@@ -5,8 +5,38 @@ import { logInfo, logError } from '../lib/logger.js';
 import axios from 'axios';
 import { SYSTEM_ROUTES } from '../lib/systemRoutes.js';
 import { testS3Connection } from '../services/s3Service.js';
+import { getCustomerModules } from '../services/moduleManager.js';
+import { getTenantInfoByDb } from '../services/tenantService.js';
 
 const router = Router();
+
+/**
+ * GET /api/settings/modules
+ * Returns enabled modules for the current tenant to filter UI tabs.
+ */
+router.get('/modules', requireAuth, async (req, res) => {
+  try {
+    const dbName = req.tenantDb;
+    if (!dbName) {
+      return res.status(500).json({ error: 'Tenant context missing' });
+    }
+
+    const tenantInfo = await getTenantInfoByDb(dbName);
+    if (!tenantInfo || !tenantInfo.customer_id) {
+      return res.status(403).json({ error: 'Tenant owner not found' });
+    }
+
+    const modulesData = await getCustomerModules(tenantInfo.customer_id);
+    const enabledModules = modulesData.modules
+      .filter(m => m.enabled)
+      .map(m => m.slug);
+
+    res.json(enabledModules);
+  } catch (err) {
+    console.error('Get enabled modules error:', err);
+    res.status(500).json({ error: 'Failed to get enabled modules' });
+  }
+});
 
 /**
  * GET /api/settings/system-routes

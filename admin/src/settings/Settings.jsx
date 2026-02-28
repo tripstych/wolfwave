@@ -34,16 +34,21 @@ export default function Settings() {
   const { refreshSettings } = useSettings();
   const { _ } = useTranslation();
   const [activeTab, setActiveTab] = useState('general');
+  const [enabledModules, setEnabledModules] = useState([]);
 
-  const TABS = [
+  const ALL_TABS = [
     { id: 'general', label: _('settings.tab.general', 'General'), icon: SettingsIcon },
     { id: 'seo', label: _('settings.tab.seo', 'SEO & Analytics'), icon: Search },
     { id: 'storage', label: _('settings.tab.storage', 'Storage'), icon: HardDrive },
-    { id: 'payments', label: _('settings.tab.payments', 'Payments'), icon: CreditCard },
-    { id: 'email', label: _('settings.tab.email', 'Email'), icon: Mail },
-    { id: 'amazon', label: _('settings.tab.amazon', 'Amazon'), icon: ShoppingCart },
-    { id: 'ai', label: _('settings.tab.ai', 'AI Services'), icon: Cpu },
+    { id: 'payments', label: _('settings.tab.payments', 'Payments'), icon: CreditCard, module: 'ecommerce' },
+    { id: 'email', label: _('settings.tab.email', 'Email'), icon: Mail, module: 'email-marketing' },
+    { id: 'amazon', label: _('settings.tab.amazon', 'Amazon'), icon: ShoppingCart, module: 'amazon-integration' },
+    { id: 'ai', label: _('settings.tab.ai', 'AI Services'), icon: Cpu, module: 'ai-services' },
+    { id: 'shipstation', label: _('settings.tab.shipstation', 'ShipStation'), icon: ShoppingCart, module: 'shipstation' },
   ];
+
+  // Filter tabs based on enabled modules
+  const TABS = ALL_TABS.filter(tab => !tab.module || enabledModules.includes(tab.module));
 
   const [settings, setSettings] = useState({
     site_name: '',
@@ -93,6 +98,7 @@ export default function Settings() {
     s3_role_arn: '',
     s3_external_id: '',
     s3_prefix: '',
+    shipstation_api_key: '',
   });
   const [pages, setPages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -109,9 +115,10 @@ export default function Settings() {
 
   const loadSettings = async () => {
     try {
-      const [data, pagesData] = await Promise.all([
+      const [data, pagesData, modulesData] = await Promise.all([
         api.get('/settings'),
-        api.get('/pages')
+        api.get('/pages'),
+        api.get('/settings/modules').catch(() => []) // Fallback to empty if not implemented or fails
       ]);
       setSettings(prev => {
         const loaded = {};
@@ -122,6 +129,7 @@ export default function Settings() {
         return loaded;
       });
       setPages(pagesData.data || pagesData || []);
+      setEnabledModules(modulesData || []);
     } catch (err) {
       console.error('Failed to load settings:', err);
       setError(_('settings.error.load_failed', 'Failed to load settings'));
@@ -129,6 +137,13 @@ export default function Settings() {
       setLoading(false);
     }
   };
+
+  // Ensure active tab is valid after modules load
+  useEffect(() => {
+    if (!loading && !TABS.find(t => t.id === activeTab)) {
+      setActiveTab('general');
+    }
+  }, [enabledModules, loading]);
 
   const handleSave = async () => {
     setError('');
@@ -527,6 +542,28 @@ export default function Settings() {
         {/* Amazon Tab */}
         {activeTab === 'amazon' && (
           <AmazonDashboard settings={settings} setSettings={setSettings} onSave={handleSave} saving={saving} />
+        )}
+
+        {/* ShipStation Tab */}
+        {activeTab === 'shipstation' && (
+          <div className="space-y-6">
+            <div className="card p-6 space-y-4">
+              <h2 className="font-semibold text-gray-900 pb-2 border-b border-gray-200">ShipStation</h2>
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-2">
+                <p className="text-sm text-blue-800 font-medium">Connect to ShipStation</p>
+                <ol className="list-decimal list-inside text-xs text-blue-700 space-y-1">
+                  <li>In ShipStation, add a new store of type <strong>WooCommerce</strong>.</li>
+                  <li>Enter your site URL: <code>{settings.site_url || '(Set site URL first)'}</code></li>
+                  <li>Enter the <strong>Authentication Key</strong> below in the "Auth Key" or "Password" field in ShipStation.</li>
+                </ol>
+              </div>
+              {field('shipstation_api_key', _('settings.shipstation.api_key', 'API Key'), { 
+                type: 'password', 
+                placeholder: 'Your secure API Key',
+                hint: _('settings.shipstation.api_key_hint', 'Your API Key from ShipStation (Settings > API Settings).') 
+              })}
+            </div>
+          </div>
         )}
 
         {/* AI Tab */}
