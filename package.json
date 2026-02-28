@@ -18,7 +18,8 @@
     "test:watch": "vitest",
     "test:shipstation": "node test-shipstation.js",
     "deploy:test": "bash test-and-deploy.sh",
-    "start": "pm2 start server/index.js --name wolfwave --update-env && pm2 logs wolfwave",
+    "start": "node server/index.js",
+    "admin": "npm run dev --prefix admin",
     "postinstall": "cd admin && npm install"
   },
   "dependencies": {
@@ -41,7 +42,6 @@
     "mysql2": "^3.6.5",
     "nunjucks": "^3.2.4",
     "pluralize": "^8.0.0",
-    "pm2": "^6.0.14",
     "prisma": "^6.19.2",
     "resend": "^6.9.2",
     "slugify": "^1.6.6",

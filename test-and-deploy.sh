@@ -11,10 +11,10 @@ echo "📦 Pulling latest code..."
 git pull
 
 # Restart server
-echo "🔧 Restarting server..."
-pm2 restart wolfwave
-sleep 2
-echo "✅ Server restarted"
+echo "🔧 Restarting server (manual restart needed if not using a runner)..."
+# pm2 restart wolfwave
+# sleep 2
+# echo "✅ Server restarted"
 
 # Run tests
 echo "🧪 Running ShipStation integration tests..."
@@ -22,8 +22,8 @@ node test-shipstation.js
 
 # Show recent logs
 echo ""
-echo "📊 Recent server logs:"
-pm2 logs wolfwave --lines 20 --nostream | grep -i "shipstation\|error" || echo "No errors found"
+echo "📊 Note: PM2 logs disabled. Check system logs if needed."
+# pm2 logs wolfwave --lines 20 --nostream | grep -i "shipstation\|error" || echo "No errors found"
 
 echo ""
 echo "✅ Done!"
