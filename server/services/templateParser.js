@@ -280,11 +280,19 @@ export async function syncTemplatesToDb(prisma, themeName = 'default') {
 
   // ── CLEANUP STALE TEMPLATES ──
   // Find templates in DB that were NOT found on filesystem
-  const staleTemplates = await prisma.templates.findMany({
-    where: {
-      filename: { notIn: syncedFilenames }
-    },
+  const allDbTemplates = await prisma.templates.findMany({
+    where: { filename: { notIn: syncedFilenames } },
     select: { id: true, filename: true, content_type: true }
+  });
+
+  // Exclude virtual theme templates (slug-prefixed, e.g. "my-theme/pages/homepage.njk")
+  // which only exist in DB and are managed by the AI theme generator.
+  // Standard filesystem templates start with a known directory like pages/, posts/, blocks/, etc.
+  const knownPrefixes = syncedFilenames.map(f => f.split('/')[0]);
+  const knownDirs = new Set(knownPrefixes);
+  const staleTemplates = allDbTemplates.filter(t => {
+    const topDir = t.filename.split('/')[0];
+    return knownDirs.has(topDir);
   });
 
   if (staleTemplates.length > 0) {
