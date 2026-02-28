@@ -3,7 +3,7 @@
 {% block styles %}
 .portfolio-hero {
   padding: 10rem 0 6rem;
-  background: white;
+  background: var(--color-background);
   text-align: center;
 }
 
@@ -103,7 +103,7 @@
 
 <section class="contact-section">
   <div class="container">
-    <h2 data-cms-region="contact_title" data-cms-type="text">{{ content.contact_title | default("Let's Collaborate") }}</h2>
+    <h2 data-cms-region="contact_title" data-cms-type="text" data-cms-label="Contact Section Title">{{ content.contact_title | default("Let's Collaborate") }}</h2>
     <p class="mb-4">Have an ambitious project in mind? We'd love to hear from you.</p>
     <a href="#" class="btn btn-primary btn-lg">Say Hello</a>
   </div>

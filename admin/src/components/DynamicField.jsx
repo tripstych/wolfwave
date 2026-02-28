@@ -97,6 +97,25 @@ export default function DynamicField({
         </div>
       );
 
+    case 'color':
+      return (
+        <div className="flex items-center gap-3">
+          <input
+            type="color"
+            value={value || '#000000'}
+            onChange={(e) => handleChange(e.target.value)}
+            className="w-10 h-10 rounded border border-gray-300 cursor-pointer p-0.5"
+          />
+          <input
+            type="text"
+            value={value || ''}
+            onChange={(e) => handleChange(e.target.value)}
+            className="input w-32 font-mono text-sm"
+            placeholder="#000000"
+          />
+        </div>
+      );
+
     case 'checkbox':
       return (
         <input

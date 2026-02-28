@@ -14,7 +14,7 @@
 
 .schedule-section {
   padding: 8rem 0;
-  background: white;
+  background: var(--color-background);
 }
 
 .schedule-grid {
@@ -49,7 +49,7 @@
 
 .speaker-card {
   padding: 2rem;
-  background: white;
+  background: var(--color-background);
   border-radius: 1rem;
   transition: transform 0.2s;
 }
@@ -60,7 +60,7 @@
 
 .registration-cta {
   padding: 8rem 0;
-  background: white;
+  background: var(--color-background);
   text-align: center;
 }
 
@@ -142,7 +142,7 @@
 
 <section id="register" class="registration-cta">
   <div class="container">
-    <h2 data-cms-region="bottom_cta_title" data-cms-type="text">{{ content.bottom_cta_title | default("Secure Your Spot Today") }}</h2>
+    <h2 data-cms-region="bottom_cta_title" data-cms-type="text" data-cms-label="Bottom CTA Title">{{ content.bottom_cta_title | default("Secure Your Spot Today") }}</h2>
     <p class="mb-4">Tickets are selling fast. Don't miss out on this incredible learning opportunity.</p>
     <a href="#" class="btn btn-primary btn-lg">Register Now</a>
   </div>

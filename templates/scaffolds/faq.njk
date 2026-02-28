@@ -3,7 +3,7 @@
 {% block styles %}
 .faq-hero {
   padding: 8rem 0 4rem;
-  background: white;
+  background: var(--color-background);
   text-align: center;
 }
 
@@ -77,7 +77,7 @@
 
 <section class="support-cta">
   <div class="container">
-    <h2 data-cms-region="bottom_cta_title" data-cms-type="text">{{ content.bottom_cta_title | default("Still Have Questions?") }}</h2>
+    <h2 data-cms-region="bottom_cta_title" data-cms-type="text" data-cms-label="Bottom CTA Title">{{ content.bottom_cta_title | default("Still Have Questions?") }}</h2>
     <p class="mb-4">Can't find the answer you're looking for? Please chat to our friendly team.</p>
     <a href="/contact" class="btn btn-primary btn-lg">Contact Support</a>
   </div>
