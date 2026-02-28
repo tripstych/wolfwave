@@ -106,7 +106,7 @@ export default function MediaPicker({ onSelect, onClose }) {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/*,.svg"
                 onChange={handleUpload}
                 className="hidden"
               />

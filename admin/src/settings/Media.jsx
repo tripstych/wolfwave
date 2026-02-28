@@ -136,7 +136,7 @@ export default function Media() {
             ref={fileInputRef}
             type="file"
             multiple
-            accept="image/*,video/*,.pdf,.doc,.docx"
+            accept="image/*,.svg,video/*,.pdf,.doc,.docx"
             onChange={handleUpload}
             className="hidden"
           />
