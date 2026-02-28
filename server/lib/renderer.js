@@ -65,7 +65,7 @@ export async function processShortcodes(html, env, blocksData, context = {}, dep
   return result;
 }
 
-export function themeRender(req, res, templateFilename, context = {}) {
+export async function themeRender(req, res, templateFilename, context = {}) {
   const site = res.locals.site || {};
   const blocks = res.locals.blocks || [];
   const customer = res.locals.customer || null;
