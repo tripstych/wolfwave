@@ -1,14 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { X, LayoutDashboard, Boxes, Puzzle, Layers, Image, List, Tag, Package, Briefcase, Users, CreditCard, Palette, Mail, Search, Settings, Download, Globe, Key, Megaphone, Zap, Heart, ShoppingCart, FolderOpen, Truck } from 'lucide-react';
+import { X, LayoutDashboard, Boxes, Puzzle, Layers, Image, List, Tag, Package, Briefcase, Users, CreditCard, Palette, Mail, Search, Settings, Download, Globe, Key, Megaphone, Zap, Heart, ShoppingCart, FolderOpen, Truck, FileText } from 'lucide-react';
 import SidebarItem from './SidebarItem';
 import { useTranslation } from '../context/TranslationContext';
-import { useContentTypes } from '../context/ContentTypesContext';
 
 
 export default function Sidebar({ isOpen, onClose }) {
   const { _ } = useTranslation();
-  const { contentTypes } = useContentTypes();
 
   const navigationSections = [
     {
@@ -16,13 +14,10 @@ export default function Sidebar({ isOpen, onClose }) {
       items: [{ name: _('nav.dashboard', 'Dashboard'), href: '/', icon: LayoutDashboard }]
     },
     {
-      section: _('nav.section.modules', 'Modules'),
+      section: _('nav.section.content_modules', 'Content Modules'),
       items: [
-        ...contentTypes.map(type => ({
-          name: type.plural_label || (type.name.charAt(0).toUpperCase() + type.name.slice(1)),
-          href: `/${type.name}`,
-          icon: type.icon === 'FileText' ? List : (type.icon === 'Boxes' ? Boxes : (type.icon === 'Puzzle' ? Puzzle : List))
-        })),
+        { name: _('nav.pages', 'Pages'), href: '/pages', icon: FileText },
+        { name: _('nav.posts', 'Posts'), href: '/posts', icon: FileText },
         { name: _('nav.blocks', 'Blocks'), href: '/blocks', icon: Boxes },
         { name: _('nav.widgets', 'Widgets'), href: '/widgets', icon: Puzzle },
       ]
