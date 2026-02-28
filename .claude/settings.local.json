@@ -9,7 +9,8 @@
       "WebFetch(domain:docs.shipstation.com)",
       "WebFetch(domain:www.shipstation.com)",
       "Bash(grep:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(node --check:*)"
     ]
   }
 }

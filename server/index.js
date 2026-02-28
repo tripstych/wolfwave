@@ -31,136 +31,18 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Create a default Nunjucks env at startup (for express error pages, etc.)
-const defaultEnv = await getNunjucksEnv('default');
-app.locals.nunjucksEnv = defaultEnv;
-// Let express know how to render .njk files via the default env
-defaultEnv.express(app);
-
-// Middleware
-// app.use(cors({
-//   origin: (origin, callback) => {
-//     // Allow localhost:5173 and *.localhost:5173
-//     if (!origin || 
-//         origin === 'http://localhost:5173' || 
-//         /^http:\/\/.*\.localhost:5173$/.test(origin)) {
-//       callback(null, true);
-//     } else {
-//       callback(new Error('Not allowed by CORS'));
-//     }
-//   },
-//   credentials: true
-// }));
-
-// Capture raw body for webhook signature verification (must be before JSON parsing)
-app.use((req, res, next) => {
-  if (req.path.startsWith('/api/webhooks/')) {
-    let rawBody = '';
-    req.on('data', chunk => {
-      rawBody += chunk.toString('utf8');
-    });
-    req.on('end', () => {
-      req.rawBody = rawBody;
-      next();
-    });
-  } else {
-    next();
-  }
-});
-
-const SESSION_SECRET = process.env.SESSION_SECRET;
-if (!SESSION_SECRET && process.env.NODE_ENV === 'production') {
-  throw new Error('SESSION_SECRET is required in production');
-}
-
-app.use((req, res, next) => {
-  if (req.path.startsWith('/api/webhooks/')) return next();
-  express.json({ limit: '50mb' })(req, res, next);
-});
-app.use((req, res, next) => {
-  if (req.path.startsWith('/api/webhooks/')) return next();
-  express.urlencoded({ limit: '50mb', extended: true })(req, res, next);
-});
-app.use(cookieParser());
-app.use(session({
-  secret: SESSION_SECRET || 'dev-secret',
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    secure: process.env.NODE_ENV === 'production',
-    httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
-  }
-}));
-
-// Static files — public JS/CSS (Must be before tenant middleware to be served without DB checks)
-app.use('/', express.static(path.join(__dirname, '../public')));
-
-// Tenant resolution (subdomain -> database, must be first to catch non-existent tenants)
-app.use(tenantMiddleware);
-
-// Per-tenant access logging
-app.use(accessLog);
-
-// Static files — theme assets
-app.use('/themes', express.static(getThemesDir()));
-
-// Static files — imported assets (from site importer)
-app.use('/imported', express.static(path.join(__dirname, '../templates/imported')));
-
-// Static files — template CSS (editable stylesheets in templates directory)
-app.use('/templates/css', express.static(path.join(__dirname, '../templates/css')));
-
-// Serve React admin in production
-if (process.env.NODE_ENV === 'production') {
-  app.use('/admin', express.static(path.join(__dirname, '../admin/dist')));
-  app.get('/admin/*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../admin/dist/index.html'));
-  });
-}
-
-// Per-tenant upload serving
-const uploadsRoot = path.join(__dirname, '../uploads');
-app.use('/uploads', (req, res, next) => {
-  const dbName = req.tenantDb || '';
-  const subdomain = dbName.replace(/^wolfwave_/, '') || '_default';
-  const tenantDir = path.join(uploadsRoot, subdomain);
-
-  // Try tenant-specific directory first, then fall back to root uploads
-  express.static(tenantDir)(req, res, () => {
-    express.static(uploadsRoot)(req, res, next);
-  });
-});
-
-// Dev tools (unsecured - remove in production)
-app.use('/dev', devtoolsRoutes);
-
-// Database-backed styles
-app.use('/styles', styleRoutes);
-
-// WooCommerce REST API (must be before /api to avoid conflicts)
-app.use('/wp-json/wc/v3', authenticateWooCommerce, woocommerceApiRoutes);
-
-// WooCommerce Legacy XML API
-app.use('/wc-api/v3', woocommerceLegacyRoutes);
-
-// API routes
-app.use('/api', apiRoutes);
-
-// Auto-load content type APIs based on template folders
-registerContentTypeApis(app).catch(err => {
-  console.error('Failed to auto-load content type APIs:', err);
-});
-
-// Public site routes (must be last)
-app.use('/', publicRoutes);
-
 // Error handler (logs to per-tenant error.log)
 app.use(errorLog);
 
 // Initialize database and start server
 if (process.env.NODE_ENV !== 'test') {
-  initDb().then(() => {
+  initDb().then(async () => {
+    // Create a default Nunjucks env at startup (for express error pages, etc.)
+    const defaultEnv = await getNunjucksEnv('default');
+    app.locals.nunjucksEnv = defaultEnv;
+    // Let express know how to render .njk files via the default env
+    defaultEnv.express(app);
+
     app.listen(PORT, () => {
       info('system', 'STARTUP', `WolfWave CMS running on http://localhost:${PORT}`);
       info('system', 'STARTUP', `Admin UI: http://localhost:5173 (dev) or http://localhost:${PORT}/admin (prod)`);
