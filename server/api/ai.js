@@ -63,7 +63,17 @@ router.post('/generate-theme', requireAuth, requireAdmin, async (req, res) => {
     const themeData = await generateThemeFromIndustry(industry, plan);
     const { slug, templates, name, demoContent } = themeData;
 
-    // 2. Save templates to the database (VIRTUAL storage)
+    // 2. Flush any previous virtual theme templates (old slugs pile up otherwise)
+    const previousTheme = await prisma.settings.findUnique({ where: { setting_key: 'active_theme' } });
+    const prevSlug = previousTheme?.setting_value;
+    if (prevSlug && prevSlug !== 'default' && prevSlug !== slug) {
+      const deleted = await prisma.templates.deleteMany({
+        where: { filename: { startsWith: `${prevSlug}/` } }
+      });
+      if (deleted.count) console.log(`[AI-DEBUG] 🗑️ Flushed ${deleted.count} templates from previous theme "${prevSlug}"`);
+    }
+
+    // 3. Save templates to the database (VIRTUAL storage)
     let homepageTemplateId = null;
     for (const [relativePath, content] of Object.entries(templates)) {
       const dbFilename = `${slug}/${relativePath}`;
@@ -73,13 +83,13 @@ router.post('/generate-theme', requireAuth, requireAdmin, async (req, res) => {
         where: { filename: dbFilename },
         update: {
           content,
-          name: `${name} ${path.basename(relativePath)}`,
+          name: path.basename(relativePath),
           content_type: contentType,
           updated_at: new Date()
         },
         create: {
           filename: dbFilename,
-          name: `${name} ${path.basename(relativePath)}`,
+          name: path.basename(relativePath),
           content,
           content_type: contentType,
           created_at: new Date(),
