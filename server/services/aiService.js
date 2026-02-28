@@ -1343,9 +1343,3 @@ h1, h2, h3 { color: var(--nano-brand); }
     files: themeFiles
   };
 }
-
-  return {
-    slug: themeData.slug,
-    files: themeFiles
-  };
-}
