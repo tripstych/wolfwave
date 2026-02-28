@@ -30,7 +30,7 @@ await fs.mkdir(UPLOADS_ROOT, { recursive: true });
  */
 function getTenantUploadsDir() {
   const dbName = getCurrentDbName();
-  const subdomain = dbName.replace(/^webwolf_/, '') || '_default';
+  const subdomain = dbName.replace(/^wolfwave_/, '') || '_default';
   return path.join(UPLOADS_ROOT, subdomain);
 }
 
