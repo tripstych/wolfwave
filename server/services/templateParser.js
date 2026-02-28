@@ -1,7 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import pluralize from 'pluralize';
+
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const THEMES_DIR = path.join(__dirname, '../../themes');
@@ -105,33 +105,6 @@ function formatLabel(name) {
 export function extractContentType(filename) {
   const parts = filename.split('/');
   return parts[0]; // First folder is content type
-}
-
-/**
- * Format content type name to label
- * Examples:
- *   "blog" → "Blog"
- *   "products" → "Products"
- */
-function formatContentTypeLabel(name) {
-  return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
-}
-
-/**
- * Get default icon based on content type name
- */
-function getDefaultIcon(contentType) {
-  const iconMap = {
-    'pages': 'FileText',
-    'blocks': 'Boxes',
-    'widgets': 'Puzzle',
-    'blog': 'BookOpen',
-    'news': 'Newspaper',
-    'products': 'Package',
-    'team': 'Users',
-    'portfolio': 'Briefcase'
-  };
-  return iconMap[contentType] || 'FileText';
 }
 
 /**
@@ -241,42 +214,6 @@ export async function scanPageTemplates(themeName = 'default') {
 }
 
 /**
- * Auto-register content types discovered from templates
- */
-async function registerContentTypes(prisma, templates) {
-  const discoveredTypes = new Set();
-
-  templates.forEach(template => {
-    const contentType = extractContentType(template.filename);
-    discoveredTypes.add(contentType);
-  });
-
-  for (const typeName of discoveredTypes) {
-    // Check if content type already exists
-    const existing = await prisma.content_types.findUnique({
-      where: { name: typeName }
-    });
-
-    if (!existing) {
-      // Create new content type with sensible defaults
-      const label = formatContentTypeLabel(typeName);
-      const pluralLabel = pluralize.plural(label);
-
-      await prisma.content_types.create({
-        data: {
-          name: typeName,
-          label,
-          plural_label: pluralLabel,
-          icon: getDefaultIcon(typeName),
-          has_status: !['blocks', 'widgets'].includes(typeName), // blocks/widgets don't have status
-          has_seo: !['blocks', 'widgets'].includes(typeName)     // all other types have SEO
-        }
-      });
-    }
-  }
-}
-
-/**
  * Sync templates from filesystem to database
  */
 export async function syncTemplatesToDb(prisma, themeName = 'default') {
@@ -377,9 +314,6 @@ export async function syncTemplatesToDb(prisma, themeName = 'default') {
       }
     }
   }
-
-  // Auto-discover and register new content types
-  await registerContentTypes(prisma, templates);
 
   return templates;
 }
