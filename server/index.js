@@ -22,7 +22,6 @@ import woocommerceLegacyRoutes from './api/woocommerceLegacy.js';
 // import shipstationRoutes from './api/shipstation.js';
 // import shipstationRestRoutes from './api/shipstation-rest.js';
 import { authenticateWooCommerce } from './middleware/woocommerceAuth.js';
-import { requireAdminDomain } from './middleware/adminDomainCheck.js';
 import devtoolsRoutes from './api/devtools.js';
 
 // Patch console FIRST so all console.log/error/warn calls go to log files
@@ -112,10 +111,7 @@ app.use('/imported', express.static(path.join(__dirname, '../templates/imported'
 // Static files — template CSS (editable stylesheets in templates directory)
 app.use('/templates/css', express.static(path.join(__dirname, '../templates/css')));
 
-// Serve React admin in production (restricted to admin subdomain)
-// Apply domain restriction in all environments for security
-app.use('/admin', requireAdminDomain);
-
+// Serve React admin in production
 if (process.env.NODE_ENV === 'production') {
   app.use('/admin', express.static(path.join(__dirname, '../admin/dist')));
   app.get('/admin/*', (req, res) => {
