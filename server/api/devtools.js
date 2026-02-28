@@ -26,6 +26,14 @@ const commands = {
     description: 'Pull latest code, restart server, run tests',
     cmd: 'bash test-and-deploy.sh'
   },
+  'restart': {
+    description: 'Restart the PM2 process',
+    cmd: 'pm2 restart wolfwave'
+  },
+  'logs': {
+    description: 'Show recent PM2 logs',
+    cmd: 'pm2 logs wolfwave --lines 50 --nostream'
+  },
   'db-migrate': {
     description: 'Run database migrations',
     cmd: 'npx prisma db push --accept-data-loss && node server/db/migrate.js'
