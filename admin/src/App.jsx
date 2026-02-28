@@ -72,6 +72,7 @@ function ProtectedRoute({ children }) {
 }
 
 function App() {
+  const { user } = useAuth();
   const { contentTypes } = useContentTypes();
 
   // Block admin panel on the bare/default domain (no subdomain), but allow it
