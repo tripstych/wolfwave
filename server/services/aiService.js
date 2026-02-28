@@ -1239,24 +1239,39 @@ export async function getAvailableScaffolds() {
  */
 export async function draftThemePlan(industry) {
   const scaffolds = await getAvailableScaffolds();
-  // Provide specific filenames to the AI so it picks a valid key
-  const scaffoldList = scaffolds.map(s => `- ${s.name} (Regions: ${s.regions.map(r => r.name).join(', ')})`).join('\n');
 
-  const systemPrompt = `You are a WebWolf Theme Architect. 
+  // Build detailed region descriptions so the AI knows what content each scaffold needs
+  const scaffoldDetails = scaffolds.map(s => {
+    const regionDescs = s.regions.map(r => {
+      let desc = `    - ${r.name} (${r.type}): "${r.label}"`;
+      if (r.type === 'repeater' && r.fields) {
+        desc += ` [items: ${r.fields.map(f => `${f.name}(${f.type})`).join(', ')}]`;
+      }
+      return desc;
+    }).join('\n');
+    return `  ${s.name}:\n${regionDescs}`;
+  }).join('\n\n');
+
+  const systemPrompt = `You are a WebWolf Theme Architect.
   Your goal is to generate a JSON object containing a STRATEGY for a new CMS theme based on an industry or user description.
-  
-  AVAILABLE SCAFFOLD FILENAMES (Pick ONE for the "scaffold" key):
+
+  AVAILABLE SCAFFOLDS (Pick ONE for the "scaffold" key):
   ${scaffolds.map(s => s.name).join(', ')}
-  
-  Layout context for your choice:
-  ${scaffoldList}
-  
+
+  FULL REGION DETAILS FOR EACH SCAFFOLD:
+  ${scaffoldDetails}
+
   CRITICAL RULES:
   1. Pick the best scaffold from the list above. The "scaffold" key MUST match a filename exactly.
   2. Generate a professional color palette with 4 distinct colors.
-  3. Generate high-quality content for the "headline" and "subtext" regions at minimum.
-  4. If the chosen scaffold has other regions (e.g. "features", "about_text"), provide content for those too.
-  
+  3. Generate demo content for EVERY region in the chosen scaffold — not just headline/subtext.
+  4. For "repeater" regions, provide an array of 3+ items with all sub-fields populated.
+  5. For "richtext" regions, provide HTML content (paragraphs, lists, headings).
+  6. For "link" regions, provide an object with "url" and "text" keys.
+  7. For "image" regions, provide a DALL-E prompt string (prefixed with "GENERATE:").
+  8. For "color" regions, provide a hex color string.
+  9. Include a "hero_image_prompt" key with a detailed DALL-E 3 prompt.
+
   Output JSON format:
   {
     "slug": "kebab-case-slug",
@@ -1271,20 +1286,21 @@ export async function draftThemePlan(industry) {
     },
     "content": {
       "headline": "Compelling main title",
-      "subtext": "Engaging 2-3 sentence description",
-      "hero_image_prompt": "A detailed DALL-E 3 prompt for a hero image."
+      "subtext": "Engaging subtitle",
+      "hero_image_prompt": "A detailed DALL-E 3 prompt for a hero image.",
+      "... all other regions from the chosen scaffold ..."
     }
   }`;
 
   const plan = await generateText(systemPrompt, `Create a comprehensive theme strategy for: ${industry}`);
-  
+
   // Ensure we have the basic keys even if AI missed some
   if (!plan.css_variables) plan.css_variables = {};
   plan.css_variables['--nano-brand'] = plan.css_variables['--nano-brand'] || '#2563eb';
   plan.css_variables['--nano-secondary'] = plan.css_variables['--nano-secondary'] || '#64748b';
   plan.css_variables['--nano-bg'] = plan.css_variables['--nano-bg'] || '#ffffff';
   plan.css_variables['--nano-text'] = plan.css_variables['--nano-text'] || '#1e293b';
-  
+
   return plan;
 }
 
@@ -1294,13 +1310,13 @@ export async function draftThemePlan(industry) {
 export async function generateThemeFromIndustry(industry, existingPlan = null) {
   // 1. Get scaffolds (always needed for mapping)
   const scaffolds = await getAvailableScaffolds();
-  
+
   // 2. Get the plan (either from draft or generate a new one)
   const themeData = existingPlan || await draftThemePlan(industry);
 
   // 3. Image Generation
   let heroImagePath = '/images/placeholders/1920x600.svg';
-  if (themeData.content.hero_image_prompt) {
+  if (themeData.content?.hero_image_prompt) {
     try {
       heroImagePath = await generateImage(themeData.content.hero_image_prompt);
     } catch (e) {
@@ -1308,9 +1324,26 @@ export async function generateThemeFromIndustry(industry, existingPlan = null) {
     }
   }
 
-  // 4. Construct File Data
-  // Find the selected scaffold details
+  // 4. Read the selected scaffold file directly from disk
   const selectedScaffold = scaffolds.find(s => s.name === themeData.scaffold) || scaffolds[0];
+  const scaffoldsDir = path.join(__dirname, '../../templates/scaffolds');
+  const scaffoldContent = await fs.promises.readFile(
+    path.join(scaffoldsDir, selectedScaffold.filename), 'utf8'
+  );
+
+  // 5. Build the demo content object (strip the DALL-E prompt, add the generated image)
+  const demoContent = { ...(themeData.content || {}) };
+  delete demoContent.hero_image_prompt;
+  if (!demoContent.hero_image) {
+    demoContent.hero_image = heroImagePath;
+  }
+
+  // 6. Map --nano-* CSS variables to --cms-* that variables.css expects
+  const vars = themeData.css_variables || {};
+  const brand = vars['--nano-brand'] || '#2563eb';
+  const secondary = vars['--nano-secondary'] || '#64748b';
+  const bg = vars['--nano-bg'] || '#ffffff';
+  const text = vars['--nano-text'] || '#1e293b';
 
   return {
     slug: themeData.slug,
@@ -1318,35 +1351,20 @@ export async function generateThemeFromIndustry(industry, existingPlan = null) {
     description: themeData.description,
     scaffold: themeData.scaffold,
     css_variables: themeData.css_variables,
+    demoContent,
     templates: {
-      'pages/homepage.njk': `{% extends "scaffolds/${selectedScaffold.filename}" %}
-
-{% block content %}
-  {# The AI generator populates the content object with industry-specific defaults #}
-  {% set content = content | default({}) %}
-  
-  {# Inject AI defaults if content is empty #}
-  ${Object.entries(themeData.content).map(([key, value]) => {
-    if (key === 'hero_image_prompt') return ''; // Skip the prompt
-    const escapedValue = typeof value === 'string' ? value.replace(/"/g, '\\"') : JSON.stringify(value).replace(/"/g, '\\"');
-    return `{% if not content.${key} %}{% set _junk = content.update({'${key}': "${escapedValue}"}) %}{% endif %}`;
-  }).join('\n  ')}
-  {% if not content.hero_image %}{% set _junk = content.update({'hero_image': "${heroImagePath}"}) %}{% endif %}
-  
-  {# Call super to render the scaffold with our updated content object #}
-  {{ super() }}
-{% endblock %}`,
+      // Use the scaffold's Nunjucks source directly as the homepage template
+      'pages/homepage.njk': scaffoldContent,
       'assets/css/style.css': `:root {
-  --nano-brand: ${themeData.css_variables['--nano-brand']};
-  --nano-secondary: ${themeData.css_variables['--nano-secondary'] || '#64748b'};
-  --nano-bg: ${themeData.css_variables['--nano-bg'] || '#ffffff'};
-  --nano-text: ${themeData.css_variables['--nano-text'] || '#1f2937'};
+  --cms-primary-color: ${brand};
+  --cms-primary-dark-color: ${brand};
+  --cms-secondary-color: ${secondary};
+  --cms-color-background: ${bg};
+  --cms-color-text: ${text};
 }
-body { background-color: var(--nano-bg); color: var(--nano-text); }
-h1, h2, h3 { color: var(--nano-brand); }
-.btn-primary { background-color: var(--nano-brand); color: white; }
-.btn-outline { border-color: var(--nano-secondary); color: var(--nano-secondary); }
-/* AI Generated Styles for ${themeData.scaffold} */
+.btn-primary { background-color: var(--color-primary); color: white; }
+.btn-outline { border-color: var(--color-secondary); color: var(--color-secondary); }
+/* AI Generated Theme: ${themeData.name} (${themeData.scaffold}) */
 `
     }
   };
