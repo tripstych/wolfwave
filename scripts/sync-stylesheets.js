@@ -93,7 +93,7 @@ async function doSync() {
 
 async function syncStylesheets() {
   try {
-    const dbName = process.argv[2] || process.env.DB_NAME || 'wolfwave_default';
+    const dbName = process.argv[2] || process.env.DB_NAME || 'wolfwave_admin';
     
     console.log('🎨 Syncing stylesheets from filesystem to database...');
     console.log(`📊 Database: ${dbName}\n`);

@@ -5,7 +5,7 @@ import { runWithTenant } from '../lib/tenantContext.js';
  * Get tenant information (including owner) from the main database.
  */
 export async function getTenantInfoByDb(dbName) {
-  const primaryDb = process.env.DB_NAME || 'wolfwave_default';
+  const primaryDb = process.env.DB_NAME || 'wolfwave_admin';
   
   // If we are already on the primary DB, don't nested-run
   if (dbName === primaryDb) return null;
@@ -31,7 +31,7 @@ export async function getTenantInfoByDb(dbName) {
  * This is the core "License Pool" check.
  */
 export async function getCustomerSubscriptionStats(customerId) {
-  const primaryDb = process.env.DB_NAME || 'wolfwave_default';
+  const primaryDb = process.env.DB_NAME || 'wolfwave_admin';
   
   return runWithTenant(primaryDb, async () => {
     const customer = await prisma.customers.findUnique({

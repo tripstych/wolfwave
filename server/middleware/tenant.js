@@ -185,7 +185,7 @@ export function tenantMiddleware(req, res, next) {
       dbName = `wolfwave_${subdomain}`;
     } else {
       // No subdomain (localhost, bare domain) -> default database
-      dbName = process.env.DB_NAME || 'wolfwave_default';
+      dbName = process.env.DB_NAME || 'wolfwave_admin';
     }
   }
 

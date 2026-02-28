@@ -17,7 +17,7 @@ const router = Router();
  */
 function requireGlobal(req, res, next) {
   const currentDb = getCurrentDbName();
-  const primaryDb = process.env.DB_NAME || 'wolfwave_default';
+  const primaryDb = process.env.DB_NAME || 'wolfwave_admin';
   if (currentDb !== primaryDb) {
     return res.status(403).json({ error: 'Access denied: Global administrative action' });
   }
@@ -33,7 +33,7 @@ router.use(requireGlobal);
  * regardless of which tenant the current request is scoped to.
  */
 function getDefaultPool() {
-  const defaultDb = process.env.DB_NAME || 'wolfwave_default';
+  const defaultDb = process.env.DB_NAME || 'wolfwave_admin';
   return getPoolForDb(defaultDb);
 }
 

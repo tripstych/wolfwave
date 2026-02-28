@@ -107,7 +107,7 @@ router.get('/me', requireAuth, async (req, res) => {
     // Check if we are on the global (primary) database
     const { getCurrentDbName } = await import('../lib/tenantContext.js');
     const currentDb = getCurrentDbName();
-    const primaryDb = process.env.DB_NAME || 'wolfwave_default';
+    const primaryDb = process.env.DB_NAME || 'wolfwave_admin';
     
     const userData = {
       ...users[0],

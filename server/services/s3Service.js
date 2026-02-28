@@ -16,8 +16,8 @@ export async function getS3Config() {
   let config = await readS3Settings();
 
   // Fallback to default tenant if current tenant has no S3 config
-  if (!config && getCurrentDbName() !== (process.env.DB_NAME || 'wolfwave_default')) {
-    config = await readS3SettingsFromDb(process.env.DB_NAME || 'wolfwave_default');
+  if (!config && getCurrentDbName() !== (process.env.DB_NAME || 'wolfwave_admin')) {
+    config = await readS3SettingsFromDb(process.env.DB_NAME || 'wolfwave_admin');
   }
 
   return config;

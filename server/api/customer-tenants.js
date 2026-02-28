@@ -21,7 +21,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
  * Supports both customer_token (frontend) and standard token (admin)
  */
 async function requireCustomer(req, res, next) {
-  const primaryDb = process.env.DB_NAME || 'wolfwave_default';
+  const primaryDb = process.env.DB_NAME || 'wolfwave_admin';
   
   return runWithTenant(primaryDb, async () => {
     const customerToken = req.cookies?.customer_token;
@@ -87,7 +87,7 @@ async function requireCustomer(req, res, next) {
  * GET / — list current customer's tenants
  */
 router.get('/', requireCustomer, async (req, res) => {
-  const primaryDb = process.env.DB_NAME || 'wolfwave_default';
+  const primaryDb = process.env.DB_NAME || 'wolfwave_admin';
   return runWithTenant(primaryDb, async () => {
     try {
       if (!req.customer) {
@@ -110,7 +110,7 @@ router.get('/', requireCustomer, async (req, res) => {
  */
 router.get('/limits', requireCustomer, async (req, res) => {
   const currentDb = getCurrentDbName();
-  const primaryDb = process.env.DB_NAME || 'wolfwave_default';
+  const primaryDb = process.env.DB_NAME || 'wolfwave_admin';
   
   try {
     let targetCustomerId = req.customer?.id;
@@ -153,7 +153,7 @@ router.get('/limits', requireCustomer, async (req, res) => {
  */
 router.post('/', requireCustomer, async (req, res) => {
   const currentDb = getCurrentDbName();
-  const primaryDb = process.env.DB_NAME || 'wolfwave_default';
+  const primaryDb = process.env.DB_NAME || 'wolfwave_admin';
   
   try {
     const { name, subdomain } = req.body;
@@ -252,7 +252,7 @@ router.post('/', requireCustomer, async (req, res) => {
  * Only allowed if the tenant belongs to the current customer
  */
 router.post('/:id/impersonate', requireCustomer, async (req, res) => {
-  const primaryDb = process.env.DB_NAME || 'wolfwave_default';
+  const primaryDb = process.env.DB_NAME || 'wolfwave_admin';
   return runWithTenant(primaryDb, async () => {
     try {
       const tenantId = parseInt(req.params.id);
