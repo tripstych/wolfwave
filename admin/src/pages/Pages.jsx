@@ -65,14 +65,32 @@ export default function Pages() {
     },
   ];
 
+  const handleClearCache = async () => {
+    try {
+      await api.post('/themes/clear-cache');
+      toast.success('Theme cache cleared');
+    } catch (err) {
+      toast.error('Failed to clear cache');
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">{_('pages.list_title', 'Pages')}</h1>
-        <Link to="/pages/new" id="admin-pages-new-page-button" className="btn btn-primary">
-          <Plus className="w-4 h-4 mr-2" />
-          {_('pages.new_page', 'New Page')}
-        </Link>
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={handleClearCache}
+            className="btn btn-outline border-gray-300 text-gray-700 hover:bg-gray-50"
+            title="Clear theme and template cache"
+          >
+            Clear Cache
+          </button>
+          <Link to="/pages/new" id="admin-pages-new-page-button" className="btn btn-primary">
+            <Plus className="w-4 h-4 mr-2" />
+            {_('pages.new_page', 'New Page')}
+          </Link>
+        </div>
       </div>
 
       <DataTable

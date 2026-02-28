@@ -120,9 +120,11 @@ export function getThemeSearchPaths(themeName) {
     const dir = path.join(THEMES_DIR, current);
     if (fs.existsSync(dir)) {
       paths.push(dir);
+      const config = getThemeConfig(current);
+      current = config?.inherits || null;
+    } else {
+      current = null;
     }
-    const config = getThemeConfig(current);
-    current = config?.inherits || null;
   }
 
   // Always ensure default is in the chain
@@ -184,11 +186,16 @@ export function getThemeAssets(themeName) {
 
   while (current && !visited.has(current)) {
     visited.add(current);
-    const config = getThemeConfig(current);
-    if (config) {
-      chain.unshift({ slug: current, config });
+    const dir = path.join(THEMES_DIR, current);
+    if (fs.existsSync(dir)) {
+      const config = getThemeConfig(current);
+      if (config) {
+        chain.unshift({ slug: current, config });
+      }
+      current = config?.inherits || null;
+    } else {
+      current = null;
     }
-    current = config?.inherits || null;
   }
 
   // Ensure default is in chain
@@ -284,7 +291,13 @@ export function applyNunjucksCustomizations(env) {
 export function getNunjucksEnv(themeName) {
   const dbName = getCurrentDbName();
 
-  // Validate theme exists, fall back to default
+  // Validate theme exists on disk, fall back to default
+  const themePath = path.join(THEMES_DIR, themeName);
+  if (!fs.existsSync(themePath)) {
+    console.warn(`[ThemeResolver] Theme directory "${themeName}" not found, falling back to "default"`);
+    themeName = 'default';
+  }
+
   const config = getThemeConfig(themeName);
   if (!config) {
     themeName = 'default';

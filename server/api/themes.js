@@ -46,6 +46,16 @@ function resolveThemePath(theme, filePath) {
   return normFullPath;
 }
 
+// Clear theme cache manually
+router.post('/clear-cache', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    clearThemeCache();
+    res.json({ success: true, message: 'Theme cache cleared' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to clear cache' });
+  }
+});
+
 // List all available themes (from filesystem)
 router.get('/', requireAuth, requireAdmin, async (req, res) => {
   try {
