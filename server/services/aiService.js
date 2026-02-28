@@ -1239,38 +1239,53 @@ export async function getAvailableScaffolds() {
  */
 export async function draftThemePlan(industry) {
   const scaffolds = await getAvailableScaffolds();
-  const scaffoldList = scaffolds.map(s => `- ${s.name}: ${s.regions.map(r => r.name).join(', ')}`).join('\n');
+  // Provide specific filenames to the AI so it picks a valid key
+  const scaffoldList = scaffolds.map(s => `- ${s.name} (Regions: ${s.regions.map(r => r.name).join(', ')})`).join('\n');
 
   const systemPrompt = `You are a WebWolf Theme Architect. 
-  Your goal is to generate a JSON object containing a STRATEGY for a new CMS theme.
+  Your goal is to generate a JSON object containing a STRATEGY for a new CMS theme based on an industry or user description.
   
-  AVAILABLE SCAFFOLDS:
+  AVAILABLE SCAFFOLD FILENAMES (Pick ONE for the "scaffold" key):
+  ${scaffolds.map(s => s.name).join(', ')}
+  
+  Layout context for your choice:
   ${scaffoldList}
   
-  Task: 
-  1. Pick the best scaffold for the industry.
-  2. Generate a professional color palette.
-  3. Generate content for EVERY region in that scaffold.
+  CRITICAL RULES:
+  1. Pick the best scaffold from the list above. The "scaffold" key MUST match a filename exactly.
+  2. Generate a professional color palette with 4 distinct colors.
+  3. Generate high-quality content for the "headline" and "subtext" regions at minimum.
+  4. If the chosen scaffold has other regions (e.g. "features", "about_text"), provide content for those too.
   
   Output JSON format:
   {
     "slug": "kebab-case-slug",
-    "name": "Display Name",
-    "description": "Short description",
-    "scaffold": "scaffold-name",
+    "name": "Professional Display Name",
+    "description": "A 1-sentence marketing description of this theme.",
+    "scaffold": "chosen-scaffold-filename",
     "css_variables": {
-      "--nano-brand": "#hex",
-      "--nano-bg": "#hex",
-      "--nano-text": "#hex"
+      "--nano-brand": "#hex (Primary brand color)",
+      "--nano-secondary": "#hex (Accent or secondary color)",
+      "--nano-bg": "#hex (Page background color)",
+      "--nano-text": "#hex (Main text color)"
     },
     "content": {
-      "headline": "...",
-      "subtext": "...",
+      "headline": "Compelling main title",
+      "subtext": "Engaging 2-3 sentence description",
       "hero_image_prompt": "A detailed DALL-E 3 prompt for a hero image."
     }
   }`;
 
-  return await generateText(systemPrompt, `Create a theme strategy for: ${industry}`);
+  const plan = await generateText(systemPrompt, `Create a comprehensive theme strategy for: ${industry}`);
+  
+  // Ensure we have the basic keys even if AI missed some
+  if (!plan.css_variables) plan.css_variables = {};
+  plan.css_variables['--nano-brand'] = plan.css_variables['--nano-brand'] || '#2563eb';
+  plan.css_variables['--nano-secondary'] = plan.css_variables['--nano-secondary'] || '#64748b';
+  plan.css_variables['--nano-bg'] = plan.css_variables['--nano-bg'] || '#ffffff';
+  plan.css_variables['--nano-text'] = plan.css_variables['--nano-text'] || '#1e293b';
+  
+  return plan;
 }
 
 /**
@@ -1311,11 +1326,14 @@ export async function generateThemeFromIndustry(industry, existingPlan = null) {
 
     'assets/css/style.css': `:root {
   --nano-brand: ${themeData.css_variables['--nano-brand']};
+  --nano-secondary: ${themeData.css_variables['--nano-secondary'] || '#64748b'};
   --nano-bg: ${themeData.css_variables['--nano-bg'] || '#ffffff'};
   --nano-text: ${themeData.css_variables['--nano-text'] || '#1f2937'};
 }
 body { background-color: var(--nano-bg); color: var(--nano-text); }
 h1, h2, h3 { color: var(--nano-brand); }
+.btn-primary { background-color: var(--nano-brand); color: white; }
+.btn-outline { border-color: var(--nano-secondary); color: var(--nano-secondary); }
 /* AI Generated Styles for ${themeData.scaffold} */
 `,
 
