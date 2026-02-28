@@ -10,7 +10,6 @@ export const modulesSystemTables = [
   `CREATE TABLE IF NOT EXISTS modules (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL UNIQUE,
-    slug VARCHAR(100) NOT NULL UNIQUE,
     description TEXT,
     category VARCHAR(50) DEFAULT 'integration',
     icon VARCHAR(50),
@@ -20,8 +19,7 @@ export const modulesSystemTables = [
     default_enabled BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_category (category),
-    INDEX idx_slug (slug)
+    INDEX idx_category (category)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 
   // Module availability per subscription plan
@@ -74,21 +72,21 @@ export const modulesSystemTables = [
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 
   // Insert default modules
-  `INSERT IGNORE INTO modules (name, slug, description, category, icon, requires_config, default_enabled) VALUES
-    ('ShipStation Integration', 'shipstation', 'Connect to ShipStation for order fulfillment and shipping', 'shipping', 'package', true, false),
-    ('WooCommerce API', 'woocommerce', 'WooCommerce REST API compatibility layer', 'integration', 'shopping-cart', true, false),
-    ('Advanced Analytics', 'analytics', 'Detailed analytics and reporting dashboard', 'analytics', 'bar-chart', false, false),
-    ('Email Marketing', 'email-marketing', 'Built-in email marketing campaigns', 'marketing', 'mail', true, false),
-    ('Amazon Integration', 'amazon-integration', 'Sync products and orders with Amazon Seller Central', 'ecommerce', 'shopping-cart', true, false),
-    ('AI Services', 'ai-services', 'Content generation and image creation using LLMs', 'ai', 'cpu', true, false),
-    ('Multi-Currency', 'multi-currency', 'Support for multiple currencies', 'ecommerce', 'dollar-sign', true, false),
-    ('Subscriptions', 'subscriptions', 'Recurring billing and subscription management', 'ecommerce', 'repeat', false, true),
-    ('Digital Downloads', 'digital-downloads', 'Sell and deliver digital products', 'ecommerce', 'download', false, true),
-    ('Classified Ads', 'classified-ads', 'User-generated classified advertisements', 'content', 'list', false, false),
-    ('API Access', 'api-access', 'Full REST API access for integrations', 'developer', 'code', false, false),
-    ('Custom Domains', 'custom-domains', 'Use your own domain name', 'infrastructure', 'globe', true, false),
-    ('Priority Support', 'priority-support', '24/7 priority customer support', 'support', 'headphones', false, false),
-    ('White Label', 'white-label', 'Remove WolfWave branding', 'branding', 'eye-off', false, false)`
+  `INSERT IGNORE INTO modules (name, description, category, icon, requires_config, default_enabled) VALUES
+    ('ShipStation Integration', 'Connect to ShipStation for order fulfillment and shipping', 'shipping', 'package', true, false),
+    ('WooCommerce API', 'WooCommerce REST API compatibility layer', 'integration', 'shopping-cart', true, false),
+    ('Advanced Analytics', 'Detailed analytics and reporting dashboard', 'analytics', 'bar-chart', false, false),
+    ('Email Marketing', 'Built-in email marketing campaigns', 'marketing', 'mail', true, false),
+    ('Amazon Integration', 'Sync products and orders with Amazon Seller Central', 'ecommerce', 'shopping-cart', true, false),
+    ('AI Services', 'Content generation and image creation using LLMs', 'ai', 'cpu', true, false),
+    ('Multi-Currency', 'Support for multiple currencies', 'ecommerce', 'dollar-sign', true, false),
+    ('Subscriptions', 'Recurring billing and subscription management', 'ecommerce', 'repeat', false, true),
+    ('Digital Downloads', 'Sell and deliver digital products', 'ecommerce', 'download', false, true),
+    ('Classified Ads', 'User-generated classified advertisements', 'content', 'list', false, false),
+    ('API Access', 'Full REST API access for integrations', 'developer', 'code', false, false),
+    ('Custom Domains', 'Use your own domain name', 'infrastructure', 'globe', true, false),
+    ('Priority Support', '24/7 priority customer support', 'support', 'headphones', false, false),
+    ('White Label', 'Remove WolfWave branding', 'branding', 'eye-off', false, false)`
 ];
 
 export default modulesSystemTables;

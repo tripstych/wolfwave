@@ -51,6 +51,7 @@ import ClassifiedList from './classifieds/ClassifiedList';
 import ClassifiedDetail from './classifieds/ClassifiedDetail';
 import ClassifiedSettings from './classifieds/ClassifiedSettings';
 import MyClassifieds from './classifieds/MyClassifieds';
+import ShipStation from './orders/ShipStation';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -120,6 +121,7 @@ function App() {
                 <Route path="/products/:id" element={<ProductEditor />} />
                 <Route path="/orders" element={<OrderList />} />
                 <Route path="/orders/:id" element={<OrderDetail />} />
+                <Route path="/shipstation" element={<ShipStation />} />
                 <Route path="/groups" element={<GroupList />} />
                 <Route path="/groups/new" element={<GroupEditor />} />
                 <Route path="/groups/:id" element={<GroupEditor />} />

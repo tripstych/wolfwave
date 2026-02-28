@@ -863,8 +863,7 @@ model woocommerce_api_keys {
 
 model modules {
   id               Int                @id @default(autoincrement())
-  name             String             @db.VarChar(100)
-  slug             String             @unique @db.VarChar(100)
+  name             String             @unique @db.VarChar(100)
   description      String?            @db.Text
   category         String?            @default("integration") @db.VarChar(50)
   icon             String?            @db.VarChar(50)
@@ -879,7 +878,6 @@ model modules {
   module_usage     module_usage[]
 
   @@index([category])
-  @@index([slug])
 }
 
 model customer_modules {

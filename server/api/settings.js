@@ -29,7 +29,7 @@ router.get('/modules', requireAuth, async (req, res) => {
     const modulesData = await getCustomerModules(tenantInfo.customer_id);
     const enabledModules = modulesData.modules
       .filter(m => m.enabled)
-      .map(m => m.slug);
+      .map(m => m.name);
 
     res.json(enabledModules);
   } catch (err) {

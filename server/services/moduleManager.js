@@ -38,19 +38,19 @@ async function executeRaw(sql, ...params) {
  * 3. Module default_enabled setting
  * 
  * @param {number} customerId - Customer ID
- * @param {string} moduleSlug - Module slug (e.g., 'shipstation', 'woocommerce')
+ * @param {string} moduleName - Module name (e.g., 'ShipStation Integration', 'WooCommerce API')
  * @returns {Promise<{enabled: boolean, config: object|null}>}
  */
-export async function hasModuleAccess(customerId, moduleSlug) {
+export async function hasModuleAccess(customerId, moduleName) {
   // Get module info
   const [module] = await queryRaw(`
     SELECT id, default_enabled, config_schema
     FROM modules
-    WHERE slug = ?
-  `, moduleSlug);
+    WHERE name = ?
+  `, moduleName);
 
   if (!module) {
-    throw new Error(`Module '${moduleSlug}' not found`);
+    throw new Error(`Module '${moduleName}' not found`);
   }
 
   // Check for customer-specific override
@@ -129,7 +129,6 @@ export async function getCustomerModules(customerId) {
     SELECT 
       m.id,
       m.name,
-      m.slug,
       m.description,
       m.category,
       m.icon,
@@ -141,7 +140,7 @@ export async function getCustomerModules(customerId) {
 
   // For each module, determine availability
   const modulesWithAccess = await Promise.all(modules.map(async (module) => {
-    const access = await hasModuleAccess(customerId, module.slug);
+    const access = await hasModuleAccess(customerId, module.name);
     
     return {
       ...module,
@@ -164,17 +163,17 @@ export async function getCustomerModules(customerId) {
  * Enable a module for a specific customer (override)
  * 
  * @param {number} customerId - Customer ID
- * @param {string} moduleSlug - Module slug
+ * @param {string} moduleName - Module name
  * @param {object} config - Optional module configuration
  * @param {boolean} overridePlan - Whether to override plan settings
  */
-export async function enableModuleForCustomer(customerId, moduleSlug, config = null, overridePlan = true) {
+export async function enableModuleForCustomer(customerId, moduleName, config = null, overridePlan = true) {
   const [module] = await queryRaw(`
-    SELECT id FROM modules WHERE slug = ?
-  `, moduleSlug);
+    SELECT id FROM modules WHERE name = ?
+  `, moduleName);
 
   if (!module) {
-    throw new Error(`Module '${moduleSlug}' not found`);
+    throw new Error(`Module '${moduleName}' not found`);
   }
 
   await executeRaw(`
@@ -194,16 +193,16 @@ export async function enableModuleForCustomer(customerId, moduleSlug, config = n
  * Disable a module for a specific customer (override)
  * 
  * @param {number} customerId - Customer ID
- * @param {string} moduleSlug - Module slug
+ * @param {string} moduleName - Module name
  * @param {boolean} overridePlan - Whether to override plan settings
  */
-export async function disableModuleForCustomer(customerId, moduleSlug, overridePlan = true) {
+export async function disableModuleForCustomer(customerId, moduleName, overridePlan = true) {
   const [module] = await queryRaw(`
-    SELECT id FROM modules WHERE slug = ?
-  `, moduleSlug);
+    SELECT id FROM modules WHERE name = ?
+  `, moduleName);
 
   if (!module) {
-    throw new Error(`Module '${moduleSlug}' not found`);
+    throw new Error(`Module '${moduleName}' not found`);
   }
 
   await executeRaw(`
@@ -222,15 +221,15 @@ export async function disableModuleForCustomer(customerId, moduleSlug, overrideP
  * Remove customer-specific override (revert to plan settings)
  * 
  * @param {number} customerId - Customer ID
- * @param {string} moduleSlug - Module slug
+ * @param {string} moduleName - Module name
  */
-export async function removeCustomerModuleOverride(customerId, moduleSlug) {
+export async function removeCustomerModuleOverride(customerId, moduleName) {
   const [module] = await queryRaw(`
-    SELECT id FROM modules WHERE slug = ?
-  `, moduleSlug);
+    SELECT id FROM modules WHERE name = ?
+  `, moduleName);
 
   if (!module) {
-    throw new Error(`Module '${moduleSlug}' not found`);
+    throw new Error(`Module '${moduleName}' not found`);
   }
 
   await executeRaw(`
@@ -245,16 +244,16 @@ export async function removeCustomerModuleOverride(customerId, moduleSlug) {
  * Set modules for a subscription plan
  * 
  * @param {number} planId - Subscription plan ID
- * @param {Array} modules - Array of {slug, enabled, config}
+ * @param {Array} modules - Array of {name, enabled, config}
  */
 export async function setPlanModules(planId, modules) {
   for (const moduleData of modules) {
     const [module] = await queryRaw(`
-      SELECT id FROM modules WHERE slug = ?
-    `, moduleData.slug);
+      SELECT id FROM modules WHERE name = ?
+    `, moduleData.name);
 
     if (!module) {
-      console.warn(`Module '${moduleData.slug}' not found, skipping`);
+      console.warn(`Module '${moduleData.name}' not found, skipping`);
       continue;
     }
 
@@ -307,18 +306,18 @@ export async function getPlanModules(planId) {
  * Track module usage for analytics/billing
  * 
  * @param {number} customerId - Customer ID
- * @param {string} moduleSlug - Module slug
+ * @param {string} moduleName - Module name
  * @param {string} usageType - Type of usage (e.g., 'api_call', 'export', 'sync')
  * @param {number} count - Usage count
  * @param {object} metadata - Additional metadata
  */
-export async function trackModuleUsage(customerId, moduleSlug, usageType, count = 1, metadata = null) {
+export async function trackModuleUsage(customerId, moduleName, usageType, count = 1, metadata = null) {
   const [module] = await queryRaw(`
-    SELECT id FROM modules WHERE slug = ?
-  `, moduleSlug);
+    SELECT id FROM modules WHERE name = ?
+  `, moduleName);
 
   if (!module) {
-    console.warn(`Module '${moduleSlug}' not found, usage not tracked`);
+    console.warn(`Module '${moduleName}' not found, usage not tracked`);
     return;
   }
 
@@ -332,16 +331,15 @@ export async function trackModuleUsage(customerId, moduleSlug, usageType, count 
  * Get module usage statistics for a customer
  * 
  * @param {number} customerId - Customer ID
- * @param {string} moduleSlug - Optional module slug filter
+ * @param {string} moduleName - Optional module name filter
  * @param {Date} startDate - Optional start date
  * @param {Date} endDate - Optional end date
  * @returns {Promise<Array>} Usage statistics
  */
-export async function getModuleUsage(customerId, moduleSlug = null, startDate = null, endDate = null) {
+export async function getModuleUsage(customerId, moduleName = null, startDate = null, endDate = null) {
   let sql = `
     SELECT 
       m.name as module_name,
-      m.slug as module_slug,
       mu.usage_type,
       SUM(mu.usage_count) as total_usage,
       COUNT(*) as event_count,
@@ -354,9 +352,9 @@ export async function getModuleUsage(customerId, moduleSlug = null, startDate = 
   
   const params = [customerId];
 
-  if (moduleSlug) {
-    sql += ` AND m.slug = ?`;
-    params.push(moduleSlug);
+  if (moduleName) {
+    sql += ` AND m.name = ?`;
+    params.push(moduleName);
   }
 
   if (startDate) {

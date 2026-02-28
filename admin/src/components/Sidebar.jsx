@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { X, LayoutDashboard, Boxes, Puzzle, Layers, Image, List, Tag, Package, Briefcase, Users, CreditCard, Palette, Mail, Search, Settings, Download, Globe, Key, Megaphone, Zap, Heart, ShoppingCart, FolderOpen } from 'lucide-react';
+import { X, LayoutDashboard, Boxes, Puzzle, Layers, Image, List, Tag, Package, Briefcase, Users, CreditCard, Palette, Mail, Search, Settings, Download, Globe, Key, Megaphone, Zap, Heart, ShoppingCart, FolderOpen, Truck } from 'lucide-react';
 import SidebarItem from './SidebarItem';
 import { useTranslation } from '../context/TranslationContext';
 
@@ -34,7 +34,8 @@ export default function Sidebar({ isOpen, onClose }) {
         { name: _('nav.customers', 'Customers'), href: '/customers', icon: Users },
         { name: _('nav.subscriptions', 'Subscriptions'), href: '/subscriptions', icon: CreditCard },
         { name: _('nav.coupons', 'Coupons'), href: '/marketing/coupons', icon: Tag },
-        { name: _('nav.classifieds', 'Classifieds'), href: '/classifieds', icon: Megaphone }
+        { name: _('nav.classifieds', 'Classifieds'), href: '/classifieds', icon: Megaphone },
+        { name: _('nav.shipstation', 'ShipStation'), href: '/shipstation', icon: Truck }
       ]
     },
     {
