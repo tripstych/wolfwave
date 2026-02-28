@@ -1,0 +1,110 @@
+{% extends "layouts/base.njk" %}
+
+{% block styles %}
+.hero-video {
+  position: relative;
+  height: 80vh;
+  min-height: 500px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  color: white;
+  text-align: center;
+}
+
+.hero-video video,
+.hero-video .video-placeholder {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  min-width: 100%;
+  min-height: 100%;
+  width: auto;
+  height: auto;
+  transform: translate(-50%, -50%);
+  z-index: 1;
+}
+
+.hero-video .video-placeholder {
+  background-size: cover;
+  background-position: center;
+}
+
+.hero-video::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 2;
+}
+
+.hero-video .container {
+  position: relative;
+  z-index: 3;
+  max-width: 900px;
+}
+
+.hero-video h1 {
+  font-size: 4rem;
+  color: white;
+  margin-bottom: 1.5rem;
+}
+
+.hero-video p {
+  font-size: 1.5rem;
+  color: white;
+  margin-bottom: 2.5rem;
+  opacity: 0.9;
+}
+
+.page-body {
+  padding: 5rem 0;
+}
+
+@media (max-width: 768px) {
+  .hero-video h1 { font-size: 2.5rem; }
+  .hero-video p { font-size: 1.125rem; }
+}
+{% endblock %}
+
+{% block content %}
+<section class="hero-video">
+  {% if content.video_url %}
+    <video autoplay muted loop playsinline>
+      <source src="{{ content.video_url }}" type="video/mp4">
+    </video>
+  {% else %}
+    <div class="video-placeholder" style="background-image: url('{{ content.hero_bg_fallback | default('/images/placeholders/1920x1080.svg') }}')"></div>
+  {% endif %}
+  
+  <div class="container">
+    <h1 data-cms-region="headline" data-cms-type="text" data-cms-label="Hero Title">
+      {{ content.headline | default("Experience the Motion") }}
+    </h1>
+    <p data-cms-region="subtext" data-cms-type="textarea" data-cms-label="Hero Subtitle">
+      {{ content.subtext | default("Bring your brand to life with stunning cinematic background visuals.") }}
+    </p>
+    <div data-cms-region="hero_cta" data-cms-type="link" data-cms-label="Hero CTA">
+      <a href="{{ content.hero_cta.url | default('#') }}" class="btn btn-primary">
+        {{ content.hero_cta.text | default("Watch Demo") }}
+      </a>
+    </div>
+  </div>
+
+  {# Admin config regions #}
+  <div style="display:none">
+    <div data-cms-region="video_url" data-cms-type="text" data-cms-label="Video URL (MP4)"></div>
+    <div data-cms-region="hero_bg_fallback" data-cms-type="image" data-cms-label="Fallback Image"></div>
+  </div>
+</section>
+
+<section class="page-body">
+  <div class="container">
+    <article data-cms-region="main_content" data-cms-type="richtext" data-cms-label="Main Content">
+      {{ content.main_content | safe | default("<p>Add your main page content here.</p>") }}
+    </article>
+  </div>
+</section>
+{% endblock %}
+

@@ -1,0 +1,132 @@
+{% extends "layouts/base.njk" %}
+
+{% block styles %}
+.testimonials-hero {
+  padding: 8rem 0 4rem;
+  background: white;
+  text-align: center;
+}
+
+.testimonials-hero h1 { font-size: 3.5rem; margin-bottom: 1.5rem; }
+.testimonials-hero p { font-size: 1.25rem; color: var(--color-text-muted); max-width: 700px; margin: 0 auto; }
+
+.testimonial-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 3rem;
+  padding: 4rem 0 10rem;
+}
+
+.testimonial-card {
+  background: var(--color-surface);
+  padding: 3rem;
+  border-radius: 1.5rem;
+  border: 1px solid var(--color-border);
+  position: relative;
+}
+
+.testimonial-card blockquote {
+  font-size: 1.25rem;
+  font-style: italic;
+  line-height: 1.8;
+  margin-bottom: 2rem;
+  color: var(--color-text);
+  position: relative;
+}
+
+.testimonial-card blockquote::before {
+  content: '"';
+  font-size: 4rem;
+  position: absolute;
+  top: -2rem;
+  left: -1rem;
+  opacity: 0.1;
+  color: var(--color-primary);
+}
+
+.testimonial-author {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.testimonial-author img {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.testimonial-author h4 { margin-bottom: 0.25rem; font-size: 1.125rem; }
+.testimonial-author span { font-size: 0.875rem; color: var(--color-text-muted); }
+
+.final-cta {
+  padding: 8rem 0;
+  background: var(--color-primary);
+  color: white;
+  text-align: center;
+}
+
+@media (max-width: 991px) {
+  .testimonial-grid { grid-template-columns: 1fr; }
+  .testimonials-hero h1 { font-size: 2.5rem; }
+}
+{% endblock %}
+
+{% block content %}
+<section class="testimonials-hero">
+  <div class="container">
+    <h1 data-cms-region="page_title" data-cms-type="text" data-cms-label="Page Title">
+      {{ content.page_title | default("What Our Customers Say") }}
+    </h1>
+    <p data-cms-region="intro_text" data-cms-type="textarea" data-cms-label="Intro Text">
+      {{ content.intro_text | default("Hear directly from the people and teams who have transformed their business using our platform.") }}
+    </p>
+  </div>
+</section>
+
+<div class="container">
+  <div class="testimonial-grid" 
+       data-cms-region="testimonials" 
+       data-cms-type="repeater" 
+       data-cms-label="Testimonials"
+       data-cms-fields='[{"name":"quote","type":"textarea","label":"Quote"},{"name":"name","type":"text","label":"Name"},{"name":"role","type":"text","label":"Role"},{"name":"photo","type":"image","label":"Photo"}]'>
+    {% for t in content.testimonials %}
+      <div class="testimonial-card">
+        <blockquote>{{ t.quote }}</blockquote>
+        <div class="testimonial-author">
+          <img src="{{ t.photo | default('/images/placeholders/64x64.svg') }}" alt="{{ t.name }}">
+          <div>
+            <h4>{{ t.name }}</h4>
+            <span>{{ t.role }}</span>
+          </div>
+        </div>
+      </div>
+    {% else %}
+      <div class="testimonial-card">
+        <blockquote>"The most intuitive platform we've ever used. Our productivity tripled in just two months."</blockquote>
+        <div class="testimonial-author">
+          <img src="/images/placeholders/64x64.svg" alt="Customer">
+          <div><h4>Alex Rivera</h4><span>Product Lead at DeltaCloud</span></div>
+        </div>
+      </div>
+      <div class="testimonial-card">
+        <blockquote>"Customer support is top-notch. They're always there to help us with any technical challenges."</blockquote>
+        <div class="testimonial-author">
+          <img src="/images/placeholders/64x64.svg" alt="Customer">
+          <div><h4>Sarah Jenkins</h4><span>Founder of BloomDigital</span></div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+
+<section class="final-cta">
+  <div class="container">
+    <h2 data-cms-region="bottom_cta_title" data-cms-type="text" style="color: white;">Ready to Join Our Success Stories?</h2>
+    <p class="mb-4" style="color: rgba(255,255,255,0.9);">Join over 10,000 businesses already scaling with WebWolf.</p>
+    <a href="/pricing" class="btn btn-primary btn-lg" style="background: white; color: var(--color-primary); font-weight: 700;">Get Started Now</a>
+  </div>
+</section>
+{% endblock %}
+

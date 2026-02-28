@@ -1,0 +1,86 @@
+{% extends "layouts/base.njk" %}
+
+{% block styles %}
+.faq-hero {
+  padding: 8rem 0 4rem;
+  background: white;
+  text-align: center;
+}
+
+.faq-hero h1 { font-size: 3.5rem; margin-bottom: 1.5rem; }
+.faq-hero p { font-size: 1.25rem; color: var(--color-text-muted); max-width: 700px; margin: 0 auto; }
+
+.faq-section {
+  padding: 4rem 0 10rem;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.faq-item {
+  border-bottom: 1px solid var(--color-border);
+  padding: 2.5rem 0;
+}
+
+.faq-item h3 { font-size: 1.5rem; margin-bottom: 1.25rem; }
+.faq-item p { font-size: 1.125rem; color: var(--color-text-muted); line-height: 1.8; margin-bottom: 0; }
+
+.support-cta {
+  padding: 6rem 0;
+  background: var(--color-surface);
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .faq-hero h1 { font-size: 2.5rem; }
+  .faq-item h3 { font-size: 1.25rem; }
+}
+{% endblock %}
+
+{% block content %}
+<section class="faq-hero">
+  <div class="container">
+    <h1 data-cms-region="page_title" data-cms-type="text" data-cms-label="Page Title">
+      {{ content.page_title | default("Frequently Asked Questions") }}
+    </h1>
+    <p data-cms-region="intro_text" data-cms-type="textarea" data-cms-label="Intro Text">
+      {{ content.intro_text | default("Everything you need to know about our product and billing.") }}
+    </p>
+  </div>
+</section>
+
+<div class="container faq-section">
+  <div data-cms-region="faqs" 
+       data-cms-type="repeater" 
+       data-cms-label="FAQ Items"
+       data-cms-fields='[{"name":"question","type":"text","label":"Question"},{"name":"answer","type":"textarea","label":"Answer"}]'>
+    {% for faq in content.faqs %}
+      <div class="faq-item">
+        <h3>{{ faq.question }}</h3>
+        <p>{{ faq.answer }}</p>
+      </div>
+    {% else %}
+      <div class="faq-item">
+        <h3>How much does it cost?</h3>
+        <p>Our pricing starts at $29/month for the Basic plan, which includes all the essential features you need to get started.</p>
+      </div>
+      <div class="faq-item">
+        <h3>Can I cancel anytime?</h3>
+        <p>Yes, we offer a flexible month-to-month subscription that you can cancel or change at any time from your account settings.</p>
+      </div>
+      <div class="faq-item">
+        <h3>Do you offer support?</h3>
+        <p>Absolutely! We provide 24/7 dedicated support via email and chat for all our customers.</p>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+
+<section class="support-cta">
+  <div class="container">
+    <h2 data-cms-region="bottom_cta_title" data-cms-type="text">{{ content.bottom_cta_title | default("Still Have Questions?") }}</h2>
+    <p class="mb-4">Can't find the answer you're looking for? Please chat to our friendly team.</p>
+    <a href="/contact" class="btn btn-primary btn-lg">Contact Support</a>
+  </div>
+</section>
+{% endblock %}
+

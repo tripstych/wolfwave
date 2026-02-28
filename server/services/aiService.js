@@ -1207,38 +1207,74 @@ HTML STRUCTURE (head + body classes):\n${$('head').html()?.substring(0, 3000) ||
 }
 
 /**
- * Generate Theme (Existing)
+ * Get all available scaffolds from the hidden scaffolds directory
+ */
+export async function getAvailableScaffolds() {
+  const scaffoldsDir = path.join(__dirname, '../../templates/scaffolds');
+  try {
+    const files = await fs.promises.readdir(scaffoldsDir);
+    const scaffolds = [];
+    
+    const { parseTemplate } = await import('./templateParser.js');
+    
+    for (const file of files) {
+      if (file.endsWith('.njk')) {
+        const regions = await parseTemplate(`scaffolds/${file}`);
+        scaffolds.push({
+          filename: file,
+          name: file.replace('.njk', ''),
+          regions
+        });
+      }
+    }
+    return scaffolds;
+  } catch (err) {
+    console.error('Failed to get scaffolds:', err.message);
+    return [];
+  }
+}
+
+/**
+ * Generate Theme (Dynamic via Scaffolds)
  */
 export async function generateThemeFromIndustry(industry) {
-  // 1. Text Generation
+  // 1. Get available scaffolds to inform the AI
+  const scaffolds = await getAvailableScaffolds();
+  const scaffoldList = scaffolds.map(s => `- ${s.name}: ${s.regions.map(r => r.name).join(', ')}`).join('\n');
+
+  // 2. Text Generation (Architecting the theme)
   const systemPrompt = `You are a WebWolf Theme Architect. 
-  Your goal is to generate a JSON object containing configuration and content for a new CMS theme based on an industry.
+  Your goal is to generate a JSON object containing configuration and content for a new CMS theme.
+  
+  AVAILABLE SCAFFOLDS (Blueprints):
+  ${scaffoldList}
+  
+  Task: 
+  1. Pick the best scaffold from the list above for the given industry.
+  2. Generate a professional color palette and description.
+  3. Generate content for EVERY region defined in that scaffold.
   
   Output JSON format:
   {
     "slug": "kebab-case-slug",
     "name": "Display Name",
     "description": "Short description",
+    "scaffold": "scaffold-filename-without-ext",
     "css_variables": {
       "--nano-brand": "#hex",
       "--nano-bg": "#hex",
       "--nano-text": "#hex"
     },
     "content": {
-      "headline": "High impact headline",
-      "subtext": "Compelling subtext",
-      "features": [
-        { "title": "Feature 1", "body": "Description" },
-        { "title": "Feature 2", "body": "Description" },
-        { "title": "Feature 3", "body": "Description" }
-      ],
-      "hero_image_prompt": "A detailed DALL-E 3 prompt for a hero image for this industry. Modern, high quality, 16:9 aspect ratio."
+      "region_name_1": "Generated text or HTML",
+      "region_name_2": "...",
+      "hero_image_prompt": "A detailed DALL-E 3 prompt for a hero image for this industry."
     }
   }`;
 
   const themeData = await generateText(systemPrompt, `Create a theme for: ${industry}`);
 
-  // 2. Image Generation
+  // 3. Image Generation
   let heroImagePath = '/images/placeholders/1920x600.svg';
   if (themeData.content.hero_image_prompt) {
     try {
@@ -1248,12 +1284,27 @@ export async function generateThemeFromIndustry(industry) {
     }
   }
 
-  // 3. Construct File Data
+  // 4. Construct File Data
+  // Find the selected scaffold details
+  const selectedScaffold = scaffolds.find(s => s.name === themeData.scaffold) || scaffolds[0];
+
+  // For homepage.njk, we want to OVERRIDE the default values in the scaffold
+  // with our AI generated content.
+  // The scaffold defines things like {{ content.headline | default("Welcome") }}
+  // We will generate a homepage.njk that sets these variables or overrides blocks.
+  
+  // Since our scaffolds use a single {% block content %}, we need to recreate the 
+  // content structure but with OUR AI values as the defaults.
+  
+  // Actually, the cleanest way is to use Nunjucks globals/set or 
+  // just generate the full content block by copying the scaffold's logic 
+  // but with new defaults.
+  
   const themeFiles = {
     'theme.json': JSON.stringify({
       name: themeData.name,
       slug: themeData.slug,
-      inherits: "ai-atomic",
+      inherits: "default",
       version: "1.0.0",
       description: themeData.description,
       assets: {
@@ -1267,43 +1318,23 @@ export async function generateThemeFromIndustry(industry) {
   --nano-text: ${themeData.css_variables['--nano-text']};
 }
 body { background-color: var(--nano-bg); color: var(--nano-text); }
-.text-block h1 { color: var(--nano-brand); }
-/* AI Generated Styles */
+h1, h2, h3 { color: var(--nano-brand); }
+/* AI Generated Styles for ${themeData.scaffold} */
 `,
 
-    'pages/homepage.njk': `{% extends "layouts/base.njk" %}
+    'pages/homepage.njk': `{% extends "scaffolds/${selectedScaffold.filename}" %}
+
 {% block content %}
-<main class="ai-generated-theme" data-industry="${themeData.slug}">
+  {# The AI generator populates the content object with industry-specific defaults #}
+  {% set content = content | default({}) %}
   
-  <div class="text-block">
-    <h1 data-cms-region="headline" data-cms-type="text">
-      {{ content.headline | default("${themeData.content.headline}") }}
-    </h1>
-    <p data-cms-region="subtext" data-cms-type="textarea">
-      {{ content.subtext | default("${themeData.content.subtext}") }}
-    </p>
-  </div>
-
-  <div class="visual-block" data-cms-region="hero_image" data-cms-type="image">
-    <img src="{{ content.hero_image | default('${heroImagePath}') }}" alt="${themeData.name} Hero">
-  </div>
-
-  <div class="feature-grid"
-       data-cms-region="feature_grid"
-       data-cms-type="repeater"
-       data-cms-fields='[{"name":"title","type":"text"},{"name":"body","type":"textarea"}]'>
-    {% for item in content.feature_grid %}
-      <div class="feature-item"><h3>{{ item.title }}</h3><p>{{ item.body }}</p></div>
-    {% else %}
-      ${themeData.content.features.map(f => `
-      <div class="feature-item">
-        <h3>${f.title}</h3>
-        <p>${f.body}</p>
-      </div>`).join('')}
-    {% endfor %}
-  </div>
-
-</main>
+  {# Inject AI defaults if content is empty #}
+  {% if not content.headline %}{% set _junk = content.update({'headline': "${themeData.content.headline.replace(/"/g, '\\"')}"}) %}{% endif %}
+  {% if not content.subtext %}{% set _junk = content.update({'subtext': "${themeData.content.subtext.replace(/"/g, '\\"')}"}) %}{% endif %}
+  {% if not content.hero_image %}{% set _junk = content.update({'hero_image': "${heroImagePath}"}) %}{% endif %}
+  
+  {# Call super to render the scaffold with our updated content object #}
+  {{ super() }}
 {% endblock %}`
   };
 

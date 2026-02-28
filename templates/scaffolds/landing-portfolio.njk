@@ -1,0 +1,112 @@
+{% extends "layouts/base.njk" %}
+
+{% block styles %}
+.portfolio-hero {
+  padding: 10rem 0 6rem;
+  background: white;
+  text-align: center;
+}
+
+.portfolio-hero h1 { font-size: 5rem; letter-spacing: -0.05em; margin-bottom: 2rem; }
+.portfolio-hero p { font-size: 1.5rem; color: var(--color-text-muted); max-width: 800px; margin: 0 auto; }
+
+.portfolio-gallery {
+  padding: 4rem 0 8rem;
+}
+
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 3rem;
+  margin-top: 4rem;
+}
+
+.project-card { position: relative; overflow: hidden; border-radius: 1rem; }
+.project-card img { width: 100%; aspect-ratio: 4/3; object-fit: cover; transition: transform 0.4s ease; }
+.project-info { padding: 1.5rem 0; }
+.project-info h3 { margin-bottom: 0.5rem; }
+.project-info span { font-size: 0.875rem; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.1em; }
+
+.project-card:hover img { transform: scale(1.05); }
+
+.about-section {
+  padding: 8rem 0;
+  background: var(--color-surface);
+}
+
+.about-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6rem; align-items: center; }
+
+.contact-section {
+  padding: 8rem 0;
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .portfolio-hero h1 { font-size: 3.5rem; }
+  .gallery-grid { grid-template-columns: 1fr; }
+  .about-grid { grid-template-columns: 1fr; gap: 3rem; }
+}
+{% endblock %}
+
+{% block content %}
+<section class="portfolio-hero">
+  <div class="container">
+    <h1 data-cms-region="headline" data-cms-type="text" data-cms-label="Hero Title">
+      {{ content.headline | default("Creative Works") }}
+    </h1>
+    <p data-cms-region="subtext" data-cms-type="textarea" data-cms-label="Hero Subtitle">
+      {{ content.subtext | default("A curated selection of our most innovative design and development projects.") }}
+    </p>
+  </div>
+</section>
+
+<div class="container portfolio-gallery">
+  <div class="gallery-grid" 
+       data-cms-region="projects" 
+       data-cms-type="repeater" 
+       data-cms-label="Portfolio Projects"
+       data-cms-fields='[{"name":"title","type":"text","label":"Project Title"},{"name":"category","type":"text","label":"Category"},{"name":"image","type":"image","label":"Project Image"},{"name":"link","type":"text","label":"Project Link"}]'>
+    {% for project in content.projects %}
+      <a href="{{ project.link | default('#') }}" class="project-card-link">
+        <div class="project-card">
+          <img src="{{ project.image | default('/images/placeholders/800x600.svg') }}" alt="{{ project.title }}">
+          <div class="project-info">
+            <span>{{ project.category }}</span>
+            <h3>{{ project.title }}</h3>
+          </div>
+        </div>
+      </a>
+    {% else %}
+      <div class="project-card"><img src="/images/placeholders/800x600.svg" alt="Project"><h3>The Modern Space</h3><span>Interior Design</span></div>
+      <div class="project-card"><img src="/images/placeholders/800x600.svg" alt="Project"><h3>Urban Essentials</h3><span>Branding</span></div>
+      <div class="project-card"><img src="/images/placeholders/800x600.svg" alt="Project"><h3>Tech Flow</h3><span>UI/UX Design</span></div>
+      <div class="project-card"><img src="/images/placeholders/800x600.svg" alt="Project"><h3>Future Systems</h3><span>Development</span></div>
+    {% endfor %}
+  </div>
+</div>
+
+<section class="about-section">
+  <div class="container">
+    <div class="about-grid">
+      <div class="about-content">
+        <h2>About Our Creative Vision</h2>
+        <article data-cms-region="about_text" data-cms-type="richtext" data-cms-label="About Text">
+          {{ content.about_text | safe | default("<p>We believe in building digital experiences that resonate emotionally and functionally with users across the globe. Our small but focused team specializes in the intersection of aesthetics and usability.</p>") }}
+        </article>
+      </div>
+      <div class="about-img" data-cms-region="about_img" data-cms-type="image" data-cms-label="About Image">
+        <img src="{{ content.about_img | default('/images/placeholders/800x600.svg') }}" alt="Our Studio" style="width: 100%; border-radius: 1rem;">
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="contact-section">
+  <div class="container">
+    <h2 data-cms-region="contact_title" data-cms-type="text">{{ content.contact_title | default("Let's Collaborate") }}</h2>
+    <p class="mb-4">Have an ambitious project in mind? We'd love to hear from you.</p>
+    <a href="#" class="btn btn-primary btn-lg">Say Hello</a>
+  </div>
+</section>
+{% endblock %}
+

@@ -1,0 +1,80 @@
+{% extends "layouts/base.njk" %}
+
+{% block styles %}
+.page-header {
+  padding: 6rem 0 3rem;
+  background: white;
+}
+
+.page-header h1 {
+  font-size: 3.5rem;
+  text-align: center;
+}
+
+.three-column-layout {
+  padding: 4rem 0 8rem;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 3rem;
+}
+
+.column h3 {
+  font-size: 1.5rem;
+  margin-bottom: 1.25rem;
+  text-align: center;
+}
+
+.column article {
+  font-size: 1.125rem;
+  line-height: 1.8;
+}
+
+@media (max-width: 991px) {
+  .three-column-layout {
+    grid-template-columns: 1fr;
+    gap: 4rem;
+  }
+}
+{% endblock %}
+
+{% block content %}
+<header class="page-header">
+  <div class="container">
+    <h1 data-cms-region="page_title" data-cms-type="text" data-cms-label="Page Title">
+      {{ content.page_title | default(page.title) }}
+    </h1>
+  </div>
+</header>
+
+<div class="container">
+  <section class="three-column-layout">
+    <div class="column">
+      <h3 data-cms-region="col_1_title" data-cms-type="text" data-cms-label="Column One Title">
+        {{ content.col_1_title | default("Step One") }}
+      </h3>
+      <article data-cms-region="col_1_content" data-cms-type="richtext" data-cms-label="Column One Content">
+        {{ content.col_1_content | safe | default("<p>The first part of your tripartite message. Keep it concise and balanced with the other columns for best results.</p>") }}
+      </article>
+    </div>
+    
+    <div class="column">
+      <h3 data-cms-region="col_2_title" data-cms-type="text" data-cms-label="Column Two Title">
+        {{ content.col_2_title | default("Step Two") }}
+      </h3>
+      <article data-cms-region="col_2_content" data-cms-type="richtext" data-cms-label="Column Two Content">
+        {{ content.col_2_content | safe | default("<p>The middle part of your message. Ensure it flows logically from the first column and leads into the third.</p>") }}
+      </article>
+    </div>
+    
+    <div class="column">
+      <h3 data-cms-region="col_3_title" data-cms-type="text" data-cms-label="Column Three Title">
+        {{ content.col_3_title | default("Step Three") }}
+      </h3>
+      <article data-cms-region="col_3_content" data-cms-type="richtext" data-cms-label="Column Three Content">
+        {{ content.col_3_content | safe | default("<p>The final part of your message. This is often where you'll summarize or lead to the final call to action.</p>") }}
+      </article>
+    </div>
+  </section>
+</div>
+{% endblock %}
+

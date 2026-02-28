@@ -1,0 +1,110 @@
+{% extends "layouts/base.njk" %}
+
+{% block styles %}
+.page-header {
+  padding: 6rem 0 3rem;
+  background: white;
+}
+
+.page-header h1 {
+  font-size: 3.5rem;
+  text-align: center;
+}
+
+.content-block {
+  padding: 6rem 0;
+  line-height: 1.8;
+  font-size: 1.125rem;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.cta-banner {
+  padding: 5rem 0;
+  background: var(--color-primary);
+  color: white;
+  text-align: center;
+}
+
+.cta-banner h2 {
+  font-size: 2.5rem;
+  color: white;
+  margin-bottom: 1.5rem;
+}
+
+.cta-banner p {
+  font-size: 1.25rem;
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: 2.5rem;
+  max-width: 700px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.cta-banner .btn-white {
+  background: white;
+  color: var(--color-primary);
+  font-weight: 700;
+  padding: 1rem 2rem;
+  border-radius: 0.5rem;
+  display: inline-block;
+}
+
+@media (max-width: 768px) {
+  .page-header h1 { font-size: 2.5rem; }
+  .cta-banner h2 { font-size: 2rem; }
+}
+{% endblock %}
+
+{% block content %}
+<header class="page-header">
+  <div class="container">
+    <h1 data-cms-region="page_title" data-cms-type="text" data-cms-label="Page Title">
+      {{ content.page_title | default(page.title) }}
+    </h1>
+  </div>
+</header>
+
+<div data-cms-region="page_content_blocks" 
+     data-cms-type="repeater" 
+     data-cms-label="Content Blocks & Banners"
+     data-cms-fields='[{"name":"content_part","type":"richtext","label":"Content Section"},{"name":"cta_title","type":"text","label":"Banner Title (Optional)"},{"name":"cta_text","type":"textarea","label":"Banner Text"},{"name":"cta_button","type":"link","label":"Banner Button"}]'>
+  
+  {% for block in content.page_content_blocks %}
+    <section class="content-block">
+      <div class="container">
+        {{ block.content_part | safe }}
+      </div>
+    </section>
+
+    {% if block.cta_title or block.cta_text %}
+    <section class="cta-banner">
+      <div class="container">
+        {% if block.cta_title %}
+          <h2>{{ block.cta_title }}</h2>
+        {% endif %}
+        <p>{{ block.cta_text }}</p>
+        <a href="{{ block.cta_button.url | default('#') }}" class="btn-white">
+          {{ block.cta_button.text | default("Action") }}
+        </a>
+      </div>
+    </section>
+    {% endif %}
+  {% else %}
+    <section class="content-block">
+      <div class="container">
+        <p>Introduce your story or product here. This template is unique because it uses a repeater for the entire page structure, alternating between detailed content and high-impact full-width call-to-action banners.</p>
+      </div>
+    </section>
+    
+    <section class="cta-banner">
+      <div class="container">
+        <h2>A Bold Statement</h2>
+        <p>Interject your message with something that grabs attention and leads to an immediate conversion or next step.</p>
+        <a href="#" class="btn-white">Join Today</a>
+      </div>
+    </section>
+  {% endfor %}
+</div>
+{% endblock %}
+
