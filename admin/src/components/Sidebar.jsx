@@ -1,12 +1,36 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { X, LayoutDashboard, Boxes, Puzzle, Layers, Image, List, Tag, Package, Briefcase, Users, CreditCard, Palette, Mail, Search, Settings, Download, Globe, Key, Megaphone, Zap, Heart, ShoppingCart, FolderOpen, Truck, FileText } from 'lucide-react';
 import SidebarItem from './SidebarItem';
 import { useTranslation } from '../context/TranslationContext';
+import { useAuth } from '../context/AuthContext';
+import api from '../lib/api';
 
 
 export default function Sidebar({ isOpen, onClose }) {
   const { _ } = useTranslation();
+  const { user } = useAuth();
+  const [hasLicenses, setHasLicenses] = useState(false);
+
+  useEffect(() => {
+    const checkLicenses = async () => {
+      // Only check if user is admin (this is for admin panel)
+      if (!user) return;
+      
+      try {
+        const limits = await api.get('/customer-tenants/limits');
+        // A user has licenses if they have a non-zero limit or already have sites
+        const valid = limits && !limits.no_customer && (
+          (typeof limits.limit === 'number' && limits.limit > 0) || 
+          (typeof limits.used === 'number' && limits.used > 0)
+        );
+        setHasLicenses(!!valid);
+      } catch (err) {
+        setHasLicenses(false);
+      }
+    };
+    checkLicenses();
+  }, [user]);
 
   const navigationSections = [
     {
@@ -35,7 +59,7 @@ export default function Sidebar({ isOpen, onClose }) {
     {
       section: _('nav.section.store', 'Store'),
       items: [
-        { name: _('nav.my_sites', 'My Sites'), href: '/my-sites', icon: Globe },
+        ...(hasLicenses ? [{ name: _('nav.my_sites', 'My Sites'), href: '/my-sites', icon: Globe }] : []),
         { name: _('nav.products', 'Products'), href: '/products', icon: Package },
         { name: _('nav.orders', 'Orders'), href: '/orders', icon: Briefcase },
         { name: _('nav.customers', 'Customers'), href: '/customers', icon: Users },
