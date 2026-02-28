@@ -31,11 +31,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Create a default Nunjucks env at startup (for express error pages, etc.)
-const defaultEnv = await getNunjucksEnv('default');
-app.locals.nunjucksEnv = defaultEnv;
-// Let express know how to render .njk files via the default env
-defaultEnv.express(app);
+// Nunjucks default env is initialized after DB init (see initDb().then() below)
 
 // Middleware
 // app.use(cors({
@@ -160,7 +156,12 @@ app.use(errorLog);
 
 // Initialize database and start server
 if (process.env.NODE_ENV !== 'test') {
-  initDb().then(() => {
+  initDb().then(async () => {
+    // Create a default Nunjucks env at startup (for express error pages, etc.)
+    const defaultEnv = await getNunjucksEnv('default');
+    app.locals.nunjucksEnv = defaultEnv;
+    defaultEnv.express(app);
+
     app.listen(PORT, () => {
       info('system', 'STARTUP', `WolfWave CMS running on http://localhost:${PORT}`);
       info('system', 'STARTUP', `Admin UI: http://localhost:5173 (dev) or http://localhost:${PORT}/admin (prod)`);
