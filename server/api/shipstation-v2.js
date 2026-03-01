@@ -453,6 +453,15 @@ router.get('/fulfillments', requireAuth, requireEditor, async (req, res) => {
   }
 });
 
+router.post('/fulfillments', requireAuth, requireEditor, async (req, res) => {
+  try {
+    const result = await ss.createFulfillments(req.body.fulfillments);
+    res.json(result);
+  } catch (error) {
+    res.status(error.response?.status || 500).json({ error: ssError(error) });
+  }
+});
+
 // ─── Tags ────────────────────────────────────────────────────────────
 
 router.get('/tags', requireAuth, requireEditor, async (req, res) => {

@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import api from '../lib/api';
 import { toast } from 'sonner';
-import { Truck, Warehouse, TestTube, RefreshCw, CheckCircle, XCircle, ChevronDown, ChevronUp, Globe, Tag, Ban, Plus, X, FileText, Download } from 'lucide-react';
+import { Truck, Warehouse, TestTube, RefreshCw, CheckCircle, XCircle, ChevronDown, ChevronUp, Globe, Tag, Ban, Plus, X, FileText, Download, PackageCheck } from 'lucide-react';
 
 const tabs = [
   { id: 'shipments', label: 'Shipments', icon: Truck },
+  { id: 'fulfillments', label: 'Fulfillments', icon: PackageCheck },
   { id: 'labels', label: 'Labels', icon: FileText },
   { id: 'carriers', label: 'Carriers', icon: Globe },
   { id: 'warehouses', label: 'Warehouses', icon: Warehouse },
@@ -107,6 +108,7 @@ export default function ShipStation() {
       ) : (
         <>
           {activeTab === 'shipments' && <ShipmentsTab />}
+          {activeTab === 'fulfillments' && <FulfillmentsTab />}
           {activeTab === 'labels' && <LabelsTab />}
           {activeTab === 'carriers' && <CarriersTab />}
           {activeTab === 'warehouses' && <WarehousesTab />}
@@ -392,6 +394,181 @@ function ShipmentsTab() {
           )}
         </tbody>
       </table>
+      </div>
+    </div>
+  );
+}
+
+// ─── Fulfillments Tab ───────────────────────────────────────────────
+
+function FulfillmentsTab() {
+  const [fulfillments, setFulfillments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [form, setForm] = useState({
+    shipment_id: '', tracking_number: '', carrier_code: '',
+    ship_date: new Date().toISOString().split('T')[0],
+    notify_customer: true, notify_order_source: true
+  });
+
+  useEffect(() => { loadFulfillments(); }, []);
+
+  const loadFulfillments = async () => {
+    setLoading(true);
+    try {
+      const data = await api.get('/shipstation/fulfillments?page_size=50&sort_dir=desc&sort_by=created_at');
+      setFulfillments(data?.fulfillments || []);
+    } catch (err) {
+      console.error('Failed to load fulfillments:', err);
+      setFulfillments([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setCreating(true);
+    try {
+      const payload = {
+        fulfillments: [{
+          shipment_id: form.shipment_id,
+          tracking_number: form.tracking_number,
+          carrier_code: form.carrier_code,
+          ship_date: new Date(form.ship_date).toISOString(),
+          notify_customer: form.notify_customer,
+          notify_order_source: form.notify_order_source
+        }]
+      };
+      const result = await api.post('/shipstation/fulfillments', payload);
+      if (result?.has_errors) {
+        const errMsg = result.fulfillments?.find(f => f.error)?.error?.message || 'Some fulfillments failed';
+        toast.error(errMsg);
+      } else {
+        toast.success('Fulfillment created');
+        setShowForm(false);
+        setForm({ shipment_id: '', tracking_number: '', carrier_code: '', ship_date: new Date().toISOString().split('T')[0], notify_customer: true, notify_order_source: true });
+      }
+      loadFulfillments();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to create fulfillment');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <button onClick={() => setShowForm(!showForm)}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+          <Plus className="w-3.5 h-3.5" />
+          Create Fulfillment
+        </button>
+        <button onClick={loadFulfillments} disabled={loading}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50">
+          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+          {loading ? 'Loading...' : 'Refresh'}
+        </button>
+      </div>
+
+      {showForm && (
+        <form onSubmit={handleSubmit} className="bg-white border border-gray-200 rounded-lg p-5 space-y-4">
+          <h3 className="text-sm font-semibold text-gray-800">New Fulfillment</h3>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Shipment ID *</label>
+              <input value={form.shipment_id} onChange={e => setForm(f => ({ ...f, shipment_id: e.target.value }))} required
+                placeholder="se-12345678"
+                className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-lg" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Tracking Number *</label>
+              <input value={form.tracking_number} onChange={e => setForm(f => ({ ...f, tracking_number: e.target.value }))} required
+                placeholder="1Z12345E1234567890"
+                className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-lg" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Carrier Code *</label>
+              <input value={form.carrier_code} onChange={e => setForm(f => ({ ...f, carrier_code: e.target.value }))} required
+                placeholder="ups, fedex, usps..."
+                className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-lg" />
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Ship Date</label>
+              <input type="date" value={form.ship_date} onChange={e => setForm(f => ({ ...f, ship_date: e.target.value }))}
+                className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-lg" />
+            </div>
+            <label className="flex items-center gap-2 text-sm text-gray-700 pt-5">
+              <input type="checkbox" checked={form.notify_customer} onChange={e => setForm(f => ({ ...f, notify_customer: e.target.checked }))}
+                className="rounded border-gray-300" />
+              Notify Customer
+            </label>
+            <label className="flex items-center gap-2 text-sm text-gray-700 pt-5">
+              <input type="checkbox" checked={form.notify_order_source} onChange={e => setForm(f => ({ ...f, notify_order_source: e.target.checked }))}
+                className="rounded border-gray-300" />
+              Notify Marketplace
+            </label>
+          </div>
+          <div className="flex items-center gap-3 pt-2">
+            <button type="submit" disabled={creating}
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+              {creating ? 'Creating...' : 'Create Fulfillment'}
+            </button>
+            <button type="button" onClick={() => setShowForm(false)}
+              className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Cancel</button>
+          </div>
+        </form>
+      )}
+
+      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+        <table className="w-full">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fulfillment</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Shipment</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Carrier</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tracking</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ship To</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Shipped</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {fulfillments.map(f => (
+              <tr key={f.fulfillment_id} className="hover:bg-gray-50">
+                <td className="px-4 py-3">
+                  <div className="text-sm font-medium">{f.fulfillment_id}</div>
+                  {f.order_number && <div className="text-xs text-gray-500">Order #{f.order_number}</div>}
+                </td>
+                <td className="px-4 py-3 text-sm text-gray-600">{f.shipment_id || '-'}</td>
+                <td className="px-4 py-3">
+                  <div className="text-sm">{f.carrier_code || '-'}</div>
+                  <div className="text-xs text-gray-500">{f.service_code?.replace(/_/g, ' ') || ''}</div>
+                </td>
+                <td className="px-4 py-3 text-sm">
+                  {f.tracking_number ? (
+                    <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">{f.tracking_number}</code>
+                  ) : <span className="text-gray-400">-</span>}
+                </td>
+                <td className="px-4 py-3">
+                  <div className="text-sm">{f.ship_to?.name || '-'}</div>
+                  {f.ship_to?.city_locality && (
+                    <div className="text-xs text-gray-500">{f.ship_to.city_locality}, {f.ship_to.state_province} {f.ship_to.country_code}</div>
+                  )}
+                </td>
+                <td className="px-4 py-3 text-sm text-gray-600">
+                  {f.ship_date ? new Date(f.ship_date).toLocaleDateString() : '-'}
+                </td>
+              </tr>
+            ))}
+            {fulfillments.length === 0 && (
+              <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-500">{loading ? 'Loading...' : 'No fulfillments found'}</td></tr>
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   );

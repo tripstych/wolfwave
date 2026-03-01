@@ -309,6 +309,10 @@ export async function listFulfillments(params = {}) {
   return await request('get', '/v2/fulfillments', params);
 }
 
+export async function createFulfillments(fulfillments) {
+  return await request('post', '/v2/fulfillments', { fulfillments });
+}
+
 // ─── Webhooks ────────────────────────────────────────────────────────
 
 export async function listWebhooks() {
@@ -373,7 +377,7 @@ export default {
   // Stores
   listStores, getStore, refreshStore,
   // Fulfillments
-  listFulfillments,
+  listFulfillments, createFulfillments,
   // Webhooks
   listWebhooks, subscribeWebhook, unsubscribeWebhook,
   // Tags
