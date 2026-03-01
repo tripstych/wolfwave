@@ -118,7 +118,7 @@ export default function Settings() {
       const [data, pagesData, modulesData] = await Promise.all([
         api.get('/settings'),
         api.get('/pages'),
-        api.get('/settings/modules').catch(() => []) // Fallback to empty if not implemented or fails
+        api.get('/settings/modules')
       ]);
       setSettings(prev => {
         const loaded = {};

@@ -1234,77 +1234,66 @@ export async function getAvailableScaffolds() {
   }
 }
 
+const STANDARD_PAGES = ['homepage', 'about', 'contact', 'product-list'];
+
 /**
  * Generate a draft theme plan (architect's proposal) without building anything.
  */
 export async function draftThemePlan(industry) {
   const scaffolds = await getAvailableScaffolds();
 
-  // Build detailed region descriptions so the AI knows what content each scaffold needs
   const scaffoldDetails = scaffolds.map(s => {
-    const regionDescs = s.regions.map(r => {
-      let desc = `    - ${r.name} (${r.type}): "${r.label}"`;
-      if (r.type === 'repeater' && r.fields) {
-        desc += ` [items: ${r.fields.map(f => `${f.name}(${f.type})`).join(', ')}]`;
-      }
-      return desc;
-    }).join('\n');
+    const regionDescs = s.regions.map(r => `    - ${r.name} (${r.type}): "${r.label}"`).join('\n');
     return `  ${s.name}:\n${regionDescs}`;
   }).join('\n\n');
 
   const systemPrompt = `You are a WebWolf Theme Architect.
-  Your goal is to generate a JSON object containing a STRATEGY for a new CMS theme based on an industry or user description.
+  Your goal is to generate a JSON object containing a STRATEGY for a new CMS theme.
 
-  AVAILABLE SCAFFOLDS (Pick ONE for the "scaffold" key):
-  ${scaffolds.map(s => s.name).join(', ')}
-
-  FULL REGION DETAILS FOR EACH SCAFFOLD:
+  AVAILABLE PAGE SCAFFOLDS:
   ${scaffoldDetails}
 
   CRITICAL RULES:
-  1. Pick the best scaffold from the list above. The "scaffold" key MUST match a filename exactly.
-  2. Generate a professional color palette with 4 distinct colors.
-  3. Generate demo content for EVERY region in the chosen scaffold — not just headline/subtext.
-  4. For "repeater" regions, provide an array of 3+ items with all sub-fields populated.
-  5. For "richtext" regions, provide HTML content (paragraphs, lists, headings).
-  6. For "link" regions, provide an object with "url" and "text" keys.
-  7. For "image" regions, provide a DALL-E prompt string (prefixed with "GENERATE:").
-  8. For "color" regions, provide a hex color string.
-  9. Include a "hero_image_prompt" key with a detailed DALL-E 3 prompt.
+  1. Generate content for ALL of these standard pages: ${STANDARD_PAGES.join(', ')}.
+  2. For each page, select the MOST appropriate scaffold from the list.
+  3. Populate the 'content' object for EACH page with relevant, high-quality demo content.
+  4. Generate a professional 4-color palette.
+  5. Include a 'hero_image_prompt' for a detailed DALL-E 3 hero image for the homepage.
 
   Output JSON format:
   {
     "slug": "kebab-case-slug",
     "name": "Professional Display Name",
     "description": "A 1-sentence marketing description of this theme.",
-    "scaffolds": [
-      {
-        "file": "homepage-scaffold.njk",
-        "content": {
-          "headline": "Compelling main title for the homepage",
-          "... all other regions for the homepage scaffold ..."
-        }
+    "pages": {
+      "homepage": {
+        "scaffold": "homepage-scaffold",
+        "content": { "headline": "...", "subtext": "..." }
       },
-      {
-        "file": "about-scaffold.njk",
-        "content": {
-          "page_title": "About Our Company",
-          "... all other regions for the about page scaffold ..."
-        }
+      "about": {
+        "scaffold": "about-scaffold",
+        "content": { "page_title": "...", "body_content": "..." }
+      },
+      "contact": {
+        "scaffold": "contact-scaffold",
+        "content": { "page_title": "...", "address": "..." }
+      },
+      "product-list": {
+        "scaffold": "product-grid-scaffold",
+        "content": { "page_title": "Our Products" }
       }
-    ],
+    },
     "css_variables": {
-      "--nano-brand": "#hex (Primary brand color)",
-      "--nano-secondary": "#hex (Accent or secondary color)",
-      "--nano-bg": "#hex (Page background color)",
-      "--nano-text": "#hex (Main text color)"
+      "--nano-brand": "#hex",
+      "--nano-secondary": "#hex",
+      "--nano-bg": "#hex",
+      "--nano-text": "#hex"
     },
     "hero_image_prompt": "A detailed DALL-E 3 prompt for a hero image."
   }`;
 
   const plan = await generateText(systemPrompt, `Create a comprehensive theme strategy for: ${industry}`);
 
-  // Ensure we have the basic keys even if AI missed some
   if (!plan.css_variables) plan.css_variables = {};
   plan.css_variables['--nano-brand'] = plan.css_variables['--nano-brand'] || '#2563eb';
   plan.css_variables['--nano-secondary'] = plan.css_variables['--nano-secondary'] || '#64748b';
@@ -1318,13 +1307,9 @@ export async function draftThemePlan(industry) {
  * Generate Theme (Dynamic via Scaffolds)
  */
 export async function generateThemeFromIndustry(industry, existingPlan = null) {
-  // 1. Get scaffolds (always needed for mapping)
   const allScaffolds = await getAvailableScaffolds();
-
-  // 2. Get the plan (either from draft or generate a new one)
   const themeData = existingPlan || await draftThemePlan(industry);
 
-  // 3. Image Generation
   let heroImagePath = '/images/placeholders/1920x600.svg';
   if (themeData.hero_image_prompt) {
     try {
@@ -1338,29 +1323,25 @@ export async function generateThemeFromIndustry(industry, existingPlan = null) {
   const demoContents = {};
   const scaffoldsDir = path.join(__dirname, '../../templates/scaffolds');
 
-  // 4. Process each scaffold in the plan
-  for (const scaffold of themeData.scaffolds) {
-    const selectedScaffold = allScaffolds.find(s => s.name === scaffold.file.replace('.njk', ''));
+  for (const pageKey in themeData.pages) {
+    const pageConfig = themeData.pages[pageKey];
+    const selectedScaffold = allScaffolds.find(s => s.name === pageConfig.scaffold);
+    
     if (!selectedScaffold) {
-      console.warn(`Scaffold ${scaffold.file} not found, skipping.`);
+      console.warn(`Scaffold '${pageConfig.scaffold}' for page '${pageKey}' not found, skipping.`);
       continue;
     }
 
-    const scaffoldContent = await fs.promises.readFile(
-      path.join(scaffoldsDir, selectedScaffold.filename), 'utf8'
-    );
-    
-    const pageName = selectedScaffold.name.replace(/-/g, '_');
-    templates[`pages/${pageName}.njk`] = scaffoldContent;
+    const scaffoldContent = await fs.promises.readFile(path.join(scaffoldsDir, selectedScaffold.filename), 'utf8');
+    templates[`pages/${pageKey}.njk`] = scaffoldContent;
 
-    const demoContent = { ...(scaffold.content || {}) };
-    if (pageName === 'homepage' && !demoContent.hero_image) {
+    const demoContent = { ...(pageConfig.content || {}) };
+    if (pageKey === 'homepage' && !demoContent.hero_image) {
       demoContent.hero_image = heroImagePath;
     }
-    demoContents[pageName] = demoContent;
+    demoContents[pageKey] = demoContent;
   }
 
-  // 5. Map --nano-* CSS variables to --cms-* that variables.css expects
   const vars = themeData.css_variables || {};
   const brand = vars['--nano-brand'] || '#2563eb';
   const secondary = vars['--nano-secondary'] || '#64748b';
@@ -1394,22 +1375,21 @@ export async function generateThemeFromIndustry(industry, existingPlan = null) {
  * This is a lightweight, in-memory Nunjucks-style render.
  */
 export async function generateThemePreview(plan, page = 'homepage') {
-  const pageScaffold = plan.scaffolds.find(s => s.file.replace('.njk', '') === page);
-  if (!pageScaffold) {
-    throw new Error(`Scaffold for page "${page}" not found in the plan.`);
+  const pageConfig = plan.pages[page];
+  if (!pageConfig) {
+    throw new Error(`Page configuration for "${page}" not found in the plan.`);
   }
-  
-  const scaffoldsDir = path.join(__dirname, '../../templates/scaffolds');
-  let template = await fs.promises.readFile(path.join(scaffoldsDir, pageScaffold.file), 'utf8');
 
-  const content = pageScaffold.content || {};
+  const scaffoldsDir = path.join(__dirname, '../../templates/scaffolds');
+  const scaffoldFile = `${pageConfig.scaffold}.njk`;
+  let template = await fs.promises.readFile(path.join(scaffoldsDir, scaffoldFile), 'utf8');
+
+  const content = pageConfig.content || {};
   
-  // Simple Nunjucks-like replace
   template = template.replace(/\{\{\s*content\.([\w\d_]+)\s*\}\}/g, (match, key) => {
     return content[key] || '';
   });
 
-  // Create CSS from variables
   const vars = plan.css_variables || {};
   const brand = vars['--nano-brand'] || '#2563eb';
   const secondary = vars['--nano-secondary'] || '#64748b';
@@ -1426,7 +1406,6 @@ export async function generateThemePreview(plan, page = 'homepage') {
   body { background-color: var(--cms-color-background); color: var(--cms-color-text); }
   `;
 
-  // Inject styles and Tailwind CDN
   const headContent = `
     <style>${previewCss}</style>
     <script src="https://cdn.tailwindcss.com"></script>

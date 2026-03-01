@@ -87,15 +87,19 @@ export default function AiThemeGenerator({ onThemeGenerated }) {
   };
 
   const updatePreviewField = (page, key, value) => {
-    setPreviewData(prev => {
-      const newScaffolds = prev.scaffolds.map(s => {
-        if (s.file.replace('.njk', '') === page) {
-          return { ...s, content: { ...s.content, [key]: value } };
+    setPreviewData(prev => ({
+      ...prev,
+      pages: {
+        ...prev.pages,
+        [page]: {
+          ...prev.pages[page],
+          content: {
+            ...prev.pages[page].content,
+            [key]: value
+          }
         }
-        return s;
-      });
-      return { ...prev, scaffolds: newScaffolds };
-    });
+      }
+    }));
   };
 
   const updateColor = (key, value) => {
@@ -111,8 +115,8 @@ export default function AiThemeGenerator({ onThemeGenerated }) {
     setIndustry('');
     setIsExpanded(false);
   }
-
-  const homepageScaffold = previewData?.scaffolds.find(s => s.file.includes('homepage'));
+  
+  const activePageContent = previewData?.pages[activePreview]?.content;
 
   return (
     <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100 rounded-xl p-6 mb-8 shadow-sm">
@@ -185,10 +189,10 @@ export default function AiThemeGenerator({ onThemeGenerated }) {
                   {/* Content Column */}
                   <div className="lg:col-span-2 space-y-6">
                     <div className="flex items-center gap-2 text-gray-700 font-bold text-xs uppercase tracking-widest">
-                      <Type className="w-4 h-4" /> Generated Copy
+                      <Type className="w-4 h-4" /> Generated Copy ({activePreview})
                     </div>
                     
-                    {homepageScaffold && homepageScaffold.content && Object.entries(homepageScaffold.content).map(([key, value]) => {
+                    {activePageContent && Object.entries(activePageContent).map(([key, value]) => {
                       if (typeof value !== 'string') return null; // Skip repeaters for now
                       const Tag = value.length > 100 ? 'textarea' : 'input';
                       return (
@@ -197,7 +201,7 @@ export default function AiThemeGenerator({ onThemeGenerated }) {
                           <Tag
                             type="text"
                             value={value}
-                            onChange={(e) => updatePreviewField('homepage', key, e.target.value)}
+                            onChange={(e) => updatePreviewField(activePreview, key, e.target.value)}
                             className="w-full text-sm border-gray-200 rounded-lg p-3 shadow-sm focus:ring-2 focus:ring-indigo-100"
                             rows={Tag === 'textarea' ? 3 : undefined}
                           />
@@ -235,10 +239,9 @@ export default function AiThemeGenerator({ onThemeGenerated }) {
                             className="text-xs font-bold text-gray-600 pl-2 pr-6 py-1 appearance-none bg-transparent"
                             disabled={previewLoading}
                           >
-                          {previewData.scaffolds.map(s => {
-                            const name = s.file.replace('.njk', '');
-                            return <option key={name} value={name}>{name.replace(/-/g, ' ')}</option>
-                          })}
+                          {Object.keys(previewData.pages).map(pageKey => (
+                            <option key={pageKey} value={pageKey}>{pageKey.replace(/-/g, ' ')}</option>
+                          ))}
                           </select>
                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1 text-gray-700">
                             <svg className="fill-current h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
