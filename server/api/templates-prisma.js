@@ -9,6 +9,7 @@ const router = Router();
 
 /**
  * List all templates with pagination
+ * System templates (filename starting with 'system/') are only visible to admins
  */
 router.get('/', requireAuth, async (req, res) => {
   try {
@@ -19,6 +20,15 @@ router.get('/', requireAuth, async (req, res) => {
 
     const where = {};
     if (content_type) where.content_type = content_type;
+    
+    // Filter out system templates for non-admin users
+    if (req.user?.role !== 'admin') {
+      where.filename = {
+        not: {
+          startsWith: 'system/'
+        }
+      };
+    }
 
     const templates = await prisma.templates.findMany({
       where,
@@ -41,6 +51,7 @@ router.get('/', requireAuth, async (req, res) => {
 
 /**
  * Get template by ID
+ * System templates are only accessible by admins
  */
 router.get('/id/:id', requireAuth, async (req, res) => {
   try {
@@ -50,6 +61,11 @@ router.get('/id/:id', requireAuth, async (req, res) => {
 
     if (!template) {
       return res.status(404).json({ error: 'Template not found' });
+    }
+
+    // Check if this is a system template and user is not admin
+    if (template.filename.startsWith('system/') && req.user?.role !== 'admin') {
+      return res.status(403).json({ error: 'Access denied: System templates require admin access' });
     }
 
     res.json(template);

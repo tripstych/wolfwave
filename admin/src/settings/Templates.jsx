@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api, { parseRegions } from '../lib/api';
-import { RefreshCw, Layers, FileText, ChevronRight, CheckCircle, Code } from 'lucide-react';
+import { RefreshCw, Layers, FileText, ChevronRight, CheckCircle, Code, Search, ChevronDown, ChevronUp } from 'lucide-react';
 
 export default function Templates() {
   const [templates, setTemplates] = useState([]);
@@ -11,6 +11,8 @@ export default function Templates() {
   const [reloading, setReloading] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [syncMessage, setSyncMessage] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [collapsedTypes, setCollapsedTypes] = useState(new Set());
 
   useEffect(() => {
     loadTemplates();
@@ -54,13 +56,38 @@ export default function Templates() {
     return acc;
   }, {});
 
+  // Filter templates by search query
+  const filteredTemplates = templates.filter(template => 
+    template.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    template.filename.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (template.content_type || '').toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Group filtered templates
+  const filteredGroupedTemplates = filteredTemplates.reduce((acc, template) => {
+    const type = template.content_type || 'other';
+    if (!acc[type]) acc[type] = [];
+    acc[type].push(template);
+    return acc;
+  }, {});
+
   // Sort logic: Pages first, then Products, then Blocks, then others
   const typeOrder = ['pages', 'products', 'blocks', 'widgets', 'other'];
-  const sortedTypes = Object.keys(groupedTemplates).sort((a, b) => {
+  const sortedTypes = Object.keys(filteredGroupedTemplates).sort((a, b) => {
     const idxA = typeOrder.indexOf(a);
     const idxB = typeOrder.indexOf(b);
     return (idxA !== -1 ? idxA : 99) - (idxB !== -1 ? idxB : 99);
   });
+
+  const toggleTypeCollapse = (type) => {
+    const newCollapsed = new Set(collapsedTypes);
+    if (newCollapsed.has(type)) {
+      newCollapsed.delete(type);
+    } else {
+      newCollapsed.add(type);
+    }
+    setCollapsedTypes(newCollapsed);
+  };
 
   const handleSync = async () => {
     setSyncing(true);
@@ -120,53 +147,102 @@ export default function Templates() {
         </div>
       )}
 
+      {/* Search Bar */}
+      <div className="card p-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search templates by name, filename, or type..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="input pl-10 w-full"
+            id="admin-templates-search-input"
+          />
+        </div>
+        {searchQuery && (
+          <p className="text-xs text-gray-500 mt-2">
+            Found {filteredTemplates.length} of {templates.length} templates
+          </p>
+        )}
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Template List */}
         <div className="lg:col-span-1">
           <div className="card overflow-hidden">
-            {templates.length === 0 ? (
+            {filteredTemplates.length === 0 ? (
               <div className="p-6 text-center text-gray-500">
                 <Layers className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>No templates found.</p>
+                <p>{searchQuery ? 'No templates found matching your search.' : 'No templates found.'}</p>
               </div>
             ) : (
               <div className="divide-y divide-gray-200">
-                {sortedTypes.map(type => (
-                  <div key={type}>
-                    <div className="bg-gray-50 px-4 py-2 border-y border-gray-200">
-                      <h3 className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
-                        {type}
-                      </h3>
+                {sortedTypes.map(type => {
+                  const isCollapsed = collapsedTypes.has(type);
+                  const typeTemplates = filteredGroupedTemplates[type];
+                  const templateCount = typeTemplates.length;
+                  
+                  return (
+                    <div key={type}>
+                      <button
+                        onClick={() => toggleTypeCollapse(type)}
+                        className="w-full bg-gray-50 px-4 py-3 border-y border-gray-200 flex items-center justify-between hover:bg-gray-100 transition-colors"
+                      >
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
+                            {type}
+                          </h3>
+                          <span className="text-xs text-gray-400">({templateCount})</span>
+                        </div>
+                        {isCollapsed ? (
+                          <ChevronDown className="w-4 h-4 text-gray-400" />
+                        ) : (
+                          <ChevronUp className="w-4 h-4 text-gray-400" />
+                        )}
+                      </button>
+                      
+                      {!isCollapsed && (
+                        <div className="divide-y divide-gray-100">
+                          {typeTemplates.map((template) => {
+                            const hasRegions = parseRegions(template.regions).length > 0;
+                            const isSystemTemplate = template.filename.startsWith('system/');
+                            
+                            return (
+                              <button
+                                id={`template-select-${template.id}`}
+                                key={template.id}
+                                onClick={() => setSelectedTemplate(template)}
+                                className={`w-full px-4 py-3 text-left flex items-center justify-between hover:bg-gray-50 transition-colors ${
+                                  selectedTemplate?.id === template.id ? 'bg-primary-50 ring-1 ring-inset ring-primary-500 z-10' : ''
+                                }`}
+                              >
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <p className={`text-sm font-medium truncate ${selectedTemplate?.id === template.id ? 'text-primary-900' : 'text-gray-900'}`}>
+                                      {template.name}
+                                    </p>
+                                    {isSystemTemplate && (
+                                      <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded font-medium">
+                                        System
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-gray-500 truncate font-mono">{template.filename}</p>
+                                </div>
+                                {hasRegions && (
+                                  <div className="flex-shrink-0 ml-2" title="Has editable content regions">
+                                    <div className="w-2 h-2 bg-green-500 rounded-full shadow-sm shadow-green-200" />
+                                  </div>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
-                    <div className="divide-y divide-gray-100">
-                      {groupedTemplates[type].map((template) => {
-                        const hasRegions = parseRegions(template.regions).length > 0;
-                        return (
-                          <button
-                            id={`template-select-${template.id}`}
-                            key={template.id}
-                            onClick={() => setSelectedTemplate(template)}
-                            className={`w-full px-4 py-3 text-left flex items-center justify-between hover:bg-gray-50 transition-colors ${
-                              selectedTemplate?.id === template.id ? 'bg-primary-50 ring-1 ring-inset ring-primary-500 z-10' : ''
-                            }`}
-                          >
-                            <div className="min-w-0">
-                              <p className={`text-sm font-medium truncate ${selectedTemplate?.id === template.id ? 'text-primary-900' : 'text-gray-900'}`}>
-                                {template.name}
-                              </p>
-                              <p className="text-xs text-gray-500 truncate font-mono">{template.filename}</p>
-                            </div>
-                            {hasRegions && (
-                              <div className="flex-shrink-0 ml-2" title="Has editable content regions">
-                                <div className="w-2 h-2 bg-green-500 rounded-full shadow-sm shadow-green-200" />
-                              </div>
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
