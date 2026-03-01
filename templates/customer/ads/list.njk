@@ -1,8 +1,8 @@
-{% extends "layouts/base.njk" %}
+{% extends "system/layouts/customer-base.njk" %}
 
-{% block content %}
-<div class="account-container">
-  <div class="account-header">
+{% block customer_content %}
+<div class="customer-ads-page">
+  <div class="ads-header">
     <div class="flex items-center gap-4">
       <a href="/customer/account" class="btn btn-secondary">Back to Account</a>
       <h1>My Classified Ads</h1>
@@ -10,177 +10,217 @@
     <a href="/customer/ads/create" class="btn btn-primary">Create New Ad</a>
   </div>
 
-  <div class="account-content">
-    <div id="ads-list" class="ads-grid">
-      <div class="loading">Loading your ads...</div>
-    </div>
-  </div>
-</div>
+  {% include "system/components/customer-ads-list.njk" %}
 
-<script>
-  async function loadAds() {
-    try {
-      const response = await fetch('/api/classified-ads/my-ads', { credentials: 'include' });
-      if (!response.ok) throw new Error('Failed to load ads');
-      
-      const ads = await response.json();
-      const adsList = document.getElementById('ads-list');
-      
-      if (ads.length === 0) {
-        adsList.innerHTML = `
-          <div class="empty-state">
-            <p>You haven't posted any classified ads yet.</p>
-            <a href="/customer/ads/create" class="btn btn-primary mt-4">Post Your First Ad</a>
+  <script>
+    async function loadAds() {
+      try {
+        const response = await fetch('/api/classified-ads/my-ads', { credentials: 'include' });
+        if (!response.ok) throw new Error('Failed to load ads');
+        
+        const ads = await response.json();
+        const adsList = document.getElementById('ads-list');
+        
+        if (ads.length === 0) {
+          adsList.innerHTML = `
+            <div class="empty-state">
+              <p>You haven't posted any classified ads yet.</p>
+              <a href="/customer/ads/create" class="btn btn-primary mt-4">Post Your First Ad</a>
+            </div>
+          `;
+          return;
+        }
+
+        adsList.innerHTML = ads.map(ad => `
+          <div class="customer-ad-card ${ad.status}">
+            <div class="ad-image">
+              ${ad.images && ad.images.length > 0 
+                ? `<img src="${ad.images[0]}" alt="${ad.title}">`
+                : `<div class="no-image">No Image</div>`}
+            </div>
+            <div class="ad-info">
+              <div class="ad-status-badge ${ad.status}">${ad.status.replace('_', ' ')}</div>
+              <h3>${ad.title}</h3>
+              <p class="ad-price">${ad.price ? `$${ad.price}` : 'Contact for price'}</p>
+              <p class="ad-date">Posted on ${new Date(ad.created_at).toLocaleDateString()}</p>
+            </div>
+            <div class="ad-actions">
+              <a href="/customer/ads/edit/${ad.id}" class="btn btn-sm btn-secondary">Edit</a>
+              <button onclick="deleteAd(${ad.id})" class="btn btn-sm btn-danger">Delete</button>
+            </div>
           </div>
-        `;
-        return;
+        `).join('');
+      } catch (err) {
+        console.error(err);
+        document.getElementById('ads-list').innerHTML = '<p class="error">Failed to load ads</p>';
       }
-
-      adsList.innerHTML = ads.map(ad => `
-        <div class="ad-card ${ad.status}">
-          <div class="ad-image">
-            ${ad.images && ad.images.length > 0 
-              ? `<img src="${ad.images[0]}" alt="${ad.title}">`
-              : `<div class="no-image">No Image</div>`}
-          </div>
-          <div class="ad-info">
-            <div class="ad-status-badge ${ad.status}">${ad.status.replace('_', ' ')}</div>
-            <h3>${ad.title}</h3>
-            <p class="ad-price">${ad.price ? `$${ad.price}` : 'Contact for price'}</p>
-            <p class="ad-date">Posted on ${new Date(ad.created_at).toLocaleDateString()}</p>
-          </div>
-          <div class="ad-actions">
-            <a href="/customer/ads/edit/${ad.id}" class="btn btn-sm btn-secondary">Edit</a>
-            <button onclick="deleteAd(${ad.id})" class="btn btn-sm btn-danger">Delete</button>
-          </div>
-        </div>
-      `).join('');
-    } catch (err) {
-      console.error(err);
-      document.getElementById('ads-list').innerHTML = '<p class="error">Failed to load ads</p>';
     }
-  }
 
-  async function deleteAd(id) {
-    if (!confirm('Are you sure you want to delete this ad?')) return;
-    
-    try {
-      const response = await fetch(`/api/classified-ads/${id}`, {
-        method: 'DELETE',
-        credentials: 'include'
-      });
+    async function deleteAd(id) {
+      if (!confirm('Are you sure you want to delete this ad?')) return;
       
-      if (response.ok) {
-        loadAds();
-      } else {
-        alert('Failed to delete ad');
+      try {
+        const response = await fetch(`/api/classified-ads/${id}`, {
+          method: 'DELETE',
+          credentials: 'include'
+        });
+        
+        if (response.ok) {
+          loadAds();
+        } else {
+          alert('Failed to delete ad');
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Error deleting ad');
       }
-    } catch (err) {
-      console.error(err);
-      alert('Error deleting ad');
     }
-  }
 
-  document.addEventListener('DOMContentLoaded', loadAds);
-</script>
+    document.addEventListener('DOMContentLoaded', loadAds);
+  </script>
 
-<style>
-  .ads-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 1.5rem;
-  }
+  <style>
+    .customer-ads-page {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
 
-  .ad-card {
-    background: white;
-    border: 1px solid #e5e7eb;
-    border-radius: 8px;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    transition: transform 0.2s;
-  }
+    .ads-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
 
-  .ad-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  }
+    .ads-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1.5rem;
+    }
 
-  .ad-image {
-    height: 180px;
-    background: #f3f4f6;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
+    .customer-ad-card {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.2s;
+    }
 
-  .ad-image img {
-    width: 100%;
-    height: 100%;
-    object-cover: cover;
-  }
+    .customer-ad-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
 
-  .no-image {
-    color: #9ca3af;
-    font-size: 0.875rem;
-    font-weight: 500;
-  }
+    .ad-image {
+      height: 180px;
+      background: #f3f4f6;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
 
-  .ad-info {
-    padding: 1rem;
-    flex: 1;
-  }
+    .ad-image img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
 
-  .ad-info h3 {
-    margin: 0.5rem 0;
-    font-size: 1.125rem;
-    color: #111827;
-  }
+    .no-image {
+      color: #9ca3af;
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
 
-  .ad-price {
-    font-weight: 700;
-    color: #059669;
-    font-size: 1.25rem;
-    margin-bottom: 0.5rem;
-  }
+    .ad-info {
+      padding: 1rem;
+      flex: 1;
+    }
 
-  .ad-status-badge {
-    display: inline-block;
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-  }
+    .ad-info h3 {
+      margin: 0.5rem 0;
+      font-size: 1.125rem;
+      color: #111827;
+    }
 
-  .ad-status-badge.pending_review { background: #fef3c7; color: #92400e; }
-  .ad-status-badge.approved { background: #dcfce7; color: #166534; }
-  .ad-status-badge.rejected { background: #fee2e2; color: #991b1b; }
-  .ad-status-badge.sold { background: #f3f4f6; color: #374151; }
+    .ad-price {
+      font-weight: 700;
+      color: #059669;
+      font-size: 1.25rem;
+      margin-bottom: 0.5rem;
+    }
 
-  .ad-actions {
-    padding: 1rem;
-    border-top: 1px solid #e5e7eb;
-    display: flex;
-    gap: 0.5rem;
-  }
+    .ad-date {
+      font-size: 0.75rem;
+      color: #6b7280;
+      margin-top: 0.5rem;
+    }
 
-  .btn-danger {
-    background: #ef4444;
-    color: white;
-  }
+    .ad-status-badge {
+      display: inline-block;
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      margin-bottom: 0.5rem;
+    }
 
-  .btn-danger:hover {
-    background: #dc2626;
-  }
+    .ad-status-badge.pending_review { background: #fef3c7; color: #92400e; }
+    .ad-status-badge.approved { background: #dcfce7; color: #166534; }
+    .ad-status-badge.rejected { background: #fee2e2; color: #991b1b; }
+    .ad-status-badge.paused { background: #f3f4f6; color: #374151; }
 
-  .empty-state {
-    grid-column: 1 / -1;
-    text-align: center;
-    padding: 4rem 2rem;
-    background: #f9fafb;
-    border: 2px dashed #e5e7eb;
-    border-radius: 12px;
-  }
-</style>
+    .ad-actions {
+      padding: 1rem;
+      border-top: 1px solid #e5e7eb;
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .btn-sm {
+      padding: 0.375rem 0.75rem;
+      font-size: 0.875rem;
+    }
+
+    .btn-danger {
+      background: #ef4444;
+      color: white;
+    }
+
+    .empty-state {
+      grid-column: 1 / -1;
+      text-align: center;
+      padding: 4rem 2rem;
+      background: #f9fafb;
+      border: 2px dashed #e5e7eb;
+      border-radius: 12px;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 2rem;
+      color: #6b7280;
+    }
+
+    .error {
+      text-align: center;
+      padding: 2rem;
+      color: #ef4444;
+    }
+
+    @media (max-width: 768px) {
+      .ads-header {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      
+      .ads-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
 {% endblock %}

@@ -1,0 +1,129 @@
+{#
+# System Form: Customer Registration
+# This is a protected system component - do not modify
+# Usage: {% include "system/forms/customer-register-form.njk" %}
+# Parameters: redirect_url (string, optional)
+#}
+
+<div class="customer-register-form">
+  <h3>Create Your Account</h3>
+  <p class="register-subtitle">Join us to track orders and manage your listings</p>
+  
+  <form id="customer-register-form" class="register-form">
+    <div class="form-row">
+      <div class="form-group">
+        <label for="firstName">First Name</label>
+        <input
+          type="text"
+          id="firstName"
+          name="firstName"
+          placeholder="John"
+          class="form-input"
+          required
+        >
+      </div>
+
+      <div class="form-group">
+        <label for="lastName">Last Name</label>
+        <input
+          type="text"
+          id="lastName"
+          name="lastName"
+          placeholder="Doe"
+          class="form-input"
+          required
+        >
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="email">Email Address *</label>
+      <input
+        type="email"
+        id="email"
+        name="email"
+        required
+        placeholder="your@email.com"
+        class="form-input"
+        autocomplete="email"
+      >
+    </div>
+
+    <div class="form-group">
+      <label for="password">Password *</label>
+      <input
+        type="password"
+        id="password"
+        name="password"
+        required
+        placeholder="••••••••"
+        class="form-input"
+        autocomplete="new-password"
+      >
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary" id="customer-register-btn">
+        Create Account
+      </button>
+      
+      <div class="form-links">
+        <span>Already have an account?</span>
+        <a href="/customer/login">Sign in</a>
+      </div>
+    </div>
+    
+    {% if redirect_url %}
+    <input type="hidden" name="redirect" value="{{ redirect_url }}">
+    {% endif %}
+  </form>
+  
+  <div id="register-status" class="register-status hidden"></div>
+</div>
+
+<script>
+  if (document.getElementById('customer-register-form')) {
+    document.getElementById('customer-register-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('customer-register-btn');
+      const status = document.getElementById('register-status');
+      const formData = new FormData(e.target);
+      
+      btn.disabled = true;
+      btn.textContent = 'Creating account...';
+      status.className = 'register-status hidden';
+      
+      try {
+        const response = await fetch('/api/customer-auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            firstName: formData.get('firstName'),
+            lastName: formData.get('lastName'),
+            email: formData.get('email'),
+            password: formData.get('password'),
+            redirect: formData.get('redirect')
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+          status.textContent = 'Account created! Redirecting...';
+          status.className = 'register-status success';
+          setTimeout(() => {
+            window.location.href = data.redirect || '/customer/account';
+          }, 1500);
+        } else {
+          throw new Error(data.message || 'Registration failed');
+        }
+      } catch (err) {
+        status.textContent = err.message;
+        status.className = 'register-status error';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Create Account';
+      }
+    });
+  }
+</script>

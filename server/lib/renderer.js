@@ -33,12 +33,12 @@ export async function processShortcodes(html, env, blocksData, context = {}, dep
     if (!canAccess(rules, context)) return `<!-- Access denied: ${slug} -->`;
 
     try {
-      const itemContent = typeof item.content === 'string' ? JSON.parse(item.content) : item.content;
-      
+      const source = item.source || '';
+      if (!source) return `<!-- ${type} ${slug}: empty source -->`;
+
       return new Promise((resolve) => {
-        env.render(item.template_filename, {
+        env.renderString(source, {
           ...env.opts.site_locals, // global locals
-          content: itemContent || {},
           [type]: item, // pass block or widget
           site: env.opts.site,
           blocks: blocksData // pass all blocks context for nested calls

@@ -28,15 +28,7 @@ router.get('/', requireAuth, async (req, res) => {
     const blocks = await prisma.blocks.findMany({
       where,
       include: {
-        content: true,
-        templates: {
-          select: {
-            id: true,
-            name: true,
-            filename: true,
-            regions: true
-          }
-        }
+        content: true
       },
       orderBy: { created_at: 'desc' },
       take: pageLimit,
@@ -45,14 +37,16 @@ router.get('/', requireAuth, async (req, res) => {
 
     const total = await prisma.blocks.count({ where });
 
-    const transformedBlocks = blocks.map(block => ({
-      ...block,
-      template_name: block.templates?.name,
-      template_filename: block.templates?.filename,
-      template_regions: block.templates?.regions || [],
-      content: block.content?.data || {},
-      title: block.content?.title || block.name
-    }));
+    const transformedBlocks = blocks.map(block => {
+      const data = block.content?.data || {};
+      const contentData = typeof data === 'string' ? JSON.parse(data) : data;
+      return {
+        ...block,
+        source: contentData.source || '',
+        content: contentData,
+        title: block.content?.title || block.name
+      };
+    });
 
     res.json({
       data: transformedBlocks,
@@ -72,15 +66,7 @@ router.get('/:id', requireAuth, async (req, res) => {
     const block = await prisma.blocks.findUnique({
       where: { id: blockId },
       include: {
-        content: true,
-        templates: {
-          select: {
-            id: true,
-            name: true,
-            filename: true,
-            regions: true
-          }
-        }
+        content: true
       }
     });
 
@@ -88,12 +74,13 @@ router.get('/:id', requireAuth, async (req, res) => {
       return res.status(404).json({ error: 'Block not found' });
     }
 
+    const data = block.content?.data || {};
+    const contentData = typeof data === 'string' ? JSON.parse(data) : data;
+
     res.json({
       ...block,
-      template_name: block.templates?.name,
-      template_filename: block.templates?.filename,
-      template_regions: block.templates?.regions || [],
-      content: block.content?.data || {},
+      source: contentData.source || '',
+      content: contentData,
       access_rules: block.access_rules ? (typeof block.access_rules === 'string' ? JSON.parse(block.access_rules) : block.access_rules) : null,
       title: block.content?.title || block.name
     });
@@ -107,50 +94,33 @@ router.get('/:id', requireAuth, async (req, res) => {
 router.post('/', requireAuth, requireEditor, async (req, res) => {
   try {
     const {
-      template_id,
       name,
       description,
-      content,
+      source = '',
       content_type = 'blocks',
       access_rules
     } = req.body;
 
-    if (!name || !template_id) {
-      return res.status(400).json({ error: 'Name and template are required' });
-    }
-
-    // Validate template
-    const template = await prisma.templates.findUnique({
-      where: { id: parseInt(template_id) }
-    });
-
-    if (!template) {
-      return res.status(400).json({ error: 'Template not found' });
-    }
-
-    if (template.content_type !== content_type) {
-      return res.status(400).json({
-        error: `Template belongs to "${template.content_type}" content type, not "${content_type}"`
-      });
+    if (!name) {
+      return res.status(400).json({ error: 'Name is required' });
     }
 
     const slug = slugify(name, { lower: true, strict: true });
 
-    // Create content
+    // Create content record with source
     const contentRecord = await prisma.content.create({
       data: {
         module: content_type,
         title: name,
         slug,
-        data: content || {},
-        search_index: generateSearchIndex(name, content)
+        data: { source },
+        search_index: generateSearchIndex(name, { source })
       }
     });
 
-    // Create block
+    // Create block (no template_id needed)
     const block = await prisma.blocks.create({
       data: {
-        template_id: parseInt(template_id),
         content_id: contentRecord.id,
         name,
         slug,
@@ -162,7 +132,7 @@ router.post('/', requireAuth, requireEditor, async (req, res) => {
       }
     });
 
-    res.status(201).json({ id: block.id, slug: block.slug });
+    res.status(201).json({ id: block.id, slug: block.slug, content_id: contentRecord.id });
   } catch (err) {
     if (err.code === 'P2002') {
       return res.status(400).json({ error: 'Slug already exists' });
@@ -177,11 +147,10 @@ router.put('/:id', requireAuth, requireEditor, async (req, res) => {
   try {
     const blockId = parseInt(req.params.id);
     const {
-      template_id,
       name,
       slug,
       description,
-      content,
+      source,
       content_type,
       access_rules
     } = req.body;
@@ -194,24 +163,7 @@ router.put('/:id', requireAuth, requireEditor, async (req, res) => {
       return res.status(404).json({ error: 'Block not found' });
     }
 
-    const type = content_type || existingBlock.content_type;
-
-    if (template_id && template_id !== existingBlock.template_id) {
-      const template = await prisma.templates.findUnique({
-        where: { id: parseInt(template_id) }
-      });
-      if (!template) {
-        return res.status(400).json({ error: 'Template not found' });
-      }
-      if (template.content_type !== type) {
-        return res.status(400).json({
-          error: `Template belongs to "${template.content_type}" content type, not "${type}"`
-        });
-      }
-    }
-
     const updateData = {};
-    if (template_id !== undefined) updateData.template_id = parseInt(template_id);
     if (name !== undefined) updateData.name = name;
     if (slug !== undefined) updateData.slug = slug;
     if (description !== undefined) updateData.description = description;
@@ -224,23 +176,16 @@ router.put('/:id', requireAuth, requireEditor, async (req, res) => {
       data: updateData
     });
 
-    if (content || name) {
+    if (source !== undefined || name) {
       if (existingBlock.content_id) {
-        let mergedContent = content;
-        if (content) {
-          const existing = await prisma.content.findUnique({ where: { id: existingBlock.content_id } });
-          if (existing && existing.data) {
-            const existingData = typeof existing.data === 'string' ? JSON.parse(existing.data) : existing.data;
-            mergedContent = { ...existingData, ...content };
-          }
-        }
+        const contentUpdates = {};
 
-        const contentUpdates = {
-          ...(mergedContent && { data: mergedContent }),
-          ...(name && { title: name }),
-          ...(content_type && { module: content_type }),
-          search_index: generateSearchIndex(name || existingBlock.name, mergedContent)
-        };
+        if (source !== undefined) {
+          contentUpdates.data = { source };
+        }
+        if (name) contentUpdates.title = name;
+        if (content_type) contentUpdates.module = content_type;
+        contentUpdates.search_index = generateSearchIndex(name || existingBlock.name, { source });
 
         await updateContent(existingBlock.content_id, contentUpdates);
       }

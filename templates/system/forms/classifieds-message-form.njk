@@ -1,0 +1,82 @@
+{#
+# System Form: Classifieds Message Seller
+# This is a protected system component - do not modify
+# Usage: {% include "system/forms/classifieds-message-form.njk" %}
+# Parameters: ad (object), customer (object)
+#}
+
+<div class="message-seller-card">
+  <h3>Message Seller</h3>
+  
+  {% if customer %}
+    {% if customer.id == ad.customer_id %}
+      <div class="own-ad-notice">
+        This is your ad. You can view replies in your <a href="/customer/messages">Inbox</a>.
+      </div>
+    {% else %}
+      <form id="message-form" class="message-form" data-ad-id="{{ ad.id }}">
+        <input type="hidden" name="ad_id" value="{{ ad.id }}">
+        <textarea 
+          name="content" 
+          required 
+          rows="3" 
+          placeholder="Is this still available? I'm interested..."
+        ></textarea>
+        
+        <div class="message-form-row">
+          <input type="url" name="image" placeholder="Optional image URL...">
+        </div>
+
+        <button type="submit" id="send-btn" class="btn btn-primary">
+          Send Message
+        </button>
+      </form>
+      <div id="message-status" class="message-status hidden"></div>
+    {% endif %}
+  {% else %}
+    <div class="login-prompt">
+      <p>You must be logged in to message the seller.</p>
+      <a href="/customer/login?redirect={{ ad.slug }}" class="btn btn-secondary">Login to Message</a>
+    </div>
+  {% endif %}
+</div>
+
+<script>
+  if (document.getElementById('message-form')) {
+    document.getElementById('message-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('send-btn');
+      const status = document.getElementById('message-status');
+      const formData = new FormData(e.target);
+      
+      btn.disabled = true;
+      btn.textContent = 'Sending...';
+      
+      try {
+        const response = await fetch('/api/messages/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ad_id: formData.get('ad_id'),
+            content: formData.get('content'),
+            image: formData.get('image')
+          })
+        });
+        
+        if (response.ok) {
+          status.textContent = 'Message sent! You can follow up in your inbox.';
+          status.className = 'message-status success';
+          e.target.reset();
+        } else {
+          throw new Error('Failed to send message');
+        }
+      } catch (err) {
+        status.textContent = err.message;
+        status.className = 'message-status error';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Send Message';
+      }
+    });
+  }
+</script>

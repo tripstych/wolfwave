@@ -86,7 +86,7 @@ export default function Blocks() {
                 Name
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">
-                Template
+                Short Code
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">
                 Updated
@@ -116,9 +116,9 @@ export default function Blocks() {
                     </Link>
                   </td>
                   <td className="px-6 py-4 hidden md:table-cell">
-                    <span className="text-sm text-gray-600">
-                      {block.template_name || '-'}
-                    </span>
+                    <code className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600">
+                      {'[[block:' + block.slug + ']]'}
+                    </code>
                   </td>
                   <td className="px-6 py-4 hidden lg:table-cell">
                     <span className="text-sm text-gray-500">

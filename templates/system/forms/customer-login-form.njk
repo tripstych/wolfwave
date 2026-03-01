@@ -1,0 +1,101 @@
+{#
+# System Form: Customer Login
+# This is a protected system component - do not modify
+# Usage: {% include "system/forms/customer-login-form.njk" %}
+# Parameters: redirect_url (string, optional)
+#}
+
+<div class="customer-login-form">
+  <h3>Returning Customer?</h3>
+  <p class="login-subtitle">Sign in to access your account</p>
+  
+  <form id="customer-login-form" class="login-form">
+    <div class="form-group">
+      <label for="customer-email">Email</label>
+      <input 
+        type="email" 
+        id="customer-email" 
+        name="email" 
+        required 
+        placeholder="your@email.com"
+        autocomplete="email"
+      >
+    </div>
+    
+    <div class="form-group">
+      <label for="customer-password">Password</label>
+      <input 
+        type="password" 
+        id="customer-password" 
+        name="password" 
+        required 
+        placeholder="••••••••"
+        autocomplete="current-password"
+      >
+    </div>
+    
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary" id="customer-login-btn">
+        Sign In
+      </button>
+      
+      <div class="form-links">
+        <a href="/customer/forgot-password">Forgot password?</a>
+        <span>•</span>
+        <a href="/customer/register">Create account</a>
+      </div>
+    </div>
+    
+    {% if redirect_url %}
+    <input type="hidden" name="redirect" value="{{ redirect_url }}">
+    {% endif %}
+  </form>
+  
+  <div id="login-status" class="login-status hidden"></div>
+</div>
+
+<script>
+  if (document.getElementById('customer-login-form')) {
+    document.getElementById('customer-login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('customer-login-btn');
+      const status = document.getElementById('login-status');
+      const formData = new FormData(e.target);
+      
+      btn.disabled = true;
+      btn.textContent = 'Signing in...';
+      status.className = 'login-status hidden';
+      
+      try {
+        const response = await fetch('/api/customer-auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ 
+            email: formData.get('email'), 
+            password: formData.get('password'),
+            redirect: formData.get('redirect')
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+          status.textContent = 'Login successful! Redirecting...';
+          status.className = 'login-status success';
+          setTimeout(() => {
+            window.location.href = data.redirect || '/customer/account';
+          }, 1000);
+        } else {
+          throw new Error(data.message || 'Login failed');
+        }
+      } catch (err) {
+        status.textContent = err.message;
+        status.className = 'login-status error';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Sign In';
+      }
+    });
+  }
+</script>

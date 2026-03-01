@@ -1,4 +1,4 @@
-{% extends "layouts/base.njk" %}
+{% extends "system/layouts/base-with-system.njk" %}
 
 {% block content %}
 <div class="auth-container">
@@ -7,7 +7,7 @@
     <p class="auth-subtitle">Sign in to access your orders and account information</p>
 
     <div class="login-wrapper">
-      {% include "partials/customer-login-form.njk" %}
+      {% include "system/forms/customer-login-form.njk" %}
     </div>
   </div>
 </div>

@@ -1,0 +1,41 @@
+{#
+# System Component: Classifieds Ad Card
+# This is a protected system component - do not modify
+# Usage: {% include "system/components/classifieds-ad-card.njk" %}
+# Parameters: ad (object), show_meta (boolean, default: true)
+#}
+
+<div class="classifieds-ad-card">
+  {% if ad.image %}
+  <div class="ad-card__image">
+    <img src="{{ ad.image }}" alt="{{ ad.title }}" loading="lazy">
+  </div>
+  {% endif %}
+
+  <div class="ad-card__body">
+    {% if show_meta %}
+    <div class="ad-card__meta">
+      {% if ad.category %}<span class="category">{{ ad.category.name }}</span>{% endif %}
+      <time datetime="{{ ad.created_at }}">{{ ad.created_at | date("MMM D") }}</time>
+    </div>
+    {% endif %}
+
+    <h2 class="ad-card__title">{{ ad.title }}</h2>
+    
+    {# Personal ad fields (no price!) #}
+    {% if ad.age %}
+    <p class="ad-card__age">{{ ad.age }} years old</p>
+    {% endif %}
+    {% if ad.relationship_status %}
+    <p class="ad-card__relationship">{{ ad.relationship_status | replace('_', ' ') | title }}</p>
+    {% endif %}
+    
+    {% if ad.location %}
+    <p class="ad-card__location">📍 {{ ad.location }}</p>
+    {% endif %}
+    
+    {% if ad.description %}
+    <p class="ad-card__excerpt">{{ ad.description | truncate(100) }}</p>
+    {% endif %}
+  </div>
+</div>

@@ -1,0 +1,72 @@
+{#
+# System Component: Customer Messages List
+# This is a protected system component - do not modify
+# Usage: {% include "system/components/customer-messages-list.njk" %}
+# Parameters: none
+#}
+
+<div class="customer-messages-container">
+  <div id="conversations-list" class="conversations-list">
+    <div class="loading">Loading messages...</div>
+  </div>
+</div>
+
+<script>
+  async function loadCustomerMessages() {
+    try {
+      const response = await fetch('/api/messages/conversations', { credentials: 'include' });
+      if (!response.ok) throw new Error('Failed to load messages');
+      
+      const conversations = await response.json();
+      const list = document.getElementById('conversations-list');
+      
+      if (conversations.length === 0) {
+        list.innerHTML = `
+          <div class="empty-state">
+            <p>You have no messages yet.</p>
+            <a href="/classifieds" class="btn btn-primary mt-4">Browse Classifieds</a>
+          </div>
+        `;
+        return;
+      }
+
+      list.innerHTML = conversations.map(conv => {
+        const unread = conv._count?.messages > 0;
+        const lastMsg = conv.messages?.[0];
+        
+        return `
+          <a href="/customer/messages/${conv.id}" class="conversation-card ${unread ? 'unread' : ''}">
+            <div class="conversation-image">
+              ${conv.ad?.image 
+                ? `<img src="${conv.ad.image}" alt="${conv.ad.title}">`
+                : `<div class="no-image">?</div>`}
+            </div>
+            <div class="conversation-info">
+              <div class="conversation-header">
+                <h3 class="ad-title">${conv.ad?.title || 'Unknown Ad'}</h3>
+                <span class="conversation-date">
+                  ${new Date(conv.updated_at).toLocaleDateString()}
+                </span>
+              </div>
+              <p class="conversation-partner">
+                Conversation with ${conv.buyer?.first_name || conv.seller?.first_name}
+              </p>
+              <p class="conversation-last-message">
+                ${lastMsg?.content || 'No messages yet'}
+              </p>
+            </div>
+            ${unread ? `<div class="unread-indicator"></div>` : ''}
+          </a>
+        `;
+      }).join('');
+    } catch (err) {
+      console.error(err);
+      document.getElementById('conversations-list').innerHTML = '<p class="error">Failed to load messages</p>';
+    }
+  }
+
+  // Load messages when DOM is ready
+  if (document.getElementById('conversations-list')) {
+    document.addEventListener('DOMContentLoaded', loadCustomerMessages);
+  }
+</script>

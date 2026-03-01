@@ -1,0 +1,40 @@
+{#
+# System Component: Classifieds Search Bar
+# This is a protected system component - do not modify
+# Usage: {% include "system/components/classifieds-search-bar.njk" %}
+# Parameters: filters (object), categories (array)
+#}
+
+<form method="get" action="/classifieds" class="classifieds-search-bar">
+  <div class="search-input-group">
+    <input 
+      type="text" 
+      name="q" 
+      value="{{ filters.q }}" 
+      placeholder="Search classifieds…"
+      class="search-input"
+    >
+    <button type="submit" class="search-btn">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"></circle>
+        <path d="m21 21-4.35-4.35"></path>
+      </svg>
+    </button>
+  </div>
+  
+  <div class="search-filters">
+    <select name="category" class="filter-select">
+      <option value="">All Categories</option>
+      {% for cat in categories %}
+      <option value="{{ cat.slug }}" {% if cat.slug == filters.category %}selected{% endif %}>
+        {{ cat.name }}
+      </option>
+      {% endfor %}
+    </select>
+    
+    <select name="sort" class="filter-select">
+      <option value="newest" {% if filters.sort == "newest" %}selected{% endif %}>Newest First</option>
+      <option value="oldest" {% if filters.sort == "oldest" %}selected{% endif %}>Oldest First</option>
+    </select>
+  </div>
+</form>

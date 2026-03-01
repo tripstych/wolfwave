@@ -1,5 +1,5 @@
 {# Classified Ad Search Results #}
-{% extends "layouts/base.njk" %}
+{% extends "system/layouts/base-with-system.njk" %}
 
 {% block title %}{{ filters.q or "Browse" }} — Classifieds{% endblock %}
 
@@ -15,50 +15,15 @@
     <a href="/customer/ads/create" class="post-ad-btn">+ Post Ad</a>
   </div>
 
-  <form method="get" action="/classifieds" class="search-bar">
-    <input type="text" name="q" value="{{ filters.q }}" placeholder="Search classifieds…">
-    <select name="category">
-      <option value="">All Categories</option>
-      {% for cat in categories %}
-      <option value="{{ cat.slug }}" {% if cat.slug == filters.category %}selected{% endif %}>
-        {{ cat.name }}
-      </option>
-      {% endfor %}
-    </select>
-    <select name="sort">
-      <option value="newest" {% if filters.sort == "newest" %}selected{% endif %}>Newest First</option>
-      <option value="price_asc" {% if filters.sort == "price_asc" %}selected{% endif %}>Price: Low → High</option>
-      <option value="price_desc" {% if filters.sort == "price_desc" %}selected{% endif %}>Price: High → Low</option>
-    </select>
-    <button type="submit" class="btn">Search</button>
-  </form>
+  {# Use system search component #}
+  {% include "system/components/classifieds-search-bar.njk" %}
 
   <p class="result-count">{{ ads.length }} listing{{ "s" if ads.length != 1 }} found</p>
 
   <div class="listing-grid">
     {% for ad in ads %}
     <a href="/classifieds/{{ ad.slug }}" class="listing-card">
-      {% if ad.image %}
-      <div class="listing-card__image">
-        <img src="{{ ad.image }}" alt="{{ ad.title }}" loading="lazy">
-      </div>
-      {% endif %}
-
-      <div class="listing-card__body">
-        <div class="listing-card__meta">
-          <span class="category">{{ ad.category.name }}</span>
-          <time datetime="{{ ad.created_at }}">{{ ad.created_at | date("MMM D") }}</time>
-        </div>
-
-        <h2>{{ ad.title }}</h2>
-        <p class="price">${{ ad.price | round(2) }}</p>
-        {% if ad.location %}
-        <p class="location">📍 {{ ad.location }}</p>
-        {% endif %}
-        {% if ad.description %}
-        <p class="excerpt">{{ ad.description | truncate(100) }}</p>
-        {% endif %}
-      </div>
+      {% include "system/components/classifieds-ad-card.njk" %}
     </a>
     {% else %}
     <div class="no-results">

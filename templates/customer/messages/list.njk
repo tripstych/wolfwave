@@ -1,80 +1,32 @@
-{% extends "layouts/base.njk" %}
+{% extends "system/layouts/customer-base.njk" %}
 
-{% block content %}
-<div class="account-container">
-  <div class="account-header">
+{% block customer_content %}
+<div class="messages-page">
+  <div class="messages-header">
     <div class="flex items-center gap-4">
       <a href="/customer/account" class="btn btn-secondary">Back to Account</a>
       <h1>My Messages</h1>
     </div>
   </div>
 
-  <div class="account-content">
-    <div id="conversations-list" class="space-y-4">
-      <div class="loading">Loading messages...</div>
-    </div>
-  </div>
+  {% include "system/components/customer-messages-list.njk" %}
 </div>
 
-<script>
-  async function loadConversations() {
-    try {
-      const response = await fetch('/api/messages/conversations', { credentials: 'include' });
-      if (!response.ok) throw new Error('Failed to load messages');
-      
-      const conversations = await response.json();
-      const list = document.getElementById('conversations-list');
-      
-      if (conversations.length === 0) {
-        list.innerHTML = `
-          <div class="empty-state">
-            <p>You have no messages yet.</p>
-            <a href="/classifieds" class="btn btn-primary mt-4">Browse Classifieds</a>
-          </div>
-        `;
-        return;
-      }
-
-      list.innerHTML = conversations.map(conv => {
-        const unread = conv._count?.messages > 0;
-        const lastMsg = conv.messages?.[0];
-        
-        return `
-          <a href="/customer/messages/${conv.id}" class="conv-card ${unread ? 'unread' : ''}">
-            <div class="conv-img">
-              ${conv.ad?.image 
-                ? `<img src="${conv.ad.image}" alt="${conv.ad.title}">`
-                : `<div class="no-img">?</div>`}
-            </div>
-            <div class="conv-info">
-              <div class="flex justify-between items-start">
-                <h3 class="ad-title">${conv.ad?.title || 'Unknown Ad'}</h3>
-                <span class="conv-date text-[10px] text-gray-400 uppercase font-bold">
-                  ${new Date(conv.updated_at).toLocaleDateString()}
-                </span>
-              </div>
-              <p class="conv-user text-xs text-gray-500 font-bold mb-1">
-                Conversation with ${conv.buyer?.first_name || conv.seller?.first_name}
-              </p>
-              <p class="conv-last-msg text-sm text-gray-600 line-clamp-1">
-                ${lastMsg?.content || 'No messages yet'}
-              </p>
-            </div>
-            ${unread ? `<div class="unread-dot"></div>` : ''}
-          </a>
-        `;
-      }).join('');
-    } catch (err) {
-      console.error(err);
-      document.getElementById('conversations-list').innerHTML = '<p class="error">Failed to load messages</p>';
-    }
+<style>
+  .messages-page {
+    max-width: 800px;
+    margin: 0 auto;
   }
 
-  document.addEventListener('DOMContentLoaded', loadConversations);
-</script>
+  .messages-header {
+    margin-bottom: 2rem;
+  }
 
-<style>
-  .conv-card {
+  .conversations-list {
+    space-y: 1rem;
+  }
+
+  .conversation-card {
     display: flex;
     gap: 1rem;
     padding: 1rem;
@@ -87,18 +39,18 @@
     position: relative;
   }
 
-  .conv-card:hover {
+  .conversation-card:hover {
     border-color: #3b82f6;
     background: #f0f7ff;
     transform: translateX(4px);
   }
 
-  .conv-card.unread {
+  .conversation-card.unread {
     background: #eff6ff;
     border-color: #3b82f6;
   }
 
-  .conv-img {
+  .conversation-image {
     width: 60px;
     height: 60px;
     background: #f3f4f6;
@@ -107,15 +59,22 @@
     flex-shrink: 0;
   }
 
-  .conv-img img {
+  .conversation-image img {
     width: 100%;
     height: 100%;
     object-fit: cover;
   }
 
-  .conv-info {
+  .conversation-info {
     flex: 1;
     min-width: 0;
+  }
+
+  .conversation-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.25rem;
   }
 
   .ad-title {
@@ -128,7 +87,30 @@
     text-overflow: ellipsis;
   }
 
-  .unread-dot {
+  .conversation-date {
+    font-size: 0.625rem;
+    color: #9ca3af;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+
+  .conversation-partner {
+    font-size: 0.75rem;
+    color: #6b7280;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+  }
+
+  .conversation-last-message {
+    font-size: 0.875rem;
+    color: #4b5563;
+    line-height: 1.25;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .unread-indicator {
     width: 10px;
     height: 10px;
     background: #3b82f6;
@@ -144,6 +126,18 @@
     background: #f9fafb;
     border: 2px dashed #e5e7eb;
     border-radius: 12px;
+  }
+
+  .loading {
+    text-align: center;
+    padding: 2rem;
+    color: #6b7280;
+  }
+
+  .error {
+    text-align: center;
+    padding: 2rem;
+    color: #ef4444;
   }
 </style>
 {% endblock %}

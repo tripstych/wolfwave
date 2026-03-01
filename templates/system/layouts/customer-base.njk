@@ -1,0 +1,32 @@
+{#
+# System Layout: Customer Base Layout
+# This is a protected system layout - do not modify
+# Usage: Extend this for all customer-facing pages
+# Ensures all customer system components are available
+#}
+
+{% extends "layouts/base.njk" %}
+
+{#
+# This layout automatically makes all customer system components available
+# Child templates can use: {% include "system/components/customer-..." %}
+# Also provides common customer page structure
+#}
+
+{% block content %}
+<div class="customer-container">
+  <div class="customer-header">
+    <div class="customer-nav">
+      <a href="/customer/account" class="customer-nav-link">Account</a>
+      <a href="/customer/ads" class="customer-nav-link">My Ads</a>
+      <a href="/customer/messages" class="customer-nav-link">Messages</a>
+    </div>
+  </div>
+  
+  <div class="customer-content">
+    {% block customer_content %}
+    {# Customer page content goes here #}
+    {% endblock %}
+  </div>
+</div>
+{% endblock %}

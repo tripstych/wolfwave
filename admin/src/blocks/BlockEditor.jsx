@@ -1,24 +1,18 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import api, { parseRegions } from '../lib/api';
+import api from '../lib/api';
 import slugify from 'slugify';
-import RichTextEditor from '../components/RichTextEditorLazy';
 import CodeEditor from '../components/CodeEditor';
-import MediaPicker from '../components/MediaPicker';
 import {
   Save,
   ArrowLeft,
   AlertCircle,
   CheckCircle,
-  Plus,
-  Trash2,
-  Image,
-  RefreshCw,
   Lock,
   Unlock,
   Shield,
-  Code
+  Copy
 } from 'lucide-react';
 
 export default function BlockEditor() {
@@ -28,25 +22,18 @@ export default function BlockEditor() {
 
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
-  const [templates, setTemplates] = useState([]);
   const [subscriptionPlans, setSubscriptionPlans] = useState([]);
-  const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
-  const [showSource, setShowSource] = useState(false);
-  const [mediaPickerTarget, setMediaPickerTarget] = useState(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [syncing, setSyncing] = useState(false);
   const [isSlugLocked, setIsSlugLocked] = useState(!isNew);
   const [history, setHistory] = useState([]);
-  const [loadingHistory, setLoadingHistory] = useState(false);
   const [activeTab, setActiveTab] = useState('editor');
 
   const [block, setBlock] = useState({
-    template_id: '',
     name: '',
     slug: '',
     content_type: 'blocks',
-    content: {},
+    source: '',
     access_rules: {
       auth: 'any',
       subscription: 'any',
@@ -54,10 +41,7 @@ export default function BlockEditor() {
     }
   });
 
-  const [regions, setRegions] = useState([]);
-
   useEffect(() => {
-    loadTemplates();
     loadSubscriptionPlans();
     if (!isNew) {
       loadBlock();
@@ -73,45 +57,19 @@ export default function BlockEditor() {
     }
   };
 
-  const loadTemplates = async () => {
-    try {
-      const data = await api.get('/templates/content_type/blocks/list');
-      setTemplates(data.data || []);
-    } catch (err) {
-      console.error('Failed to load templates:', err);
-    }
-  };
-
-  const syncTemplates = async () => {
-    setSyncing(true);
-    setError('');
-    setSuccess('');
-    try {
-      await api.post('/templates/sync');
-      await loadTemplates();
-      setSuccess('Templates synced successfully!');
-    } catch (err) {
-      setError(err.message || 'Failed to sync templates');
-    } finally {
-      setSyncing(false);
-    }
-  };
-
   const loadBlock = async () => {
     try {
       const data = await api.get(`/blocks/${id}`);
       setBlock({
-        template_id: data.template_id,
         name: data.name,
         slug: data.slug,
-        content: data.content || {},
+        source: data.source || '',
         access_rules: {
           auth: data.access_rules?.auth || 'any',
           subscription: data.access_rules?.subscription || 'any',
           plans: data.access_rules?.plans || []
         }
       });
-      setRegions(parseRegions(data.template_regions));
 
       if (data.content_id) {
         loadHistory(data.content_id);
@@ -126,13 +84,11 @@ export default function BlockEditor() {
 
   const loadHistory = async (contentId) => {
     try {
-      setLoadingHistory(true);
       const res = await api.get(`/content/${contentId}/history`);
       setHistory(res || []);
     } catch (err) {
       console.error('Failed to load history:', err);
     } finally {
-      setLoadingHistory(false);
     }
   };
 
@@ -152,10 +108,8 @@ export default function BlockEditor() {
 
   const handleNameChange = (name) => {
     if (isSlugLocked) {
-      // When locked, only update name
       setBlock(b => ({ ...b, name }));
     } else {
-      // When unlocked, auto-generate slug
       const slug = slugify(name, { lower: true, strict: true });
       setBlock(b => ({ ...b, name, slug }));
     }
@@ -163,60 +117,11 @@ export default function BlockEditor() {
 
   const handleToggleLock = () => {
     if (isSlugLocked) {
-      // Show warning toast when unlocking
-      toast.warning('Templates will now access the block using the updated slug. Ensure any pages using this block are working as intended!', {
+      toast.warning('Pages using this block\'s short code will need to be updated if you change it!', {
         duration: 6000,
       });
     }
     setIsSlugLocked(!isSlugLocked);
-  };
-
-  const handleTemplateChange = (templateId) => {
-    const numId = parseInt(templateId);
-    const template = templates.find(t => t.id === numId);
-    setBlock(b => ({ ...b, template_id: numId }));
-    setRegions(parseRegions(template?.regions));
-  };
-
-  const handleContentChange = (regionName, value) => {
-    setBlock(b => ({
-      ...b,
-      content: { ...b.content, [regionName]: value }
-    }));
-  };
-
-  const handleRepeaterAdd = (regionName, fields) => {
-    const newItem = {};
-    fields.forEach(f => newItem[f.name] = '');
-    setBlock(b => ({
-      ...b,
-      content: {
-        ...b.content,
-        [regionName]: [...(b.content[regionName] || []), newItem]
-      }
-    }));
-  };
-
-  const handleRepeaterRemove = (regionName, index) => {
-    setBlock(b => ({
-      ...b,
-      content: {
-        ...b.content,
-        [regionName]: b.content[regionName].filter((_, i) => i !== index)
-      }
-    }));
-  };
-
-  const handleRepeaterChange = (regionName, index, fieldName, value) => {
-    setBlock(b => ({
-      ...b,
-      content: {
-        ...b.content,
-        [regionName]: b.content[regionName].map((item, i) =>
-          i === index ? { ...item, [fieldName]: value } : item
-        )
-      }
-    }));
   };
 
   const handleSave = async () => {
@@ -228,16 +133,16 @@ export default function BlockEditor() {
       if (isNew) {
         const result = await api.post('/blocks', block);
         setSuccess('Block created successfully!');
-        
+
         if (result.content_id) {
           loadHistory(result.content_id);
         }
-        
+
         navigate(`/blocks/${result.id}`, { replace: true });
       } else {
         await api.put(`/blocks/${id}`, block);
         setSuccess('Block saved successfully!');
-        
+
         if (block.content_id) {
           loadHistory(block.content_id);
         }
@@ -261,206 +166,10 @@ export default function BlockEditor() {
     }
   };
 
-  const openMediaPicker = (target) => {
-    setMediaPickerTarget(target);
-    setMediaPickerOpen(true);
-  };
-
-  const handleMediaSelect = (media) => {
-    if (mediaPickerTarget.startsWith('content.')) {
-      const remainder = mediaPickerTarget.replace('content.', '');
-      const parts = remainder.split('.');
-      if (parts.length === 1) {
-        const regionName = parts[0];
-        handleContentChange(regionName, media.url);
-      } else if (parts.length === 3) {
-        const [regionName, indexStr, fieldName] = parts;
-        const index = Number.parseInt(indexStr, 10);
-        if (Number.isFinite(index)) {
-          handleRepeaterChange(regionName, index, fieldName, media.url);
-        }
-      }
-    }
-    setMediaPickerOpen(false);
-    setMediaPickerTarget(null);
-  };
-
-  const renderField = (region) => {
-    const value = block.content[region.name] || '';
-
-    switch (region.type) {
-      case 'richtext':
-        return (
-          <RichTextEditor
-            value={value}
-            onChange={(val) => handleContentChange(region.name, val)}
-          />
-        );
-
-      case 'code':
-        return (
-          <CodeEditor
-            value={value}
-            onChange={(val) => handleContentChange(region.name, val)}
-            mode={region.mode || 'html'}
-            height={region.height || '300px'}
-          />
-        );
-
-      case 'textarea':
-        return (
-          <textarea
-            value={value}
-            onChange={(e) => handleContentChange(region.name, e.target.value)}
-            className="input min-h-[100px]"
-            placeholder={region.placeholder}
-          />
-        );
-
-      case 'image':
-        return (
-          <div className="space-y-2">
-            {value && (
-              <img src={value} alt="" className="max-w-xs rounded-lg border" />
-            )}
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => openMediaPicker(`content.${region.name}`)}
-                className="btn btn-secondary"
-              >
-                <Image className="w-4 h-4 mr-2" />
-                {value ? 'Change Image' : 'Select Image'}
-              </button>
-              {value && (
-                <button
-                  type="button"
-                  onClick={() => handleContentChange(region.name, '')}
-                  className="btn btn-ghost text-red-600"
-                >
-                  Remove
-                </button>
-              )}
-            </div>
-          </div>
-        );
-
-      case 'repeater':
-        const items = block.content[region.name] || [];
-        const explicitFields = Array.isArray(region.fields) && region.fields.length > 0 ? region.fields : null;
-        const inferredFields = !explicitFields && items[0] && typeof items[0] === 'object' && !Array.isArray(items[0])
-          ? Object.keys(items[0])
-              .filter((key) => key !== 'id')
-              .map((name) => ({
-                name,
-                label: name
-                  .replace(/[-_]/g, ' ')
-                  .replace(/\b\w/g, (c) => c.toUpperCase()),
-                type: (() => {
-                  const n = name.toLowerCase();
-                  if (n.includes('description')) return 'textarea';
-                  if (n.includes('image') || n === 'src' || n.endsWith('_src') || n.endsWith('-src')) return 'image';
-                  return 'text';
-                })()
-              }))
-          : null;
-        const fields = explicitFields || inferredFields || [];
-        return (
-          <div className="space-y-4">
-            {!explicitFields && (
-              <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
-                {inferredFields
-                  ? 'Repeater field schema missing for this template. Showing fields inferred from existing data.'
-                  : 'Repeater field schema missing for this template. Sync templates from filesystem to restore field definitions.'}
-              </div>
-            )}
-            {items.map((item, index) => (
-              <div key={index} className="p-4 border border-gray-200 rounded-lg space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium text-gray-500">Item {index + 1}</span>
-                  <button
-                    type="button"
-                    onClick={() => handleRepeaterRemove(region.name, index)}
-                    className="text-red-500 hover:text-red-700"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-                {fields.map((field) => (
-                  <div key={field.name}>
-                    <label className="label">{field.label}</label>
-                    {field.type === 'image' ? (
-                      <div className="space-y-2">
-                        {item[field.name] && (
-                          <img src={item[field.name]} alt="" className="max-w-xs rounded-lg border" />
-                        )}
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() => openMediaPicker(`content.${region.name}.${index}.${field.name}`)}
-                            className="btn btn-secondary"
-                          >
-                            <Image className="w-4 h-4 mr-2" />
-                            {item[field.name] ? 'Change Image' : 'Select Image'}
-                          </button>
-                          {item[field.name] && (
-                            <button
-                              type="button"
-                              onClick={() => handleRepeaterChange(region.name, index, field.name, '')}
-                              className="btn btn-ghost text-red-600"
-                            >
-                              Remove
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ) : field.type === 'textarea' ? (
-                      <textarea
-                        value={item[field.name] || ''}
-                        onChange={(e) => handleRepeaterChange(region.name, index, field.name, e.target.value)}
-                        className="input"
-                      />
-                    ) : field.type === 'code' ? (
-                      <CodeEditor
-                        value={item[field.name] || ''}
-                        onChange={(val) => handleRepeaterChange(region.name, index, field.name, val)}
-                        mode={field.mode || 'html'}
-                        height={field.height || '200px'}
-                      />
-                    ) : (
-                      <input
-                        type="text"
-                        value={item[field.name] || ''}
-                        onChange={(e) => handleRepeaterChange(region.name, index, field.name, e.target.value)}
-                        className="input"
-                      />
-                    )}
-                  </div>
-                ))}
-              </div>
-            ))}
-            <button
-              type="button"
-              onClick={() => handleRepeaterAdd(region.name, fields)}
-              className="btn btn-secondary w-full"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add Item
-            </button>
-          </div>
-        );
-
-      default:
-        return (
-          <input
-            type="text"
-            value={value}
-            onChange={(e) => handleContentChange(region.name, e.target.value)}
-            className="input"
-            placeholder={region.placeholder}
-          />
-        );
-    }
+  const copyShortCode = () => {
+    const code = `[[block:${block.slug}]]`;
+    navigator.clipboard.writeText(code);
+    toast.success(`Copied ${code}`);
   };
 
   if (loading) {
@@ -530,7 +239,7 @@ export default function BlockEditor() {
                 type="button"
                 onClick={handleToggleLock}
                 className="btn btn-ghost px-3"
-                title={isSlugLocked ? 'Unlock to edit name and slug' : 'Lock to prevent accidental changes'}
+                title={isSlugLocked ? 'Unlock to edit name and short code' : 'Lock to prevent accidental changes'}
               >
                 {isSlugLocked ? (
                   <Lock className="w-4 h-4 text-gray-600" />
@@ -560,20 +269,37 @@ export default function BlockEditor() {
 
             <div>
               <label className="label">
-                Slug
+                Short Code
                 {isSlugLocked && (
                   <span className="ml-2 text-xs text-gray-500">(locked)</span>
                 )}
               </label>
-              <input
-                id="input-block-slug"
-                type="text"
-                value={block.slug}
-                onChange={(e) => setBlock(b => ({ ...b, slug: e.target.value }))}
-                className="input"
-                placeholder="block-slug"
-                disabled={isSlugLocked}
-              />
+              <div className="flex gap-2">
+                <input
+                  id="input-block-slug"
+                  type="text"
+                  value={block.slug}
+                  onChange={(e) => setBlock(b => ({ ...b, slug: e.target.value }))}
+                  className="input flex-1"
+                  placeholder="my-block"
+                  disabled={isSlugLocked}
+                />
+                {block.slug && (
+                  <button
+                    type="button"
+                    onClick={copyShortCode}
+                    className="btn btn-ghost px-3"
+                    title="Copy short code"
+                  >
+                    <Copy className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+              {block.slug && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Use <code className="bg-gray-100 px-1 py-0.5 rounded text-xs">{'[[block:' + block.slug + ']]'}</code> in your templates
+                </p>
+              )}
             </div>
           </div>
 
@@ -606,57 +332,18 @@ export default function BlockEditor() {
           </div>
 
           {activeTab === 'editor' ? (
-            /* Content Regions */
-            regions.length > 0 && (
-              <div className="card p-6 space-y-6">
-                <div className="flex items-center justify-between">
-                  <h2 className="font-semibold text-gray-900">Content</h2>
-                  <button
-                    id="btn-edit-source"
-                    type="button"
-                    onClick={() => setShowSource(!showSource)}
-                    className={`btn btn-sm ${showSource ? 'btn-primary' : 'btn-ghost text-gray-500'} flex items-center gap-2`}
-                    title={showSource ? "Switch to Visual Editor" : "Edit Raw JSON Source"}
-                  >
-                    <Code className="w-4 h-4" />
-                    {showSource ? 'View Editor' : 'Edit Source'}
-                  </button>
-                </div>
-
-                {showSource ? (
-                  <div className="space-y-2">
-                    <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded border border-amber-100">
-                      <strong>Warning:</strong> Editing raw JSON can break the visual editor if the structure doesn't match the template regions.
-                    </p>
-                    <CodeEditor
-                      mode="json"
-                      value={JSON.stringify(block.content, null, 2)}
-                      onChange={(val) => {
-                        try {
-                          const parsed = JSON.parse(val);
-                          setBlock(prev => ({ ...prev, content: parsed }));
-                        } catch (e) {
-                          // Invalid JSON
-                        }
-                      }}
-                      height="500px"
-                    />
-                  </div>
-                ) : (
-                  <div className="space-y-6">
-                    {regions.map((region) => (
-                      <div key={region.name}>
-                        <label className="label">
-                          {region.label}
-                          {region.required && <span className="text-red-500 ml-1">*</span>}
-                        </label>
-                        {renderField(region)}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )
+            <div className="card p-6 space-y-4">
+              <h2 className="font-semibold text-gray-900">Source</h2>
+              <p className="text-xs text-gray-500">
+                Write HTML and Nunjucks code. You have access to <code className="bg-gray-100 px-1 py-0.5 rounded">site</code>, <code className="bg-gray-100 px-1 py-0.5 rounded">block</code>, and all global template variables.
+              </p>
+              <CodeEditor
+                value={block.source}
+                onChange={(val) => setBlock(b => ({ ...b, source: val }))}
+                mode="html"
+                height="500px"
+              />
+            </div>
           ) : (
             <div className="card overflow-hidden">
               <table className="w-full text-left text-sm">
@@ -697,37 +384,6 @@ export default function BlockEditor() {
 
         {/* Sidebar */}
         <div className="space-y-6">
-          {/* Template */}
-          <div className="card p-6 space-y-4">
-            <div>
-              <label className="label">Template</label>
-              <div className="flex gap-2">
-                <select
-                  id="select-template"
-                  value={block.template_id || ''}
-                  onChange={(e) => handleTemplateChange(e.target.value)}
-                  className="input flex-1"
-                >
-                  <option value="">Select template</option>
-                  {templates.map((t) => (
-                    <option key={t.id} value={String(t.id)}>
-                      {t.name}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  id="btn-sync-templates"
-                  onClick={syncTemplates}
-                  disabled={syncing}
-                  className="btn btn-ghost px-3"
-                  title="Sync templates from filesystem"
-                >
-                  <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
-                </button>
-              </div>
-            </div>
-          </div>
-
           {/* Access Control */}
           <div className="card p-6 space-y-4">
             <h2 className="font-semibold text-gray-900 flex items-center gap-2">
@@ -740,9 +396,9 @@ export default function BlockEditor() {
                 <select
                   id="select-auth-rule"
                   value={block.access_rules?.auth || 'any'}
-                  onChange={(e) => setBlock(b => ({ 
-                    ...b, 
-                    access_rules: { ...b.access_rules, auth: e.target.value } 
+                  onChange={(e) => setBlock(b => ({
+                    ...b,
+                    access_rules: { ...b.access_rules, auth: e.target.value }
                   }))}
                   className="input"
                 >
@@ -756,9 +412,9 @@ export default function BlockEditor() {
                 <select
                   id="select-subscription-rule"
                   value={block.access_rules?.subscription || 'any'}
-                  onChange={(e) => setBlock(b => ({ 
-                    ...b, 
-                    access_rules: { ...b.access_rules, subscription: e.target.value, plans: e.target.value === 'any' ? [] : (b.access_rules.plans || []) } 
+                  onChange={(e) => setBlock(b => ({
+                    ...b,
+                    access_rules: { ...b.access_rules, subscription: e.target.value, plans: e.target.value === 'any' ? [] : (b.access_rules.plans || []) }
                   }))}
                   className="input"
                 >
@@ -811,14 +467,6 @@ export default function BlockEditor() {
           </div>
         </div>
       </div>
-
-      {/* Media Picker Modal */}
-      {mediaPickerOpen && (
-        <MediaPicker
-          onSelect={handleMediaSelect}
-          onClose={() => setMediaPickerOpen(false)}
-        />
-      )}
     </div>
   );
 }

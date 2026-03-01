@@ -1,0 +1,13 @@
+{#
+# System Layout: Base Layout with System Components
+# This is a protected system layout - do not modify
+# Usage: Extend this instead of layouts/base.njk for system pages
+# Ensures all system components are available
+#}
+
+{% extends "layouts/base.njk" %}
+
+{#
+# This layout automatically makes all system components available
+# Child templates can use: {% include "system/components/..." %}
+#}
