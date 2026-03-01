@@ -98,7 +98,7 @@ export default function Settings() {
     s3_role_arn: '',
     s3_external_id: '',
     s3_prefix: '',
-    shipstation_api_key: '',
+    shipstation_auth_key: '',
   });
   const [pages, setPages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -557,10 +557,10 @@ export default function Settings() {
                   <li>Enter the <strong>Authentication Key</strong> below in the "Auth Key" or "Password" field in ShipStation.</li>
                 </ol>
               </div>
-              {field('shipstation_api_key', _('settings.shipstation.api_key', 'API Key'), { 
+              {field('shipstation_auth_key', _('settings.shipstation.api_key', 'Authentication Key'), { 
                 type: 'password', 
-                placeholder: 'Your secure API Key',
-                hint: _('settings.shipstation.api_key_hint', 'Your API Key from ShipStation (Settings > API Settings).') 
+                placeholder: 'Your secure Authentication Key',
+                hint: _('settings.shipstation.api_key_hint', 'Your Auth Key from ShipStation (Settings > API Settings > API Keys).') 
               })}
             </div>
           </div>
