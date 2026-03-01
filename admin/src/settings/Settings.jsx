@@ -98,8 +98,7 @@ export default function Settings() {
     s3_role_arn: '',
     s3_external_id: '',
     s3_prefix: '',
-    shipstation_auth_key: '',
-    shipstation_api_secret: '',
+    shipstation_api_key: '',
   });
   const [pages, setPages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -552,20 +551,13 @@ export default function Settings() {
               <h2 className="font-semibold text-gray-900 pb-2 border-b border-gray-200">ShipStation</h2>
               <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-2">
                 <p className="text-sm text-blue-800 font-medium">Connect to ShipStation</p>
-                <ol className="list-decimal list-inside text-xs text-blue-700 space-y-1">
-                  <li>In ShipStation, add a new store of type <strong>WooCommerce</strong>.</li>
-                  <li>Enter your site URL: <code>{settings.site_url || '(Set site URL first)'}</code></li>
-                  <li>Enter the <strong>Authentication Key</strong> below in the "Auth Key" or "Password" field in ShipStation.</li>
-                </ol>
+                <p className="text-xs text-blue-700">
+                  Enter your API Key below to connect your ShipStation account. You can find your keys in ShipStation under <strong>Settings &gt; Account &gt; API Settings</strong>.
+                </p>
               </div>
-              {field('shipstation_auth_key', _('settings.shipstation.api_key', 'API Key'), { 
+              {field('shipstation_api_key', _('settings.shipstation.api_key', 'API Key'), { 
                 type: 'password', 
                 placeholder: 'Your ShipStation API Key',
-              })}
-              {field('shipstation_api_secret', _('settings.shipstation.api_secret', 'API Secret'), { 
-                type: 'password', 
-                placeholder: 'Your ShipStation API Secret',
-                hint: _('settings.shipstation.keys_hint', 'Found in ShipStation > Settings > API Settings > API Keys.') 
               })}
             </div>
           </div>

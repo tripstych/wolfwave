@@ -49,9 +49,9 @@ async function authenticateShipStation(req, res, next) {
   }
 
   // Timing-safe comparison to prevent timing attacks
-  const keyBuffer = Buffer.from(authKey);
-  const validBuffer = Buffer.from(validKey);
-  if (keyBuffer.length !== validBuffer.length || !crypto.timingSafeEqual(keyBuffer, validBuffer)) {
+  const keyHash = crypto.createHash('sha256').update(authKey).digest();
+  const validHash = crypto.createHash('sha256').update(validKey).digest();
+  if (!crypto.timingSafeEqual(keyHash, validHash)) {
     return res.status(401).type('text/xml').send(
       '<?xml version="1.0" encoding="UTF-8"?><error>Invalid authentication key</error>'
     );

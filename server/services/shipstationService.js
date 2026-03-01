@@ -8,48 +8,34 @@
  */
 
 import axios from 'axios';
-import { query, queryDb } from '../db/connection.js';
-import { getCurrentDbName } from '../lib/tenantContext.js';
+import { query } from '../db/connection.js';
 
 const BASE_URL = 'https://ssapi.shipstation.com';
 
 /**
- * Get ShipStation API credentials from settings table
+ * Get ShipStation API key from settings table
  */
-async function getApiCredentials(dbName) {
-  const rows = await queryDb(
-    dbName,
-    "SELECT setting_key, setting_value FROM settings WHERE setting_key IN ('shipstation_auth_key', 'shipstation_api_secret')"
+async function getApiKey() {
+  const rows = await query(
+    "SELECT setting_value FROM settings WHERE setting_key = 'shipstation_api_key'"
   );
-  
-  const creds = rows.reduce((acc, row) => {
-    acc[row.setting_key] = row.setting_value;
-    return acc;
-  }, {});
-
-  return {
-    key: creds.shipstation_auth_key || process.env.SHIPSTATION_API_KEY,
-    secret: creds.shipstation_api_secret || process.env.SHIPSTATION_API_SECRET
-  };
+  return rows[0]?.setting_value || process.env.SHIPSTATION_API_KEY || null;
 }
 
 /**
  * Make an authenticated request to ShipStation API
  */
 async function request(method, path, data = null) {
-  const dbName = getCurrentDbName();
-  const { key, secret } = await getApiCredentials(dbName);
-  if (!key || !secret) {
-    throw new Error('ShipStation API Key and Secret are not configured');
+  const apiKey = await getApiKey();
+  if (!apiKey) {
+    throw new Error('ShipStation API key not configured');
   }
-
-  const authString = Buffer.from(`${key}:${secret}`).toString('base64');
 
   const config = {
     method,
     url: `${BASE_URL}${path}`,
     headers: {
-      'Authorization': `Basic ${authString}`,
+      'API-Key': apiKey,
       'Content-Type': 'application/json'
     }
   };
@@ -66,8 +52,16 @@ async function request(method, path, data = null) {
     // delete requests don't have a body
   }
 
-  const response = await axios(config);
-  return response.data;
+  try {
+    const response = await axios(config);
+    return response.data;
+  } catch (err) {
+    // Sanitize error to prevent leaking auth headers in logs
+    if (err.config?.headers?.Authorization) {
+      delete err.config.headers.Authorization;
+    }
+    throw err;
+  }
 }
 
 // ─── Address & Order Mapping ─────────────────────────────────────────
