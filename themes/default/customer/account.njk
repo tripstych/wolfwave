@@ -17,7 +17,8 @@
       <div id="profile-content" class="loading">Loading...</div>
     </div>
 
-    {# My Sites Section #}
+    {# My Sites Section - Only show if customer has limit > 0 #}
+    {% if customer and customer.sites_limit > 0 %}
     <div class="account-section">
       <div class="section-header">
         <h2>My Sites</h2>
@@ -48,6 +49,7 @@
         <div id="create-site-error" class="error-message hidden"></div>
       </div>
     </div>
+    {% endif %}
 
     {# Shipping Address Section #}
     <div class="account-section">
