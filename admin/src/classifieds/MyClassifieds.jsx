@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../lib/api';
 import { toast } from 'sonner';
-import { Plus, Edit2, Trash2, Tag, CheckCircle, Clock, XCircle, ShoppingBag, X, Image as ImageIcon } from 'lucide-react';
+import { Plus, Edit2, Trash2, Tag, CheckCircle, Clock, XCircle, Heart, X, Image as ImageIcon, User, MapPin } from 'lucide-react';
 import { useTranslation } from '../context/TranslationContext';
 
 export default function MyClassifieds() {
@@ -12,19 +12,19 @@ export default function MyClassifieds() {
     approved: { icon: CheckCircle, label: _('status.approved', 'Active'), className: 'bg-green-100 text-green-700' },
     rejected: { icon: XCircle, label: _('status.rejected', 'Rejected'), className: 'bg-red-100 text-red-700' },
     expired: { icon: Clock, label: _('status.expired', 'Expired'), className: 'bg-gray-100 text-gray-500' },
-    sold: { icon: ShoppingBag, label: _('status.sold', 'Sold'), className: 'bg-blue-100 text-blue-700' },
+    paused: { icon: Clock, label: _('status.paused', 'Paused'), className: 'bg-orange-100 text-orange-700' },
   };
 
-  const CONDITION_OPTIONS = [
-    { value: 'new_item', label: _('condition.new', 'New') },
-    { value: 'used', label: _('condition.used', 'Used') },
-    { value: 'refurbished', label: _('condition.refurbished', 'Refurbished') },
-    { value: 'na', label: _('condition.na', 'N/A') },
+  const RELATIONSHIP_STATUS_OPTIONS = [
+    { value: 'single', label: _('relationship.single', 'Single') },
+    { value: 'dating', label: _('relationship.dating', 'Dating') },
+    { value: 'open_relationship', label: _('relationship.open_relationship', 'Open Relationship') },
+    { value: 'complicated', label: _('relationship.complicated', 'It\'s Complicated') },
+    { value: 'prefer_not_to_say', label: _('relationship.prefer_not_to_say', 'Prefer Not to Say') },
   ];
 
   const emptyForm = {
-    title: '', description: '', price: '', currency: 'USD', condition: 'na',
-    category_id: '', location: '', contact_info: '', images: [],
+    title: '', description: '', category_id: '', location: '', contact_info: '', images: [],
   };
 
   const [ads, setAds] = useState([]);
@@ -67,9 +67,6 @@ export default function MyClassifieds() {
     setForm({
       title: ad.title || '',
       description: ad.description || '',
-      price: ad.price != null ? String(ad.price) : '',
-      currency: ad.currency || 'USD',
-      condition: ad.condition || 'na',
       category_id: ad.category_id ? String(ad.category_id) : '',
       location: ad.location || '',
       contact_info: ad.contact_info || '',
@@ -86,7 +83,6 @@ export default function MyClassifieds() {
 
     const payload = {
       ...form,
-      price: form.price ? parseFloat(form.price) : null,
       category_id: form.category_id ? parseInt(form.category_id) : null,
     };
 
@@ -185,25 +181,15 @@ export default function MyClassifieds() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="label">{_('common.title', 'Title')} *</label>
-              <input type="text" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="input" placeholder={_('classifieds.form.title_placeholder', "What are you selling?")} />
+              <input type="text" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="input" placeholder={_('classifieds.form.title_placeholder', "What's your ad about?")} />
             </div>
 
             <div>
               <label className="label">{_('common.description', 'Description')}</label>
-              <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="input" rows={4} placeholder={_('classifieds.form.desc_placeholder', "Describe your item...")} />
+              <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="input" rows={4} placeholder={_('classifieds.form.desc_placeholder', "Details about what you're offering or looking for...")} />
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              <div>
-                <label className="label">{_('common.price', 'Price')}</label>
-                <input type="number" step="0.01" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} className="input" placeholder="0.00" />
-              </div>
-              <div>
-                <label className="label">{_('classifieds.condition', 'Condition')}</label>
-                <select value={form.condition} onChange={(e) => setForm({ ...form, condition: e.target.value })} className="input">
-                  {CONDITION_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-              </div>
               <div>
                 <label className="label">{_('common.category', 'Category')}</label>
                 <select value={form.category_id} onChange={(e) => setForm({ ...form, category_id: e.target.value })} className="input">
@@ -211,13 +197,13 @@ export default function MyClassifieds() {
                   {flatCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
+              <div>
+                <label className="label">{_('classifieds.location', 'Location')}</label>
+                <input type="text" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} className="input" placeholder={_('classifieds.location_placeholder', "City, Area")} />
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="label">{_('common.location', 'Location')}</label>
-                <input type="text" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} className="input" placeholder="City, State" />
-              </div>
               <div>
                 <label className="label">{_('classifieds.contact_info', 'Contact Info')}</label>
                 <input type="text" value={form.contact_info} onChange={(e) => setForm({ ...form, contact_info: e.target.value })} className="input" placeholder="Email or phone" />
@@ -282,7 +268,6 @@ export default function MyClassifieds() {
                       <div>
                         <h3 className="font-medium text-gray-900">{ad.title}</h3>
                         <div className="flex items-center gap-3 mt-1 text-sm text-gray-500">
-                          {ad.price != null && <span className="font-medium text-gray-900">${Number(ad.price).toFixed(2)}</span>}
                           {ad.category && <span>{ad.category.name}</span>}
                           {ad.location && <span>{ad.location}</span>}
                         </div>
