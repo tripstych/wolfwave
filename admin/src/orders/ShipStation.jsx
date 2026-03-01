@@ -115,7 +115,9 @@ function ShipmentsTab() {
   const loadShipments = async () => {
     setLoading(true);
     try {
-      const data = await api.get('/shipstation/shipments?pageSize=50&sortBy=ShipDate&sortDir=DESC');
+      const end = new Date().toISOString().split('T')[0];
+      const start = new Date(Date.now() - 90 * 86400000).toISOString().split('T')[0];
+      const data = await api.get(`/shipstation/shipments?pageSize=50&sortBy=ShipDate&sortDir=DESC&shipDateStart=${start}&shipDateEnd=${end}`);
       setShipments(data);
     } catch (err) {
       console.error('Failed to load shipments:', err);
