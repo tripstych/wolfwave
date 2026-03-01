@@ -342,18 +342,26 @@ async function handleInvoicePaid(req, invoice) {
     return;
   }
 
+  // Look up subscription plan from the first line item's price ID
+  const priceId = lines.data?.[0]?.price?.id;
+  let plan = null;
+  if (priceId) {
+    plan = await prisma.subscription_plans.findFirst({ where: { stripe_price_id: priceId } });
+    webhookLog(req, 'info', `Plan lookup by price ${priceId}: ${plan ? `found (id=${plan.id}, name=${plan.name})` : 'NOT FOUND'}`);
+  }
+
   // Generate order number
   const orderNumber = await generateOrderNumber();
 
   // Create order
   const amount = amount_paid / 100;
-  
+
   await prisma.orders.create({
     data: {
       order_number: orderNumber,
       customer_id: dbCustomer.id,
       email: dbCustomer.email,
-      billing_address: JSON.stringify({}), // We might not have full address here from Stripe invoice basic object
+      billing_address: JSON.stringify({}),
       shipping_address: JSON.stringify({}),
       payment_method: 'stripe',
       payment_intent_id: id, // Store Invoice ID
@@ -365,13 +373,18 @@ async function handleInvoicePaid(req, invoice) {
       status: 'completed',
       payment_status: 'paid',
       order_items: {
-        create: lines.data.map(line => ({
-          product_title: line.description || 'Subscription',
-          sku: line.price?.id || 'sub',
-          price: (line.amount || 0) / 100,
-          quantity: line.quantity || 1,
-          subtotal: (line.amount || 0) / 100
-        }))
+        create: lines.data.map(line => {
+          const linePriceId = line.price?.id;
+          const linePlan = linePriceId === priceId ? plan : null;
+          return {
+            subscription_plan_id: linePlan?.id || null,
+            product_title: line.description || 'Subscription',
+            sku: linePriceId || 'sub',
+            price: (line.amount || 0) / 100,
+            quantity: line.quantity || 1,
+            subtotal: (line.amount || 0) / 100
+          };
+        })
       }
     }
   });

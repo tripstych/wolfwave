@@ -265,24 +265,27 @@ model coupons {
 }
 
 model order_items {
-  id               Int               @id @default(autoincrement())
-  order_id         Int
-  product_id       Int
-  variant_id       Int?
-  product_title    String            @db.VarChar(255)
-  variant_title    String?           @db.VarChar(255)
-  sku              String            @db.VarChar(100)
-  price            Decimal           @db.Decimal(10, 2)
-  quantity         Int
-  subtotal         Decimal           @db.Decimal(10, 2)
-  created_at       DateTime          @default(now()) @db.Timestamp(0)
-  orders           orders            @relation(fields: [order_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "order_items_ibfk_1")
-  products         products          @relation(fields: [product_id], references: [id], onUpdate: Restrict, map: "order_items_ibfk_2")
-  product_variants product_variants? @relation(fields: [variant_id], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "order_items_ibfk_3")
+  id                   Int                @id @default(autoincrement())
+  order_id             Int
+  product_id           Int?
+  variant_id           Int?
+  subscription_plan_id Int?
+  product_title        String             @db.VarChar(255)
+  variant_title        String?            @db.VarChar(255)
+  sku                  String             @db.VarChar(100)
+  price                Decimal            @db.Decimal(10, 2)
+  quantity             Int
+  subtotal             Decimal            @db.Decimal(10, 2)
+  created_at           DateTime           @default(now()) @db.Timestamp(0)
+  orders               orders             @relation(fields: [order_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "order_items_ibfk_1")
+  products             products?          @relation(fields: [product_id], references: [id], onUpdate: Restrict, map: "order_items_ibfk_2")
+  product_variants     product_variants?  @relation(fields: [variant_id], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "order_items_ibfk_3")
+  subscription_plans   subscription_plans? @relation(fields: [subscription_plan_id], references: [id], onUpdate: Restrict, map: "order_items_ibfk_4")
 
   @@index([order_id], map: "idx_order_id")
   @@index([product_id], map: "product_id")
   @@index([variant_id], map: "variant_id")
+  @@index([subscription_plan_id], map: "subscription_plan_id")
 }
 
 model orders {
@@ -618,6 +621,7 @@ model subscription_plans {
   updated_at             DateTime                 @default(now()) @db.Timestamp(0)
   customer_subscriptions customer_subscriptions[]
   plan_modules           plan_modules[]
+  order_items            order_items[]
 
   @@index([is_active], map: "idx_active")
 }
