@@ -3,30 +3,33 @@
  *
  * Full integration with ShipStation's API.
  * Auth: API-Key header
- * Base URL: https://ssapi.shipstation.com
+ * Base URL: https://api.shipstation.com
  * Rate limit: 40 requests/minute
  */
 
 import axios from 'axios';
-import { query } from '../db/connection.js';
+import { queryDb } from '../db/connection.js';
+import { getCurrentDbName } from '../lib/tenantContext.js';
 
-const BASE_URL = 'https://ssapi.shipstation.com';
+const BASE_URL = 'https://api.shipstation.com';
 
 /**
- * Get ShipStation API key from settings table
+ * Get ShipStation API key from a specific tenant's settings table
  */
-async function getApiKey() {
-  const rows = await query(
+async function getApiKey(dbName) {
+  const rows = await queryDb(
+    dbName,
     "SELECT setting_value FROM settings WHERE setting_key = 'shipstation_api_key'"
   );
   return rows[0]?.setting_value || process.env.SHIPSTATION_API_KEY || null;
 }
 
 /**
- * Make an authenticated request to ShipStation API
+ * Make an authenticated request to ShipStation API for the current tenant
  */
 async function request(method, path, data = null) {
-  const apiKey = await getApiKey();
+  const dbName = getCurrentDbName();
+  const apiKey = await getApiKey(dbName);
   if (!apiKey) {
     throw new Error('ShipStation API key not configured');
   }
@@ -198,7 +201,7 @@ export async function listShipments(params = {}) {
 }
 
 export async function getShippingRates(rateOptions) {
-  return await request('post', '/shipments/getrates', rateOptions);
+  return await request('post', '/v2/rates', rateOptions);
 }
 
 export async function createLabel(labelData) {
