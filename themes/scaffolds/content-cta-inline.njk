@@ -1,0 +1,112 @@
+{% extends "layouts/base.njk" %}
+
+{% block styles %}
+.page-header {
+  padding: 5rem 0 3rem;
+  background: var(--color-background);
+}
+
+.page-header h1 {
+  font-size: 3rem;
+  text-align: center;
+}
+
+.page-sections {
+  padding: 4rem 0 8rem;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.content-part {
+  margin-bottom: 4rem;
+  line-height: 1.8;
+  font-size: 1.125rem;
+}
+
+.inline-cta-card {
+  padding: 2.5rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 1rem;
+  margin: 3rem 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+}
+
+.inline-cta-content {
+  flex: 1;
+}
+
+.inline-cta-card h3 {
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.inline-cta-card p {
+  font-size: 1rem;
+  color: var(--color-text-muted);
+  margin-bottom: 0;
+}
+
+@media (max-width: 768px) {
+  .page-header h1 { font-size: 2.5rem; }
+  .inline-cta-card { flex-direction: column; text-align: center; }
+}
+{% endblock %}
+
+{% block content %}
+<header class="page-header">
+  <div class="container">
+    <h1 data-cms-region="page_title" data-cms-type="text" data-cms-label="Page Title">
+      {{ content.page_title | default(page.title) }}
+    </h1>
+  </div>
+</header>
+
+<div class="container">
+  <section class="page-sections">
+    <article class="content-part" data-cms-region="intro_content" data-cms-type="richtext" data-cms-label="Intro Content">
+      {{ content.intro_content | safe | default("<p>The intro sets the stage for the reader. This template is designed for long-form content that needs to drive conversions at multiple stages.</p>") }}
+    </article>
+
+    <div data-cms-region="inline_ctas" 
+         data-cms-type="repeater" 
+         data-cms-label="Inline CTA Sections"
+         data-cms-fields='[{"name":"cta_title","type":"text","label":"CTA Title"},{"name":"cta_text","type":"textarea","label":"CTA Text"},{"name":"cta_button","type":"link","label":"CTA Button"},{"name":"main_text","type":"richtext","label":"Section Content Below CTA"}]'>
+      
+      {% for item in content.inline_ctas %}
+        <div class="inline-cta-card">
+          <div class="inline-cta-content">
+            <h3>{{ item.cta_title }}</h3>
+            <p>{{ item.cta_text }}</p>
+          </div>
+          <div class="inline-cta-action">
+            <a href="{{ item.cta_button.url | default('#') }}" class="btn btn-primary">
+              {{ item.cta_button.text | default("Action") }}
+            </a>
+          </div>
+        </div>
+        <article class="content-part">
+          {{ item.main_text | safe }}
+        </article>
+      {% else %}
+        <div class="inline-cta-card">
+          <div class="inline-cta-content">
+            <h3>Download Our Guide</h3>
+            <p>Get the complete whitepaper for even more detail on this topic.</p>
+          </div>
+          <div class="inline-cta-action">
+            <a href="#" class="btn btn-primary">Download Now</a>
+          </div>
+        </div>
+        <article class="content-part">
+          <p>This is placeholder content following the first inline call-to-action. Add more sections to intersperse content with high-conversion touchpoints.</p>
+        </article>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+{% endblock %}
+

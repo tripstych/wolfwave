@@ -1,0 +1,92 @@
+{% extends "layouts/base.njk" %}
+
+{% block styles %}
+.hero-angled {
+  position: relative;
+  background: var(--color-primary);
+  color: white;
+  padding: 10rem 0 12rem;
+  overflow: hidden;
+  clip-path: polygon(0 0, 100% 0, 100% 85%, 0% 100%);
+  margin-bottom: 2rem;
+}
+
+.hero-angled .container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  gap: 4rem;
+  position: relative;
+  z-index: 2;
+}
+
+.hero-angled h1 {
+  font-size: 3.5rem;
+  color: white;
+  margin-bottom: 1.5rem;
+}
+
+.hero-angled p {
+  font-size: 1.25rem;
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: 2.5rem;
+}
+
+.hero-angled .hero-image img {
+  width: 100%;
+  border-radius: 1rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+.hero-angled .btn-primary {
+  background: var(--color-background);
+  color: var(--color-primary);
+}
+
+.hero-angled .btn-primary:hover {
+  background: var(--color-surface);
+}
+
+.page-body {
+  padding: 4rem 0 8rem;
+}
+
+@media (max-width: 991px) {
+  .hero-angled { padding: 8rem 0 10rem; clip-path: polygon(0 0, 100% 0, 100% 90%, 0% 100%); }
+  .hero-angled .container { grid-template-columns: 1fr; text-align: center; }
+  .hero-angled .hero-image { order: -1; }
+  .hero-angled h1 { font-size: 2.5rem; }
+}
+{% endblock %}
+
+{% block content %}
+<section class="hero-angled">
+  <div class="container">
+    <div class="hero-content">
+      <h1 data-cms-region="headline" data-cms-type="text" data-cms-label="Hero Title">
+        {{ content.headline | default("Break the Mold") }}
+      </h1>
+      <p data-cms-region="subtext" data-cms-type="textarea" data-cms-label="Hero Subtitle">
+        {{ content.subtext | default("Dynamic angled designs provide a sense of movement and modernity to your landing pages.") }}
+      </p>
+      <div data-cms-region="hero_cta" data-cms-type="link" data-cms-label="Hero CTA">
+        <a href="{{ content.hero_cta.url | default('#') }}" class="btn btn-primary btn-lg">
+          {{ content.hero_cta.text | default("Explore Features") }}
+        </a>
+      </div>
+    </div>
+    <div class="hero-image" data-cms-region="hero_image" data-cms-type="image" data-cms-label="Hero Image">
+      <img src="{{ content.hero_image | default('/images/placeholders/800x600.svg') }}" alt="Angled Hero Image">
+    </div>
+  </div>
+</section>
+
+<section class="page-body">
+  <div class="container">
+    <article data-cms-region="main_content" data-cms-type="richtext" data-cms-label="Main Content">
+      {{ content.main_content | safe | default("<p>Add your main page content here.</p>") }}
+    </article>
+  </div>
+</section>
+{% endblock %}
+

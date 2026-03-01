@@ -1,0 +1,151 @@
+{% extends "layouts/base.njk" %}
+
+{% block styles %}
+.event-hero {
+  padding: 10rem 0 8rem;
+  background: var(--color-primary);
+  color: white;
+  text-align: center;
+}
+
+.event-hero h1 { font-size: 4.5rem; color: white; margin-bottom: 2rem; }
+.event-details { display: flex; justify-content: center; gap: 3rem; margin-bottom: 3.5rem; font-size: 1.5rem; }
+.event-detail { display: flex; align-items: center; gap: 0.75rem; }
+
+.schedule-section {
+  padding: 8rem 0;
+  background: var(--color-background);
+}
+
+.schedule-grid {
+  max-width: 900px;
+  margin: 4rem auto 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.schedule-item {
+  display: flex;
+  padding: 2rem 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.time { width: 120px; font-weight: 700; color: var(--color-primary); }
+.session { flex: 1; }
+.session h4 { font-size: 1.25rem; margin-bottom: 0.5rem; }
+.session p { color: var(--color-text-muted); margin-bottom: 0; }
+
+.speakers-section {
+  padding: 8rem 0;
+  background: var(--color-surface);
+  text-align: center;
+}
+
+.speaker-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2rem;
+  margin-top: 4rem;
+}
+
+.speaker-card {
+  padding: 2rem;
+  background: var(--color-background);
+  border-radius: 1rem;
+  transition: transform 0.2s;
+}
+
+.speaker-card img { width: 120px; height: 120px; border-radius: 50%; object-fit: cover; margin-bottom: 1.5rem; }
+.speaker-card h4 { margin-bottom: 0.25rem; }
+.speaker-card span { font-size: 0.875rem; color: var(--color-text-muted); }
+
+.registration-cta {
+  padding: 8rem 0;
+  background: var(--color-background);
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .event-hero h1 { font-size: 3rem; }
+  .event-details { flex-direction: column; gap: 1rem; }
+  .schedule-item { flex-direction: column; }
+  .time { width: 100%; margin-bottom: 0.5rem; }
+  .speaker-grid { grid-template-columns: 1fr 1fr; }
+}
+{% endblock %}
+
+{% block content %}
+<section class="event-hero">
+  <div class="container">
+    <h1 data-cms-region="event_name" data-cms-type="text" data-cms-label="Event Name">
+      {{ content.event_name | default("WebWolf Global Conference") }}
+    </h1>
+    <div class="event-details">
+      <div class="event-detail" data-cms-region="event_date" data-cms-type="text" data-cms-label="Date">
+        📅 {{ content.event_date | default("Sept 15-17, 2026") }}
+      </div>
+      <div class="event-detail" data-cms-region="event_location" data-cms-type="text" data-cms-label="Location">
+        📍 {{ content.event_location | default("Austin, Texas") }}
+      </div>
+    </div>
+    <a href="#register" class="btn btn-primary" style="background: white; color: var(--color-primary); font-weight: 700;">Get Your Tickets</a>
+  </div>
+</section>
+
+<section class="schedule-section">
+  <div class="container">
+    <h2 class="text-center">Event Schedule</h2>
+    <div class="schedule-grid" 
+         data-cms-region="schedule" 
+         data-cms-type="repeater" 
+         data-cms-label="Event Schedule"
+         data-cms-fields='[{"name":"time","type":"text","label":"Time Slot"},{"name":"title","type":"text","label":"Session Title"},{"name":"text","type":"textarea","label":"Session Description"}]'>
+      {% for session in content.schedule %}
+        <div class="schedule-item">
+          <div class="time">{{ session.time }}</div>
+          <div class="session">
+            <h4>{{ session.title }}</h4>
+            <p>{{ session.text }}</p>
+          </div>
+        </div>
+      {% else %}
+        <div class="schedule-item"><div class="time">09:00 AM</div><div class="session"><h4>Opening Keynote</h4><p>An inspiring start to our event with industry visionaries.</p></div></div>
+        <div class="schedule-item"><div class="time">11:00 AM</div><div class="session"><h4>Technical Workshops</h4><p>Deep dives into advanced topics for developers.</p></div></div>
+        <div class="schedule-item"><div class="time">02:00 PM</div><div class="session"><h4>Panel Discussion</h4><p>Q&A session with our experts on future trends.</p></div></div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="speakers-section">
+  <div class="container">
+    <h2>Featured Speakers</h2>
+    <div class="speaker-grid" 
+         data-cms-region="speakers" 
+         data-cms-type="repeater" 
+         data-cms-label="Event Speakers"
+         data-cms-fields='[{"name":"name","type":"text","label":"Speaker Name"},{"name":"title","type":"text","label":"Speaker Role"},{"name":"photo","type":"image","label":"Speaker Photo"}]'>
+      {% for s in content.speakers %}
+        <div class="speaker-card">
+          <img src="{{ s.photo | default('/images/placeholders/120x120.svg') }}" alt="{{ s.name }}">
+          <h4>{{ s.name }}</h4>
+          <span>{{ s.title }}</span>
+        </div>
+      {% else %}
+        <div class="speaker-card"><img src="/images/placeholders/120x120.svg" alt="Speaker"><h4>Dr. Alan Grant</h4><span>Senior Scientist</span></div>
+        <div class="speaker-card"><img src="/images/placeholders/120x120.svg" alt="Speaker"><h4>Ellie Sattler</h4><span>VP Research</span></div>
+        <div class="speaker-card"><img src="/images/placeholders/120x120.svg" alt="Speaker"><h4>Ian Malcolm</h4><span>Chaos Theorist</span></div>
+        <div class="speaker-card"><img src="/images/placeholders/120x120.svg" alt="Speaker"><h4>John Hammond</h4><span>Founder</span></div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section id="register" class="registration-cta">
+  <div class="container">
+    <h2 data-cms-region="bottom_cta_title" data-cms-type="text" data-cms-label="Bottom CTA Title">{{ content.bottom_cta_title | default("Secure Your Spot Today") }}</h2>
+    <p class="mb-4">Tickets are selling fast. Don't miss out on this incredible learning opportunity.</p>
+    <a href="#" class="btn btn-primary btn-lg">Register Now</a>
+  </div>
+</section>
+{% endblock %}
+

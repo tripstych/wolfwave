@@ -1,0 +1,78 @@
+{% extends "layouts/base.njk" %}
+
+{% block styles %}
+.hero-split {
+  padding: 6rem 0;
+  background: var(--color-surface);
+}
+
+.hero-split .container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  gap: 4rem;
+}
+
+@media (max-width: 991px) {
+  .hero-split .container {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+  .hero-split .hero-image {
+    order: -1;
+  }
+}
+
+.hero-split .hero-content h1 {
+  font-size: 3rem;
+  margin-bottom: 1.5rem;
+}
+
+.hero-split .hero-content p {
+  font-size: 1.125rem;
+  margin-bottom: 2rem;
+  color: var(--color-text-muted);
+}
+
+.hero-split .hero-image img {
+  width: 100%;
+  border-radius: 1rem;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.page-body {
+  padding: 4rem 0;
+}
+{% endblock %}
+
+{% block content %}
+<section class="hero-split">
+  <div class="container">
+    <div class="hero-content">
+      <h1 data-cms-region="headline" data-cms-type="text" data-cms-label="Hero Title">
+        {{ content.headline | default("Innovate Faster with Us") }}
+      </h1>
+      <p data-cms-region="subtext" data-cms-type="textarea" data-cms-label="Hero Subtitle">
+        {{ content.subtext | default("Stop wasting time on redundant tasks and start building the future today.") }}
+      </p>
+      <div data-cms-region="hero_cta" data-cms-type="link" data-cms-label="Hero CTA">
+        <a href="{{ content.hero_cta.url | default('#') }}" class="btn btn-primary">
+          {{ content.hero_cta.text | default("View Solutions") }}
+        </a>
+      </div>
+    </div>
+    <div class="hero-image" data-cms-region="hero_image" data-cms-type="image" data-cms-label="Hero Image">
+      <img src="{{ content.hero_image | default('/images/placeholders/600x600.svg') }}" alt="Hero Illustration">
+    </div>
+  </div>
+</section>
+
+<section class="page-body">
+  <div class="container">
+    <article data-cms-region="main_content" data-cms-type="richtext" data-cms-label="Main Content">
+      {{ content.main_content | safe | default("<p>Add your main page content here.</p>") }}
+    </article>
+  </div>
+</section>
+{% endblock %}
+

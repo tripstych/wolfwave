@@ -1,0 +1,82 @@
+{% extends "layouts/base.njk" %}
+
+{% block styles %}
+.hero-centered {
+  padding: 8rem 0;
+  text-align: center;
+  background-size: cover;
+  background-position: center;
+  position: relative;
+  background-color: var(--color-surface);
+  color: var(--color-text);
+}
+
+.hero-centered.has-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1;
+}
+
+.hero-centered .container {
+  position: relative;
+  z-index: 2;
+  max-width: 800px;
+}
+
+.hero-centered.has-bg {
+  color: white;
+}
+
+.hero-centered.has-bg h1, 
+.hero-centered.has-bg p {
+  color: white;
+}
+
+.hero-centered h1 {
+  font-size: 3.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.hero-centered p {
+  font-size: 1.25rem;
+  margin-bottom: 2.5rem;
+  opacity: 0.9;
+}
+
+.page-body {
+  padding: 4rem 0;
+}
+{% endblock %}
+
+{% block content %}
+<section class="hero-centered {% if content.hero_image %}has-bg{% endif %}" 
+         style="{% if content.hero_image %}background-image: url('{{ content.hero_image }}');{% endif %}">
+  <div class="container">
+    <h1 data-cms-region="headline" data-cms-type="text" data-cms-label="Hero Title">
+      {{ content.headline | default("Welcome to our Site") }}
+    </h1>
+    <p data-cms-region="subtext" data-cms-type="textarea" data-cms-label="Hero Subtitle">
+      {{ content.subtext | default("A short description that captures attention and explains your value proposition.") }}
+    </p>
+    <div data-cms-region="hero_cta" data-cms-type="link" data-cms-label="Hero CTA">
+      <a href="{{ content.hero_cta.url | default('#') }}" class="btn btn-primary">
+        {{ content.hero_cta.text | default("Get Started") }}
+      </a>
+    </div>
+  </div>
+  
+  {# Hidden image region for background selection #}
+  <div style="display:none" data-cms-region="hero_image" data-cms-type="image" data-cms-label="Hero Background Image"></div>
+</section>
+
+<section class="page-body">
+  <div class="container">
+    <article data-cms-region="main_content" data-cms-type="richtext" data-cms-label="Main Content">
+      {{ content.main_content | safe | default("<p>Add your main page content here.</p>") }}
+    </article>
+  </div>
+</section>
+{% endblock %}
+
