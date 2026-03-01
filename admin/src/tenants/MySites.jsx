@@ -37,7 +37,17 @@ export default function MySites() {
       ]);
       setSites(sitesData || []);
       setLimits(limitsData);
-      setHasSitesAccess(!!limitsData?.has_sites_access);
+      
+      // Simple logic: if limit is 0, hide the panel
+      const hasAccess = limitsData && limitsData.limit > 0;
+      setHasSitesAccess(hasAccess);
+      
+      console.log('MySites Debug:', {
+        limitsData,
+        hasAccess,
+        sitesCount: sitesData?.length || 0,
+        limit: limitsData?.limit
+      });
     } catch (err) {
       console.error('Failed to load sites:', err);
       toast.error('Failed to load your sites');
@@ -88,6 +98,8 @@ export default function MySites() {
   };
 
   // If still loading or no sites access, don't render anything
+  console.log('MySites Render Debug:', { loading, hasSitesAccess, limits });
+  
   if (loading || !hasSitesAccess) {
     return loading ? (
       <div className="flex items-center justify-center h-64">

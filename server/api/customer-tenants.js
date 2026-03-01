@@ -121,8 +121,7 @@ router.get('/limits', requireCustomer, async (req, res) => {
         used: 0,
         limit: 0,
         plan_name: 'No active license',
-        can_create: false,
-        has_sites_access: false
+        can_create: false
       });
     }
 
@@ -137,15 +136,14 @@ router.get('/limits', requireCustomer, async (req, res) => {
     // For now, we'll check if they have any existing sites or if they're in a special customer group
     const hasSubscription = false; // TODO: Implement proper subscription check in current DB
     
-    // If no subscription and no sites, they shouldn't see sites panel
+    // If no subscription and no sites, they get limit 0
     if (!hasSubscription && currentTenants === 0) {
-      console.log(`[CUSTOMER_TENANTS_LIMITS] Customer has no subscription and no sites - no sites access`);
+      console.log(`[CUSTOMER_TENANTS_LIMITS] Customer has no subscription and no sites - limit 0`);
       return res.json({
         used: 0,
         limit: 0,
         plan_name: 'No active license',
-        can_create: false,
-        has_sites_access: false
+        can_create: false
       });
     }
 
@@ -155,18 +153,16 @@ router.get('/limits', requireCustomer, async (req, res) => {
         used: currentTenants,
         limit: currentTenants, // Can't create more without subscription
         plan_name: 'Legacy Access',
-        can_create: false,
-        has_sites_access: true
+        can_create: false
       });
     }
 
-    // Default: no access
+    // Default: no access (limit 0)
     res.json({
       used: 0,
       limit: 0,
       plan_name: 'No active license',
-      can_create: false,
-      has_sites_access: false
+      can_create: false
     });
     
   } catch (err) {
