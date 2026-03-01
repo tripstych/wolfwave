@@ -260,7 +260,7 @@ function ShipmentsTab() {
         </button>
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+      <div className="bg-white border border-gray-200 rounded-lg overflow-visible">
       <table className="w-full">
         <thead className="bg-gray-50">
           <tr>
