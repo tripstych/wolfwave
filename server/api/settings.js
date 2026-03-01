@@ -22,11 +22,15 @@ router.get('/modules', requireAuth, async (req, res) => {
     }
 
     const tenantInfo = await getTenantInfoByDb(dbName);
-    if (!tenantInfo || !tenantInfo.customer_id) {
-      return res.status(403).json({ error: 'Tenant owner not found' });
+    let customerId = tenantInfo?.customer_id;
+    
+    if (!customerId) {
+      logError(req, `CRITICAL: Tenant '${dbName}' has no owner (customer_id is NULL). Falling back to default modules. This should be fixed in the database.`);
+      // Allow to proceed with null customerId, which moduleManager will treat as a non-subscribed user
+      customerId = null;
     }
 
-    const modulesData = await getCustomerModules(tenantInfo.customer_id);
+    const modulesData = await getCustomerModules(customerId);
     const enabledModules = modulesData.modules
       .filter(m => m.enabled)
       .map(m => m.name);

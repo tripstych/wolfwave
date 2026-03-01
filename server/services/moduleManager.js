@@ -42,7 +42,7 @@ async function executeRaw(sql, ...params) {
  * @returns {Promise<{enabled: boolean, config: object|null}>}
  */
 export async function hasModuleAccess(customerId, moduleName) {
-  // Get module info
+  // Get module info first
   const [module] = await queryRaw(`
     SELECT id, default_enabled, config_schema
     FROM modules
@@ -51,6 +51,15 @@ export async function hasModuleAccess(customerId, moduleName) {
 
   if (!module) {
     throw new Error(`Module '${moduleName}' not found`);
+  }
+
+  // If there's no customer, they only get default access
+  if (!customerId) {
+    return {
+      enabled: module.default_enabled,
+      config: null,
+      source: 'default'
+    };
   }
 
   // Check for customer-specific override
@@ -63,7 +72,8 @@ export async function hasModuleAccess(customerId, moduleName) {
   if (customerModule && customerModule.override_plan) {
     return {
       enabled: customerModule.is_enabled,
-      config: customerModule.config
+      config: customerModule.config,
+      source: 'customer'
     };
   }
 
@@ -77,52 +87,51 @@ export async function hasModuleAccess(customerId, moduleName) {
     LIMIT 1
   `, customerId);
 
-  if (!subscription) {
-    // No active subscription - use module default
-    return {
-      enabled: module.default_enabled,
-      config: null
-    };
-  }
+  if (subscription) {
+    // Check plan module availability
+    const [planModule] = await queryRaw(`
+      SELECT is_enabled, config
+      FROM plan_modules
+      WHERE plan_id = ? AND module_id = ?
+    `, subscription.plan_id, module.id);
 
-  // Check plan module availability
-  const [planModule] = await queryRaw(`
-    SELECT is_enabled, config
-    FROM plan_modules
-    WHERE plan_id = ? AND module_id = ?
-  `, subscription.plan_id, module.id);
-
-  if (planModule) {
-    return {
-      enabled: planModule.is_enabled,
-      config: planModule.config
-    };
+    if (planModule) {
+      return {
+        enabled: planModule.is_enabled,
+        config: planModule.config,
+        source: 'plan'
+      };
+    }
   }
 
   // Fall back to module default
   return {
     enabled: module.default_enabled,
-    config: null
+    config: null,
+    source: 'default'
   };
 }
 
 /**
  * Get all modules available to a customer
  * 
- * @param {number} customerId - Customer ID
+ * @param {number | null} customerId - Customer ID. If null, returns default module availability.
  * @returns {Promise<Array>} List of modules with availability status
  */
 export async function getCustomerModules(customerId) {
-  // Get customer's active subscription
-  const [subscription] = await queryRaw(`
-    SELECT cs.plan_id, sp.name as plan_name
-    FROM customer_subscriptions cs
-    JOIN subscription_plans sp ON cs.plan_id = sp.id
-    WHERE cs.customer_id = ?
-    AND cs.status IN ('active', 'trialing')
-    ORDER BY cs.created_at DESC
-    LIMIT 1
-  `, customerId);
+  let subscription = null;
+  if (customerId) {
+    // Get customer's active subscription
+    [subscription] = await queryRaw(`
+      SELECT cs.plan_id, sp.name as plan_name
+      FROM customer_subscriptions cs
+      JOIN subscription_plans sp ON cs.plan_id = sp.id
+      WHERE cs.customer_id = ?
+      AND cs.status IN ('active', 'trialing')
+      ORDER BY cs.created_at DESC
+      LIMIT 1
+    `, customerId);
+  }
 
   // Get all modules
   const modules = await queryRaw(`
@@ -146,7 +155,7 @@ export async function getCustomerModules(customerId) {
       ...module,
       enabled: access.enabled,
       config: access.config,
-      source: subscription ? 'plan' : 'default'
+      source: access.source
     };
   }));
 
