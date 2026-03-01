@@ -224,6 +224,16 @@ router.post('/labels', requireAuth, requireEditor, async (req, res) => {
   }
 });
 
+// Cancel a shipment
+router.get('/shipments/:shipmentId/cancel', requireAuth, requireEditor, async (req, res) => {
+  try {
+    const result = await ss.cancelShipment(req.params.shipmentId);
+    res.json(result);
+  } catch (error) {
+    res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
+  }
+});
+
 // Void a shipping label
 router.post('/labels/:shipmentId/void', requireAuth, requireEditor, async (req, res) => {
   try {

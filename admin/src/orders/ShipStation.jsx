@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../lib/api';
-import { Truck, Warehouse, TestTube, RefreshCw, CheckCircle, XCircle, ChevronDown, ChevronUp, Globe, Tag } from 'lucide-react';
+import { Truck, Warehouse, TestTube, RefreshCw, CheckCircle, XCircle, ChevronDown, ChevronUp, Globe, Tag, Ban } from 'lucide-react';
 
 const tabs = [
   { id: 'shipments', label: 'Shipments', icon: Truck },
@@ -109,6 +109,21 @@ export default function ShipStation() {
 function ShipmentsTab() {
   const [shipments, setShipments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [cancelling, setCancelling] = useState(null);
+
+  const cancelShipment = async (shipmentId) => {
+    if (!confirm('Cancel this shipment?')) return;
+    setCancelling(shipmentId);
+    try {
+      await api.get(`/shipstation/shipments/${shipmentId}/cancel`);
+      loadShipments();
+    } catch (err) {
+      console.error('Failed to cancel shipment:', err);
+      alert(err.response?.data?.error || 'Failed to cancel shipment');
+    } finally {
+      setCancelling(null);
+    }
+  };
 
   useEffect(() => { loadShipments(); }, []);
 
@@ -147,6 +162,7 @@ function ShipmentsTab() {
             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tracking</th>
             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
+            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase"></th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-200">
@@ -188,11 +204,24 @@ function ShipmentsTab() {
               <td className="px-4 py-3 text-sm text-gray-600">
                 {s.created_at ? new Date(s.created_at).toLocaleDateString() : '-'}
               </td>
+              <td className="px-4 py-3 text-right">
+                {s.shipment_status !== 'cancelled' && (
+                  <button
+                    onClick={() => cancelShipment(s.shipment_id)}
+                    disabled={cancelling === s.shipment_id}
+                    className="inline-flex items-center gap-1 px-2 py-1 text-xs text-red-600 hover:bg-red-50 rounded disabled:opacity-50"
+                    title="Cancel shipment"
+                  >
+                    <Ban className="w-3 h-3" />
+                    {cancelling === s.shipment_id ? 'Cancelling...' : 'Cancel'}
+                  </button>
+                )}
+              </td>
             </tr>
             );
           })}
           {shipments.length === 0 && (
-            <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-500">{loading ? 'Loading...' : 'No shipments found'}</td></tr>
+            <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-500">{loading ? 'Loading...' : 'No shipments found'}</td></tr>
           )}
         </tbody>
       </table>
