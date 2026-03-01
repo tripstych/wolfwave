@@ -143,19 +143,22 @@ async function getThemeConfig(themeName) {
     return themeConfigCache.get(themeName);
   }
 
-  // Try DB first
   try {
     const dbTheme = await prisma.themes.findUnique({ where: { slug: themeName } });
-    if (dbTheme?.config) {
-      const config = typeof dbTheme.config === 'string' ? JSON.parse(dbTheme.config) : dbTheme.config;
+    if (dbTheme) {
+      // Theme found in DB. This is the source of truth.
+      // Its config may be null (for a virtual theme without one), and that is valid.
+      // We should not fall back to the filesystem.
+      const config = dbTheme.config ? (typeof dbTheme.config === 'string' ? JSON.parse(dbTheme.config) : dbTheme.config) : null;
       themeConfigCache.set(themeName, config);
       return config;
     }
-  } catch {
-    // DB not ready yet or table doesn't exist — fall through to filesystem
+  } catch (e) {
+    // DB not ready or other error. It's okay to fall through to filesystem as a last resort.
+    console.warn(`[ThemeResolver] DB lookup for theme "${themeName}" failed, falling back to filesystem. Error: ${e.message}`);
   }
 
-  // Fallback: read theme.json from disk
+  // Fallback for themes not in DB (e.g., before initial sync)
   const configPath = path.join(THEMES_DIR, themeName, 'theme.json');
   try {
     const raw = fs.readFileSync(configPath, 'utf-8');
@@ -163,6 +166,7 @@ async function getThemeConfig(themeName) {
     themeConfigCache.set(themeName, config);
     return config;
   } catch {
+    // This is expected if the theme is neither in the DB nor on the filesystem.
     return null;
   }
 }
