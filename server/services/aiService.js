@@ -1210,7 +1210,7 @@ HTML STRUCTURE (head + body classes):\n${$('head').html()?.substring(0, 3000) ||
  * Get all available scaffolds from the hidden scaffolds directory
  */
 export async function getAvailableScaffolds() {
-  const scaffoldsDir = path.join(__dirname, '../../templates/scaffolds');
+  const scaffoldsDir = path.join(__dirname, '../../themes/scaffolds');
   try {
     const files = await fs.promises.readdir(scaffoldsDir);
     const scaffolds = [];
@@ -1321,7 +1321,7 @@ export async function generateThemeFromIndustry(industry, existingPlan = null) {
 
   const templates = {};
   const demoContents = {};
-  const scaffoldsDir = path.join(__dirname, '../../templates/scaffolds');
+  const scaffoldsDir = path.join(__dirname, '../../themes/scaffolds');
 
   for (const pageKey in themeData.pages) {
     const pageConfig = themeData.pages[pageKey];
@@ -1380,7 +1380,7 @@ export async function generateThemePreview(plan, page = 'homepage') {
     throw new Error(`Page configuration for "${page}" not found in the plan.`);
   }
 
-  const scaffoldsDir = path.join(__dirname, '../../templates/scaffolds');
+  const scaffoldsDir = path.join(__dirname, '../../themes/scaffolds');
   const scaffoldFile = `${pageConfig.scaffold}.njk`;
   let template = await fs.promises.readFile(path.join(scaffoldsDir, scaffoldFile), 'utf8');
 

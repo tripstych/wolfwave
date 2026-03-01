@@ -114,8 +114,8 @@ export async function scanTemplates() {
       const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
 
       if (entry.isDirectory()) {
-        // Skip layouts, assets, partials, and scaffolds directories
-        if (!['layouts', 'assets', 'partials', 'scaffolds'].includes(entry.name)) {
+        // Skip layouts, assets, and partials directories
+        if (!['layouts', 'assets', 'partials'].includes(entry.name)) {
           await scanDir(path.join(dir, entry.name), relativePath);
         }
       } else if (entry.name.endsWith('.njk')) {

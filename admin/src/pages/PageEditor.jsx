@@ -50,6 +50,7 @@ export default function PageEditor() {
     partialRestore
   } = useContentEditor({
     contentType: 'pages',
+    templateType: 'content',
     endpoint: '/pages',
     initialData: {
       content_type: 'pages',

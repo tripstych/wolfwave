@@ -14,7 +14,10 @@
       "Bash(node --version:*)",
       "WebFetch(domain:www.shipengine.com)",
       "Bash(timeout:*)",
-      "Bash(npx prisma migrate dev:*)"
+      "Bash(npx prisma migrate dev:*)",
+      "Bash(git -C /f/wolfwave mv:*)",
+      "Bash(git -C /f/wolfwave diff --name-only HEAD -- templates/scaffolds/ templates/content/)",
+      "Bash(git checkout:*)"
     ]
   }
 }

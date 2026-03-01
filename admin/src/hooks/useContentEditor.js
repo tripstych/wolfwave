@@ -4,7 +4,7 @@ import api, { parseRegions } from '../lib/api';
 import { slugify } from '../lib/slugify';
 import { toast } from 'sonner';
 
-export default function useContentEditor({ contentType, endpoint, initialData = {} }) {
+export default function useContentEditor({ contentType, templateType, endpoint, initialData = {} }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const isNew = !id || id === 'new';
@@ -33,7 +33,8 @@ export default function useContentEditor({ contentType, endpoint, initialData = 
 
   const loadTemplates = useCallback(async () => {
     try {
-      const result = await api.get(`/templates/content_type/${contentType}`);
+      const type = templateType || contentType;
+      const result = await api.get(`/templates/content_type/${type}`);
       const list = result.data || [];
       // Filter out templates with no regions
       const filtered = list.filter(t => parseRegions(t.regions).length > 0);
@@ -41,7 +42,7 @@ export default function useContentEditor({ contentType, endpoint, initialData = 
     } catch (err) {
       console.error('Failed to load templates:', err);
     }
-  }, [contentType]);
+  }, [contentType, templateType]);
 
   const loadSubscriptionPlans = useCallback(async () => {
     try {

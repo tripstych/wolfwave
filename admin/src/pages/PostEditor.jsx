@@ -50,6 +50,7 @@ export default function PostEditor() {
     partialRestore
   } = useContentEditor({
     contentType: 'posts',
+    templateType: 'content',
     endpoint: '/posts',
     initialData: {
       content_type: 'posts',
