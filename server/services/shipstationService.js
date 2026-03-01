@@ -152,52 +152,51 @@ export function transformOrder(order, orderItems, customer) {
 
 export async function createOrder(order, orderItems, customer) {
   const payload = transformOrder(order, orderItems, customer);
-  return await request('post', '/orders/createorder', payload);
+  return await request('post', '/v2/orders', payload);
 }
 
 export async function getOrder(orderId) {
-  return await request('get', `/orders/${orderId}`);
+  return await request('get', `/v2/orders/${orderId}`);
 }
 
 export async function listOrders(params = {}) {
-  return await request('get', '/orders', params);
+  return await request('get', '/v2/orders', params);
 }
 
 export async function deleteOrder(orderId) {
-  return await request('delete', `/orders/${orderId}`);
+  return await request('delete', `/v2/orders/${orderId}`);
 }
 
 export async function holdOrder(orderId, holdUntilDate) {
-  return await request('post', `/orders/holduntil`, { orderId, holdUntilDate });
+  return await request('post', `/v2/orders/${orderId}/hold`, { hold_until_date: holdUntilDate });
 }
 
 export async function restoreOrder(orderId) {
-  return await request('post', `/orders/restorefromhold`, { orderId });
+  return await request('post', `/v2/orders/${orderId}/unhold`);
 }
 
 export async function assignTag(orderId, tagId) {
-  return await request('post', '/orders/addtag', { orderId, tagId });
+  return await request('post', `/v2/orders/${orderId}/tags`, { tag_id: tagId });
 }
 
 export async function removeTag(orderId, tagId) {
-  return await request('post', '/orders/removetag', { orderId, tagId });
+  return await request('delete', `/v2/orders/${orderId}/tags/${tagId}`);
 }
 
 export async function markAsShipped(orderId, carrierCode, shipDate, trackingNumber, notifyCustomer = true, notifySalesChannel = true) {
-  return await request('post', '/orders/markasshipped', {
-    orderId,
-    carrierCode,
-    shipDate,
-    trackingNumber,
-    notifyCustomer,
-    notifySalesChannel
+  return await request('post', `/v2/orders/${orderId}/mark_as_shipped`, {
+    carrier_code: carrierCode,
+    ship_date: shipDate,
+    tracking_number: trackingNumber,
+    notify_customer: notifyCustomer,
+    notify_sales_channel: notifySalesChannel
   });
 }
 
 // ─── Shipments ───────────────────────────────────────────────────────
 
 export async function listShipments(params = {}) {
-  return await request('get', '/shipments', params);
+  return await request('get', '/v2/shipments', params);
 }
 
 export async function getShippingRates(rateOptions) {
@@ -205,11 +204,11 @@ export async function getShippingRates(rateOptions) {
 }
 
 export async function createLabel(labelData) {
-  return await request('post', '/shipments/createlabel', labelData);
+  return await request('post', '/v2/labels', labelData);
 }
 
 export async function voidLabel(shipmentId) {
-  return await request('post', '/shipments/voidlabel', { shipmentId });
+  return await request('put', `/v2/labels/${shipmentId}/void`);
 }
 
 // ─── Carriers ────────────────────────────────────────────────────────
@@ -219,101 +218,101 @@ export async function listCarriers() {
 }
 
 export async function getCarrier(carrierCode) {
-  return await request('get', `/carriers/getcarrier`, { carrierCode });
+  return await request('get', `/v2/carriers/${carrierCode}`);
 }
 
 export async function listCarrierServices(carrierCode) {
-  return await request('get', '/carriers/listservices', { carrierCode });
+  return await request('get', `/v2/carriers/${carrierCode}/services`);
 }
 
 export async function listCarrierPackages(carrierCode) {
-  return await request('get', '/carriers/listpackages', { carrierCode });
+  return await request('get', `/v2/carriers/${carrierCode}/packages`);
 }
 
 // ─── Warehouses ──────────────────────────────────────────────────────
 
 export async function listWarehouses() {
-  return await request('get', '/warehouses');
+  return await request('get', '/v2/warehouses');
 }
 
 export async function createWarehouse(warehouseData) {
-  return await request('post', '/warehouses/createwarehouse', warehouseData);
+  return await request('post', '/v2/warehouses', warehouseData);
 }
 
 export async function updateWarehouse(warehouseData) {
-  return await request('put', `/warehouses/${warehouseData.warehouseId}`, warehouseData);
+  return await request('put', `/v2/warehouses/${warehouseData.warehouseId}`, warehouseData);
 }
 
 export async function deleteWarehouse(warehouseId) {
-  return await request('delete', `/warehouses/${warehouseId}`);
+  return await request('delete', `/v2/warehouses/${warehouseId}`);
 }
 
 // ─── Products ────────────────────────────────────────────────────────
 
 export async function listProducts(params = {}) {
-  return await request('get', '/products', params);
+  return await request('get', '/v2/products', params);
 }
 
 export async function getProduct(productId) {
-  return await request('get', `/products/${productId}`);
+  return await request('get', `/v2/products/${productId}`);
 }
 
 export async function updateProduct(productId, productData) {
-  return await request('put', `/products/${productId}`, productData);
+  return await request('put', `/v2/products/${productId}`, productData);
 }
 
 // ─── Customers ───────────────────────────────────────────────────────
 
 export async function listCustomers(params = {}) {
-  return await request('get', '/customers', params);
+  return await request('get', '/v2/customers', params);
 }
 
 export async function getCustomer(customerId) {
-  return await request('get', `/customers/${customerId}`);
+  return await request('get', `/v2/customers/${customerId}`);
 }
 
 // ─── Stores ──────────────────────────────────────────────────────────
 
 export async function listStores() {
-  return await request('get', '/stores');
+  return await request('get', '/v2/stores');
 }
 
 export async function getStore(storeId) {
-  return await request('get', `/stores/${storeId}`);
+  return await request('get', `/v2/stores/${storeId}`);
 }
 
 export async function refreshStore(storeId, refreshDate) {
-  return await request('put', `/stores/${storeId}/refreshstore`, { storeId, refreshDate });
+  return await request('put', `/v2/stores/${storeId}/refresh`, { refresh_date: refreshDate });
 }
 
 // ─── Fulfillments ────────────────────────────────────────────────────
 
 export async function listFulfillments(params = {}) {
-  return await request('get', '/fulfillments', params);
+  return await request('get', '/v2/fulfillments', params);
 }
 
 // ─── Webhooks ────────────────────────────────────────────────────────
 
 export async function listWebhooks() {
-  return await request('get', '/webhooks');
+  return await request('get', '/v2/environment/webhooks');
 }
 
 export async function subscribeWebhook(targetUrl, event, storeId = null) {
-  return await request('post', '/webhooks/subscribe', {
-    target_url: targetUrl,
+  return await request('post', '/v2/environment/webhooks', {
+    url: targetUrl,
     event,
     store_id: storeId
   });
 }
 
 export async function unsubscribeWebhook(webhookId) {
-  return await request('delete', `/webhooks/${webhookId}`);
+  return await request('delete', `/v2/environment/webhooks/${webhookId}`);
 }
 
 // ─── Tags ────────────────────────────────────────────────────────────
 
 export async function listTags() {
-  return await request('get', '/accounts/listtags');
+  return await request('get', '/v2/tags');
 }
 
 // ─── Test Connection ─────────────────────────────────────────────────
