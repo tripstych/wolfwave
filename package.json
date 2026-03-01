@@ -18,7 +18,7 @@
     "test:watch": "vitest",
     "test:shipstation": "node test-shipstation.js",
     "deploy:test": "bash test-and-deploy.sh",
-    "start": "pm2 restart server/index.js --name wolfwave --update-env",
+    "start": "pm2 start server/index.js --name wolfwave --update-env",
     "restart": "pm2 restart wolfwave",
     "stop": "pm2 stop wolfwave",
     "logs": "pm2 logs wolfwave",
