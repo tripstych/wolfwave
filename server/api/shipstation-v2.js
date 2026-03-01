@@ -13,6 +13,17 @@ import * as ss from '../services/shipstationService.js';
 const router = Router();
 
 /**
+ * Extract error message from ShipStation v2 API error responses.
+ * v2 uses { errors: [{message}], message } not { Message } like v1.
+ */
+function ssError(error) {
+  const data = error.response?.data;
+  if (!data) return error.message;
+  if (data.errors?.length) return data.errors.map(e => e.message).join('; ');
+  return data.message || data.Message || JSON.stringify(data);
+}
+
+/**
  * Helper: load a WolfWave order with items and customer for pushing to ShipStation
  */
 async function loadOrderForPush(orderId) {
@@ -51,7 +62,7 @@ router.post('/test-connection', requireAuth, requireEditor, async (req, res) => 
     res.json({ success: true, warehouses: result });
   } catch (error) {
     const status = error.response?.status || 500;
-    res.status(status).json({ success: false, error: error.response?.data?.Message || error.message });
+    res.status(status).json({ success: false, error: ssError(error) });
   }
 });
 
@@ -67,7 +78,7 @@ router.post('/orders/push/:orderId', requireAuth, requireEditor, async (req, res
     res.json({ success: true, shipstation_order_id: result.order_id, order_number: result.order_number });
   } catch (error) {
     console.error('ShipStation push error:', error.response?.data || error.message);
-    res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
+    res.status(error.response?.status || 500).json({ error: ssError(error) });
   }
 });
 
@@ -90,7 +101,7 @@ router.post('/orders/push-batch', requireAuth, requireEditor, async (req, res) =
         const result = await ss.createOrder(data.order, data.items, data.customer);
         results.push({ orderId, success: true, shipstation_order_id: result.order_id });
       } catch (error) {
-        results.push({ orderId, success: false, error: error.response?.data?.Message || error.message });
+        results.push({ orderId, success: false, error: ssError(error) });
       }
     }
 
@@ -107,7 +118,7 @@ router.get('/orders', requireAuth, requireEditor, async (req, res) => {
     const result = await ss.listOrders(req.query);
     res.json(result);
   } catch (error) {
-    res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
+    res.status(error.response?.status || 500).json({ error: ssError(error) });
   }
 });
 
@@ -117,7 +128,7 @@ router.get('/orders/:id', requireAuth, requireEditor, async (req, res) => {
     const result = await ss.getOrder(req.params.id);
     res.json(result);
   } catch (error) {
-    res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
+    res.status(error.response?.status || 500).json({ error: ssError(error) });
   }
 });
 
@@ -127,7 +138,7 @@ router.delete('/orders/:id', requireAuth, requireEditor, async (req, res) => {
     await ss.deleteOrder(req.params.id);
     res.json({ success: true });
   } catch (error) {
-    res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
+    res.status(error.response?.status || 500).json({ error: ssError(error) });
   }
 });
 
@@ -137,7 +148,7 @@ router.post('/orders/:id/hold', requireAuth, requireEditor, async (req, res) => 
     const result = await ss.holdOrder(parseInt(req.params.id), req.body.holdUntilDate);
     res.json(result);
   } catch (error) {
-    res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
+    res.status(error.response?.status || 500).json({ error: ssError(error) });
   }
 });
 
@@ -147,7 +158,7 @@ router.post('/orders/:id/restore', requireAuth, requireEditor, async (req, res) 
     const result = await ss.restoreOrder(parseInt(req.params.id));
     res.json(result);
   } catch (error) {
-    res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
+    res.status(error.response?.status || 500).json({ error: ssError(error) });
   }
 });
 
@@ -169,7 +180,7 @@ router.post('/orders/:id/mark-shipped', requireAuth, requireEditor, async (req, 
 
     res.json(result);
   } catch (error) {
-    res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
+    res.status(error.response?.status || 500).json({ error: ssError(error) });
   }
 });
 
@@ -179,7 +190,7 @@ router.post('/orders/:id/tag', requireAuth, requireEditor, async (req, res) => {
     const result = await ss.assignTag(parseInt(req.params.id), req.body.tagId);
     res.json(result);
   } catch (error) {
-    res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
+    res.status(error.response?.status || 500).json({ error: ssError(error) });
   }
 });
 
@@ -189,7 +200,7 @@ router.delete('/orders/:id/tag', requireAuth, requireEditor, async (req, res) =>
     const result = await ss.removeTag(parseInt(req.params.id), req.body.tagId);
     res.json(result);
   } catch (error) {
-    res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
+    res.status(error.response?.status || 500).json({ error: ssError(error) });
   }
 });
 
@@ -200,7 +211,7 @@ router.get('/shipments', requireAuth, requireEditor, async (req, res) => {
     const result = await ss.listShipments(req.query);
     res.json(result);
   } catch (error) {
-    res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
+    res.status(error.response?.status || 500).json({ error: ssError(error) });
   }
 });
 
@@ -210,7 +221,7 @@ router.post('/rates', requireAuth, requireEditor, async (req, res) => {
     const result = await ss.getShippingRates(req.body);
     res.json(result);
   } catch (error) {
-    res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
+    res.status(error.response?.status || 500).json({ error: ssError(error) });
   }
 });
 
@@ -222,7 +233,7 @@ router.get('/labels', requireAuth, requireEditor, async (req, res) => {
     const result = await ss.listLabels(req.query);
     res.json(result);
   } catch (error) {
-    res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
+    res.status(error.response?.status || 500).json({ error: ssError(error) });
   }
 });
 
@@ -232,7 +243,7 @@ router.get('/labels/:labelId', requireAuth, requireEditor, async (req, res) => {
     const result = await ss.getLabel(req.params.labelId);
     res.json(result);
   } catch (error) {
-    res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
+    res.status(error.response?.status || 500).json({ error: ssError(error) });
   }
 });
 
@@ -242,7 +253,7 @@ router.post('/labels', requireAuth, requireEditor, async (req, res) => {
     const result = await ss.createLabel(req.body);
     res.json(result);
   } catch (error) {
-    res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
+    res.status(error.response?.status || 500).json({ error: ssError(error) });
   }
 });
 
@@ -252,7 +263,7 @@ router.post('/labels/rates/:rateId', requireAuth, requireEditor, async (req, res
     const result = await ss.createLabelFromRate(req.params.rateId, req.body);
     res.json(result);
   } catch (error) {
-    res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
+    res.status(error.response?.status || 500).json({ error: ssError(error) });
   }
 });
 
@@ -262,7 +273,7 @@ router.post('/labels/shipment/:shipmentId', requireAuth, requireEditor, async (r
     const result = await ss.createLabelFromShipment(req.params.shipmentId, req.body);
     res.json(result);
   } catch (error) {
-    res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
+    res.status(error.response?.status || 500).json({ error: ssError(error) });
   }
 });
 
@@ -272,7 +283,7 @@ router.put('/labels/:labelId/void', requireAuth, requireEditor, async (req, res)
     const result = await ss.voidLabel(req.params.labelId);
     res.json(result);
   } catch (error) {
-    res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
+    res.status(error.response?.status || 500).json({ error: ssError(error) });
   }
 });
 
@@ -282,7 +293,7 @@ router.get('/shipments/:shipmentId/cancel', requireAuth, requireEditor, async (r
     const result = await ss.cancelShipment(req.params.shipmentId);
     res.json(result);
   } catch (error) {
-    res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
+    res.status(error.response?.status || 500).json({ error: ssError(error) });
   }
 });
 
@@ -293,7 +304,7 @@ router.get('/carriers', requireAuth, requireEditor, async (req, res) => {
     const result = await ss.listCarriers();
     res.json(result);
   } catch (error) {
-    res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
+    res.status(error.response?.status || 500).json({ error: ssError(error) });
   }
 });
 
@@ -302,7 +313,7 @@ router.get('/carriers/:carrierCode', requireAuth, requireEditor, async (req, res
     const result = await ss.getCarrier(req.params.carrierCode);
     res.json(result);
   } catch (error) {
-    res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
+    res.status(error.response?.status || 500).json({ error: ssError(error) });
   }
 });
 
@@ -311,7 +322,7 @@ router.get('/carriers/:carrierCode/services', requireAuth, requireEditor, async 
     const result = await ss.listCarrierServices(req.params.carrierCode);
     res.json(result);
   } catch (error) {
-    res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
+    res.status(error.response?.status || 500).json({ error: ssError(error) });
   }
 });
 
@@ -320,7 +331,7 @@ router.get('/carriers/:carrierCode/packages', requireAuth, requireEditor, async 
     const result = await ss.listCarrierPackages(req.params.carrierCode);
     res.json(result);
   } catch (error) {
-    res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
+    res.status(error.response?.status || 500).json({ error: ssError(error) });
   }
 });
 
@@ -331,7 +342,7 @@ router.get('/warehouses', requireAuth, requireEditor, async (req, res) => {
     const result = await ss.listWarehouses();
     res.json(result);
   } catch (error) {
-    res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
+    res.status(error.response?.status || 500).json({ error: ssError(error) });
   }
 });
 
@@ -340,7 +351,7 @@ router.post('/warehouses', requireAuth, requireEditor, async (req, res) => {
     const result = await ss.createWarehouse(req.body);
     res.json(result);
   } catch (error) {
-    res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
+    res.status(error.response?.status || 500).json({ error: ssError(error) });
   }
 });
 
@@ -349,7 +360,7 @@ router.put('/warehouses/:id', requireAuth, requireEditor, async (req, res) => {
     const result = await ss.updateWarehouse({ ...req.body, warehouseId: parseInt(req.params.id) });
     res.json(result);
   } catch (error) {
-    res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
+    res.status(error.response?.status || 500).json({ error: ssError(error) });
   }
 });
 
@@ -358,7 +369,7 @@ router.delete('/warehouses/:id', requireAuth, requireEditor, async (req, res) =>
     await ss.deleteWarehouse(parseInt(req.params.id));
     res.json({ success: true });
   } catch (error) {
-    res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
+    res.status(error.response?.status || 500).json({ error: ssError(error) });
   }
 });
 
@@ -369,7 +380,7 @@ router.get('/products', requireAuth, requireEditor, async (req, res) => {
     const result = await ss.listProducts(req.query);
     res.json(result);
   } catch (error) {
-    res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
+    res.status(error.response?.status || 500).json({ error: ssError(error) });
   }
 });
 
@@ -378,7 +389,7 @@ router.get('/products/:id', requireAuth, requireEditor, async (req, res) => {
     const result = await ss.getProduct(req.params.id);
     res.json(result);
   } catch (error) {
-    res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
+    res.status(error.response?.status || 500).json({ error: ssError(error) });
   }
 });
 
@@ -387,7 +398,7 @@ router.put('/products/:id', requireAuth, requireEditor, async (req, res) => {
     const result = await ss.updateProduct(req.params.id, req.body);
     res.json(result);
   } catch (error) {
-    res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
+    res.status(error.response?.status || 500).json({ error: ssError(error) });
   }
 });
 
@@ -398,7 +409,7 @@ router.get('/customers', requireAuth, requireEditor, async (req, res) => {
     const result = await ss.listCustomers(req.query);
     res.json(result);
   } catch (error) {
-    res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
+    res.status(error.response?.status || 500).json({ error: ssError(error) });
   }
 });
 
@@ -407,7 +418,7 @@ router.get('/customers/:id', requireAuth, requireEditor, async (req, res) => {
     const result = await ss.getCustomer(req.params.id);
     res.json(result);
   } catch (error) {
-    res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
+    res.status(error.response?.status || 500).json({ error: ssError(error) });
   }
 });
 
@@ -418,7 +429,7 @@ router.get('/stores', requireAuth, requireEditor, async (req, res) => {
     const result = await ss.listStores();
     res.json(result);
   } catch (error) {
-    res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
+    res.status(error.response?.status || 500).json({ error: ssError(error) });
   }
 });
 
@@ -427,7 +438,7 @@ router.put('/stores/:id/refresh', requireAuth, requireEditor, async (req, res) =
     const result = await ss.refreshStore(parseInt(req.params.id), req.body.refreshDate);
     res.json(result);
   } catch (error) {
-    res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
+    res.status(error.response?.status || 500).json({ error: ssError(error) });
   }
 });
 
@@ -438,7 +449,7 @@ router.get('/fulfillments', requireAuth, requireEditor, async (req, res) => {
     const result = await ss.listFulfillments(req.query);
     res.json(result);
   } catch (error) {
-    res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
+    res.status(error.response?.status || 500).json({ error: ssError(error) });
   }
 });
 
@@ -449,7 +460,7 @@ router.get('/tags', requireAuth, requireEditor, async (req, res) => {
     const result = await ss.listTags();
     res.json(result);
   } catch (error) {
-    res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
+    res.status(error.response?.status || 500).json({ error: ssError(error) });
   }
 });
 
@@ -458,7 +469,7 @@ router.post('/tags', requireAuth, requireEditor, async (req, res) => {
     const result = await ss.createTag(req.body.name);
     res.json(result);
   } catch (error) {
-    res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
+    res.status(error.response?.status || 500).json({ error: ssError(error) });
   }
 });
 
@@ -467,7 +478,7 @@ router.delete('/tags/:name', requireAuth, requireEditor, async (req, res) => {
     await ss.deleteTag(req.params.name);
     res.json({ success: true });
   } catch (error) {
-    res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
+    res.status(error.response?.status || 500).json({ error: ssError(error) });
   }
 });
 
@@ -477,7 +488,7 @@ router.post('/shipments/:shipmentId/tags/:tagName', requireAuth, requireEditor, 
     const result = await ss.addShipmentTag(req.params.shipmentId, req.params.tagName);
     res.json(result);
   } catch (error) {
-    res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
+    res.status(error.response?.status || 500).json({ error: ssError(error) });
   }
 });
 
@@ -486,7 +497,7 @@ router.delete('/shipments/:shipmentId/tags/:tagName', requireAuth, requireEditor
     await ss.removeShipmentTag(req.params.shipmentId, req.params.tagName);
     res.json({ success: true });
   } catch (error) {
-    res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
+    res.status(error.response?.status || 500).json({ error: ssError(error) });
   }
 });
 
@@ -497,7 +508,7 @@ router.get('/webhooks', requireAuth, requireEditor, async (req, res) => {
     const result = await ss.listWebhooks();
     res.json(result);
   } catch (error) {
-    res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
+    res.status(error.response?.status || 500).json({ error: ssError(error) });
   }
 });
 
@@ -507,7 +518,7 @@ router.post('/webhooks', requireAuth, requireEditor, async (req, res) => {
     const result = await ss.subscribeWebhook(targetUrl, event, storeId);
     res.json(result);
   } catch (error) {
-    res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
+    res.status(error.response?.status || 500).json({ error: ssError(error) });
   }
 });
 
@@ -516,7 +527,7 @@ router.delete('/webhooks/:id', requireAuth, requireEditor, async (req, res) => {
     await ss.unsubscribeWebhook(parseInt(req.params.id));
     res.json({ success: true });
   } catch (error) {
-    res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
+    res.status(error.response?.status || 500).json({ error: ssError(error) });
   }
 });
 
