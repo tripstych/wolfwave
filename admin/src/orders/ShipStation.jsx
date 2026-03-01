@@ -403,7 +403,9 @@ function ShipmentsTab() {
 
 function FulfillmentsTab() {
   const [fulfillments, setFulfillments] = useState([]);
+  const [shipments, setShipments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [shipmentsLoading, setShipmentsLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({
@@ -412,7 +414,24 @@ function FulfillmentsTab() {
     notify_customer: true, notify_order_source: true
   });
 
-  useEffect(() => { loadFulfillments(); }, []);
+  useEffect(() => { 
+    loadFulfillments(); 
+    loadShipments(); 
+  }, []);
+
+  const loadShipments = async () => {
+    setShipmentsLoading(true);
+    try {
+      const data = await api.get('/shipstation/shipments?page_size=100&sort_by=created_at&sort_dir=desc');
+      const list = Array.isArray(data) ? data : (data?.shipments || []);
+      setShipments(list);
+    } catch (err) {
+      console.error('Failed to load shipments:', err);
+      setShipments([]);
+    } finally {
+      setShipmentsLoading(false);
+    }
+  };
 
   const loadFulfillments = async () => {
     setLoading(true);
@@ -424,6 +443,16 @@ function FulfillmentsTab() {
       setFulfillments([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleShipmentChange = (shipmentId) => {
+    setForm(f => ({ ...f, shipment_id: shipmentId }));
+    
+    // Auto-populate carrier code from selected shipment
+    const selectedShipment = shipments.find(s => s.shipment_id === shipmentId);
+    if (selectedShipment?.carrier_code) {
+      setForm(f => ({ ...f, carrier_code: selectedShipment.carrier_code }));
     }
   };
 
@@ -471,6 +500,11 @@ function FulfillmentsTab() {
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
           {loading ? 'Loading...' : 'Refresh'}
         </button>
+        <button onClick={loadShipments} disabled={shipmentsLoading}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50">
+          <RefreshCw className={`w-3.5 h-3.5 ${shipmentsLoading ? 'animate-spin' : ''}`} />
+          {shipmentsLoading ? 'Loading...' : 'Refresh Shipments'}
+        </button>
       </div>
 
       {showForm && (
@@ -479,9 +513,21 @@ function FulfillmentsTab() {
           <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Shipment ID *</label>
-              <input value={form.shipment_id} onChange={e => setForm(f => ({ ...f, shipment_id: e.target.value }))} required
-                placeholder="se-12345678"
-                className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-lg" />
+              <select value={form.shipment_id} onChange={e => handleShipmentChange(e.target.value)} required
+                className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-lg">
+                <option value="">Select a shipment...</option>
+                {shipments.map(shipment => (
+                  <option key={shipment.shipment_id} value={shipment.shipment_id}>
+                    {shipment.shipment_id} - {shipment.order_number || 'No order'} ({shipment.carrier_code || 'No carrier'})
+                  </option>
+                ))}
+              </select>
+              {shipmentsLoading && (
+                <div className="text-xs text-gray-500 mt-1">Loading shipments...</div>
+              )}
+              {!shipmentsLoading && shipments.length === 0 && (
+                <div className="text-xs text-gray-500 mt-1">No shipments available</div>
+              )}
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Tracking Number *</label>
