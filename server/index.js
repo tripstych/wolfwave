@@ -98,8 +98,27 @@ app.use(tenantMiddleware);
 // Per-tenant access logging
 app.use(accessLog);
 
-// Static files — theme assets
+// Static files — theme assets (filesystem first, then DB fallback for virtual themes)
 app.use('/themes', express.static(getThemesDir()));
+app.use('/themes', async (req, res, next) => {
+  // Fallback: serve virtual theme CSS/JS from database templates table
+  // URL pattern: /themes/<slug>/assets/css/style.css → DB filename: <slug>/assets/css/style.css
+  const dbFilename = req.path.replace(/^\//, '');
+  if (!dbFilename) return next();
+  try {
+    const prisma = (await import('./lib/prisma.js')).default;
+    const tpl = await prisma.templates.findFirst({ where: { filename: dbFilename } });
+    if (tpl && tpl.content) {
+      const ext = path.extname(dbFilename);
+      const mimeTypes = { '.css': 'text/css', '.js': 'application/javascript' };
+      res.type(mimeTypes[ext] || 'text/plain').send(tpl.content);
+    } else {
+      next();
+    }
+  } catch {
+    next();
+  }
+});
 
 // Static files — imported assets (from site importer)
 app.use('/imported', express.static(path.join(__dirname, '../templates/imported')));
