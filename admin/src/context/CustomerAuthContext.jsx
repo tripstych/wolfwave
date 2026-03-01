@@ -14,13 +14,30 @@ export function CustomerAuthProvider({ children }) {
   const checkCustomerAuth = async () => {
     try {
       // Check if customer is logged in by calling customer auth endpoint
-      const response = await api.get('/customer/auth/me', { 
-        // Don't redirect to login on 401, just return null
-        validateStatus: (status) => status < 500 
+      const response = await fetch('/api/customer-auth/me', {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
       });
-      setCustomer(response);
+      
+      if (response.ok) {
+        const data = await response.json();
+        setCustomer(data);
+        console.log('Customer auth successful:', data);
+      } else if (response.status === 401) {
+        // Customer not logged in - this is expected
+        setCustomer(null);
+        console.log('Customer not logged in (401)');
+      } else {
+        // Other error
+        console.log('Customer auth error:', response.status, response.statusText);
+        setCustomer(null);
+      }
     } catch (err) {
-      // Customer not logged in or error
+      // Network error or other issue
+      console.log('Customer auth network error:', err);
       setCustomer(null);
     } finally {
       setLoading(false);
@@ -28,16 +45,36 @@ export function CustomerAuthProvider({ children }) {
   };
 
   const customerLogin = async (email, password) => {
-    const response = await api.post('/customer/auth/login', { email, password });
-    setCustomer(response.customer);
-    return response;
+    const response = await fetch('/api/customer-auth/login', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ email, password })
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      setCustomer(data.customer);
+      return data;
+    } else {
+      throw new Error('Login failed');
+    }
   };
 
   const customerLogout = async () => {
     try {
-      await api.post('/customer/auth/logout');
+      await fetch('/api/customer-auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
     } catch (err) {
       // Continue even if logout fails
+      console.log('Customer logout error:', err);
     }
     setCustomer(null);
   };
