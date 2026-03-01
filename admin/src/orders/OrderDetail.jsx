@@ -218,11 +218,19 @@ export default function OrderDetail() {
                 </tr>
               </thead>
               <tbody>
-                {order.items?.map(item => (
+                {(order.order_items || order.items)?.map(item => (
                   <tr key={item.id}>
                     <td>
                       <strong>{item.product_title}</strong>
                       {item.variant_title && <div className="variant-info">{item.variant_title}</div>}
+                      {item.subscription_plans && (
+                        <div className="subscription-badge">
+                          {_('orders.item.subscription', 'Subscription')}: {item.subscription_plans.name}
+                        </div>
+                      )}
+                      {!item.subscription_plans && !item.product_id && (
+                        <div className="subscription-badge">{_('orders.item.subscription', 'Subscription')}</div>
+                      )}
                     </td>
                     <td>
                       <code>{item.sku}</code>
@@ -449,6 +457,16 @@ export default function OrderDetail() {
         .variant-info {
           font-size: 0.875rem;
           color: #666;
+          margin-top: 0.25rem;
+        }
+
+        .subscription-badge {
+          display: inline-block;
+          font-size: 0.75rem;
+          color: #7c3aed;
+          background: #ede9fe;
+          padding: 0.125rem 0.5rem;
+          border-radius: 9999px;
           margin-top: 0.25rem;
         }
 

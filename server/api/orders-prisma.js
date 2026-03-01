@@ -506,7 +506,8 @@ router.get('/:id', requireAuth, async (req, res) => {
         order_items: {
           include: {
             products: true,
-            product_variants: true
+            product_variants: true,
+            subscription_plans: true
           }
         },
         customers: true
