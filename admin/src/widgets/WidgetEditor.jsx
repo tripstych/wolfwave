@@ -18,7 +18,8 @@ import {
   Lock,
   Unlock,
   Puzzle,
-  Copy
+  Copy,
+  Code
 } from 'lucide-react';
 
 export default function WidgetEditor() {
