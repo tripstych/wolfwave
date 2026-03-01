@@ -107,20 +107,21 @@ export default function ShipStation() {
 // ─── Shipments Tab ───────────────────────────────────────────────────
 
 function ShipmentsTab() {
-  const [shipments, setShipments] = useState(null);
+  const [shipments, setShipments] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [dateEnd, setDateEnd] = useState(new Date().toISOString().split('T')[0]);
-  const [dateStart, setDateStart] = useState(new Date(Date.now() - 90 * 86400000).toISOString().split('T')[0]);
 
   useEffect(() => { loadShipments(); }, []);
 
   const loadShipments = async () => {
     setLoading(true);
     try {
-      const data = await api.get(`/shipstation/shipments?pageSize=50&sortBy=ShipDate&sortDir=DESC&shipDateStart=${dateStart}&shipDateEnd=${dateEnd}`);
-      setShipments(data);
+      const data = await api.get('/shipstation/shipments?page_size=50&sort_by=created_at&sort_dir=desc');
+      // v2 API returns { shipments: [...] } or an array directly
+      const list = Array.isArray(data) ? data : (data?.shipments || []);
+      setShipments(list);
     } catch (err) {
       console.error('Failed to load shipments:', err);
+      setShipments([]);
     } finally {
       setLoading(false);
     }
@@ -129,16 +130,6 @@ function ShipmentsTab() {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2">
-          <label className="text-xs font-medium text-gray-500">From</label>
-          <input type="date" value={dateStart} onChange={e => setDateStart(e.target.value)}
-            className="px-2 py-1.5 text-sm border border-gray-300 rounded-lg" />
-        </div>
-        <div className="flex items-center gap-2">
-          <label className="text-xs font-medium text-gray-500">To</label>
-          <input type="date" value={dateEnd} onChange={e => setDateEnd(e.target.value)}
-            className="px-2 py-1.5 text-sm border border-gray-300 rounded-lg" />
-        </div>
         <button onClick={loadShipments} disabled={loading}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50">
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
@@ -159,24 +150,24 @@ function ShipmentsTab() {
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-200">
-          {(shipments?.shipments || []).map(s => (
-            <tr key={s.shipmentId} className="hover:bg-gray-50">
-              <td className="px-4 py-3 text-sm font-medium">{s.orderNumber}</td>
-              <td className="px-4 py-3 text-sm">{s.carrierCode}</td>
-              <td className="px-4 py-3 text-sm">{s.serviceCode}</td>
+          {shipments.map(s => (
+            <tr key={s.shipment_id || s.shipmentId} className="hover:bg-gray-50">
+              <td className="px-4 py-3 text-sm font-medium">{s.order_number || s.orderNumber}</td>
+              <td className="px-4 py-3 text-sm">{s.carrier_code || s.carrierCode}</td>
+              <td className="px-4 py-3 text-sm">{s.service_code || s.serviceCode}</td>
               <td className="px-4 py-3 text-sm">
-                {s.trackingNumber ? (
-                  <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">{s.trackingNumber}</code>
+                {(s.tracking_number || s.trackingNumber) ? (
+                  <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">{s.tracking_number || s.trackingNumber}</code>
                 ) : '-'}
               </td>
               <td className="px-4 py-3 text-sm text-gray-600">
-                {s.shipDate ? new Date(s.shipDate).toLocaleDateString() : '-'}
+                {(s.ship_date || s.shipDate) ? new Date(s.ship_date || s.shipDate).toLocaleDateString() : '-'}
               </td>
-              <td className="px-4 py-3 text-sm">{s.shipmentCost ? `$${parseFloat(s.shipmentCost).toFixed(2)}` : '-'}</td>
+              <td className="px-4 py-3 text-sm">{(s.shipment_cost || s.shipmentCost) ? `$${parseFloat(s.shipment_cost || s.shipmentCost).toFixed(2)}` : '-'}</td>
             </tr>
           ))}
-          {(!shipments?.shipments || shipments.shipments.length === 0) && (
-            <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-500">No shipments found</td></tr>
+          {shipments.length === 0 && (
+            <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-500">{loading ? 'Loading...' : 'No shipments found'}</td></tr>
           )}
         </tbody>
       </table>

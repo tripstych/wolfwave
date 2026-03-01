@@ -64,7 +64,7 @@ router.post('/orders/push/:orderId', requireAuth, requireEditor, async (req, res
     if (!data) return res.status(404).json({ error: 'Order not found' });
 
     const result = await ss.createOrder(data.order, data.items, data.customer);
-    res.json({ success: true, shipstation_order_id: result.orderId, order_number: result.orderNumber });
+    res.json({ success: true, shipstation_order_id: result.order_id, order_number: result.order_number });
   } catch (error) {
     console.error('ShipStation push error:', error.response?.data || error.message);
     res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
@@ -88,7 +88,7 @@ router.post('/orders/push-batch', requireAuth, requireEditor, async (req, res) =
           continue;
         }
         const result = await ss.createOrder(data.order, data.items, data.customer);
-        results.push({ orderId, success: true, shipstation_order_id: result.orderId });
+        results.push({ orderId, success: true, shipstation_order_id: result.order_id });
       } catch (error) {
         results.push({ orderId, success: false, error: error.response?.data?.Message || error.message });
       }
@@ -464,23 +464,23 @@ router.post('/webhook/callback', async (req, res) => {
       const shipments = data?.shipments || (Array.isArray(data) ? data : [data]);
 
       for (const shipment of shipments) {
-        if (!shipment.orderNumber || !shipment.trackingNumber) continue;
+        if (!shipment.order_number || !shipment.tracking_number) continue;
 
         // Find matching WolfWave order
         const order = await prisma.orders.findFirst({
-          where: { order_number: shipment.orderNumber }
+          where: { order_number: shipment.order_number }
         });
 
         if (order) {
           await prisma.orders.update({
             where: { id: order.id },
             data: {
-              tracking_number: shipment.trackingNumber,
+              tracking_number: shipment.tracking_number,
               status: 'shipped',
-              shipped_at: shipment.shipDate ? new Date(shipment.shipDate) : new Date()
+              shipped_at: shipment.ship_date ? new Date(shipment.ship_date) : new Date()
             }
           });
-          console.log(`ShipStation webhook: Updated order ${shipment.orderNumber} with tracking ${shipment.trackingNumber}`);
+          console.log(`ShipStation webhook: Updated order ${shipment.order_number} with tracking ${shipment.tracking_number}`);
         }
       }
     }

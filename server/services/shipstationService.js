@@ -88,7 +88,7 @@ export function mapOrderStatus(status) {
  * Map a WolfWave JSON address to ShipStation address format
  */
 export function mapAddress(addr) {
-  if (!addr) return { name: '', street1: '', city: '', state: '', postalCode: '', country: 'US' };
+  if (!addr) return { name: '', street1: '', city: '', state: '', postal_code: '', country: 'US' };
 
   const parsed = typeof addr === 'string' ? JSON.parse(addr) : addr;
 
@@ -100,7 +100,7 @@ export function mapAddress(addr) {
     street3: null,
     city: parsed.city || '',
     state: parsed.province || parsed.state || '',
-    postalCode: parsed.postal_code || parsed.zip || parsed.postalCode || '',
+    postal_code: parsed.postal_code || parsed.zip || parsed.postalCode || '',
     country: parsed.country || 'US',
     phone: parsed.phone || null,
     residential: null
@@ -115,34 +115,32 @@ export function transformOrder(order, orderItems, customer) {
   const shipping = mapAddress(order.shipping_address);
 
   return {
-    orderNumber: order.order_number || `WW-${order.id}`,
-    orderKey: `wolfwave_${order.id}`,
-    orderDate: new Date(order.created_at).toISOString(),
-    orderStatus: mapOrderStatus(order.status),
-    customerEmail: order.email || customer?.email || '',
-    customerUsername: order.email || customer?.email || '',
-    billTo: billing,
-    shipTo: shipping,
+    order_number: order.order_number || `WW-${order.id}`,
+    order_date: new Date(order.created_at).toISOString(),
+    order_status: mapOrderStatus(order.status),
+    customer_email: order.email || customer?.email || '',
+    bill_to: billing,
+    ship_to: shipping,
     items: orderItems.map(item => ({
-      lineItemKey: `ww_item_${item.id}`,
+      line_item_key: `ww_item_${item.id}`,
       sku: item.sku || '',
       name: item.product_title || item.name || '',
       quantity: item.quantity,
-      unitPrice: parseFloat(item.price) || 0,
+      unit_price: parseFloat(item.price) || 0,
       weight: item.weight ? {
         value: parseFloat(item.weight),
         units: 'ounces'
       } : null,
-      imageUrl: item.image || null
+      image_url: item.image || null
     })),
-    amountPaid: parseFloat(order.total) || 0,
-    taxAmount: parseFloat(order.tax) || 0,
-    shippingAmount: parseFloat(order.shipping) || 0,
-    customerNotes: order.customer_note || '',
-    internalNotes: order.internal_note || '',
-    paymentMethod: order.payment_method || '',
-    requestedShippingService: order.shipping_method || '',
-    advancedOptions: {
+    amount_paid: parseFloat(order.total) || 0,
+    tax_amount: parseFloat(order.tax) || 0,
+    shipping_amount: parseFloat(order.shipping) || 0,
+    customer_notes: order.customer_note || '',
+    internal_notes: order.internal_note || '',
+    payment_method: order.payment_method || '',
+    requested_shipping_service: order.shipping_method || '',
+    advanced_options: {
       source: 'WolfWave'
     }
   };
