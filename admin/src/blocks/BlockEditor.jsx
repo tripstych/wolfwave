@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import api, { parseRegions } from '../lib/api';
 import slugify from 'slugify';
-import RichTextEditor from '../components/RichTextEditor';
+import RichTextEditor from '../components/RichTextEditorLazy';
 import CodeEditor from '../components/CodeEditor';
 import MediaPicker from '../components/MediaPicker';
 import {

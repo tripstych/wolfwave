@@ -1,5 +1,5 @@
 import React from 'react';
-import RichTextEditor from './RichTextEditor';
+import RichTextEditor from './RichTextEditorLazy';
 import CodeEditor from './CodeEditor';
 import { Image as ImageIcon, Sparkles, Loader2, X } from 'lucide-react';
 

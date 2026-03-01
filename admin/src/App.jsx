@@ -1,5 +1,5 @@
-import { Fragment, useEffect, Suspense } from 'react';
-import { Routes, Route, Navigate, lazy } from 'react-router-dom';
+import { Fragment, useEffect, Suspense, lazy } from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import { useContentTypes } from './context/ContentTypesContext';
 import Layout from './components/Layout';
@@ -55,6 +55,15 @@ const ClassifiedSettings = lazy(() => import('./classifieds/ClassifiedSettings')
 const MyClassifieds = lazy(() => import('./classifieds/MyClassifieds'));
 const ShipStation = lazy(() => import('./orders/ShipStation'));
 
+// Loading component for lazy-loaded routes
+function LoadingSpinner() {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+    </div>
+  );
+}
+
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
   
@@ -102,77 +111,77 @@ function App() {
             <Layout>
               <Routes>
                 <Route path="/" element={<Dashboard />} />
-                <Route path="/pages" element={<Pages />} />
-                <Route path="/pages/new" element={<PageEditor />} />
-                <Route path="/pages/:id" element={<PageEditor />} />
-                <Route path="/posts" element={<Posts />} />
-                <Route path="/posts/new" element={<PostEditor />} />
-                <Route path="/posts/:id" element={<PostEditor />} />
-                <Route path="/templates" element={<Templates />} />
-                <Route path="/media" element={<Media />} />
-                <Route path="/menus" element={<Menus />} />
-                <Route path="/blocks" element={<Blocks />} />
-                <Route path="/blocks/new" element={<BlockEditor />} />
-                <Route path="/blocks/:id" element={<BlockEditor />} />
-                <Route path="/widgets" element={<Widgets />} />
-                <Route path="/widgets/new" element={<WidgetEditor />} />
-                <Route path="/widgets/:id" element={<WidgetEditor />} />
-                <Route path="/seo" element={<SEO />} />
-                <Route path="/settings" element={<Settings />} />
-                <Route path="/import" element={<SiteImporter />} />
-                <Route path="/assisted-import" element={<AssistedImporter />} />
-                <Route path="/import-lovable" element={<LovableImporter />} />
-                <Route path="/products" element={<ProductList />} />
-                <Route path="/products/new" element={<ProductEditor />} />
-                <Route path="/products/:id" element={<ProductEditor />} />
-                <Route path="/orders" element={<OrderList />} />
-                <Route path="/orders/:id" element={<OrderDetail />} />
-                <Route path="/shipstation" element={<ShipStation />} />
-                <Route path="/groups" element={<GroupList />} />
-                <Route path="/groups/new" element={<GroupEditor />} />
-                <Route path="/groups/:id" element={<GroupEditor />} />
-                <Route path="/users" element={<UserList />} />
-                <Route path="/users/new" element={<UserEditor />} />
-                <Route path="/users/:id" element={<UserEditor />} />
-                <Route path="/customers" element={<CustomerList />} />
-                <Route path="/customers/:id" element={<CustomerDetail />} />
-                <Route path="/subscriptions" element={<PlanList />} />
-                <Route path="/subscriptions/new" element={<PlanEditor />} />
-                <Route path="/subscriptions/:id" element={<PlanEditor />} />
-                <Route path="/marketing/coupons" element={<CouponList />} />
-                <Route path="/marketing/coupons/new" element={<CouponEditor />} />
-                <Route path="/marketing/coupons/:id" element={<CouponEditor />} />
-                <Route path="/sites" element={<Sites />} />
-                <Route path="/my-sites" element={<MySites />} />
-                <Route path="/themes" element={<Themes />} />
-                <Route path="/themes/import" element={<WpThemeImport />} />
-                <Route path="/themes/:themeName/editor" element={<ThemeEditor />} />
-                <Route path="/styles" element={<StyleEditor />} />
-                <Route path="/email-templates" element={<EmailTemplates />} />
-                <Route path="/api-keys" element={<ApiKeys />} />
-                <Route path="/woocommerce-keys" element={<WooCommerceKeys />} />
-                <Route path="/classifieds" element={<ClassifiedList />} />
-                <Route path="/classifieds/settings" element={<ClassifiedSettings />} />
-                <Route path="/classifieds/my-ads" element={<MyClassifieds />} />
-                <Route path="/classifieds/:id" element={<ClassifiedDetail />} />
+                <Route path="/pages" element={<Suspense fallback={<LoadingSpinner />}><Pages /></Suspense>} />
+                <Route path="/pages/new" element={<Suspense fallback={<LoadingSpinner />}><PageEditor /></Suspense>} />
+                <Route path="/pages/:id" element={<Suspense fallback={<LoadingSpinner />}><PageEditor /></Suspense>} />
+                <Route path="/posts" element={<Suspense fallback={<LoadingSpinner />}><Posts /></Suspense>} />
+                <Route path="/posts/new" element={<Suspense fallback={<LoadingSpinner />}><PostEditor /></Suspense>} />
+                <Route path="/posts/:id" element={<Suspense fallback={<LoadingSpinner />}><PostEditor /></Suspense>} />
+                <Route path="/templates" element={<Suspense fallback={<LoadingSpinner />}><Templates /></Suspense>} />
+                <Route path="/media" element={<Suspense fallback={<LoadingSpinner />}><Media /></Suspense>} />
+                <Route path="/menus" element={<Suspense fallback={<LoadingSpinner />}><Menus /></Suspense>} />
+                <Route path="/blocks" element={<Suspense fallback={<LoadingSpinner />}><Blocks /></Suspense>} />
+                <Route path="/blocks/new" element={<Suspense fallback={<LoadingSpinner />}><BlockEditor /></Suspense>} />
+                <Route path="/blocks/:id" element={<Suspense fallback={<LoadingSpinner />}><BlockEditor /></Suspense>} />
+                <Route path="/widgets" element={<Suspense fallback={<LoadingSpinner />}><Widgets /></Suspense>} />
+                <Route path="/widgets/new" element={<Suspense fallback={<LoadingSpinner />}><WidgetEditor /></Suspense>} />
+                <Route path="/widgets/:id" element={<Suspense fallback={<LoadingSpinner />}><WidgetEditor /></Suspense>} />
+                <Route path="/seo" element={<Suspense fallback={<LoadingSpinner />}><SEO /></Suspense>} />
+                <Route path="/settings" element={<Suspense fallback={<LoadingSpinner />}><Settings /></Suspense>} />
+                <Route path="/import" element={<Suspense fallback={<LoadingSpinner />}><SiteImporter /></Suspense>} />
+                <Route path="/assisted-import" element={<Suspense fallback={<LoadingSpinner />}><AssistedImporter /></Suspense>} />
+                <Route path="/import-lovable" element={<Suspense fallback={<LoadingSpinner />}><LovableImporter /></Suspense>} />
+                <Route path="/products" element={<Suspense fallback={<LoadingSpinner />}><ProductList /></Suspense>} />
+                <Route path="/products/new" element={<Suspense fallback={<LoadingSpinner />}><ProductEditor /></Suspense>} />
+                <Route path="/products/:id" element={<Suspense fallback={<LoadingSpinner />}><ProductEditor /></Suspense>} />
+                <Route path="/orders" element={<Suspense fallback={<LoadingSpinner />}><OrderList /></Suspense>} />
+                <Route path="/orders/:id" element={<Suspense fallback={<LoadingSpinner />}><OrderDetail /></Suspense>} />
+                <Route path="/shipstation" element={<Suspense fallback={<LoadingSpinner />}><ShipStation /></Suspense>} />
+                <Route path="/groups" element={<Suspense fallback={<LoadingSpinner />}><GroupList /></Suspense>} />
+                <Route path="/groups/new" element={<Suspense fallback={<LoadingSpinner />}><GroupEditor /></Suspense>} />
+                <Route path="/groups/:id" element={<Suspense fallback={<LoadingSpinner />}><GroupEditor /></Suspense>} />
+                <Route path="/users" element={<Suspense fallback={<LoadingSpinner />}><UserList /></Suspense>} />
+                <Route path="/users/new" element={<Suspense fallback={<LoadingSpinner />}><UserEditor /></Suspense>} />
+                <Route path="/users/:id" element={<Suspense fallback={<LoadingSpinner />}><UserEditor /></Suspense>} />
+                <Route path="/customers" element={<Suspense fallback={<LoadingSpinner />}><CustomerList /></Suspense>} />
+                <Route path="/customers/:id" element={<Suspense fallback={<LoadingSpinner />}><CustomerDetail /></Suspense>} />
+                <Route path="/subscriptions" element={<Suspense fallback={<LoadingSpinner />}><PlanList /></Suspense>} />
+                <Route path="/subscriptions/new" element={<Suspense fallback={<LoadingSpinner />}><PlanEditor /></Suspense>} />
+                <Route path="/subscriptions/:id" element={<Suspense fallback={<LoadingSpinner />}><PlanEditor /></Suspense>} />
+                <Route path="/marketing/coupons" element={<Suspense fallback={<LoadingSpinner />}><CouponList /></Suspense>} />
+                <Route path="/marketing/coupons/new" element={<Suspense fallback={<LoadingSpinner />}><CouponEditor /></Suspense>} />
+                <Route path="/marketing/coupons/:id" element={<Suspense fallback={<LoadingSpinner />}><CouponEditor /></Suspense>} />
+                <Route path="/sites" element={<Suspense fallback={<LoadingSpinner />}><Sites /></Suspense>} />
+                <Route path="/my-sites" element={<Suspense fallback={<LoadingSpinner />}><MySites /></Suspense>} />
+                <Route path="/themes" element={<Suspense fallback={<LoadingSpinner />}><Themes /></Suspense>} />
+                <Route path="/themes/import" element={<Suspense fallback={<LoadingSpinner />}><WpThemeImport /></Suspense>} />
+                <Route path="/themes/:themeName/editor" element={<Suspense fallback={<LoadingSpinner />}><ThemeEditor /></Suspense>} />
+                <Route path="/styles" element={<Suspense fallback={<LoadingSpinner />}><StyleEditor /></Suspense>} />
+                <Route path="/email-templates" element={<Suspense fallback={<LoadingSpinner />}><EmailTemplates /></Suspense>} />
+                <Route path="/api-keys" element={<Suspense fallback={<LoadingSpinner />}><ApiKeys /></Suspense>} />
+                <Route path="/woocommerce-keys" element={<Suspense fallback={<LoadingSpinner />}><WooCommerceKeys /></Suspense>} />
+                <Route path="/classifieds" element={<Suspense fallback={<LoadingSpinner />}><ClassifiedList /></Suspense>} />
+                <Route path="/classifieds/settings" element={<Suspense fallback={<LoadingSpinner />}><ClassifiedSettings /></Suspense>} />
+                <Route path="/classifieds/my-ads" element={<Suspense fallback={<LoadingSpinner />}><MyClassifieds /></Suspense>} />
+                <Route path="/classifieds/:id" element={<Suspense fallback={<LoadingSpinner />}><ClassifiedDetail /></Suspense>} />
 
                 {/* Global Admin Only Routes */}
                 {user?.is_global && (
-                  <Route path="/tenants" element={<TenantList />} />
+                  <Route path="/tenants" element={<Suspense fallback={<LoadingSpinner />}><TenantList /></Suspense>} />
                 )}
                 {contentTypes.map(type => (
                   <Fragment key={type.name}>
                     <Route
                       path={`/${type.name}`}
-                      element={<ContentList />}
+                      element={<Suspense fallback={<LoadingSpinner />}><ContentList /></Suspense>}
                     />
                     <Route
                       path={`/${type.name}/new`}
-                      element={<ContentEditor />}
+                      element={<Suspense fallback={<LoadingSpinner />}><ContentEditor /></Suspense>}
                     />
                     <Route
                       path={`/${type.name}/:id`}
-                      element={<ContentEditor />}
+                      element={<Suspense fallback={<LoadingSpinner />}><ContentEditor /></Suspense>}
                     />
                   </Fragment>
                 ))}
