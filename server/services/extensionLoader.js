@@ -3,7 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const THEMES_DIR = path.join(__dirname, '../../themes/default');
+const TEMPLATES_DIR = path.join(__dirname, '../../templates');
 const API_DIR = path.join(__dirname, '../api');
 
 /**
@@ -13,7 +13,7 @@ export async function discoverContentTypes() {
   const contentTypes = [];
 
   try {
-    const entries = await fs.readdir(THEMES_DIR, { withFileTypes: true });
+    const entries = await fs.readdir(TEMPLATES_DIR, { withFileTypes: true });
 
     for (const entry of entries) {
       // Skip non-directories and special directories

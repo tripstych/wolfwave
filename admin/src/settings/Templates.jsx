@@ -143,6 +143,7 @@ export default function Templates() {
                         const hasRegions = parseRegions(template.regions).length > 0;
                         return (
                           <button
+                            id={`template-select-${template.id}`}
                             key={template.id}
                             onClick={() => setSelectedTemplate(template)}
                             className={`w-full px-4 py-3 text-left flex items-center justify-between hover:bg-gray-50 transition-colors ${

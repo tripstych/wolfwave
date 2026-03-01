@@ -136,7 +136,7 @@ export default function ThemeEditor() {
       {/* Toolbar */}
       <div className="flex items-center justify-between px-6 py-3 border-b border-gray-200 bg-white">
         <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/themes')} className="btn btn-ghost">
+          <button id="theme-editor-back" onClick={() => navigate('/themes')} className="btn btn-ghost">
             <ArrowLeft className="w-4 h-4" />
           </button>
           <div>
@@ -151,6 +151,7 @@ export default function ThemeEditor() {
         </div>
         <div className="flex gap-2">
           <button
+            id="theme-editor-save"
             onClick={handleSave}
             disabled={saving || !selectedFile || content === originalContent}
             className="btn btn-primary"

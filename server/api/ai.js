@@ -14,7 +14,6 @@ import {
 import { downloadImage } from '../services/mediaService.js';
 import fs from 'fs/promises';
 import path from 'path';
-import { getThemesDir } from '../services/themeResolver.js';
 import { syncTemplatesToDb } from '../services/templateParser.js';
 import prisma from '../lib/prisma.js';
 

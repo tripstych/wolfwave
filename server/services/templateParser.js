@@ -4,26 +4,14 @@ import { fileURLToPath } from 'url';
 
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const THEMES_DIR = path.join(__dirname, '../../themes');
 const ROOT_TEMPLATES_DIR = path.join(__dirname, '../../templates');
-
-function getTemplatesDir(themeName = 'default') {
-  return path.join(THEMES_DIR, themeName);
-}
 
 /**
  * Parse a Nunjucks template file to extract CMS regions
  */
-export async function parseTemplate(filename, themeName = 'default') {
-  // Check root templates first, then theme
-  let templatePath = path.join(ROOT_TEMPLATES_DIR, filename);
-  
-  try {
-    await fs.access(templatePath);
-  } catch (e) {
-    templatePath = path.join(THEMES_DIR, themeName, filename);
-  }
-  
+export async function parseTemplate(filename) {
+  const templatePath = path.join(ROOT_TEMPLATES_DIR, filename);
+
   try {
     const content = await fs.readFile(templatePath, 'utf-8');
     return extractRegions(content);
@@ -38,15 +26,15 @@ export async function parseTemplate(filename, themeName = 'default') {
  */
 export function extractRegions(content) {
   const regions = [];
-  
+
   // Match data-cms-region attributes with their associated attributes
   const regionRegex = /data-cms-region=["']([^"']+)["'][^>]*>/gi;
   const matches = content.matchAll(regionRegex);
-  
+
   for (const match of matches) {
     const regionName = match[1];
     const fullMatch = match[0];
-    
+
     // Extract other attributes from the same element
     const region = {
       name: regionName,
@@ -55,7 +43,7 @@ export function extractRegions(content) {
       required: extractAttribute(fullMatch, 'data-cms-required') === 'true',
       placeholder: extractAttribute(fullMatch, 'data-cms-placeholder') || ''
     };
-    
+
     // Handle repeater fields
     if (region.type === 'repeater') {
       const fieldsJson = extractAttribute(fullMatch, 'data-cms-fields');
@@ -67,13 +55,13 @@ export function extractRegions(content) {
         }
       }
     }
-    
+
     // Avoid duplicates
     if (!regions.find(r => r.name === regionName)) {
       regions.push(region);
     }
   }
-  
+
   return regions;
 }
 
@@ -108,9 +96,9 @@ export function extractContentType(filename) {
 }
 
 /**
- * Scan all templates in the templates directory
+ * Scan all templates in the root templates directory
  */
-export async function scanTemplates(themeName = 'default') {
+export async function scanTemplates() {
   const templates = [];
 
   async function scanDir(dir, prefix = '') {
@@ -131,9 +119,8 @@ export async function scanTemplates(themeName = 'default') {
           await scanDir(path.join(dir, entry.name), relativePath);
         }
       } else if (entry.name.endsWith('.njk')) {
-        const regions = await parseTemplate(relativePath, themeName);
-        
-        // Avoid adding the same template twice if it exists in both root and theme
+        const regions = await parseTemplate(relativePath);
+
         if (!templates.find(t => t.filename === relativePath)) {
           templates.push({
             filename: relativePath,
@@ -145,20 +132,17 @@ export async function scanTemplates(themeName = 'default') {
     }
   }
 
-  // Scan root templates first
   await scanDir(ROOT_TEMPLATES_DIR);
-  // Then scan theme templates
-  await scanDir(path.join(THEMES_DIR, themeName));
-  
+
   return templates;
 }
 
 /**
  * Scan only block templates (from blocks/ directory)
  */
-export async function scanBlockTemplates(themeName = 'default') {
+export async function scanBlockTemplates() {
   const templates = [];
-  const blocksDir = path.join(getTemplatesDir(themeName), 'blocks');
+  const blocksDir = path.join(ROOT_TEMPLATES_DIR, 'blocks');
 
   try {
     const entries = await fs.readdir(blocksDir, { withFileTypes: true });
@@ -166,7 +150,7 @@ export async function scanBlockTemplates(themeName = 'default') {
     for (const entry of entries) {
       if (entry.isFile() && entry.name.endsWith('.njk')) {
         const relativePath = `blocks/${entry.name}`;
-        const regions = await parseTemplate(relativePath, themeName);
+        const regions = await parseTemplate(relativePath);
         templates.push({
           filename: relativePath,
           name: formatLabel(entry.name.replace('.njk', '')),
@@ -184,8 +168,7 @@ export async function scanBlockTemplates(themeName = 'default') {
 /**
  * Scan only page templates (excluding blocks/, layouts/, assets/, partials/)
  */
-export async function scanPageTemplates(themeName = 'default') {
-  const templatesDir = getTemplatesDir(themeName);
+export async function scanPageTemplates() {
   const templates = [];
 
   async function scanDir(dir, prefix = '') {
@@ -199,7 +182,7 @@ export async function scanPageTemplates(themeName = 'default') {
           await scanDir(path.join(dir, entry.name), relativePath);
         }
       } else if (entry.name.endsWith('.njk')) {
-        const regions = await parseTemplate(relativePath, themeName);
+        const regions = await parseTemplate(relativePath);
         templates.push({
           filename: relativePath,
           name: formatLabel(entry.name.replace('.njk', '')),
@@ -209,33 +192,61 @@ export async function scanPageTemplates(themeName = 'default') {
     }
   }
 
-  await scanDir(templatesDir);
+  await scanDir(ROOT_TEMPLATES_DIR);
   return templates;
 }
 
 /**
- * Sync templates from filesystem to database
+ * Sync templates from filesystem (templates/) to database.
+ * Also syncs CSS files so they can be served from DB.
  */
-export async function syncTemplatesToDb(prisma, themeName = 'default') {
-  const templates = await scanTemplates(themeName);
+export async function syncTemplatesToDb(prisma) {
+  const templates = await scanTemplates();
   const syncedFilenames = templates.map(t => t.filename);
+
+  // Also sync CSS files from templates/css/
+  const cssDir = path.join(ROOT_TEMPLATES_DIR, 'css');
+  try {
+    const cssEntries = await fs.readdir(cssDir, { withFileTypes: true });
+    for (const entry of cssEntries) {
+      if (entry.isFile() && entry.name.endsWith('.css')) {
+        const cssFilename = `css/${entry.name}`;
+        const cssContent = await fs.readFile(path.join(cssDir, entry.name), 'utf-8');
+
+        // Store with default/ prefix so /themes/default/css/x.css resolves in DB
+        const dbFilename = `default/${cssFilename}`;
+        syncedFilenames.push(dbFilename);
+
+        const existing = await prisma.templates.findFirst({
+          where: { filename: dbFilename }
+        });
+
+        if (existing) {
+          await prisma.templates.update({
+            where: { id: existing.id },
+            data: { content: cssContent, name: entry.name, content_type: 'css' }
+          });
+        } else {
+          await prisma.templates.create({
+            data: { filename: dbFilename, content: cssContent, name: entry.name, content_type: 'css' }
+          });
+        }
+      }
+    }
+  } catch (err) {
+    console.warn(`[TemplateParser] Could not sync CSS files: ${err.message}`);
+  }
 
   for (const template of templates) {
     const contentType = extractContentType(template.filename);
-    
+
     // Normalize filename: use forward slashes, no leading slash
     const normalizedFilename = template.filename.replace(/\\/g, '/').replace(/^\//, '');
-    
-    // Read the content from the file to populate the DB
+
+    // Read the content from the file
     let content = null;
     try {
-      // Check root templates first, then theme
-      let templatePath = path.join(ROOT_TEMPLATES_DIR, template.filename);
-      try {
-        await fs.access(templatePath);
-      } catch (e) {
-        templatePath = path.join(THEMES_DIR, themeName, template.filename);
-      }
+      const templatePath = path.join(ROOT_TEMPLATES_DIR, template.filename);
       content = await fs.readFile(templatePath, 'utf-8');
     } catch (e) {
       console.error(`Failed to read content for ${template.filename}:`, e.message);
@@ -253,7 +264,6 @@ export async function syncTemplatesToDb(prisma, themeName = 'default') {
     });
 
     if (existingTemplate) {
-      // Update existing template
       await prisma.templates.update({
         where: { id: existingTemplate.id },
         data: {
@@ -265,7 +275,6 @@ export async function syncTemplatesToDb(prisma, themeName = 'default') {
         }
       });
     } else {
-      // Create new template
       await prisma.templates.create({
         data: {
           name: template.name,
@@ -279,7 +288,6 @@ export async function syncTemplatesToDb(prisma, themeName = 'default') {
   }
 
   // ── CLEANUP STALE TEMPLATES ──
-  // Find templates in DB that were NOT found on filesystem
   const allDbTemplates = await prisma.templates.findMany({
     where: { filename: { notIn: syncedFilenames } },
     select: { id: true, filename: true, content_type: true }
@@ -295,28 +303,23 @@ export async function syncTemplatesToDb(prisma, themeName = 'default') {
   const staleTemplates = allDbTemplates.filter(t => {
     if (!t.filename) return false;
     const templateSlug = t.filename.split('/')[0];
-    // If the template's prefix matches a virtual theme slug, it's not stale.
     return !virtualThemeSlugs.has(templateSlug);
   });
 
   if (staleTemplates.length > 0) {
     console.log(`Cleaning up ${staleTemplates.length} stale templates...`);
     const { handleStaleTemplateMigration } = await import('./templateMigrationService.js');
-    
-    // Get currently available templates (the ones we just synced) for migration targets
+
     const availableTemplates = await prisma.templates.findMany({
       where: { filename: { in: syncedFilenames } }
     });
 
     for (const stale of staleTemplates) {
       try {
-        // Attempt to migrate records using this stale template
         const canDelete = await handleStaleTemplateMigration(stale.id, availableTemplates);
-        
+
         if (canDelete) {
-          await prisma.templates.delete({
-            where: { id: stale.id }
-          });
+          await prisma.templates.delete({ where: { id: stale.id } });
           console.log(`Deleted stale template: ${stale.filename}`);
         } else {
           console.warn(`Preserved stale template ${stale.filename} as it still has records that couldn't be migrated.`);

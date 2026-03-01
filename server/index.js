@@ -13,7 +13,7 @@ import { initDb, query } from './db/connection.js';
 import { tenantMiddleware } from './middleware/tenant.js';
 import { closeAllPools } from './lib/poolManager.js';
 import { closePrisma } from './lib/prisma.js';
-import { getNunjucksEnv, getThemesDir, syncFilesystemThemes } from './services/themeResolver.js';
+import { getNunjucksEnv, ensureDefaultTheme } from './services/themeResolver.js';
 import { accessLog, errorLog, closeLogs, info, error as logError } from './lib/logger.js';
 import { maybePatchConsole } from './lib/consolePatch.js';
 import woocommerceApiRoutes from './api/woocommerce.js';
@@ -98,11 +98,10 @@ app.use(tenantMiddleware);
 // Per-tenant access logging
 app.use(accessLog);
 
-// Static files — theme assets (filesystem first, then DB fallback for virtual themes)
-app.use('/themes', express.static(getThemesDir()));
+// Static files — theme assets served from DB
 app.use('/themes', async (req, res, next) => {
-  // Fallback: serve virtual theme CSS/JS from database templates table
-  // URL pattern: /themes/<slug>/assets/css/style.css → DB filename: <slug>/assets/css/style.css
+  // Serve theme CSS/JS from database templates table
+  // URL pattern: /themes/<slug>/css/style.css → DB filename: <slug>/css/style.css
   const dbFilename = req.path.replace(/^\//, '');
   if (!dbFilename) return next();
   try {
@@ -176,9 +175,9 @@ app.use(errorLog);
 // Initialize database and start server
 if (process.env.NODE_ENV !== 'test') {
   initDb().then(async () => {
-    // Sync filesystem themes to DB on startup
-    await syncFilesystemThemes();
-    info('system', 'STARTUP', 'Filesystem themes synced.');
+    // Ensure default theme exists in DB
+    await ensureDefaultTheme();
+    info('system', 'STARTUP', 'Default theme ensured.');
     
     // Create a default Nunjucks env at startup (for express error pages, etc.)
     const defaultEnv = await getNunjucksEnv('default');

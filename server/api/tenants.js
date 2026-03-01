@@ -4,6 +4,7 @@ import { requireAuth, requireAdmin } from '../middleware/auth.js';
 import { getPoolForDb } from '../lib/poolManager.js';
 import { provisionTenant } from '../db/provisionTenant.js';
 import { syncTemplatesToDb } from '../services/templateParser.js';
+import { ensureDefaultTheme } from '../services/themeResolver.js';
 import { seedNewTenant } from '../services/tenantSeeder.js';
 import { generateImpersonationToken } from '../middleware/auth.js';
 import prisma from '../lib/prisma.js';
@@ -111,7 +112,8 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
     try {
       console.log(`[TENANT_CREATE] Running initial template sync for ${dbName}...`);
       await runWithTenant(dbName, async () => {
-        await syncTemplatesToDb(prisma, 'default');
+        await ensureDefaultTheme();
+        await syncTemplatesToDb(prisma);
         // ── SEED ESSENTIAL PAGES ──
         await seedNewTenant(name);
       });

@@ -10,8 +10,19 @@ import { canAccess } from '../middleware/permission.js';
 import { getCurrentDbName } from '../lib/tenantContext.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const THEMES_DIR = path.join(__dirname, '../../themes');
 const ROOT_TEMPLATES_DIR = path.join(__dirname, '../../templates');
+
+const DEFAULT_THEME_CONFIG = {
+  name: 'Default',
+  slug: 'default',
+  version: '1.0.0',
+  description: 'The default WolfWave theme',
+  inherits: null,
+  assets: {
+    css: ['css/variables.css', 'css/theme.css'],
+    js: []
+  }
+};
 
 const parseJsonField = (value) => {
   if (value === null || value === undefined) return null;
@@ -79,47 +90,34 @@ const envCache = new Map();
 const dbLoaderCache = new Map();
 
 /**
- * Sync filesystem themes into the themes DB table.
- * Called at startup to ensure disk themes have DB records.
+ * Ensure the default theme exists in the DB.
+ * Called at startup so every site always has a default theme record.
  */
-export async function syncFilesystemThemes() {
+export async function ensureDefaultTheme() {
   try {
-    const entries = fs.readdirSync(THEMES_DIR, { withFileTypes: true });
-    for (const entry of entries) {
-      if (!entry.isDirectory()) continue;
-      const configPath = path.join(THEMES_DIR, entry.name, 'theme.json');
-      let config;
-      try {
-        config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-      } catch {
-        continue; // Skip dirs without valid theme.json
+    await prisma.themes.upsert({
+      where: { slug: 'default' },
+      update: {
+        name: DEFAULT_THEME_CONFIG.name,
+        description: DEFAULT_THEME_CONFIG.description,
+        version: DEFAULT_THEME_CONFIG.version,
+        inherits: DEFAULT_THEME_CONFIG.inherits,
+        config: DEFAULT_THEME_CONFIG,
+        updated_at: new Date()
+      },
+      create: {
+        slug: 'default',
+        name: DEFAULT_THEME_CONFIG.name,
+        description: DEFAULT_THEME_CONFIG.description,
+        version: DEFAULT_THEME_CONFIG.version,
+        inherits: DEFAULT_THEME_CONFIG.inherits,
+        config: DEFAULT_THEME_CONFIG,
+        source: 'system',
+        is_active: true,
+        created_at: new Date(),
+        updated_at: new Date()
       }
-
-      const slug = config.slug || entry.name;
-      await prisma.themes.upsert({
-        where: { slug },
-        update: {
-          name: config.name || entry.name,
-          description: config.description || '',
-          version: config.version || '1.0.0',
-          inherits: config.inherits || null,
-          config: config,
-          source: 'filesystem',
-          updated_at: new Date()
-        },
-        create: {
-          slug,
-          name: config.name || entry.name,
-          description: config.description || '',
-          version: config.version || '1.0.0',
-          inherits: config.inherits || null,
-          config: config,
-          source: 'filesystem',
-          created_at: new Date(),
-          updated_at: new Date()
-        }
-      });
-    }
+    });
 
     // Mark the active theme
     const activeSetting = await prisma.settings.findUnique({ where: { setting_key: 'active_theme' } });
@@ -131,71 +129,55 @@ export async function syncFilesystemThemes() {
       });
     }
   } catch (err) {
-    console.error('[ThemeResolver] Failed to sync filesystem themes:', err.message);
+    console.error('[ThemeResolver] Failed to ensure default theme:', err.message);
   }
 }
 
 /**
- * Get theme config from DB first, filesystem fallback.
+ * Get theme config from DB.
  */
 async function getThemeConfig(themeName) {
   if (themeConfigCache.has(themeName)) {
     return themeConfigCache.get(themeName);
   }
 
+  // Hardcoded default — no DB or filesystem lookup needed
+  if (themeName === 'default') {
+    try {
+      const dbTheme = await prisma.themes.findUnique({ where: { slug: 'default' } });
+      if (dbTheme?.config) {
+        const config = typeof dbTheme.config === 'string' ? JSON.parse(dbTheme.config) : dbTheme.config;
+        themeConfigCache.set(themeName, config);
+        return config;
+      }
+    } catch { /* fall through */ }
+    // DB not available yet — use hardcoded default
+    themeConfigCache.set(themeName, DEFAULT_THEME_CONFIG);
+    return DEFAULT_THEME_CONFIG;
+  }
+
   try {
     const dbTheme = await prisma.themes.findUnique({ where: { slug: themeName } });
     if (dbTheme) {
-      // Theme found in DB. This is the source of truth.
-      // Its config may be null (for a virtual theme without one), and that is valid.
-      // We should not fall back to the filesystem.
       const config = dbTheme.config ? (typeof dbTheme.config === 'string' ? JSON.parse(dbTheme.config) : dbTheme.config) : null;
       themeConfigCache.set(themeName, config);
       return config;
     }
   } catch (e) {
-    // DB not ready or other error. It's okay to fall through to filesystem as a last resort.
-    console.warn(`[ThemeResolver] DB lookup for theme "${themeName}" failed, falling back to filesystem. Error: ${e.message}`);
+    console.warn(`[ThemeResolver] DB lookup for theme "${themeName}" failed: ${e.message}`);
   }
 
-  // Fallback for themes not in DB (e.g., before initial sync)
-  const configPath = path.join(THEMES_DIR, themeName, 'theme.json');
-  try {
-    const raw = fs.readFileSync(configPath, 'utf-8');
-    const config = JSON.parse(raw);
-    themeConfigCache.set(themeName, config);
-    return config;
-  } catch {
-    // This is expected if the theme is neither in the DB nor on the filesystem.
-    return null;
-  }
+  return null;
 }
 
 /**
  * Compute ordered search paths for Nunjucks FileSystemLoader.
+ * Only ROOT_TEMPLATES_DIR is used as a filesystem fallback — DB is primary.
  */
 export async function getThemeSearchPaths(themeName) {
   const paths = [];
-  const visited = new Set();
-  let current = themeName;
 
-  while (current && !visited.has(current)) {
-    visited.add(current);
-    const dir = path.join(THEMES_DIR, current);
-    if (fs.existsSync(dir)) {
-      paths.push(dir);
-    }
-    const config = await getThemeConfig(current);
-    current = config?.inherits || null;
-  }
-
-  // Always ensure default is in the chain
-  const defaultDir = path.join(THEMES_DIR, 'default');
-  if (!paths.includes(defaultDir) && fs.existsSync(defaultDir)) {
-    paths.push(defaultDir);
-  }
-
-  // Add the root templates directory for widgets and system templates
+  // Root templates directory is the only filesystem fallback
   if (fs.existsSync(ROOT_TEMPLATES_DIR)) {
     paths.push(ROOT_TEMPLATES_DIR);
   }
@@ -219,27 +201,7 @@ export async function getAvailableThemes() {
       is_active: t.is_active
     }));
   } catch {
-    // Fallback to filesystem if themes table doesn't exist yet
-    try {
-      const entries = fs.readdirSync(THEMES_DIR, { withFileTypes: true });
-      const themes = [];
-      for (const entry of entries) {
-        if (!entry.isDirectory()) continue;
-        const configPath = path.join(THEMES_DIR, entry.name, 'theme.json');
-        try {
-          const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-          themes.push({
-            slug: config.slug || entry.name,
-            name: config.name || entry.name,
-            version: config.version || '1.0.0',
-            description: config.description || '',
-            inherits: config.inherits || null,
-            source: 'filesystem'
-          });
-        } catch { continue; }
-      }
-      return themes;
-    } catch { return []; }
+    return [];
   }
 }
 
@@ -394,11 +356,4 @@ export function clearThemeCache() {
   envCache.clear();
   dbLoaderCache.forEach(loader => loader.clearCache());
   dbLoaderCache.clear();
-}
-
-/**
- * Get the themes directory path.
- */
-export function getThemesDir() {
-  return THEMES_DIR;
 }

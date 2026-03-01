@@ -241,6 +241,7 @@ export default function StyleEditor() {
           <p className="text-sm text-gray-500">Configure global typography, colors and custom CSS for your site.</p>
         </div>
         <button 
+          id="style-editor-save"
           onClick={handleSave} 
           disabled={saving}
           className="btn btn-primary"
@@ -254,6 +255,7 @@ export default function StyleEditor() {
       <div className="border-b border-gray-200">
         <nav className="-mb-px flex space-x-8">
           <button
+            id="style-editor-tab-visual"
             onClick={() => setActiveTab('visual')}
             className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
               activeTab === 'visual'
@@ -265,6 +267,7 @@ export default function StyleEditor() {
             Visual Editor
           </button>
           <button
+            id="style-editor-tab-css"
             onClick={() => setActiveTab('css')}
             className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
               activeTab === 'css'
@@ -276,6 +279,7 @@ export default function StyleEditor() {
             Custom CSS
           </button>
           <button
+            id="style-editor-tab-stylesheets"
             onClick={() => setActiveTab('stylesheets')}
             className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
               activeTab === 'stylesheets'
@@ -309,11 +313,11 @@ export default function StyleEditor() {
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-semibold">Manage Stylesheets</h2>
             <div className="flex gap-2">
-              <button onClick={handleSyncFromFilesystem} disabled={syncing} className="btn btn-secondary">
+              <button id="style-editor-sync-filesystem" onClick={handleSyncFromFilesystem} disabled={syncing} className="btn btn-secondary">
                 <RefreshCw className={`w-4 h-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
                 {syncing ? 'Syncing...' : 'Sync from Filesystem'}
               </button>
-              <button onClick={handleCreateStylesheet} className="btn btn-primary">
+              <button id="style-editor-create-stylesheet" onClick={handleCreateStylesheet} className="btn btn-primary">
                 <Plus className="w-4 h-4 mr-2" />
                 New Stylesheet
               </button>
@@ -352,6 +356,7 @@ export default function StyleEditor() {
                           )}
                         </div>
                         <button
+                          id="style-editor-delete-stylesheet-"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleDeleteStylesheet(stylesheet.id);

@@ -4,6 +4,7 @@ import { query } from '../db/connection.js';
 import { getPoolForDb } from '../lib/poolManager.js';
 import { provisionTenant } from '../db/provisionTenant.js';
 import { syncTemplatesToDb } from '../services/templateParser.js';
+import { ensureDefaultTheme } from '../services/themeResolver.js';
 import { seedNewTenant } from '../services/tenantSeeder.js';
 import { runWithTenant, getCurrentDbName } from '../lib/tenantContext.js';
 import { generateImpersonationToken } from '../middleware/auth.js';
@@ -257,7 +258,8 @@ router.post('/', requireCustomer, async (req, res) => {
     // 6. Setup the new tenant database
     try {
       await runWithTenant(dbName, async () => {
-        await syncTemplatesToDb(prisma, 'default');
+        await ensureDefaultTheme();
+        await syncTemplatesToDb(prisma);
         await seedNewTenant(name);
       });
     } catch (syncErr) {
