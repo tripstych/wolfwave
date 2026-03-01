@@ -199,10 +199,17 @@ export async function scanPageTemplates() {
 /**
  * Sync templates from filesystem (templates/) to database.
  * Also syncs CSS files so they can be served from DB.
+ *
+ * @param {object} prisma - Prisma client
+ * @param {object} options
+ * @param {string} options.mode - 'overwrite' (default) replaces all templates with filesystem versions.
+ *                                'merge' only inserts templates that don't already exist in DB.
  */
-export async function syncTemplatesToDb(prisma) {
+export async function syncTemplatesToDb(prisma, options = {}) {
+  const mode = (typeof options === 'string') ? 'overwrite' : (options.mode || 'overwrite');
   const templates = await scanTemplates();
   const syncedFilenames = templates.map(t => t.filename);
+  let created = 0, updated = 0, skipped = 0;
 
   // Also sync CSS files from templates/css/
   const cssDir = path.join(ROOT_TEMPLATES_DIR, 'css');
@@ -222,14 +229,20 @@ export async function syncTemplatesToDb(prisma) {
         });
 
         if (existing) {
-          await prisma.templates.update({
-            where: { id: existing.id },
-            data: { content: cssContent, name: entry.name, content_type: 'css' }
-          });
+          if (mode === 'overwrite') {
+            await prisma.templates.update({
+              where: { id: existing.id },
+              data: { content: cssContent, name: entry.name, content_type: 'css' }
+            });
+            updated++;
+          } else {
+            skipped++;
+          }
         } else {
           await prisma.templates.create({
             data: { filename: dbFilename, content: cssContent, name: entry.name, content_type: 'css' }
           });
+          created++;
         }
       }
     }
@@ -239,8 +252,6 @@ export async function syncTemplatesToDb(prisma) {
 
   for (const template of templates) {
     const contentType = extractContentType(template.filename);
-
-    // Normalize filename: use forward slashes, no leading slash
     const normalizedFilename = template.filename.replace(/\\/g, '/').replace(/^\//, '');
 
     // Read the content from the file
@@ -264,16 +275,21 @@ export async function syncTemplatesToDb(prisma) {
     });
 
     if (existingTemplate) {
-      await prisma.templates.update({
-        where: { id: existingTemplate.id },
-        data: {
-          name: template.name,
-          filename: normalizedFilename,
-          regions: template.regions,
-          content_type: contentType,
-          content: content
-        }
-      });
+      if (mode === 'overwrite') {
+        await prisma.templates.update({
+          where: { id: existingTemplate.id },
+          data: {
+            name: template.name,
+            filename: normalizedFilename,
+            regions: template.regions,
+            content_type: contentType,
+            content: content
+          }
+        });
+        updated++;
+      } else {
+        skipped++;
+      }
     } else {
       await prisma.templates.create({
         data: {
@@ -284,53 +300,149 @@ export async function syncTemplatesToDb(prisma) {
           content: content
         }
       });
+      created++;
     }
   }
 
-  // ── CLEANUP STALE TEMPLATES ──
-  const allDbTemplates = await prisma.templates.findMany({
-    where: { filename: { notIn: syncedFilenames } },
-    select: { id: true, filename: true, content_type: true }
-  });
-
-  // Get all virtual theme slugs to exclude them from cleanup
-  const virtualThemes = await prisma.themes.findMany({
-    where: { source: 'virtual' },
-    select: { slug: true }
-  });
-  const virtualThemeSlugs = new Set(virtualThemes.map(t => t.slug));
-
-  const staleTemplates = allDbTemplates.filter(t => {
-    if (!t.filename) return false;
-    const templateSlug = t.filename.split('/')[0];
-    return !virtualThemeSlugs.has(templateSlug);
-  });
-
-  if (staleTemplates.length > 0) {
-    console.log(`Cleaning up ${staleTemplates.length} stale templates...`);
-    const { handleStaleTemplateMigration } = await import('./templateMigrationService.js');
-
-    const availableTemplates = await prisma.templates.findMany({
-      where: { filename: { in: syncedFilenames } }
+  // ── CLEANUP STALE TEMPLATES (only in overwrite mode) ──
+  if (mode === 'overwrite') {
+    const allDbTemplates = await prisma.templates.findMany({
+      where: { filename: { notIn: syncedFilenames } },
+      select: { id: true, filename: true, content_type: true }
     });
 
-    for (const stale of staleTemplates) {
-      try {
-        const canDelete = await handleStaleTemplateMigration(stale.id, availableTemplates);
+    const virtualThemes = await prisma.themes.findMany({
+      where: { source: 'virtual' },
+      select: { slug: true }
+    });
+    const virtualThemeSlugs = new Set(virtualThemes.map(t => t.slug));
 
-        if (canDelete) {
-          await prisma.templates.delete({ where: { id: stale.id } });
-          console.log(`Deleted stale template: ${stale.filename}`);
-        } else {
-          console.warn(`Preserved stale template ${stale.filename} as it still has records that couldn't be migrated.`);
+    const staleTemplates = allDbTemplates.filter(t => {
+      if (!t.filename) return false;
+      const templateSlug = t.filename.split('/')[0];
+      return !virtualThemeSlugs.has(templateSlug);
+    });
+
+    if (staleTemplates.length > 0) {
+      console.log(`Cleaning up ${staleTemplates.length} stale templates...`);
+      const { handleStaleTemplateMigration } = await import('./templateMigrationService.js');
+
+      const availableTemplates = await prisma.templates.findMany({
+        where: { filename: { in: syncedFilenames } }
+      });
+
+      for (const stale of staleTemplates) {
+        try {
+          const canDelete = await handleStaleTemplateMigration(stale.id, availableTemplates);
+
+          if (canDelete) {
+            await prisma.templates.delete({ where: { id: stale.id } });
+            console.log(`Deleted stale template: ${stale.filename}`);
+          } else {
+            console.warn(`Preserved stale template ${stale.filename} as it still has records that couldn't be migrated.`);
+          }
+        } catch (err) {
+          console.warn(`Could not delete stale template ${stale.filename}: ${err.message}`);
         }
-      } catch (err) {
-        console.warn(`Could not delete stale template ${stale.filename}: ${err.message}`);
       }
     }
   }
 
-  return templates;
+  return { templates, created, updated, skipped, mode };
 }
 
-export default { parseTemplate, extractRegions, scanTemplates, syncTemplatesToDb };
+/**
+ * Save current tenant's DB templates as a named theme.
+ * Creates a theme record and copies all templates with a theme-prefixed filename.
+ */
+export async function saveCurrentAsTheme(prisma, { name, description = '' }) {
+  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').substring(0, 50);
+
+  // Get all current templates (excluding ones already prefixed with another theme slug)
+  const allTemplates = await prisma.templates.findMany();
+
+  // Filter to "base" templates — filenames that don't start with a known theme slug
+  const existingThemes = await prisma.themes.findMany({ select: { slug: true } });
+  const themeSlugs = new Set(existingThemes.map(t => t.slug));
+
+  const baseTemplates = allTemplates.filter(t => {
+    if (!t.filename) return false;
+    const prefix = t.filename.split('/')[0];
+    // Keep templates that aren't prefixed with a theme slug (or are prefixed with 'default/')
+    return !themeSlugs.has(prefix) || prefix === 'default';
+  });
+
+  // Create or update the theme record
+  const themeConfig = {
+    name,
+    slug,
+    version: '1.0.0',
+    description,
+    inherits: null,
+    assets: { css: [], js: [] }
+  };
+
+  // Collect CSS assets from the base templates
+  const cssTemplates = baseTemplates.filter(t => t.filename.startsWith('default/css/'));
+  for (const css of cssTemplates) {
+    // default/css/variables.css → css/variables.css
+    const assetPath = css.filename.replace('default/', '');
+    themeConfig.assets.css.push(assetPath);
+  }
+
+  await prisma.themes.upsert({
+    where: { slug },
+    update: {
+      name,
+      description,
+      config: themeConfig,
+      source: 'saved',
+      updated_at: new Date()
+    },
+    create: {
+      slug,
+      name,
+      description,
+      version: '1.0.0',
+      config: themeConfig,
+      source: 'saved',
+      created_at: new Date(),
+      updated_at: new Date()
+    }
+  });
+
+  // Copy templates into theme-prefixed filenames
+  let copied = 0;
+  for (const tpl of baseTemplates) {
+    // For CSS: default/css/x.css → mytheme/css/x.css
+    // For templates: pages/homepage.njk → mytheme/pages/homepage.njk
+    const themeFilename = tpl.filename.startsWith('default/')
+      ? tpl.filename.replace('default/', `${slug}/`)
+      : `${slug}/${tpl.filename}`;
+
+    await prisma.templates.upsert({
+      where: { filename: themeFilename },
+      update: {
+        content: tpl.content,
+        name: tpl.name,
+        regions: tpl.regions,
+        content_type: tpl.content_type,
+        updated_at: new Date()
+      },
+      create: {
+        filename: themeFilename,
+        content: tpl.content,
+        name: tpl.name,
+        regions: tpl.regions,
+        content_type: tpl.content_type,
+        created_at: new Date(),
+        updated_at: new Date()
+      }
+    });
+    copied++;
+  }
+
+  return { slug, name, copied };
+}
+
+export default { parseTemplate, extractRegions, scanTemplates, syncTemplatesToDb, saveCurrentAsTheme };

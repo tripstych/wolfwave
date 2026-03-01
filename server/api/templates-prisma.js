@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { query } from '../db/connection.js';
 import { requireAuth, requireAdmin } from '../middleware/auth.js';
-import { scanTemplates, scanBlockTemplates, syncTemplatesToDb, parseTemplate } from '../services/templateParser.js';
+import { scanTemplates, scanBlockTemplates, syncTemplatesToDb, saveCurrentAsTheme, parseTemplate } from '../services/templateParser.js';
 import prisma from '../lib/prisma.js';
 import { error as logError } from '../lib/logger.js';
 
@@ -122,18 +122,50 @@ router.get('/content_type/blocks/list', requireAuth, async (req, res) => {
 
 /**
  * Sync templates from filesystem
+ * Query param ?mode=overwrite (default) or ?mode=merge
+ *   overwrite: replaces all DB templates with filesystem versions, deletes stale
+ *   merge: only inserts templates that don't already exist in DB
  */
 router.post('/sync', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const templates = await syncTemplatesToDb(prisma);
+    const mode = req.query.mode || req.body.mode || 'overwrite';
+    if (!['overwrite', 'merge'].includes(mode)) {
+      return res.status(400).json({ error: 'mode must be "overwrite" or "merge"' });
+    }
+    const result = await syncTemplatesToDb(prisma, { mode });
     res.json({
       success: true,
-      message: `Synced ${templates.length} templates`,
-      templates
+      message: `Synced ${result.templates.length} templates (mode: ${mode})`,
+      created: result.created,
+      updated: result.updated,
+      skipped: result.skipped,
+      mode: result.mode
     });
   } catch (err) {
     console.error('Sync templates error:', err);
     res.status(500).json({ error: 'Failed to sync templates' });
+  }
+});
+
+/**
+ * Save current templates as a named theme
+ */
+router.post('/save-as-theme', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { name, description } = req.body;
+    if (!name) {
+      return res.status(400).json({ error: 'Theme name is required' });
+    }
+    const result = await saveCurrentAsTheme(prisma, { name, description });
+    res.json({
+      success: true,
+      message: `Saved ${result.copied} templates as theme "${result.name}"`,
+      theme: { slug: result.slug, name: result.name },
+      copied: result.copied
+    });
+  } catch (err) {
+    console.error('Save as theme error:', err);
+    res.status(500).json({ error: 'Failed to save as theme' });
   }
 });
 
