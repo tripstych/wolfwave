@@ -400,6 +400,11 @@ const EMPTY_PACKAGE = {
   dimensions: { length: '', width: '', height: '', unit: 'inch' }
 };
 
+const EMPTY_CUSTOMS_ITEM = {
+  description: '', quantity: 1, value: { amount: '', currency: 'usd' },
+  harmonized_tariff_code: '', country_of_origin: 'US', sku: ''
+};
+
 function LabelsTab() {
   const [labels, setLabels] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -417,8 +422,17 @@ function LabelsTab() {
     ship_date: new Date().toISOString().split('T')[0],
     ship_to: { ...EMPTY_ADDRESS },
     ship_from: { ...EMPTY_ADDRESS },
-    packages: [{ ...EMPTY_PACKAGE, weight: { ...EMPTY_PACKAGE.weight }, dimensions: { ...EMPTY_PACKAGE.dimensions } }]
+    packages: [{ ...EMPTY_PACKAGE, weight: { ...EMPTY_PACKAGE.weight }, dimensions: { ...EMPTY_PACKAGE.dimensions } }],
+    customs: {
+      contents: 'merchandise',
+      non_delivery: 'return_to_sender',
+      customs_items: [{ ...EMPTY_CUSTOMS_ITEM, value: { ...EMPTY_CUSTOMS_ITEM.value } }]
+    }
   });
+
+  const isInternational = form.ship_from.country_code && form.ship_to.country_code &&
+    form.ship_from.country_code.toUpperCase() !== form.ship_to.country_code.toUpperCase() &&
+    form.ship_to.country_code !== '';
 
   useEffect(() => {
     loadLabels();
@@ -495,6 +509,32 @@ function LabelsTab() {
     setForm(f => ({ ...f, [which]: { ...f[which], [field]: value } }));
   };
 
+  const updateCustomsItem = (index, field, value) => {
+    setForm(f => {
+      const items = [...f.customs.customs_items];
+      const item = { ...items[index] };
+      if (field === 'value_amount') item.value = { ...item.value, amount: value };
+      else if (field === 'value_currency') item.value = { ...item.value, currency: value };
+      else item[field] = value;
+      items[index] = item;
+      return { ...f, customs: { ...f.customs, customs_items: items } };
+    });
+  };
+
+  const addCustomsItem = () => {
+    setForm(f => ({
+      ...f,
+      customs: { ...f.customs, customs_items: [...f.customs.customs_items, { ...EMPTY_CUSTOMS_ITEM, value: { ...EMPTY_CUSTOMS_ITEM.value } }] }
+    }));
+  };
+
+  const removeCustomsItem = (index) => {
+    setForm(f => ({
+      ...f,
+      customs: { ...f.customs, customs_items: f.customs.customs_items.filter((_, i) => i !== index) }
+    }));
+  };
+
   const updatePackage = (field, value) => {
     setForm(f => {
       const pkg = { ...f.packages[0] };
@@ -511,24 +551,37 @@ function LabelsTab() {
     setCreating(true);
     setCreatedLabel(null);
     try {
-      const payload = {
-        shipment: {
-          carrier_id: form.carrier_id,
-          service_code: form.service_code,
-          ship_date: form.ship_date,
-          ship_to: { ...form.ship_to },
-          ship_from: { ...form.ship_from },
-          packages: form.packages.map(pkg => ({
-            weight: { value: parseFloat(pkg.weight.value) || 0, unit: pkg.weight.unit },
-            dimensions: {
-              length: parseFloat(pkg.dimensions.length) || 0,
-              width: parseFloat(pkg.dimensions.width) || 0,
-              height: parseFloat(pkg.dimensions.height) || 0,
-              unit: pkg.dimensions.unit
-            }
-          }))
-        }
+      const shipment = {
+        carrier_id: form.carrier_id,
+        service_code: form.service_code,
+        ship_date: form.ship_date,
+        ship_to: { ...form.ship_to },
+        ship_from: { ...form.ship_from },
+        packages: form.packages.map(pkg => ({
+          weight: { value: parseFloat(pkg.weight.value) || 0, unit: pkg.weight.unit },
+          dimensions: {
+            length: parseFloat(pkg.dimensions.length) || 0,
+            width: parseFloat(pkg.dimensions.width) || 0,
+            height: parseFloat(pkg.dimensions.height) || 0,
+            unit: pkg.dimensions.unit
+          }
+        }))
       };
+      if (isInternational) {
+        shipment.customs = {
+          contents: form.customs.contents,
+          non_delivery: form.customs.non_delivery,
+          customs_items: form.customs.customs_items.map(item => ({
+            description: item.description,
+            quantity: parseInt(item.quantity) || 1,
+            value: { amount: parseFloat(item.value.amount) || 0, currency: item.value.currency },
+            harmonized_tariff_code: item.harmonized_tariff_code || undefined,
+            country_of_origin: item.country_of_origin || 'US',
+            sku: item.sku || undefined
+          }))
+        };
+      }
+      const payload = { shipment };
       const result = await api.post('/shipstation/labels', payload);
       setCreatedLabel(result);
       loadLabels();
@@ -721,6 +774,80 @@ function LabelsTab() {
               </div>
             </div>
           </div>
+
+          {/* Customs (international) */}
+          {isInternational && (
+            <div className="border border-amber-200 bg-amber-50 rounded-lg p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-medium text-amber-800">Customs Information (International Shipment)</h4>
+                <button type="button" onClick={addCustomsItem}
+                  className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-amber-600 text-white rounded hover:bg-amber-700">
+                  <Plus className="w-3 h-3" /> Add Item
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Contents</label>
+                  <select value={form.customs.contents} onChange={e => setForm(f => ({ ...f, customs: { ...f.customs, contents: e.target.value } }))}
+                    className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-lg">
+                    <option value="merchandise">Merchandise</option>
+                    <option value="gift">Gift</option>
+                    <option value="documents">Documents</option>
+                    <option value="returned_goods">Returned Goods</option>
+                    <option value="sample">Sample</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Non-Delivery</label>
+                  <select value={form.customs.non_delivery} onChange={e => setForm(f => ({ ...f, customs: { ...f.customs, non_delivery: e.target.value } }))}
+                    className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-lg">
+                    <option value="return_to_sender">Return to Sender</option>
+                    <option value="treat_as_abandoned">Treat as Abandoned</option>
+                  </select>
+                </div>
+              </div>
+              {form.customs.customs_items.map((item, i) => (
+                <div key={i} className="bg-white border border-gray-200 rounded-lg p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-gray-500">Item {i + 1}</span>
+                    {form.customs.customs_items.length > 1 && (
+                      <button type="button" onClick={() => removeCustomsItem(i)}
+                        className="text-red-500 hover:text-red-700"><X className="w-3.5 h-3.5" /></button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-6 gap-2">
+                    <input placeholder="Description *" value={item.description} required
+                      onChange={e => updateCustomsItem(i, 'description', e.target.value)}
+                      className="col-span-3 px-2.5 py-1.5 text-sm border border-gray-300 rounded-lg" />
+                    <input type="number" min="1" placeholder="Qty" value={item.quantity}
+                      onChange={e => updateCustomsItem(i, 'quantity', e.target.value)}
+                      className="px-2.5 py-1.5 text-sm border border-gray-300 rounded-lg" />
+                    <div className="col-span-2 flex gap-1">
+                      <input type="number" step="0.01" min="0" placeholder="Value *" value={item.value.amount} required
+                        onChange={e => updateCustomsItem(i, 'value_amount', e.target.value)}
+                        className="flex-1 px-2.5 py-1.5 text-sm border border-gray-300 rounded-lg" />
+                      <select value={item.value.currency} onChange={e => updateCustomsItem(i, 'value_currency', e.target.value)}
+                        className="w-16 px-1 py-1.5 text-sm border border-gray-300 rounded-lg">
+                        <option value="usd">USD</option>
+                        <option value="cad">CAD</option>
+                        <option value="eur">EUR</option>
+                        <option value="gbp">GBP</option>
+                      </select>
+                    </div>
+                    <input placeholder="HS Tariff Code" value={item.harmonized_tariff_code}
+                      onChange={e => updateCustomsItem(i, 'harmonized_tariff_code', e.target.value)}
+                      className="col-span-2 px-2.5 py-1.5 text-sm border border-gray-300 rounded-lg" />
+                    <input placeholder="Country of Origin" value={item.country_of_origin}
+                      onChange={e => updateCustomsItem(i, 'country_of_origin', e.target.value)}
+                      className="col-span-2 px-2.5 py-1.5 text-sm border border-gray-300 rounded-lg" />
+                    <input placeholder="SKU" value={item.sku}
+                      onChange={e => updateCustomsItem(i, 'sku', e.target.value)}
+                      className="col-span-2 px-2.5 py-1.5 text-sm border border-gray-300 rounded-lg" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           <div className="flex items-center gap-3 pt-2">
             <button type="submit" disabled={creating}
