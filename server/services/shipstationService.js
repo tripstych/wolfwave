@@ -209,6 +209,10 @@ export async function voidLabel(shipmentId) {
   return await request('put', `/v2/labels/${shipmentId}/void`);
 }
 
+export async function cancelShipment(shipmentId) {
+  return await request('get', `/v2/shipments/${shipmentId}/cancel`);
+}
+
 // ─── Carriers ────────────────────────────────────────────────────────
 
 export async function listCarriers() {
