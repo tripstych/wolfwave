@@ -27,7 +27,8 @@ import {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TEMPLATES_DIR = path.join(__dirname, '../../templates');
-const THEMES_DIR = path.join(__dirname, '../../themes');
+// Imported themes are staged in a temp directory, then synced to DB
+const THEMES_DIR = path.join(__dirname, '../../.theme-staging');
 const UPLOADS_DIR = path.join(__dirname, '../../uploads');
 
 // WP template hierarchy → WebWolf content types

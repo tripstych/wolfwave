@@ -12,7 +12,8 @@
       "Bash(find:*)",
       "Bash(node --check:*)",
       "Bash(node --version:*)",
-      "WebFetch(domain:www.shipengine.com)"
+      "WebFetch(domain:www.shipengine.com)",
+      "Bash(timeout:*)"
     ]
   }
 }

@@ -11,7 +11,8 @@ import { createTask, updateTask, completeTask } from '../lib/progressStore.js';
 import prisma from '../lib/prisma.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const THEMES_DIR = path.join(__dirname, '../../themes');
+// Imported themes are staged in a temp directory, then synced to DB
+const THEMES_DIR = path.join(__dirname, '../../.theme-staging');
 
 /**
  * Imports a theme from a live site by crawling its assets and using AI to structure templates.
