@@ -404,8 +404,10 @@ function ShipmentsTab() {
 function FulfillmentsTab() {
   const [fulfillments, setFulfillments] = useState([]);
   const [shipments, setShipments] = useState([]);
+  const [carriers, setCarriers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [shipmentsLoading, setShipmentsLoading] = useState(false);
+  const [carriersLoading, setCarriersLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({
@@ -416,7 +418,8 @@ function FulfillmentsTab() {
 
   useEffect(() => { 
     loadFulfillments(); 
-    loadShipments(); 
+    loadShipments();
+    loadCarriers();
   }, []);
 
   const loadShipments = async () => {
@@ -430,6 +433,20 @@ function FulfillmentsTab() {
       setShipments([]);
     } finally {
       setShipmentsLoading(false);
+    }
+  };
+
+  const loadCarriers = async () => {
+    setCarriersLoading(true);
+    try {
+      const data = await api.get('/shipstation/carriers');
+      const list = Array.isArray(data) ? data : (data?.carriers || []);
+      setCarriers(list);
+    } catch (err) {
+      console.error('Failed to load carriers:', err);
+      setCarriers([]);
+    } finally {
+      setCarriersLoading(false);
     }
   };
 
@@ -505,6 +522,11 @@ function FulfillmentsTab() {
           <RefreshCw className={`w-3.5 h-3.5 ${shipmentsLoading ? 'animate-spin' : ''}`} />
           {shipmentsLoading ? 'Loading...' : 'Refresh Shipments'}
         </button>
+        <button onClick={loadCarriers} disabled={carriersLoading}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50">
+          <RefreshCw className={`w-3.5 h-3.5 ${carriersLoading ? 'animate-spin' : ''}`} />
+          {carriersLoading ? 'Loading...' : 'Refresh Carriers'}
+        </button>
       </div>
 
       {showForm && (
@@ -537,9 +559,21 @@ function FulfillmentsTab() {
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Carrier Code *</label>
-              <input value={form.carrier_code} onChange={e => setForm(f => ({ ...f, carrier_code: e.target.value }))} required
-                placeholder="ups, fedex, usps..."
-                className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-lg" />
+              <select value={form.carrier_code} onChange={e => setForm(f => ({ ...f, carrier_code: e.target.value }))} required
+                className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-lg">
+                <option value="">Select a carrier...</option>
+                {carriers.map(carrier => (
+                  <option key={carrier.carrier_code} value={carrier.carrier_code}>
+                    {carrier.carrier_code} - {carrier.friendly_name || carrier.name || carrier.carrier_code}
+                  </option>
+                ))}
+              </select>
+              {carriersLoading && (
+                <div className="text-xs text-gray-500 mt-1">Loading carriers...</div>
+              )}
+              {!carriersLoading && carriers.length === 0 && (
+                <div className="text-xs text-gray-500 mt-1">No carriers available</div>
+              )}
             </div>
           </div>
           <div className="grid grid-cols-3 gap-3">
