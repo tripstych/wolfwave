@@ -425,6 +425,7 @@ router.delete('/admin/categories/:id', requireAuth, requireAdmin, async (req, re
 // ---- Moderation Rules CRUD ----
 
 router.get('/admin/moderation-rules', requireAuth, async (req, res) => {
+  console.log(`[CLASSIFIEDS DEBUG] /admin/moderation-rules route HIT, originalUrl: ${req.originalUrl}`);
   try {
     const rules = await prisma.classified_moderation_rules.findMany({ orderBy: { id: 'asc' } });
     res.json(rules);
@@ -467,10 +468,12 @@ router.delete('/admin/moderation-rules/:id', requireAuth, requireAdmin, async (r
 // ---- Single Ad by ID (must be AFTER all specific /admin/* routes) ----
 
 router.get('/admin/:id', requireAuth, async (req, res) => {
+  console.trace(`[CLASSIFIEDS DEBUG] /admin/:id hit with id="${req.params.id}", full URL: ${req.originalUrl}`);
   try {
     const adId = parseInt(req.params.id);
 
     if (!adId || isNaN(adId)) {
+      console.trace(`[CLASSIFIEDS DEBUG] Invalid ad ID: "${req.params.id}", originalUrl: ${req.originalUrl}`);
       return res.status(400).json({ error: 'Invalid ad ID' });
     }
 
