@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
 import api from '../lib/api';
-import { Package, Truck, Warehouse, TestTube, RefreshCw, Send, CheckCircle, XCircle, ChevronDown, ChevronUp, Globe, Tag } from 'lucide-react';
+import { Truck, Warehouse, TestTube, RefreshCw, CheckCircle, XCircle, ChevronDown, ChevronUp, Globe, Tag } from 'lucide-react';
 
 const tabs = [
-  { id: 'orders', label: 'Orders', icon: Package },
   { id: 'shipments', label: 'Shipments', icon: Truck },
   { id: 'carriers', label: 'Carriers', icon: Globe },
   { id: 'warehouses', label: 'Warehouses', icon: Warehouse },
@@ -11,7 +10,7 @@ const tabs = [
 ];
 
 export default function ShipStation() {
-  const [activeTab, setActiveTab] = useState('orders');
+  const [activeTab, setActiveTab] = useState('shipments');
   const [connected, setConnected] = useState(null);
   const [testing, setTesting] = useState(false);
   const [connectionError, setConnectionError] = useState(null);
@@ -95,218 +94,11 @@ export default function ShipStation() {
         </div>
       ) : (
         <>
-          {activeTab === 'orders' && <OrdersTab />}
           {activeTab === 'shipments' && <ShipmentsTab />}
           {activeTab === 'carriers' && <CarriersTab />}
           {activeTab === 'warehouses' && <WarehousesTab />}
           {activeTab === 'settings' && <SettingsTab />}
         </>
-      )}
-    </div>
-  );
-}
-
-// ─── Orders Tab ──────────────────────────────────────────────────────
-
-function OrdersTab() {
-  const [wolfwaveOrders, setWolfwaveOrders] = useState([]);
-  const [ssOrders, setSsOrders] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [pushing, setPushing] = useState({});
-  const [view, setView] = useState('wolfwave'); // 'wolfwave' or 'shipstation'
-  const [message, setMessage] = useState(null);
-
-  useEffect(() => {
-    loadOrders();
-  }, [view]);
-
-  const loadOrders = async () => {
-    setLoading(true);
-    try {
-      if (view === 'wolfwave') {
-        setWolfwaveOrders(data.orders || (Array.isArray(data) ? data : []));
-      } else {
-        const data = await api.get('/shipstation/orders?pageSize=50&sortBy=OrderDate&sortDir=DESC');
-        setSsOrders(data);
-      }
-    } catch (err) {
-      setMessage({ type: 'error', text: err.message });
-      setWolfwaveOrders([]); // Ensure it's an array on error
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const pushOrder = async (orderId) => {
-    setPushing(prev => ({ ...prev, [orderId]: true }));
-    try {
-      const result = await api.post(`/shipstation/orders/push/${orderId}`);
-      setMessage({ type: 'success', text: `Order pushed to ShipStation (SS ID: ${result.shipstation_order_id})` });
-    } catch (err) {
-      setMessage({ type: 'error', text: err.message });
-    } finally {
-      setPushing(prev => ({ ...prev, [orderId]: false }));
-    }
-  };
-
-  const pushAll = async () => {
-    const processableOrders = wolfwaveOrders.filter(o =>
-      ['processing', 'pending'].includes(o.status) && o.payment_status === 'paid'
-    );
-    if (processableOrders.length === 0) {
-      setMessage({ type: 'info', text: 'No paid orders to push' });
-      return;
-    }
-
-    const orderIds = processableOrders.map(o => o.id);
-    try {
-      const result = await api.post('/shipstation/orders/push-batch', { orderIds });
-      setMessage({ type: 'success', text: `Pushed ${result.success}/${result.total} orders` });
-    } catch (err) {
-      setMessage({ type: 'error', text: err.message });
-    }
-  };
-
-  const statusColor = (status) => {
-    const colors = {
-      pending: 'bg-yellow-100 text-yellow-800',
-      processing: 'bg-blue-100 text-blue-800',
-      shipped: 'bg-green-100 text-green-800',
-      completed: 'bg-green-100 text-green-800',
-      cancelled: 'bg-red-100 text-red-800',
-      awaiting_shipment: 'bg-blue-100 text-blue-800',
-      awaiting_payment: 'bg-yellow-100 text-yellow-800',
-    };
-    return colors[status] || 'bg-gray-100 text-gray-800';
-  };
-
-  return (
-    <div className="space-y-4">
-      {message && (
-        <div className={`p-3 rounded-lg text-sm ${
-          message.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' :
-          message.type === 'error' ? 'bg-red-50 text-red-800 border border-red-200' :
-          'bg-blue-50 text-blue-800 border border-blue-200'
-        }`}>
-          {message.text}
-          <button onClick={() => setMessage(null)} className="float-right font-bold">&times;</button>
-        </div>
-      )}
-
-      <div className="flex items-center justify-between">
-        <div className="flex gap-2">
-          <button
-            onClick={() => setView('wolfwave')}
-            className={`px-3 py-1.5 text-sm rounded-lg ${view === 'wolfwave' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
-          >
-            WolfWave Orders
-          </button>
-          <button
-            onClick={() => setView('shipstation')}
-            className={`px-3 py-1.5 text-sm rounded-lg ${view === 'shipstation' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
-          >
-            ShipStation Orders
-          </button>
-        </div>
-        <div className="flex gap-2">
-          {view === 'wolfwave' && (
-            <button onClick={pushAll} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-              <Send className="w-3.5 h-3.5" /> Push All Paid
-            </button>
-          )}
-          <button onClick={loadOrders} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">
-            <RefreshCw className="w-3.5 h-3.5" /> Refresh
-          </button>
-        </div>
-      </div>
-
-      {loading ? (
-        <div className="text-center py-8 text-gray-500">Loading orders...</div>
-      ) : view === 'wolfwave' ? (
-        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Order #</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Payment</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {wolfwaveOrders.map(order => (
-                <tr key={order.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 text-sm font-medium">{order.order_number}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{order.email}</td>
-                  <td className="px-4 py-3 text-sm font-medium">${parseFloat(order.total).toFixed(2)}</td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${statusColor(order.status)}`}>
-                      {order.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${statusColor(order.payment_status)}`}>
-                      {order.payment_status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={() => pushOrder(order.id)}
-                      disabled={pushing[order.id]}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-                    >
-                      {pushing[order.id] ? (
-                        <RefreshCw className="w-3 h-3 animate-spin" />
-                      ) : (
-                        <Send className="w-3 h-3" />
-                      )}
-                      Push
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {wolfwaveOrders.length === 0 && (
-                <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-500">No orders found</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Order #</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ship Date</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {(ssOrders?.orders || []).map(order => (
-                <tr key={order.orderId} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 text-sm font-medium">{order.orderNumber}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{order.customerEmail}</td>
-                  <td className="px-4 py-3 text-sm font-medium">${parseFloat(order.orderTotal || 0).toFixed(2)}</td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${statusColor(order.orderStatus)}`}>
-                      {order.orderStatus}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-600">
-                    {order.shipDate ? new Date(order.shipDate).toLocaleDateString() : '-'}
-                  </td>
-                </tr>
-              ))}
-              {(!ssOrders?.orders || ssOrders.orders.length === 0) && (
-                <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-500">No orders in ShipStation</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
       )}
     </div>
   );
