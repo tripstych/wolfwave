@@ -11,13 +11,23 @@ const tabs = [
 ];
 
 export default function ShipStation() {
-  const [activeTab, setActiveTab] = useState('shipments');
+  const tabIds = tabs.map(t => t.id);
+  const hashTab = () => { const h = window.location.hash.slice(1); return tabIds.includes(h) ? h : 'shipments'; };
+  const [activeTab, setActiveTab] = useState(hashTab);
   const [connected, setConnected] = useState(null);
   const [testing, setTesting] = useState(false);
   const [connectionError, setConnectionError] = useState(null);
 
+  const switchTab = (id) => {
+    setActiveTab(id);
+    window.location.hash = id;
+  };
+
   useEffect(() => {
+    const onHash = () => setActiveTab(hashTab());
+    window.addEventListener('hashchange', onHash);
     testConnection(true);
+    return () => window.removeEventListener('hashchange', onHash);
   }, []);
 
   const testConnection = async (silent = false) => {
@@ -71,7 +81,7 @@ export default function ShipStation() {
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => switchTab(tab.id)}
                 className={`flex items-center gap-2 pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${
                   activeTab === tab.id
                     ? 'border-blue-600 text-blue-600'
