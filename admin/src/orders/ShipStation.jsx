@@ -479,12 +479,14 @@ function LabelsTab() {
     setForm(f => ({ ...f, carrier_id: carrierId, service_code: '' }));
     setCarrierServices([]);
     if (!carrierId) return;
-    // Find carrier code from carrier_id
+    // Services are nested in the carrier object, or fetch the single carrier
     const carrier = carriers.find(c => c.carrier_id === carrierId);
-    if (carrier?.carrier_code) {
+    if (carrier?.services) {
+      setCarrierServices(carrier.services);
+    } else {
       try {
-        const data = await api.get(`/shipstation/carriers/${carrier.carrier_code}/services`);
-        setCarrierServices(Array.isArray(data) ? data : (data?.services || []));
+        const data = await api.get(`/shipstation/carriers/${carrierId}`);
+        setCarrierServices(data?.services || []);
       } catch (err) { console.error('Failed to load services:', err); }
     }
   };
@@ -819,7 +821,7 @@ function CarriersTab() {
     setLoading(true);
     try {
       const data = await api.get('/shipstation/carriers');
-      setCarriers(Array.isArray(data) ? data : []);
+      setCarriers(Array.isArray(data) ? data : (data?.carriers || []));
     } catch (err) {
       console.error('Failed to load carriers:', err);
       setCarriers([]);
@@ -828,18 +830,25 @@ function CarriersTab() {
     }
   };
 
-  const toggleCarrier = async (carrierCode) => {
-    if (expanded === carrierCode) {
+  const toggleCarrier = async (carrierId) => {
+    if (expanded === carrierId) {
       setExpanded(null);
       return;
     }
-    setExpanded(carrierCode);
-    if (!services[carrierCode]) {
-      try {
-        const data = await api.get(`/shipstation/carriers/${carrierCode}/services`);
-        setServices(prev => ({ ...prev, [carrierCode]: Array.isArray(data) ? data : [] }));
-      } catch (err) {
-        console.error('Failed to load services:', err);
+    setExpanded(carrierId);
+    if (!services[carrierId]) {
+      // Services may already be in the carrier object
+      const carrier = carriers.find(c => c.carrier_id === carrierId);
+      if (carrier?.services) {
+        setServices(prev => ({ ...prev, [carrierId]: carrier.services }));
+      } else {
+        try {
+          const data = await api.get(`/shipstation/carriers/${carrierId}`);
+          setServices(prev => ({ ...prev, [carrierId]: data?.services || [] }));
+        } catch (err) {
+          console.error('Failed to load carrier details:', err);
+          setServices(prev => ({ ...prev, [carrierId]: [] }));
+        }
       }
     }
   };
@@ -848,32 +857,34 @@ function CarriersTab() {
 
   return (
     <div className="space-y-3">
-      {carriers.map(carrier => (
-        <div key={carrier.code} className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+      {carriers.map(carrier => {
+        const id = carrier.carrier_id;
+        return (
+        <div key={id} className="bg-white border border-gray-200 rounded-lg overflow-hidden">
           <button
-            onClick={() => toggleCarrier(carrier.code)}
+            onClick={() => toggleCarrier(id)}
             className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50"
           >
             <div className="flex items-center gap-3">
               <Truck className="w-5 h-5 text-gray-400" />
               <div className="text-left">
-                <div className="font-medium text-sm">{carrier.name}</div>
-                <div className="text-xs text-gray-500">{carrier.code}</div>
+                <div className="font-medium text-sm">{carrier.friendly_name || carrier.name || carrier.carrier_code}</div>
+                <div className="text-xs text-gray-500">{carrier.carrier_code} &middot; {carrier.carrier_id}</div>
               </div>
             </div>
-            {expanded === carrier.code ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+            {expanded === id ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
           </button>
-          {expanded === carrier.code && (
+          {expanded === id && (
             <div className="border-t border-gray-200 px-4 py-3 bg-gray-50">
-              {services[carrier.code] ? (
+              {services[id] ? (
                 <div className="space-y-1">
-                  {services[carrier.code].map(svc => (
-                    <div key={svc.serviceCode} className="flex items-center justify-between py-1.5 text-sm">
+                  {services[id].map(svc => (
+                    <div key={svc.service_code || svc.serviceCode} className="flex items-center justify-between py-1.5 text-sm">
                       <span>{svc.name}</span>
-                      <code className="text-xs bg-gray-200 px-1.5 py-0.5 rounded">{svc.serviceCode}</code>
+                      <code className="text-xs bg-gray-200 px-1.5 py-0.5 rounded">{svc.service_code || svc.serviceCode}</code>
                     </div>
                   ))}
-                  {services[carrier.code].length === 0 && (
+                  {services[id].length === 0 && (
                     <p className="text-sm text-gray-500">No services available</p>
                   )}
                 </div>
@@ -883,7 +894,8 @@ function CarriersTab() {
             </div>
           )}
         </div>
-      ))}
+        );
+      })}
       {carriers.length === 0 && (
         <div className="text-center py-8 text-gray-500">No carriers configured in ShipStation</div>
       )}
