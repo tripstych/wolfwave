@@ -18,7 +18,7 @@ export default function MySites() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
-  const [noCustomer, setNoCustomer] = useState(false);
+  const [noSitesAccess, setNoSitesAccess] = useState(false);
   const [newSite, setNewSite] = useState({ name: '', subdomain: '' });
   const [isFetching, setIsFetching] = useState(false);
 
@@ -37,7 +37,7 @@ export default function MySites() {
       ]);
       setSites(sitesData || []);
       setLimits(limitsData);
-      setNoCustomer(!!limitsData?.no_customer);
+      setNoSitesAccess(!limitsData?.has_sites_access);
     } catch (err) {
       console.error('Failed to load sites:', err);
       toast.error('Failed to load your sites');
@@ -105,7 +105,7 @@ export default function MySites() {
           </h1>
           <p className="text-sm text-gray-500">Manage and launch your personal WolfWave sites.</p>
         </div>
-        {limits?.can_create && !noCustomer && (
+        {limits?.can_create && !noSitesAccess && (
           <button 
             onClick={() => setShowCreate(!showCreate)} 
             className="btn btn-primary"
@@ -116,8 +116,8 @@ export default function MySites() {
         )}
       </div>
 
-      {/* Limits Overview or No Customer Blurb */}
-      {noCustomer ? (
+      {/* Limits Overview or No Access Blurb */}
+      {noSitesAccess ? (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-8 text-center space-y-4">
           <div className="mx-auto w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center text-amber-600">
             <ShieldCheck className="w-6 h-6" />

@@ -122,7 +122,7 @@ router.get('/limits', requireCustomer, async (req, res) => {
         limit: 0,
         plan_name: 'No active license',
         can_create: false,
-        no_customer: true
+        has_sites_access: false
       });
     }
 
@@ -133,17 +133,40 @@ router.get('/limits', requireCustomer, async (req, res) => {
     
     console.log(`[CUSTOMER_TENANTS_LIMITS] Found ${currentTenants} tenants in current DB ${currentDb}`);
 
-    // For now, return a simple limit check based on current count
-    // TODO: Implement proper subscription limits in current database context
-    const limit = 10; // Default limit per customer per database
-    const canCreate = currentTenants < limit;
+    // Check if customer has any subscription/plan in the current database
+    // For now, we'll check if they have any existing sites or if they're in a special customer group
+    const hasSubscription = false; // TODO: Implement proper subscription check in current DB
     
+    // If no subscription and no sites, they shouldn't see sites panel
+    if (!hasSubscription && currentTenants === 0) {
+      console.log(`[CUSTOMER_TENANTS_LIMITS] Customer has no subscription and no sites - no sites access`);
+      return res.json({
+        used: 0,
+        limit: 0,
+        plan_name: 'No active license',
+        can_create: false,
+        has_sites_access: false
+      });
+    }
+
+    // If they have existing sites (legacy), show limited info
+    if (currentTenants > 0) {
+      return res.json({
+        used: currentTenants,
+        limit: currentTenants, // Can't create more without subscription
+        plan_name: 'Legacy Access',
+        can_create: false,
+        has_sites_access: true
+      });
+    }
+
+    // Default: no access
     res.json({
-      used: currentTenants,
-      limit: limit,
-      plan_name: 'Standard Plan',
-      can_create: canCreate,
-      is_reseller_pool: false
+      used: 0,
+      limit: 0,
+      plan_name: 'No active license',
+      can_create: false,
+      has_sites_access: false
     });
     
   } catch (err) {

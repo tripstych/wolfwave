@@ -19,8 +19,8 @@ export default function Sidebar({ isOpen, onClose }) {
       
       try {
         const limits = await api.get('/customer-tenants/limits');
-        // A user has licenses if they have a non-zero limit or already have sites
-        const valid = limits && !limits.no_customer && (
+        // A user has licenses if they have sites access
+        const valid = limits && limits.has_sites_access && (
           (typeof limits.limit === 'number' && limits.limit > 0) || 
           (typeof limits.used === 'number' && limits.used > 0)
         );
