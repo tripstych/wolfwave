@@ -404,10 +404,8 @@ function ShipmentsTab() {
 function FulfillmentsTab() {
   const [fulfillments, setFulfillments] = useState([]);
   const [shipments, setShipments] = useState([]);
-  const [carriers, setCarriers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [shipmentsLoading, setShipmentsLoading] = useState(false);
-  const [carriersLoading, setCarriersLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({
@@ -416,10 +414,34 @@ function FulfillmentsTab() {
     notify_customer: true, notify_order_source: true
   });
 
+  // Valid carrier codes for fulfillment creation from ShipStation docs
+  const validCarrierCodes = [
+    { code: 'access_worldwide', name: 'Access Worldwide' },
+    { code: 'apc', name: 'APC' },
+    { code: 'asendia', name: 'Asendia' },
+    { code: 'dhl_express', name: 'DHL Express' },
+    { code: 'dhl_express_australia', name: 'DHL Express Australia' },
+    { code: 'dhl_express_canada', name: 'DHL Express Canada' },
+    { code: 'dhl_express_uk', name: 'DHL Express UK' },
+    { code: 'dhl_express_worldwide', name: 'DHL Express Worldwide' },
+    { code: 'dhl_global_mail', name: 'DHL Global Mail' },
+    { code: 'dpd', name: 'DPD' },
+    { code: 'endicia', name: 'Endicia' },
+    { code: 'fedex', name: 'FedEx' },
+    { code: 'fedex_uk', name: 'FedEx UK' },
+    { code: 'firstmile', name: 'First Mile' },
+    { code: 'imex', name: 'IMEX' },
+    { code: 'newgistics', name: 'Newgistics' },
+    { code: 'ontrac', name: 'OnTrac' },
+    { code: 'rr_donnelley', name: 'RR Donnelley' },
+    { code: 'stamps_com', name: 'Stamps.com' },
+    { code: 'ups', name: 'UPS' },
+    { code: 'usps', name: 'USPS' }
+  ].sort((a, b) => a.name.localeCompare(b.name));
+
   useEffect(() => { 
     loadFulfillments(); 
     loadShipments();
-    loadCarriers();
   }, []);
 
   const loadShipments = async () => {
@@ -433,20 +455,6 @@ function FulfillmentsTab() {
       setShipments([]);
     } finally {
       setShipmentsLoading(false);
-    }
-  };
-
-  const loadCarriers = async () => {
-    setCarriersLoading(true);
-    try {
-      const data = await api.get('/shipstation/carriers');
-      const list = Array.isArray(data) ? data : (data?.carriers || []);
-      setCarriers(list);
-    } catch (err) {
-      console.error('Failed to load carriers:', err);
-      setCarriers([]);
-    } finally {
-      setCarriersLoading(false);
     }
   };
 
@@ -466,10 +474,23 @@ function FulfillmentsTab() {
   const handleShipmentChange = (shipmentId) => {
     setForm(f => ({ ...f, shipment_id: shipmentId }));
     
-    // Auto-populate carrier code from selected shipment
+    // Auto-populate carrier code from selected shipment if it's in our valid list
     const selectedShipment = shipments.find(s => s.shipment_id === shipmentId);
     if (selectedShipment?.carrier_code) {
-      setForm(f => ({ ...f, carrier_code: selectedShipment.carrier_code }));
+      // Check if the shipment's carrier code is in our valid list
+      const validCarrier = validCarrierCodes.find(c => c.code === selectedShipment.carrier_code);
+      if (validCarrier) {
+        setForm(f => ({ ...f, carrier_code: selectedShipment.carrier_code }));
+      } else {
+        // If not in valid list, try to find a close match or leave empty
+        const fallbackCarrier = validCarrierCodes.find(c => 
+          c.code.includes(selectedShipment.carrier_code.toLowerCase()) || 
+          selectedShipment.carrier_code.toLowerCase().includes(c.code)
+        );
+        if (fallbackCarrier) {
+          setForm(f => ({ ...f, carrier_code: fallbackCarrier.code }));
+        }
+      }
     }
   };
 
@@ -522,11 +543,6 @@ function FulfillmentsTab() {
           <RefreshCw className={`w-3.5 h-3.5 ${shipmentsLoading ? 'animate-spin' : ''}`} />
           {shipmentsLoading ? 'Loading...' : 'Refresh Shipments'}
         </button>
-        <button onClick={loadCarriers} disabled={carriersLoading}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50">
-          <RefreshCw className={`w-3.5 h-3.5 ${carriersLoading ? 'animate-spin' : ''}`} />
-          {carriersLoading ? 'Loading...' : 'Refresh Carriers'}
-        </button>
       </div>
 
       {showForm && (
@@ -562,18 +578,12 @@ function FulfillmentsTab() {
               <select value={form.carrier_code} onChange={e => setForm(f => ({ ...f, carrier_code: e.target.value }))} required
                 className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-lg">
                 <option value="">Select a carrier...</option>
-                {carriers.map(carrier => (
-                  <option key={carrier.carrier_code} value={carrier.carrier_code}>
-                    {carrier.carrier_code} - {carrier.friendly_name || carrier.name || carrier.carrier_code}
+                {validCarrierCodes.map(carrier => (
+                  <option key={carrier.code} value={carrier.code}>
+                    {carrier.code} - {carrier.name}
                   </option>
                 ))}
               </select>
-              {carriersLoading && (
-                <div className="text-xs text-gray-500 mt-1">Loading carriers...</div>
-              )}
-              {!carriersLoading && carriers.length === 0 && (
-                <div className="text-xs text-gray-500 mt-1">No carriers available</div>
-              )}
             </div>
           </div>
           <div className="grid grid-cols-3 gap-3">

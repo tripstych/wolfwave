@@ -7,6 +7,7 @@ import { AuthProvider } from './context/AuthContext';
 import { ContentTypesProvider } from './context/ContentTypesContext';
 import { SettingsProvider } from './context/SettingsContext';
 import { TranslationProvider } from './context/TranslationContext';
+import { CustomerAuthProvider } from './context/CustomerAuthContext';
 import './index.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -19,14 +20,16 @@ ReactDOM.createRoot(document.getElementById('root')).render(
       }}
     >
       <TranslationProvider>
-        <AuthProvider>
-          <SettingsProvider>
-            <ContentTypesProvider>
-              <App />
-              <Toaster position="top-right" richColors />
-            </ContentTypesProvider>
-          </SettingsProvider>
-        </AuthProvider>
+        <CustomerAuthProvider>
+          <AuthProvider>
+            <SettingsProvider>
+              <ContentTypesProvider>
+                <App />
+                <Toaster position="top-right" richColors />
+              </ContentTypesProvider>
+            </SettingsProvider>
+          </AuthProvider>
+        </CustomerAuthProvider>
       </TranslationProvider>
     </BrowserRouter>
   </React.StrictMode>
