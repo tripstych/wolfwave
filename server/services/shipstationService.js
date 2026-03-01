@@ -215,7 +215,7 @@ export async function voidLabel(shipmentId) {
 // ─── Carriers ────────────────────────────────────────────────────────
 
 export async function listCarriers() {
-  return await request('get', '/carriers');
+  return await request('get', '/v2/carriers');
 }
 
 export async function getCarrier(carrierCode) {
@@ -319,7 +319,7 @@ export async function listTags() {
 // ─── Test Connection ─────────────────────────────────────────────────
 
 export async function testConnection() {
-  return await request('get', '/warehouses');
+  return await request('get', '/v2/carriers');
 }
 
 export default {
