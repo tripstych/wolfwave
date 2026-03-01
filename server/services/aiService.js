@@ -1277,19 +1277,29 @@ export async function draftThemePlan(industry) {
     "slug": "kebab-case-slug",
     "name": "Professional Display Name",
     "description": "A 1-sentence marketing description of this theme.",
-    "scaffold": "chosen-scaffold-filename",
+    "scaffolds": [
+      {
+        "file": "homepage-scaffold.njk",
+        "content": {
+          "headline": "Compelling main title for the homepage",
+          "... all other regions for the homepage scaffold ..."
+        }
+      },
+      {
+        "file": "about-scaffold.njk",
+        "content": {
+          "page_title": "About Our Company",
+          "... all other regions for the about page scaffold ..."
+        }
+      }
+    ],
     "css_variables": {
       "--nano-brand": "#hex (Primary brand color)",
       "--nano-secondary": "#hex (Accent or secondary color)",
       "--nano-bg": "#hex (Page background color)",
       "--nano-text": "#hex (Main text color)"
     },
-    "content": {
-      "headline": "Compelling main title",
-      "subtext": "Engaging subtitle",
-      "hero_image_prompt": "A detailed DALL-E 3 prompt for a hero image.",
-      "... all other regions from the chosen scaffold ..."
-    }
+    "hero_image_prompt": "A detailed DALL-E 3 prompt for a hero image."
   }`;
 
   const plan = await generateText(systemPrompt, `Create a comprehensive theme strategy for: ${industry}`);
@@ -1309,53 +1319,55 @@ export async function draftThemePlan(industry) {
  */
 export async function generateThemeFromIndustry(industry, existingPlan = null) {
   // 1. Get scaffolds (always needed for mapping)
-  const scaffolds = await getAvailableScaffolds();
+  const allScaffolds = await getAvailableScaffolds();
 
   // 2. Get the plan (either from draft or generate a new one)
   const themeData = existingPlan || await draftThemePlan(industry);
 
   // 3. Image Generation
   let heroImagePath = '/images/placeholders/1920x600.svg';
-  if (themeData.content?.hero_image_prompt) {
+  if (themeData.hero_image_prompt) {
     try {
-      heroImagePath = await generateImage(themeData.content.hero_image_prompt);
+      heroImagePath = await generateImage(themeData.hero_image_prompt);
     } catch (e) {
       console.warn("Skipping image generation due to error.");
     }
   }
 
-  // 4. Read the selected scaffold file directly from disk
-  const selectedScaffold = scaffolds.find(s => s.name === themeData.scaffold) || scaffolds[0];
+  const templates = {};
+  const demoContents = {};
   const scaffoldsDir = path.join(__dirname, '../../templates/scaffolds');
-  const scaffoldContent = await fs.promises.readFile(
-    path.join(scaffoldsDir, selectedScaffold.filename), 'utf8'
-  );
 
-  // 5. Build the demo content object (strip the DALL-E prompt, add the generated image)
-  const demoContent = { ...(themeData.content || {}) };
-  delete demoContent.hero_image_prompt;
-  if (!demoContent.hero_image) {
-    demoContent.hero_image = heroImagePath;
+  // 4. Process each scaffold in the plan
+  for (const scaffold of themeData.scaffolds) {
+    const selectedScaffold = allScaffolds.find(s => s.name === scaffold.file.replace('.njk', ''));
+    if (!selectedScaffold) {
+      console.warn(`Scaffold ${scaffold.file} not found, skipping.`);
+      continue;
+    }
+
+    const scaffoldContent = await fs.promises.readFile(
+      path.join(scaffoldsDir, selectedScaffold.filename), 'utf8'
+    );
+    
+    const pageName = selectedScaffold.name.replace(/-/g, '_');
+    templates[`pages/${pageName}.njk`] = scaffoldContent;
+
+    const demoContent = { ...(scaffold.content || {}) };
+    if (pageName === 'homepage' && !demoContent.hero_image) {
+      demoContent.hero_image = heroImagePath;
+    }
+    demoContents[pageName] = demoContent;
   }
 
-  // 6. Map --nano-* CSS variables to --cms-* that variables.css expects
+  // 5. Map --nano-* CSS variables to --cms-* that variables.css expects
   const vars = themeData.css_variables || {};
   const brand = vars['--nano-brand'] || '#2563eb';
   const secondary = vars['--nano-secondary'] || '#64748b';
   const bg = vars['--nano-bg'] || '#ffffff';
   const text = vars['--nano-text'] || '#1e293b';
 
-  return {
-    slug: themeData.slug,
-    name: themeData.name,
-    description: themeData.description,
-    scaffold: themeData.scaffold,
-    css_variables: themeData.css_variables,
-    demoContent,
-    templates: {
-      // Use the scaffold's Nunjucks source directly as the homepage template
-      'pages/homepage.njk': scaffoldContent,
-      'assets/css/style.css': `:root {
+  templates['assets/css/style.css'] = `:root {
   --cms-primary-color: ${brand};
   --cms-primary-dark-color: ${brand};
   --cms-secondary-color: ${secondary};
@@ -1364,8 +1376,15 @@ export async function generateThemeFromIndustry(industry, existingPlan = null) {
 }
 .btn-primary { background-color: var(--color-primary); color: white; }
 .btn-outline { border-color: var(--color-secondary); color: var(--color-secondary); }
-/* AI Generated Theme: ${themeData.name} (${themeData.scaffold}) */
-`
-    }
+/* AI Generated Theme: ${themeData.name} */
+`;
+
+  return {
+    slug: themeData.slug,
+    name: themeData.name,
+    description: themeData.description,
+    css_variables: themeData.css_variables,
+    demoContents,
+    templates
   };
 }

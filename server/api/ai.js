@@ -59,9 +59,9 @@ router.post('/generate-theme', requireAuth, requireAdmin, async (req, res) => {
 
     console.log(`[AI-DEBUG] 🚀 Generating VIRTUAL theme for: "${industry || plan.name}"`);
 
-    // 1. Generate the theme data (content + templates + demoContent)
+    // 1. Generate the theme data (content + templates + demoContents)
     const themeData = await generateThemeFromIndustry(industry, plan);
-    const { slug, templates, name, demoContent } = themeData;
+    const { slug, templates, name, demoContents } = themeData;
 
     // 2. Flush previous virtual theme (templates + themes record)
     const previousTheme = await prisma.settings.findUnique({ where: { setting_key: 'active_theme' } });
@@ -75,7 +75,7 @@ router.post('/generate-theme', requireAuth, requireAdmin, async (req, res) => {
     }
 
     // 3. Save templates to the database (VIRTUAL storage)
-    let homepageTemplateId = null;
+    const templateIds = {};
     for (const [relativePath, content] of Object.entries(templates)) {
       const dbFilename = `${slug}/${relativePath}`;
       const contentType = relativePath.startsWith('pages/') ? 'pages' : 'assets';
@@ -98,86 +98,77 @@ router.post('/generate-theme', requireAuth, requireAdmin, async (req, res) => {
         }
       });
 
-      if (relativePath === 'pages/homepage.njk') {
-        homepageTemplateId = tpl.id;
-      }
-      console.log(`[AI-DEBUG] 💾 Saved virtual template: ${dbFilename}`);
+      const pageName = path.basename(relativePath, '.njk');
+      templateIds[pageName] = tpl.id;
+      console.log(`[AI-DEBUG] 💾 Saved virtual template: ${dbFilename} (ID: ${tpl.id})`);
     }
 
-    // 3. Store demo content in a content + page record so the template can render it
-    if (homepageTemplateId && demoContent) {
-      const homepageSlug = '/pages/homepage';
-
-      // Upsert content record with AI-generated demo data
-      const existingContent = await prisma.content.findUnique({ where: { slug: homepageSlug } });
-
-      let contentRecord;
-      if (existingContent) {
-        contentRecord = await prisma.content.update({
-          where: { slug: homepageSlug },
-          data: {
-            data: demoContent,
-            title: name || 'Homepage',
-            updated_at: new Date()
-          }
-        });
-      } else {
-        contentRecord = await prisma.content.create({
-          data: {
-            module: 'pages',
-            title: name || 'Homepage',
-            slug: homepageSlug,
-            data: demoContent,
-            created_at: new Date(),
-            updated_at: new Date()
-          }
-        });
+    // 4. Store demo content in content + page records
+    let homePageId = null;
+    for (const [pageName, demoContent] of Object.entries(demoContents)) {
+      const templateId = templateIds[pageName];
+      if (!templateId) {
+        console.warn(`No template ID found for page '${pageName}', skipping content creation.`);
+        continue;
       }
 
-      // Upsert page record linking template and content
-      const existingPage = await prisma.pages.findFirst({
-        where: { content_id: contentRecord.id }
+      const pageSlug = `/pages/${pageName}`;
+      const pageTitle = name || pageName.charAt(0).toUpperCase() + pageName.slice(1);
+
+      // Upsert content record
+      const contentRecord = await prisma.content.upsert({
+        where: { slug: pageSlug },
+        update: { data: demoContent, title: pageTitle, updated_at: new Date() },
+        create: {
+          module: 'pages',
+          title: pageTitle,
+          slug: pageSlug,
+          data: demoContent,
+          created_at: new Date(),
+          updated_at: new Date()
+        }
       });
 
-      let pageRecord;
-      if (existingPage) {
-        pageRecord = await prisma.pages.update({
-          where: { id: existingPage.id },
-          data: {
-            template_id: homepageTemplateId,
-            title: name || 'Homepage',
-            status: 'published',
-            updated_by: req.user?.id || null
-          }
-        });
-      } else {
-        pageRecord = await prisma.pages.create({
-          data: {
-            template_id: homepageTemplateId,
-            content_id: contentRecord.id,
-            title: name || 'Homepage',
-            content_type: 'pages',
-            status: 'published',
-            meta_title: name || 'Homepage',
-            meta_description: themeData.description || '',
-            robots: 'index, follow',
-            created_by: req.user?.id || null,
-            updated_by: req.user?.id || null
-          }
-        });
+      // Upsert page record
+      const pageRecord = await prisma.pages.upsert({
+        where: { content_id: contentRecord.id },
+        update: {
+          template_id: templateId,
+          title: pageTitle,
+          status: 'published',
+          updated_by: req.user?.id || null
+        },
+        create: {
+          template_id: templateId,
+          content_id: contentRecord.id,
+          title: pageTitle,
+          content_type: 'pages',
+          status: 'published',
+          meta_title: pageTitle,
+          meta_description: themeData.description || '',
+          robots: 'index, follow',
+          created_by: req.user?.id || null,
+          updated_by: req.user?.id || null
+        }
+      });
+      
+      if (pageName === 'homepage') {
+        homePageId = pageRecord.id;
       }
+      console.log(`[AI-DEBUG] 📄 Content for '${pageName}' saved (content_id: ${contentRecord.id}, page_id: ${pageRecord.id})`);
+    }
 
-      // Set this page as the homepage
+    // Set homepage if it exists
+    if (homePageId) {
       await prisma.settings.upsert({
         where: { setting_key: 'home_page_id' },
-        update: { setting_value: String(pageRecord.id) },
-        create: { setting_key: 'home_page_id', setting_value: String(pageRecord.id) }
+        update: { setting_value: String(homePageId) },
+        create: { setting_key: 'home_page_id', setting_value: String(homePageId) }
       });
-
-      console.log(`[AI-DEBUG] 📄 Homepage content saved (content_id: ${contentRecord.id}, page_id: ${pageRecord.id})`);
+      console.log(`[AI-DEBUG] 🏠 Homepage set to page ID: ${homePageId}`);
     }
 
-    // 4. Create/update themes record for this virtual theme
+    // 5. Create/update themes record for this virtual theme
     await prisma.themes.upsert({
       where: { slug },
       update: {
@@ -203,14 +194,14 @@ router.post('/generate-theme', requireAuth, requireAdmin, async (req, res) => {
     // Deactivate all other themes
     await prisma.themes.updateMany({ where: { slug: { not: slug } }, data: { is_active: false } });
 
-    // 5. Update the active theme setting
+    // 6. Update the active theme setting
     await prisma.settings.upsert({
       where: { setting_key: 'active_theme' },
       update: { setting_value: slug },
       create: { setting_key: 'active_theme', setting_value: slug }
     });
 
-    // 6. Clear cache so the new virtual theme is picked up
+    // 7. Clear cache so the new virtual theme is picked up
     const { clearThemeCache } = await import('../services/themeResolver.js');
     clearThemeCache();
 
