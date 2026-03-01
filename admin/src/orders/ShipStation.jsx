@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../lib/api';
+import { toast } from 'sonner';
 import { Truck, Warehouse, TestTube, RefreshCw, CheckCircle, XCircle, ChevronDown, ChevronUp, Globe, Tag, Ban, Plus, X, FileText, Download } from 'lucide-react';
 
 const tabs = [
@@ -136,7 +137,7 @@ function ShipmentsTab() {
       loadShipments();
     } catch (err) {
       console.error('Failed to cancel shipment:', err);
-      alert(err.response?.data?.error || 'Failed to cancel shipment');
+      toast.error(err.response?.data?.error || 'Failed to cancel shipment');
     } finally {
       setCancelling(null);
     }
@@ -179,7 +180,7 @@ function ShipmentsTab() {
       setNewTagName('');
       loadTags();
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to create tag');
+      toast.error(err.response?.data?.error || 'Failed to create tag');
     } finally {
       setCreatingTag(false);
     }
@@ -192,7 +193,7 @@ function ShipmentsTab() {
       loadTags();
       loadShipments(); // refresh to update tag displays
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to delete tag');
+      toast.error(err.response?.data?.error || 'Failed to delete tag');
     }
   };
 
@@ -203,7 +204,7 @@ function ShipmentsTab() {
       setTaggingShipment(null);
       loadShipments();
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to add tag');
+      toast.error(err.response?.data?.error || 'Failed to add tag');
     } finally {
       setTagAction(null);
     }
@@ -215,7 +216,7 @@ function ShipmentsTab() {
       await api.delete(`/shipstation/shipments/${shipmentId}/tags/${encodeURIComponent(tagName)}`);
       loadShipments();
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to remove tag');
+      toast.error(err.response?.data?.error || 'Failed to remove tag');
     } finally {
       setTagAction(null);
     }
@@ -596,7 +597,7 @@ function LabelsTab() {
       setCreatedLabel(result);
       loadLabels();
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to create label');
+      toast.error(err.response?.data?.error || 'Failed to create label');
     } finally {
       setCreating(false);
     }
@@ -609,7 +610,7 @@ function LabelsTab() {
       await api.put(`/shipstation/labels/${labelId}/void`);
       loadLabels();
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to void label');
+      toast.error(err.response?.data?.error || 'Failed to void label');
     } finally {
       setVoiding(null);
     }
