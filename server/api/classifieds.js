@@ -334,11 +334,43 @@ router.get('/admin/all', requireAuth, async (req, res) => {
   }
 });
 
+// ---- Classifieds Settings ----
+
+router.get('/admin/settings', requireAuth, async (req, res) => {
+  try {
+    const settings = await getClassifiedSettings();
+    res.json({
+      classifieds_enabled: settings.classifieds_enabled || 'true',
+      classifieds_auto_approve: settings.classifieds_auto_approve || 'false',
+      classifieds_expiry_days: settings.classifieds_expiry_days || '30',
+      classifieds_max_images: settings.classifieds_max_images || '8',
+      classifieds_ai_moderation: settings.classifieds_ai_moderation || 'false',
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.put('/admin/settings', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const keys = ['classifieds_enabled', 'classifieds_auto_approve', 'classifieds_expiry_days', 'classifieds_max_images', 'classifieds_ai_moderation'];
+    for (const key of keys) {
+      if (req.body[key] !== undefined) {
+        await query(
+          `INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = ?`,
+          [key, String(req.body[key]), String(req.body[key])]
+        );
+      }
+    }
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get('/admin/:id', requireAuth, async (req, res) => {
   try {
-    console.log('[CLASSIFIEDS_ADMIN_DETAIL] ID param:', req.params.id);
     const adId = parseInt(req.params.id);
-    console.log('[CLASSIFIEDS_ADMIN_DETAIL] Parsed ID:', adId);
     
     if (!adId || isNaN(adId)) {
       return res.status(400).json({ error: 'Invalid ad ID' });
@@ -354,7 +386,6 @@ router.get('/admin/:id', requireAuth, async (req, res) => {
     if (!ad) return res.status(404).json({ error: 'Ad not found' });
     res.json(ad);
   } catch (err) {
-    console.error('[CLASSIFIEDS_ADMIN_DETAIL] Error:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -474,40 +505,6 @@ router.post('/admin/moderation-rules', requireAuth, requireAdmin, async (req, re
 router.delete('/admin/moderation-rules/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
     await prisma.classified_moderation_rules.delete({ where: { id: parseInt(req.params.id) } });
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ---- Classifieds Settings ----
-
-router.get('/admin/settings', requireAuth, async (req, res) => {
-  try {
-    const settings = await getClassifiedSettings();
-    res.json({
-      classifieds_enabled: settings.classifieds_enabled || 'true',
-      classifieds_auto_approve: settings.classifieds_auto_approve || 'false',
-      classifieds_expiry_days: settings.classifieds_expiry_days || '30',
-      classifieds_max_images: settings.classifieds_max_images || '8',
-      classifieds_ai_moderation: settings.classifieds_ai_moderation || 'false',
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-router.put('/admin/settings', requireAuth, requireAdmin, async (req, res) => {
-  try {
-    const keys = ['classifieds_enabled', 'classifieds_auto_approve', 'classifieds_expiry_days', 'classifieds_max_images', 'classifieds_ai_moderation'];
-    for (const key of keys) {
-      if (req.body[key] !== undefined) {
-        await query(
-          `INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = ?`,
-          [key, String(req.body[key]), String(req.body[key])]
-        );
-      }
-    }
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
