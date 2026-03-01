@@ -17,6 +17,7 @@ export default function Pages() {
       render: (value, row) => (
         <div className="flex flex-col">
           <button 
+            id="pages-edit-page-"
             onClick={() => navigate(`/pages/${row.id}`)}
             className="text-left font-medium text-primary-600 hover:text-primary-900 hover:underline transition-colors"
           >
@@ -80,6 +81,7 @@ export default function Pages() {
         <h1 className="text-2xl font-bold text-gray-900">{_('pages.list_title', 'Pages')}</h1>
         <div className="flex items-center gap-2">
           <button 
+            id="pages-clear-cache"
             onClick={handleClearCache}
             className="btn btn-outline border-gray-300 text-gray-700 hover:bg-gray-50"
             title="Clear theme and template cache"

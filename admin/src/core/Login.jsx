@@ -75,6 +75,7 @@ export default function Login() {
             </div>
 
             <button
+              id="login-submit-btn"
               type="submit"
               disabled={loading}
               className="btn btn-primary w-full"

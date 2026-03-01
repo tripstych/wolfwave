@@ -103,7 +103,7 @@ export default function ClassifiedList() {
             className="input flex-1"
             placeholder={_('classifieds.search_placeholder', 'Search ads...')}
           />
-          <button type="submit" className="btn btn-secondary">
+          <button id="classifieds-search-submit" type="submit" className="btn btn-secondary">
             <Search className="w-4 h-4" />
           </button>
         </form>
@@ -184,10 +184,10 @@ export default function ClassifiedList() {
                       </Link>
                       {ad.status === 'pending_review' && (
                         <>
-                          <button onClick={() => handleApprove(ad.id)} className="p-1.5 text-green-500 hover:text-green-700 rounded" title={_('common.approve', "Approve")}>
+                          <button id="classifieds-approve-ad-" onClick={() => handleApprove(ad.id)} className="p-1.5 text-green-500 hover:text-green-700 rounded" title={_('common.approve', "Approve")}>
                             <Check className="w-4 h-4" />
                           </button>
-                          <button onClick={() => handleReject(ad.id)} className="p-1.5 text-red-500 hover:text-red-700 rounded" title={_('common.reject', "Reject")}>
+                          <button id="classifieds-reject-ad-" onClick={() => handleReject(ad.id)} className="p-1.5 text-red-500 hover:text-red-700 rounded" title={_('common.reject', "Reject")}>
                             <X className="w-4 h-4" />
                           </button>
                         </>

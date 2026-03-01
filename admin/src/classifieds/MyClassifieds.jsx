@@ -163,7 +163,7 @@ export default function MyClassifieds() {
           <h1 className="text-2xl font-bold text-gray-900">{_('classifieds.my_ads_title', 'My Classified Ads')}</h1>
           <p className="text-sm text-gray-500 mt-1">{ads.length} {_('classifieds.ads_count', 'ad(s)')}</p>
         </div>
-        <button onClick={openNewForm} className="btn btn-primary">
+        <button id="classifieds-post-new-ad" onClick={openNewForm} className="btn btn-primary">
           <Plus className="w-4 h-4 mr-2" /> {_('classifieds.post_new', 'Post New Ad')}
         </button>
       </div>
@@ -173,7 +173,7 @@ export default function MyClassifieds() {
         <div className="card p-6 space-y-4 ring-2 ring-primary-200">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-gray-900">{editingId ? _('classifieds.edit_ad', 'Edit Ad') : _('classifieds.post_new_title', 'Post New Ad')}</h2>
-            <button onClick={() => { setShowForm(false); setEditingId(null); }} className="text-gray-400 hover:text-gray-600">
+            <button id="classifieds-form-close" onClick={() => { setShowForm(false); setEditingId(null); }} className="text-gray-400 hover:text-gray-600">
               <X className="w-5 h-5" />
             </button>
           </div>
@@ -215,7 +215,7 @@ export default function MyClassifieds() {
               <label className="label">{_('common.images', 'Images')}</label>
               <div className="flex gap-2 mb-2">
                 <input type="url" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addImage())} className="input flex-1" placeholder={_('classifieds.form.image_placeholder', "Paste image URL...")} />
-                <button type="button" onClick={addImage} className="btn btn-secondary">
+                <button id="classifieds-add-image" type="button" onClick={addImage} className="btn btn-secondary">
                   <ImageIcon className="w-4 h-4" />
                 </button>
               </div>
@@ -224,7 +224,7 @@ export default function MyClassifieds() {
                   {form.images.map((img, i) => (
                     <div key={i} className="relative group">
                       <img src={img} alt="" className="w-20 h-20 object-cover rounded border" />
-                      <button type="button" onClick={() => removeImage(i)} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button id="classifieds-remove-image-" type="button" onClick={() => removeImage(i)} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity">
                         <X className="w-3 h-3" />
                       </button>
                     </div>
@@ -234,10 +234,10 @@ export default function MyClassifieds() {
             </div>
 
             <div className="flex gap-3 pt-2">
-              <button type="submit" disabled={submitting} className="btn btn-primary">
+              <button id="classifieds-submit-form" type="submit" disabled={submitting} className="btn btn-primary">
                 {submitting ? _('common.submitting', 'Submitting...') : editingId ? _('classifieds.update_ad', 'Update Ad') : _('classifieds.post_ad', 'Post Ad')}
               </button>
-              <button type="button" onClick={() => { setShowForm(false); setEditingId(null); }} className="btn btn-secondary">{_('common.cancel', 'Cancel')}</button>
+              <button id="classifieds-cancel-form" type="button" onClick={() => { setShowForm(false); setEditingId(null); }} className="btn btn-secondary">{_('common.cancel', 'Cancel')}</button>
             </div>
           </form>
         </div>
@@ -248,7 +248,7 @@ export default function MyClassifieds() {
         <div className="text-center py-16">
           <Tag className="w-12 h-12 text-gray-300 mx-auto mb-3" />
           <p className="text-gray-500 mb-4">{_('classifieds.empty_my_ads', "You haven't posted any classified ads yet.")}</p>
-          <button onClick={openNewForm} className="btn btn-primary">
+          <button id="classifieds-post-first-ad" onClick={openNewForm} className="btn btn-primary">
             <Plus className="w-4 h-4 mr-2" /> {_('classifieds.post_first', 'Post Your First Ad')}
           </button>
         </div>
@@ -283,16 +283,16 @@ export default function MyClassifieds() {
 
                     <div className="flex items-center gap-2 mt-3">
                       {ad.status === 'approved' && (
-                        <button onClick={() => handleMarkSold(ad.id)} className="text-xs btn btn-secondary py-1 px-2">
+                        <button id="classifieds-mark-sold-" onClick={() => handleMarkSold(ad.id)} className="text-xs btn btn-secondary py-1 px-2">
                           <ShoppingBag className="w-3 h-3 mr-1" /> {_('classifieds.mark_sold', 'Mark Sold')}
                         </button>
                       )}
                       {(ad.status === 'approved' || ad.status === 'pending_review' || ad.status === 'rejected') && (
-                        <button onClick={() => openEditForm(ad)} className="text-xs btn btn-secondary py-1 px-2">
+                        <button id="classifieds-edit-ad-" onClick={() => openEditForm(ad)} className="text-xs btn btn-secondary py-1 px-2">
                           <Edit2 className="w-3 h-3 mr-1" /> {_('common.edit', 'Edit')}
                         </button>
                       )}
-                      <button onClick={() => handleDelete(ad.id)} className="text-xs btn btn-secondary py-1 px-2 text-red-500">
+                      <button id="classifieds-delete-ad-" onClick={() => handleDelete(ad.id)} className="text-xs btn btn-secondary py-1 px-2 text-red-500">
                         <Trash2 className="w-3 h-3 mr-1" /> {_('common.delete', 'Delete')}
                       </button>
                     </div>

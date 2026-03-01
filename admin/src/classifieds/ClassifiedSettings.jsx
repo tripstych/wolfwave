@@ -127,7 +127,7 @@ export default function ClassifiedSettings() {
     <div className="space-y-6 max-w-3xl mx-auto">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">{_('classifieds.settings.title', 'Classifieds Settings')}</h1>
-        <button onClick={handleSaveSettings} disabled={saving} className="btn btn-primary">
+        <button id="classifieds-settings-save" onClick={handleSaveSettings} disabled={saving} className="btn btn-primary">
           <Save className="w-4 h-4 mr-2" />
           {saving ? _('common.saving', 'Saving...') : _('common.save_settings', 'Save Settings')}
         </button>
@@ -208,7 +208,7 @@ export default function ClassifiedSettings() {
         <div className="border-t border-gray-200 pt-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-medium text-gray-700">{_('classifieds.rules.title', 'Moderation Rules')}</h3>
-            <button onClick={() => setShowAddRule(!showAddRule)} className="btn btn-secondary text-sm py-1 px-3">
+            <button id="classifieds-add-rule-toggle" onClick={() => setShowAddRule(!showAddRule)} className="btn btn-secondary text-sm py-1 px-3">
               <Plus className="w-3 h-3 mr-1" /> {_('classifieds.rules.add_btn', 'Add Rule')}
             </button>
           </div>
@@ -239,7 +239,7 @@ export default function ClassifiedSettings() {
                 className="input"
                 placeholder={_('classifieds.rules.desc_placeholder', "Description (e.g. No explicit nudity in images)")}
               />
-              <button onClick={handleAddRule} className="btn btn-primary text-sm py-1 px-4">{_('common.add', 'Add')}</button>
+              <button id="classifieds-add-rule-submit" onClick={handleAddRule} className="btn btn-primary text-sm py-1 px-4">{_('common.add', 'Add')}</button>
             </div>
           )}
 
@@ -264,7 +264,7 @@ export default function ClassifiedSettings() {
                       {rule.description && <p className="text-xs text-gray-500 mt-0.5">{rule.description}</p>}
                     </div>
                   </div>
-                  <button onClick={() => handleDeleteRule(rule.id)} className="p-1 text-gray-400 hover:text-red-500">
+                  <button id="classifieds-delete-rule-" onClick={() => handleDeleteRule(rule.id)} className="p-1 text-gray-400 hover:text-red-500">
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
@@ -287,7 +287,7 @@ export default function ClassifiedSettings() {
             className="input flex-1"
             placeholder={_('classifieds.categories.placeholder', "New category name...")}
           />
-          <button onClick={handleAddCategory} disabled={!newCatName.trim()} className="btn btn-secondary">
+          <button id="classifieds-add-category" onClick={handleAddCategory} disabled={!newCatName.trim()} className="btn btn-secondary">
             <Plus className="w-4 h-4 mr-1" /> {_('common.add', 'Add')}
           </button>
         </div>
@@ -305,7 +305,7 @@ export default function ClassifiedSettings() {
                       <span className="text-xs text-gray-400 ml-2">({cat._count.classified_ads} {_('classifieds.ads_count', 'ads')})</span>
                     )}
                   </div>
-                  <button onClick={() => handleDeleteCategory(cat.id)} className="p-1 text-gray-400 hover:text-red-500">
+                  <button id="classifieds-delete-category-" onClick={() => handleDeleteCategory(cat.id)} className="p-1 text-gray-400 hover:text-red-500">
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
@@ -314,7 +314,7 @@ export default function ClassifiedSettings() {
                     {cat.children.map(child => (
                       <div key={child.id} className="flex items-center justify-between p-2 bg-gray-50/50 rounded">
                         <span className="text-sm text-gray-600">{child.name}</span>
-                        <button onClick={() => handleDeleteCategory(child.id)} className="p-1 text-gray-400 hover:text-red-500">
+                        <button id="classifieds-delete-category-child-" onClick={() => handleDeleteCategory(child.id)} className="p-1 text-gray-400 hover:text-red-500">
                           <Trash2 className="w-3 h-3" />
                         </button>
                       </div>

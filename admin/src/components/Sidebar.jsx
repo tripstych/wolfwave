@@ -115,6 +115,7 @@ export default function Sidebar({ isOpen, onClose }) {
             <span className="font-semibold text-gray-900 text-lg">WolfWave</span>
           </Link>
           <button
+            id="sidebar-close-mobile"
             className="lg:hidden p-1 text-gray-500 hover:text-gray-700"
             onClick={onClose}
           >

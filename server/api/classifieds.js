@@ -425,7 +425,6 @@ router.delete('/admin/categories/:id', requireAuth, requireAdmin, async (req, re
 // ---- Moderation Rules CRUD ----
 
 router.get('/admin/moderation-rules', requireAuth, async (req, res) => {
-  console.log(`[CLASSIFIEDS DEBUG] /admin/moderation-rules route HIT, originalUrl: ${req.originalUrl}`);
   try {
     const rules = await prisma.classified_moderation_rules.findMany({ orderBy: { id: 'asc' } });
     res.json(rules);

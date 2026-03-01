@@ -23,6 +23,7 @@ export default function UserMenu({ user, onLogout }) {
   return (
     <div className="relative">
       <button
+        id="user-menu-toggle"
         className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-100 transition-colors"
         onClick={() => setIsOpen(!isOpen)}
       >
@@ -89,6 +90,7 @@ export default function UserMenu({ user, onLogout }) {
             
             {customer && (
               <button
+                id="customer-logout-btn"
                 onClick={handleCustomerLogoutClick}
                 className="w-full text-left px-4 py-2 text-sm text-orange-600 hover:bg-orange-50 flex items-center gap-2"
               >
@@ -98,6 +100,7 @@ export default function UserMenu({ user, onLogout }) {
             )}
             
             <button
+              id="admin-logout-btn"
               onClick={handleLogoutClick}
               className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
             >
