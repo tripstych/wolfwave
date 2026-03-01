@@ -21,7 +21,7 @@ const EXPORT_LIMIT = 100;
 /**
  * Authenticate ShipStation request using auth_key
  */
-function authenticateShipStation(req, res, next) {
+async function authenticateShipStation(req, res, next) {
   const authKey = req.query.auth_key;
   
   if (!authKey) {
@@ -30,10 +30,19 @@ function authenticateShipStation(req, res, next) {
     );
   }
 
-  const validKey = process.env.SHIPSTATION_AUTH_KEY;
+  // 1. Get key from database
+  const settings = await queryRaw(
+    "SELECT setting_value FROM settings WHERE setting_key = 'shipstation_auth_key'"
+  );
+  const validKeyFromDb = settings[0]?.setting_value;
+  
+  // 2. Fallback to environment variable for legacy support
+  const validKeyFromEnv = process.env.SHIPSTATION_AUTH_KEY;
+
+  const validKey = validKeyFromDb || validKeyFromEnv;
 
   if (!validKey) {
-    console.error('SHIPSTATION_AUTH_KEY is not configured');
+    console.error('SHIPSTATION_AUTH_KEY is not configured in database or environment');
     return res.status(500).type('text/xml').send(
       '<?xml version="1.0" encoding="UTF-8"?><error>Server authentication not configured</error>'
     );

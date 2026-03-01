@@ -120,14 +120,14 @@ function OrdersTab() {
     setLoading(true);
     try {
       if (view === 'wolfwave') {
-        const data = await api.get('/orders?limit=50&sort=created_at&order=desc');
-        setWolfwaveOrders(data.orders || data);
+        setWolfwaveOrders(data.orders || (Array.isArray(data) ? data : []));
       } else {
         const data = await api.get('/shipstation/orders?pageSize=50&sortBy=OrderDate&sortDir=DESC');
         setSsOrders(data);
       }
     } catch (err) {
       setMessage({ type: 'error', text: err.message });
+      setWolfwaveOrders([]); // Ensure it's an array on error
     } finally {
       setLoading(false);
     }
@@ -383,9 +383,10 @@ function CarriersTab() {
     setLoading(true);
     try {
       const data = await api.get('/shipstation/carriers');
-      setCarriers(data || []);
+      setCarriers(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Failed to load carriers:', err);
+      setCarriers([]);
     } finally {
       setLoading(false);
     }
@@ -400,7 +401,7 @@ function CarriersTab() {
     if (!services[carrierCode]) {
       try {
         const data = await api.get(`/shipstation/carriers/${carrierCode}/services`);
-        setServices(prev => ({ ...prev, [carrierCode]: data || [] }));
+        setServices(prev => ({ ...prev, [carrierCode]: Array.isArray(data) ? data : [] }));
       } catch (err) {
         console.error('Failed to load services:', err);
       }
@@ -466,9 +467,10 @@ function WarehousesTab() {
     setLoading(true);
     try {
       const data = await api.get('/shipstation/warehouses');
-      setWarehouses(data || []);
+      setWarehouses(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Failed to load warehouses:', err);
+      setWarehouses([]);
     } finally {
       setLoading(false);
     }
@@ -519,8 +521,8 @@ function SettingsTab() {
       api.get('/shipstation/stores').catch(() => []),
     ]).then(([wh, tg, st]) => {
       setWebhooks(wh?.webhooks || wh || []);
-      setTags(tg || []);
-      setStores(st || []);
+      setTags(Array.isArray(tg) ? tg : []);
+      setStores(Array.isArray(st) ? st : []);
     }).finally(() => setLoading(false));
   }, []);
 
