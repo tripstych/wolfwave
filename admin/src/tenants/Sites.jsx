@@ -42,11 +42,11 @@ export default function Sites() {
   const loadTenants = async () => {
     try {
       setLoading(true);
-      const res = await api.get('/tenants');
+      const res = await api.get('/customer-tenants');
       setTenants(res.data || []);
     } catch (err) {
       console.error('Failed to load tenants:', err);
-      setError(_('sites.error.load_failed', 'Failed to load sites'));
+      setTenants([]);
     } finally {
       setLoading(false);
     }
@@ -71,7 +71,7 @@ export default function Sites() {
     try {
       setCreating(true);
       setError(null);
-      await api.post('/tenants', newTenant);
+      await api.post('/customer-tenants', newTenant);
       setNewTenant({ name: '', subdomain: '', email: 'admin@example.com', password: '' });
       setSubdomainEdited(false);
       setShowCreate(false);
@@ -98,7 +98,7 @@ export default function Sites() {
 
   const handleLoginAs = async (tenant) => {
     try {
-      const { token } = await api.post(`/tenants/${tenant.id}/impersonate`);
+      const { token } = await api.post(`/customer-tenants/${tenant.id}/impersonate`);
       const baseUrl = getTenantUrl(tenant.subdomain);
       window.open(`${baseUrl}/api/auth/impersonate?token=${token}`, '_blank');
     } catch (err) {
