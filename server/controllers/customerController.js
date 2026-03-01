@@ -38,7 +38,7 @@ export const account = async (req, res) => {
     }
 
     // Check customer sites access using the same logic as the limits API
-    let sitesLimit = 0;
+    let sites_limit = 0;
     let hasSitesAccess = false;
     try {
       const { runWithTenant, getCurrentDbName } = await import('../lib/tenantContext.js');
@@ -57,21 +57,21 @@ export const account = async (req, res) => {
         
         // Same logic as limits API: if no subscription and no sites, limit = 0
         if (!hasSubscription && currentTenants === 0) {
-          sitesLimit = 0;
+          sites_limit = 0;
           hasSitesAccess = false;
         } else if (currentTenants > 0) {
-          sitesLimit = currentTenants; // legacy access
+          sites_limit = currentTenants; // legacy access
           hasSitesAccess = true;
         } else {
-          sitesLimit = 0;
+          sites_limit = 0;
           hasSitesAccess = false;
         }
         
-        console.log(`[CUSTOMER_ACCOUNT] Customer ${customer.id}: ${currentTenants} tenants, limit: ${sitesLimit}, hasSitesAccess: ${hasSitesAccess}`);
+        console.log(`[CUSTOMER_ACCOUNT] Customer ${customer.id}: ${currentTenants} tenants, limit: ${sites_limit}, hasSitesAccess: ${hasSitesAccess}`);
       });
     } catch (err) {
       console.error('Error checking sites access:', err);
-      sitesLimit = 0;
+      sites_limit = 0;
       hasSitesAccess = false;
     }
 
@@ -79,13 +79,8 @@ export const account = async (req, res) => {
       page: { title: 'My Account', slug: '/customer/account' },
       customer: {
         ...customer,
-        has_sites_access: hasSitesAccess
-      },
-      debug: {
-        customerId: customer?.id,
-        hasSitesAccess,
-        sitesLimit,
-        customerKeys: Object.keys(customer || {})
+        has_sites_access: hasSitesAccess,
+        sites_limit: sites_limit
       },
       seo: {
         title: 'My Account - ' + (site?.site_name || ''),

@@ -15,10 +15,7 @@
     </div>
 
     {# My Sites Section - Only show if customer has limit > 0 #}
-    <!-- DEBUG: customer={{ customer | dump | safe }} -->
-    <!-- DEBUG: sites_limit={{ debug.sitesLimit }} -->
-    <!-- DEBUG: debug={{ debug | dump | safe }} -->
-    {% if debug and debug.sitesLimit > 0 %}
+    {% if customer and customer.sites_limit > 0 %}
     <div class="account-section">
       <div class="section-header">
         <h2>My Sites</h2>
@@ -46,8 +43,6 @@
         <div id="create-site-error" class="error-message hidden"></div>
       </div>
     </div>
-    {% else %}
-    <!-- DEBUG: My Sites section hidden - sites_limit={{ debug.sitesLimit }} -->
     {% endif %}
 
     {# Classifieds & Messaging #}
