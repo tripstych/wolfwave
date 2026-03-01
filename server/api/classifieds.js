@@ -368,53 +368,6 @@ router.put('/admin/settings', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-router.get('/admin/:id', requireAuth, async (req, res) => {
-  try {
-    const adId = parseInt(req.params.id);
-    
-    if (!adId || isNaN(adId)) {
-      return res.status(400).json({ error: 'Invalid ad ID' });
-    }
-    
-    const ad = await prisma.classified_ads.findUnique({
-      where: { id: adId },
-      include: {
-        category: true,
-        customer: { select: { id: true, email: true, first_name: true, last_name: true } },
-      },
-    });
-    if (!ad) return res.status(404).json({ error: 'Ad not found' });
-    res.json(ad);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-router.post('/admin/:id/approve', requireAuth, requireAdmin, async (req, res) => {
-  try {
-    const ad = await prisma.classified_ads.update({
-      where: { id: parseInt(req.params.id) },
-      data: { status: 'approved', rejection_reason: null, updated_at: new Date() },
-    });
-    res.json({ success: true, ad });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-router.post('/admin/:id/reject', requireAuth, requireAdmin, async (req, res) => {
-  try {
-    const { reason } = req.body;
-    const ad = await prisma.classified_ads.update({
-      where: { id: parseInt(req.params.id) },
-      data: { status: 'rejected', rejection_reason: reason || 'Rejected by admin', updated_at: new Date() },
-    });
-    res.json({ success: true, ad });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
 // ---- Categories CRUD ----
 
 router.get('/admin/categories/all', requireAuth, async (req, res) => {
@@ -506,6 +459,55 @@ router.delete('/admin/moderation-rules/:id', requireAuth, requireAdmin, async (r
   try {
     await prisma.classified_moderation_rules.delete({ where: { id: parseInt(req.params.id) } });
     res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---- Single Ad by ID (must be AFTER all specific /admin/* routes) ----
+
+router.get('/admin/:id', requireAuth, async (req, res) => {
+  try {
+    const adId = parseInt(req.params.id);
+
+    if (!adId || isNaN(adId)) {
+      return res.status(400).json({ error: 'Invalid ad ID' });
+    }
+
+    const ad = await prisma.classified_ads.findUnique({
+      where: { id: adId },
+      include: {
+        category: true,
+        customer: { select: { id: true, email: true, first_name: true, last_name: true } },
+      },
+    });
+    if (!ad) return res.status(404).json({ error: 'Ad not found' });
+    res.json(ad);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/admin/:id/approve', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const ad = await prisma.classified_ads.update({
+      where: { id: parseInt(req.params.id) },
+      data: { status: 'approved', rejection_reason: null, updated_at: new Date() },
+    });
+    res.json({ success: true, ad });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/admin/:id/reject', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { reason } = req.body;
+    const ad = await prisma.classified_ads.update({
+      where: { id: parseInt(req.params.id) },
+      data: { status: 'rejected', rejection_reason: reason || 'Rejected by admin', updated_at: new Date() },
+    });
+    res.json({ success: true, ad });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
