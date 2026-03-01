@@ -1388,3 +1388,50 @@ export async function generateThemeFromIndustry(industry, existingPlan = null) {
     templates
   };
 }
+
+/**
+ * Generate a preview for a single theme page from a plan.
+ * This is a lightweight, in-memory Nunjucks-style render.
+ */
+export async function generateThemePreview(plan, page = 'homepage') {
+  const pageScaffold = plan.scaffolds.find(s => s.file.replace('.njk', '') === page);
+  if (!pageScaffold) {
+    throw new Error(`Scaffold for page "${page}" not found in the plan.`);
+  }
+  
+  const scaffoldsDir = path.join(__dirname, '../../templates/scaffolds');
+  let template = await fs.promises.readFile(path.join(scaffoldsDir, pageScaffold.file), 'utf8');
+
+  const content = pageScaffold.content || {};
+  
+  // Simple Nunjucks-like replace
+  template = template.replace(/\{\{\s*content\.([\w\d_]+)\s*\}\}/g, (match, key) => {
+    return content[key] || '';
+  });
+
+  // Create CSS from variables
+  const vars = plan.css_variables || {};
+  const brand = vars['--nano-brand'] || '#2563eb';
+  const secondary = vars['--nano-secondary'] || '#64748b';
+  const bg = vars['--nano-bg'] || '#ffffff';
+  const text = vars['--nano-text'] || '#1e293b';
+
+  const previewCss = `:root {
+    --cms-primary-color: ${brand};
+    --cms-primary-dark-color: ${brand};
+    --cms-secondary-color: ${secondary};
+    --cms-color-background: ${bg};
+    --cms-color-text: ${text};
+  }
+  body { background-color: var(--cms-color-background); color: var(--cms-color-text); }
+  `;
+
+  // Inject styles and Tailwind CDN
+  const headContent = `
+    <style>${previewCss}</style>
+    <script src="https://cdn.tailwindcss.com"></script>
+  `;
+  template = template.replace('</head>', `${headContent}</head>`);
+
+  return template;
+}

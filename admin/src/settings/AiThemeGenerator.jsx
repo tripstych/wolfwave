@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Sparkles, Loader2, Image as ImageIcon, Palette, Layout, Type } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Sparkles, Loader2, Image as ImageIcon, Palette, Layout, Type, RefreshCw, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../lib/api';
 
@@ -13,6 +13,9 @@ export default function AiThemeGenerator({ onThemeGenerated }) {
   // Preview State
   const [previewData, setPreviewData] = useState(null);
   const [scaffolds, setScaffolds] = useState([]);
+  const [previewHtml, setPreviewHtml] = useState('');
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [activePreview, setActivePreview] = useState('homepage');
 
   const fetchScaffolds = async () => {
     try {
@@ -30,24 +33,17 @@ export default function AiThemeGenerator({ onThemeGenerated }) {
     setGenerating(true);
     setError(null);
     setStatus('text');
+    setPreviewHtml('');
     const toastId = toast.loading('Architecting your theme plan...');
 
     try {
-      const response = await fetch('/api/ai/draft-theme', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ industry })
-      });
-
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Drafting failed');
-
-      setPreviewData(data.plan);
+      const response = await api.post('/ai/draft-theme', { industry });
+      setPreviewData(response.plan);
       await fetchScaffolds();
       toast.success('Theme plan ready for review!', { id: toastId });
+      
+      // Auto-generate initial preview
+      handlePreview(response.plan);
     } catch (err) {
       setError(err.message);
       toast.error('Drafting failed: ' + err.message, { id: toastId });
@@ -57,30 +53,30 @@ export default function AiThemeGenerator({ onThemeGenerated }) {
     }
   };
 
+  const handlePreview = async (plan, page = 'homepage') => {
+    setPreviewLoading(true);
+    try {
+      const response = await api.post('/ai/preview-theme', { plan, page });
+      setPreviewHtml(response.html);
+      setActivePreview(page);
+    } catch (err) {
+      toast.error('Preview failed: ' + err.message);
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
   const handleFinalGenerate = async () => {
     setGenerating(true);
     const toastId = toast.loading('Building and activating your theme...');
     
     try {
-      const response = await fetch('/api/ai/generate-theme', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ 
-          industry,
-          plan: previewData
-        })
-      });
-
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Generation failed');
-
+      const data = await api.post('/ai/generate-theme', { industry, plan: previewData });
       if (onThemeGenerated) onThemeGenerated(data.slug);
       
       toast.success('Theme activated successfully!', { id: toastId });
       setPreviewData(null);
+      setPreviewHtml('');
       setIndustry('');
       setIsExpanded(false);
     } catch (err) {
@@ -90,11 +86,16 @@ export default function AiThemeGenerator({ onThemeGenerated }) {
     }
   };
 
-  const updatePreviewField = (key, value) => {
-    setPreviewData(prev => ({
-      ...prev,
-      content: { ...prev.content, [key]: value }
-    }));
+  const updatePreviewField = (page, key, value) => {
+    setPreviewData(prev => {
+      const newScaffolds = prev.scaffolds.map(s => {
+        if (s.file.replace('.njk', '') === page) {
+          return { ...s, content: { ...s.content, [key]: value } };
+        }
+        return s;
+      });
+      return { ...prev, scaffolds: newScaffolds };
+    });
   };
 
   const updateColor = (key, value) => {
@@ -103,6 +104,15 @@ export default function AiThemeGenerator({ onThemeGenerated }) {
       css_variables: { ...prev.css_variables, [key]: value }
     }));
   };
+  
+  const resetAll = () => {
+    setPreviewData(null);
+    setPreviewHtml('');
+    setIndustry('');
+    setIsExpanded(false);
+  }
+
+  const homepageScaffold = previewData?.scaffolds.find(s => s.file.includes('homepage'));
 
   return (
     <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100 rounded-xl p-6 mb-8 shadow-sm">
@@ -113,8 +123,7 @@ export default function AiThemeGenerator({ onThemeGenerated }) {
         <div className="flex-1">
           <h2 className="text-lg font-semibold text-gray-900 mb-1">AI Theme Architect</h2>
           <p className="text-sm text-gray-600 mb-4">
-            Describe your business or industry in detail. Our AI will select a layout blueprint and 
-            draft custom branding and content for you to approve.
+            Describe your business or industry. Our AI will draft a complete theme with multiple pages for you to preview and approve.
           </p>
 
           {!previewData ? (
@@ -136,53 +145,27 @@ export default function AiThemeGenerator({ onThemeGenerated }) {
                   disabled={generating || !industry.trim()}
                   className="px-6 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
                 >
-                  {generating ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Architecting...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-4 h-4" />
-                      Draft Plan
-                    </>
-                  )}
+                  {generating ? <><Loader2 className="w-4 h-4 animate-spin" /> Architecting...</> : <><Sparkles className="w-4 h-4" /> Draft Plan</>}
                 </button>
               </div>
             </form>
           ) : (
-            <div className="bg-white border border-indigo-200 rounded-xl p-6 mt-2 space-y-8 shadow-xl animate-in fade-in slide-in-from-top-4 duration-500">
-              <div className="flex items-center justify-between border-b border-gray-100 pb-4">
-                <div className="flex items-center gap-2 text-indigo-900">
-                  <Palette className="w-5 h-5" />
-                  <h3 className="font-bold text-lg">Theme Blueprint & Strategy</h3>
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 mt-4">
+              {/* --- CONTROL PANEL --- */}
+              <div className="bg-white border border-indigo-200 rounded-xl p-6 space-y-8 shadow-xl animate-in fade-in slide-in-from-top-4 duration-500">
+                <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+                  <div className="flex items-center gap-2 text-indigo-900">
+                    <Palette className="w-5 h-5" />
+                    <h3 className="font-bold text-lg">Theme Blueprint & Strategy</h3>
+                  </div>
+                  <button onClick={resetAll} className="px-3 py-1 text-sm text-gray-400 hover:text-red-500 font-medium transition-colors">
+                    Cancel & Reset
+                  </button>
                 </div>
-                <button 
-                  onClick={() => setPreviewData(null)}
-                  className="px-3 py-1 text-sm text-gray-400 hover:text-red-500 font-medium transition-colors"
-                >
-                  Cancel & Reset
-                </button>
-              </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Layout Column */}
-                <div className="space-y-6">
-                  <div className="flex items-center gap-2 text-gray-700 font-bold text-xs uppercase tracking-widest">
-                    <Layout className="w-4 h-4" /> Layout blueprint
-                  </div>
-                  <div>
-                    <select 
-                      value={previewData.scaffold}
-                      onChange={(e) => setPreviewData({...previewData, scaffold: e.target.value})}
-                      className="w-full text-sm border-gray-200 rounded-lg p-2.5 bg-gray-50 focus:bg-white transition-colors"
-                    >
-                      {scaffolds.map(s => <option key={s.name} value={s.name}>{s.name.replace(/-/g, ' ')}</option>)}
-                    </select>
-                    <p className="mt-2 text-xs text-gray-400">Chosen by AI based on your industry description.</p>
-                  </div>
-
-                  <div className="space-y-4 pt-2">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                  {/* Layout Column */}
+                  <div className="space-y-6">
                     <div className="flex items-center gap-2 text-gray-700 font-bold text-xs uppercase tracking-widest">
                       <Palette className="w-4 h-4" /> Color Swatch
                     </div>
@@ -191,86 +174,90 @@ export default function AiThemeGenerator({ onThemeGenerated }) {
                         <div key={key} className="space-y-1">
                           <label className="block text-[10px] text-gray-400 font-medium">{key.replace('--nano-', '')}</label>
                           <div className="flex items-center gap-2 bg-gray-50 p-1.5 rounded-lg border border-gray-100">
-                            <input 
-                              type="color" 
-                              value={value}
-                              onChange={(e) => updateColor(key, e.target.value)}
-                              className="h-6 w-6 rounded border-0 cursor-pointer p-0 bg-transparent"
-                            />
+                            <input type="color" value={value} onChange={(e) => updateColor(key, e.target.value)} className="h-6 w-6 rounded border-0 cursor-pointer p-0 bg-transparent" />
                             <span className="text-[10px] font-mono text-gray-600">{value}</span>
                           </div>
                         </div>
                       ))}
                     </div>
                   </div>
-                </div>
 
-                {/* Content Column */}
-                <div className="lg:col-span-2 space-y-6">
-                  <div className="flex items-center gap-2 text-gray-700 font-bold text-xs uppercase tracking-widest">
-                    <Type className="w-4 h-4" /> Generated Copy
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <div className="group">
-                      <label className="block text-[10px] text-gray-400 font-bold uppercase mb-1 ml-1">Hero Headline</label>
-                      <input 
-                        type="text"
-                        value={previewData.content.headline}
-                        onChange={(e) => updatePreviewField('headline', e.target.value)}
-                        className="w-full text-base font-bold border-gray-200 rounded-lg p-3 group-hover:border-indigo-200 transition-colors shadow-sm focus:ring-2 focus:ring-indigo-100"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] text-gray-400 font-bold uppercase mb-1 ml-1">Hero Subtext</label>
-                      <textarea 
-                        value={previewData.content.subtext}
-                        onChange={(e) => updatePreviewField('subtext', e.target.value)}
-                        className="w-full text-sm leading-relaxed border-gray-200 rounded-lg p-3 h-24 shadow-sm focus:ring-2 focus:ring-indigo-100"
-                      />
+                  {/* Content Column */}
+                  <div className="lg:col-span-2 space-y-6">
+                    <div className="flex items-center gap-2 text-gray-700 font-bold text-xs uppercase tracking-widest">
+                      <Type className="w-4 h-4" /> Generated Copy
                     </div>
                     
-                    {/* Render other fields if they exist */}
-                    {Object.entries(previewData.content).map(([key, value]) => {
-                      if (['headline', 'subtext', 'hero_image_prompt'].includes(key)) return null;
+                    {homepageScaffold && homepageScaffold.content && Object.entries(homepageScaffold.content).map(([key, value]) => {
                       if (typeof value !== 'string') return null; // Skip repeaters for now
+                      const Tag = value.length > 100 ? 'textarea' : 'input';
                       return (
                         <div key={key}>
                           <label className="block text-[10px] text-gray-400 font-bold uppercase mb-1 ml-1">{key.replace(/_/g, ' ')}</label>
-                          <textarea 
+                          <Tag
+                            type="text"
                             value={value}
-                            onChange={(e) => updatePreviewField(key, e.target.value)}
-                            className="w-full text-sm border-gray-200 rounded-lg p-3 h-20 shadow-sm focus:ring-2 focus:ring-indigo-100"
+                            onChange={(e) => updatePreviewField('homepage', key, e.target.value)}
+                            className="w-full text-sm border-gray-200 rounded-lg p-3 shadow-sm focus:ring-2 focus:ring-indigo-100"
+                            rows={Tag === 'textarea' ? 3 : undefined}
                           />
                         </div>
                       );
                     })}
                   </div>
                 </div>
+
+                <div className="bg-indigo-600 p-6 rounded-xl flex flex-col md:flex-row items-center justify-between gap-4 shadow-lg shadow-indigo-200">
+                  <div className="text-white">
+                    <h4 className="font-bold">Ready to build?</h4>
+                    <p className="text-indigo-100 text-sm">We'll generate your theme files, assets, and DALL-E imagery now.</p>
+                  </div>
+                  <button onClick={handleFinalGenerate} disabled={generating} className="w-full md:w-auto px-10 py-3 bg-white text-indigo-600 font-black rounded-lg hover:bg-indigo-50 shadow-md flex items-center justify-center gap-2 transform transition hover:-translate-y-0.5 active:translate-y-0">
+                    {generating ? <><Loader2 className="w-5 h-5 animate-spin" /> Building...</> : <><Sparkles className="w-5 h-5" /> CONFIRM & ACTIVATE</>}
+                  </button>
+                </div>
               </div>
 
-              <div className="bg-indigo-600 p-6 rounded-xl flex flex-col md:flex-row items-center justify-between gap-4 shadow-lg shadow-indigo-200">
-                <div className="text-white">
-                  <h4 className="font-bold">Ready to build?</h4>
-                  <p className="text-indigo-100 text-sm">We'll generate your theme files, assets, and DALL-E imagery now.</p>
+              {/* --- PREVIEW PANEL --- */}
+              <div className="bg-white rounded-xl shadow-2xl shadow-indigo-200/50 border border-gray-200 flex flex-col animate-in fade-in slide-in-from-right-8 duration-700">
+                <div className="flex items-center justify-between p-3 border-b bg-gray-50/50 rounded-t-xl">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-3 h-3 bg-red-400 rounded-full"></span>
+                      <span className="w-3 h-3 bg-yellow-400 rounded-full"></span>
+                      <span className="w-3 h-3 bg-green-400 rounded-full"></span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                       <div className="relative">
+                          <select 
+                            value={activePreview} 
+                            onChange={(e) => handlePreview(previewData, e.target.value)}
+                            className="text-xs font-bold text-gray-600 pl-2 pr-6 py-1 appearance-none bg-transparent"
+                            disabled={previewLoading}
+                          >
+                          {previewData.scaffolds.map(s => {
+                            const name = s.file.replace('.njk', '');
+                            return <option key={name} value={name}>{name.replace(/-/g, ' ')}</option>
+                          })}
+                          </select>
+                           <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1 text-gray-700">
+                            <svg className="fill-current h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+                          </div>
+                       </div>
+                    </div>
+                  </div>
+                  <button onClick={() => handlePreview(previewData, activePreview)} disabled={previewLoading} className="p-2 rounded-md hover:bg-gray-200 text-gray-500 hover:text-gray-800 transition-colors">
+                    {previewLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                  </button>
                 </div>
-                <button
-                  onClick={handleFinalGenerate}
-                  disabled={generating}
-                  className="w-full md:w-auto px-10 py-3 bg-white text-indigo-600 font-black rounded-lg hover:bg-indigo-50 shadow-md flex items-center justify-center gap-2 transform transition hover:-translate-y-0.5 active:translate-y-0"
-                >
-                  {generating ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      Building...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-5 h-5" />
-                      CONFIRM & ACTIVATE THEME
-                    </>
+                <div className="flex-1 relative bg-gray-100">
+                  {previewLoading && (
+                    <div className="absolute inset-0 bg-white/60 backdrop-blur-sm flex items-center justify-center z-10">
+                      <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+                    </div>
                   )}
-                </button>
+                  <iframe srcDoc={previewHtml} className="w-full h-full border-0" title="AI Theme Preview" />
+                </div>
               </div>
             </div>
           )}

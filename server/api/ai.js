@@ -8,7 +8,8 @@ import {
   generateContentForFields, 
   suggestSelectors,
   getAvailableScaffolds,
-  draftThemePlan
+  draftThemePlan,
+  generateThemePreview
 } from '../services/aiService.js';
 import { downloadImage } from '../services/mediaService.js';
 import fs from 'fs/promises';
@@ -44,6 +45,23 @@ router.post('/draft-theme', requireAuth, requireAdmin, async (req, res) => {
     res.json({ success: true, plan });
   } catch (error) {
     console.error('[AI-DEBUG] ❌ Drafting Failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/ai/preview-theme
+ * Renders a single page from a theme plan without saving anything.
+ */
+router.post('/preview-theme', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { plan, page } = req.body;
+    if (!plan) return res.status(400).json({ error: 'Plan is required' });
+
+    const html = await generateThemePreview(plan, page);
+    res.json({ success: true, html });
+  } catch (error) {
+    console.error('[AI-DEBUG] ❌ Preview Failed:', error);
     res.status(500).json({ error: error.message });
   }
 });
