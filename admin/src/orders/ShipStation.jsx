@@ -14,6 +14,7 @@ export default function ShipStation() {
   const [activeTab, setActiveTab] = useState('orders');
   const [connected, setConnected] = useState(null);
   const [testing, setTesting] = useState(false);
+  const [connectionError, setConnectionError] = useState(null);
 
   useEffect(() => {
     testConnection(true);
@@ -21,11 +22,13 @@ export default function ShipStation() {
 
   const testConnection = async (silent = false) => {
     if (!silent) setTesting(true);
+    setConnectionError(null);
     try {
       await api.post('/shipstation/test-connection');
       setConnected(true);
-    } catch {
+    } catch (err) {
       setConnected(false);
+      setConnectionError(err.response?.data?.error || err.message);
     } finally {
       setTesting(false);
     }
@@ -86,7 +89,8 @@ export default function ShipStation() {
       {!connected && connected !== null ? (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
           <p className="text-sm text-yellow-800">
-            ShipStation is not connected. Add your API key in the settings table with key <code className="bg-yellow-100 px-1 rounded">shipstation_auth_key</code>.
+            <strong>ShipStation is not connected.</strong> {connectionError || 'Please check your settings.'}
+            <a href="/admin/settings" className="ml-2 underline font-medium">Go to Settings</a>
           </p>
         </div>
       ) : (

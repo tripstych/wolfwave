@@ -25,4 +25,10 @@ export async function initDb() {
   }
 }
 
-export default { getPool, query, initDb };
+export async function queryDb(dbName, sql, params = []) {
+  const pool = getPoolForDb(dbName);
+  const [rows] = await pool.query(sql, params);
+  return rows;
+}
+
+export default { getPool, query, initDb, queryDb };
