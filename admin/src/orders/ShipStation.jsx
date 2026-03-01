@@ -141,31 +141,56 @@ function ShipmentsTab() {
       <table className="w-full">
         <thead className="bg-gray-50">
           <tr>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Order #</th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Carrier</th>
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Shipment</th>
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ship To</th>
             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Service</th>
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tracking</th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ship Date</th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cost</th>
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-200">
-          {shipments.map(s => (
-            <tr key={s.shipment_id || s.shipmentId} className="hover:bg-gray-50">
-              <td className="px-4 py-3 text-sm font-medium">{s.order_number || s.orderNumber}</td>
-              <td className="px-4 py-3 text-sm">{s.carrier_code || s.carrierCode}</td>
-              <td className="px-4 py-3 text-sm">{s.service_code || s.serviceCode}</td>
+          {shipments.map(s => {
+            const statusColors = {
+              pending: 'bg-yellow-100 text-yellow-800',
+              label_purchased: 'bg-blue-100 text-blue-800',
+              shipped: 'bg-green-100 text-green-800',
+              delivered: 'bg-green-100 text-green-800',
+              cancelled: 'bg-red-100 text-red-800',
+            };
+            return (
+            <tr key={s.shipment_id} className="hover:bg-gray-50">
+              <td className="px-4 py-3">
+                <div className="text-sm font-medium">{s.shipment_number || s.shipment_id}</div>
+                {s.items?.length > 0 && (
+                  <div className="text-xs text-gray-500 mt-0.5">{s.items.map(i => i.name).join(', ')}</div>
+                )}
+              </td>
+              <td className="px-4 py-3">
+                {s.ship_to ? (
+                  <div>
+                    <div className="text-sm">{s.ship_to.name}</div>
+                    <div className="text-xs text-gray-500">{[s.ship_to.city_locality, s.ship_to.state_province, s.ship_to.country_code].filter(Boolean).join(', ')}</div>
+                  </div>
+                ) : <span className="text-sm text-gray-400">-</span>}
+              </td>
+              <td className="px-4 py-3 text-sm">{s.service_code?.replace(/_/g, ' ') || '-'}</td>
+              <td className="px-4 py-3">
+                <span className={`inline-block px-2 py-0.5 text-xs font-medium rounded-full ${statusColors[s.shipment_status] || 'bg-gray-100 text-gray-700'}`}>
+                  {s.shipment_status?.replace(/_/g, ' ') || '-'}
+                </span>
+              </td>
               <td className="px-4 py-3 text-sm">
-                {(s.tracking_number || s.trackingNumber) ? (
-                  <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">{s.tracking_number || s.trackingNumber}</code>
-                ) : '-'}
+                {s.tracking_number ? (
+                  <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">{s.tracking_number}</code>
+                ) : <span className="text-gray-400">-</span>}
               </td>
               <td className="px-4 py-3 text-sm text-gray-600">
-                {(s.ship_date || s.shipDate) ? new Date(s.ship_date || s.shipDate).toLocaleDateString() : '-'}
+                {s.created_at ? new Date(s.created_at).toLocaleDateString() : '-'}
               </td>
-              <td className="px-4 py-3 text-sm">{(s.shipment_cost || s.shipmentCost) ? `$${parseFloat(s.shipment_cost || s.shipmentCost).toFixed(2)}` : '-'}</td>
             </tr>
-          ))}
+            );
+          })}
           {shipments.length === 0 && (
             <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-500">{loading ? 'Loading...' : 'No shipments found'}</td></tr>
           )}
