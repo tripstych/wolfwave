@@ -79,7 +79,7 @@ export async function themeRender(req, res, templateFilename, context = {}) {
   
   const themeName = site.active_theme || 'default';
   const env = await getNunjucksEnv(themeName);
-  const assets = getThemeAssets(themeName);
+  const assets = await getThemeAssets(themeName);
 
   // Store site and full context in env for access in globals and recursive shortcodes
   env.opts.site = site;

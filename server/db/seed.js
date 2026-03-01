@@ -151,6 +151,20 @@ async function seed() {
     );
     console.log('✅ Default content types created');
 
+    // Create a DB record for the default theme
+    await query(
+      `INSERT INTO themes (slug, name, description, version, source, is_active, config)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE name = VALUES(name), is_active = VALUES(is_active)`,
+      ['default', 'Default', 'The default filesystem theme.', '1.0.0', 'filesystem', true, JSON.stringify({
+        assets: {
+          css: ['assets/css/style.css'],
+          js: ['assets/js/main.js']
+        }
+      })]
+    );
+    console.log('✅ Default theme record created');
+
     // Create widget templates
     const mapRegions = JSON.stringify([
       { name: 'map_address', type: 'text', label: 'Map Address' },

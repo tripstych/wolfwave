@@ -56,17 +56,11 @@ router.post('/clear-cache', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-// List all available themes (from filesystem)
+// List all available themes (from database)
 router.get('/', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const themes = getAvailableThemes();
-
-    // Get active theme from settings
-    const settings = await query(
-      'SELECT setting_value FROM settings WHERE setting_key = ?',
-      ['active_theme']
-    );
-    const activeTheme = settings[0]?.setting_value || 'default';
+    const themes = await getAvailableThemes();
+    const activeTheme = themes.find(t => t.is_active)?.slug || 'default';
 
     res.json({
       themes: themes.map(t => ({
@@ -233,10 +227,9 @@ router.put('/active', requireAuth, requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Theme slug is required' });
     }
 
-    // Validate theme exists on disk
-    const available = getAvailableThemes();
-    const exists = available.find(t => t.slug === theme);
-    if (!exists) {
+    // Validate theme exists in DB
+    const themeRecord = await prisma.themes.findUnique({ where: { slug: theme } });
+    if (!themeRecord) {
       return res.status(404).json({ error: `Theme "${theme}" not found` });
     }
 
@@ -266,6 +259,10 @@ router.put('/active', requireAuth, requireAdmin, async (req, res) => {
        ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`,
       ['active_theme', theme]
     );
+
+    // Update is_active flag in themes table
+    await prisma.themes.updateMany({ data: { is_active: false } });
+    await prisma.themes.update({ where: { slug: theme }, data: { is_active: true } });
 
     // Clear cached environments so the new theme takes effect
     clearThemeCache();

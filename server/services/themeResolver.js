@@ -33,26 +33,19 @@ class DbLoader extends nunjucks.Loader {
     super();
     this.async = true;
     this.themeName = themeName;
-    this.tplCache = new Map(); // Rename to tplCache
+    this.tplCache = new Map();
   }
 
   getSource(name, callback) {
-    // Try cache first
     if (this.tplCache.has(name)) {
       return callback(null, this.tplCache.get(name));
     }
 
-    // Resolution Strategy for DB templates:
-    // 1. Exact match (e.g. "scaffolds/hero.njk")
-    // 2. Theme-prefixed (e.g. "my-theme/pages/homepage.njk" when "pages/homepage.njk" requested)
-    // 3. Normalized variants (slashes)
-    
     const searchNames = [name];
     if (this.themeName && !name.startsWith(this.themeName + '/')) {
       searchNames.push(`${this.themeName}/${name}`);
     }
-    
-    // Add variations with/without leading slashes
+
     const variations = [];
     searchNames.forEach(n => {
       variations.push(n.replace(/\\/g, '/').replace(/^\//, ''));
@@ -60,16 +53,10 @@ class DbLoader extends nunjucks.Loader {
     });
 
     prisma.templates.findFirst({
-      where: { 
-        filename: { in: [...new Set(variations)] }
-      }
+      where: { filename: { in: [...new Set(variations)] } }
     }).then(template => {
       if (template && template.content) {
-        const source = {
-          src: template.content,
-          path: name,
-          noCache: false
-        };
+        const source = { src: template.content, path: name, noCache: false };
         this.tplCache.set(name, source);
         callback(null, source);
       } else {
@@ -86,43 +73,104 @@ class DbLoader extends nunjucks.Loader {
   }
 }
 
-// Cache: theme slug -> parsed theme.json
+// Caches
 const themeConfigCache = new Map();
-
-// Cache: theme slug -> Nunjucks Environment
 const envCache = new Map();
-
-// Cache: theme slug -> DbLoader instance
 const dbLoaderCache = new Map();
 
 /**
- * Read and cache theme.json for a given theme slug.
+ * Sync filesystem themes into the themes DB table.
+ * Called at startup to ensure disk themes have DB records.
  */
-function getThemeConfig(themeName) {
+export async function syncFilesystemThemes() {
+  try {
+    const entries = fs.readdirSync(THEMES_DIR, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      const configPath = path.join(THEMES_DIR, entry.name, 'theme.json');
+      let config;
+      try {
+        config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+      } catch {
+        continue; // Skip dirs without valid theme.json
+      }
+
+      const slug = config.slug || entry.name;
+      await prisma.themes.upsert({
+        where: { slug },
+        update: {
+          name: config.name || entry.name,
+          description: config.description || '',
+          version: config.version || '1.0.0',
+          inherits: config.inherits || null,
+          config: config,
+          source: 'filesystem',
+          updated_at: new Date()
+        },
+        create: {
+          slug,
+          name: config.name || entry.name,
+          description: config.description || '',
+          version: config.version || '1.0.0',
+          inherits: config.inherits || null,
+          config: config,
+          source: 'filesystem',
+          created_at: new Date(),
+          updated_at: new Date()
+        }
+      });
+    }
+
+    // Mark the active theme
+    const activeSetting = await prisma.settings.findUnique({ where: { setting_key: 'active_theme' } });
+    if (activeSetting?.setting_value) {
+      await prisma.themes.updateMany({ data: { is_active: false } });
+      await prisma.themes.updateMany({
+        where: { slug: activeSetting.setting_value },
+        data: { is_active: true }
+      });
+    }
+  } catch (err) {
+    console.error('[ThemeResolver] Failed to sync filesystem themes:', err.message);
+  }
+}
+
+/**
+ * Get theme config from DB first, filesystem fallback.
+ */
+async function getThemeConfig(themeName) {
   if (themeConfigCache.has(themeName)) {
     return themeConfigCache.get(themeName);
   }
 
+  // Try DB first
+  try {
+    const dbTheme = await prisma.themes.findUnique({ where: { slug: themeName } });
+    if (dbTheme?.config) {
+      const config = typeof dbTheme.config === 'string' ? JSON.parse(dbTheme.config) : dbTheme.config;
+      themeConfigCache.set(themeName, config);
+      return config;
+    }
+  } catch {
+    // DB not ready yet or table doesn't exist — fall through to filesystem
+  }
+
+  // Fallback: read theme.json from disk
   const configPath = path.join(THEMES_DIR, themeName, 'theme.json');
   try {
     const raw = fs.readFileSync(configPath, 'utf-8');
     const config = JSON.parse(raw);
     themeConfigCache.set(themeName, config);
     return config;
-  } catch (e) {
-    console.error(`[ThemeResolver] Failed to load theme config for "${themeName}": ${e.message}`);
+  } catch {
     return null;
   }
 }
 
 /**
  * Compute ordered search paths for Nunjucks FileSystemLoader.
- * Walks the `inherits` chain so child themes override parent templates.
- *
- * Example: "starter-dark" inherits "default"
- *   → [ themes/starter-dark, themes/default ]
  */
-export function getThemeSearchPaths(themeName) {
+export async function getThemeSearchPaths(themeName) {
   const paths = [];
   const visited = new Set();
   let current = themeName;
@@ -132,11 +180,9 @@ export function getThemeSearchPaths(themeName) {
     const dir = path.join(THEMES_DIR, current);
     if (fs.existsSync(dir)) {
       paths.push(dir);
-      const config = getThemeConfig(current);
-      current = config?.inherits || null;
-    } else {
-      current = null;
     }
+    const config = await getThemeConfig(current);
+    current = config?.inherits || null;
   }
 
   // Always ensure default is in the chain
@@ -154,76 +200,70 @@ export function getThemeSearchPaths(themeName) {
 }
 
 /**
- * List all available themes by scanning the themes directory.
+ * List all available themes from the database.
  */
-export function getAvailableThemes() {
+export async function getAvailableThemes() {
   try {
-    const entries = fs.readdirSync(THEMES_DIR, { withFileTypes: true });
-    const themes = [];
-
-    for (const entry of entries) {
-      if (entry.isDirectory()) {
-        const config = getThemeConfig(entry.name);
-        if (config) {
+    const themes = await prisma.themes.findMany({ orderBy: { name: 'asc' } });
+    return themes.map(t => ({
+      slug: t.slug,
+      name: t.name,
+      version: t.version || '1.0.0',
+      description: t.description || '',
+      inherits: t.inherits || null,
+      source: t.source,
+      is_active: t.is_active
+    }));
+  } catch {
+    // Fallback to filesystem if themes table doesn't exist yet
+    try {
+      const entries = fs.readdirSync(THEMES_DIR, { withFileTypes: true });
+      const themes = [];
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+        const configPath = path.join(THEMES_DIR, entry.name, 'theme.json');
+        try {
+          const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
           themes.push({
             slug: config.slug || entry.name,
             name: config.name || entry.name,
             version: config.version || '1.0.0',
             description: config.description || '',
-            inherits: config.inherits || null
+            inherits: config.inherits || null,
+            source: 'filesystem'
           });
-        }
+        } catch { continue; }
       }
-    }
-
-    return themes;
-  } catch {
-    return [];
+      return themes;
+    } catch { return []; }
   }
 }
 
 /**
  * Get the CSS and JS asset URLs for a theme, resolving inheritance.
- * Returns URL paths like /themes/default/assets/css/theme.css
  */
-export function getThemeAssets(themeName) {
+export async function getThemeAssets(themeName) {
   const css = [];
   const js = [];
 
-  // Collect assets in reverse inheritance order (parent first, child last)
-  // so child theme CSS overrides parent
   const chain = [];
   const visited = new Set();
   let current = themeName;
 
   while (current && !visited.has(current)) {
     visited.add(current);
-    const dir = path.join(THEMES_DIR, current);
-    if (fs.existsSync(dir)) {
-      const config = getThemeConfig(current);
-      if (config) {
-        chain.unshift({ slug: current, config });
-      }
-      current = config?.inherits || null;
+    const config = await getThemeConfig(current);
+    if (config) {
+      chain.unshift({ slug: current, config });
+      current = config.inherits || null;
     } else {
-      // Virtual theme: No directory, but we might have templates in DB
-      // For virtual themes, we assume a standard layout if it exists
-      chain.unshift({ 
-        slug: current, 
-        config: { 
-          assets: { 
-            css: ["assets/css/style.css"] // Standard location for generated themes
-          },
-          inherits: "default" // Virtual themes always inherit default
-        } 
-      });
-      current = "default";
+      current = null;
     }
   }
 
   // Ensure default is in chain
   if (!visited.has('default')) {
-    const defaultConfig = getThemeConfig('default');
+    const defaultConfig = await getThemeConfig('default');
     if (defaultConfig) {
       chain.unshift({ slug: 'default', config: defaultConfig });
     }
@@ -280,27 +320,21 @@ export function applyNunjucksCustomizations(env) {
   env.addFilter('newline_to_br', (str) => {
     if (!str && str !== 0) return '';
     const text = str.toString();
-    // Simple HTML escape to prevent XSS when using | safe
     const escaped = text
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#039;");
-    // We return a string with <br> tags. The template uses | safe to render the <br>.
-    // Since we escaped the rest, it is safe.
     return escaped.replace(/(?:\r\n|\r|\n)/g, '<br>');
   });
 
-  // Register template extensions (product embeds, etc.)
   registerTemplateExtensions(env, query);
 
-  // Global: renderBlock
   env.addGlobal('renderBlock', function(slug) {
     return `[[block:${slug}]]`;
   });
 
-  // Global: renderWidget
   env.addGlobal('renderWidget', function(slug) {
     return `[[widget:${slug}]]`;
   });
@@ -308,35 +342,20 @@ export function applyNunjucksCustomizations(env) {
 
 /**
  * Get or create a cached Nunjucks Environment for a given theme.
- * Environments are cached by theme slug and database name — each tenant
- * gets their own environment to ensure isolation of globals and loaders.
  */
 export async function getNunjucksEnv(themeName) {
   const dbName = getCurrentDbName();
 
-  // Validate theme exists on disk or DB
-  const themePath = path.join(THEMES_DIR, themeName);
-  let themeExists = fs.existsSync(themePath);
-  
-  if (!themeExists) {
-    // Check if it's a virtual theme in the DB
-    const virtualCount = await prisma.templates.count({
-      where: { filename: { startsWith: themeName + '/' } }
-    });
-    if (virtualCount > 0) {
-      themeExists = true;
+  // Validate theme exists in DB
+  try {
+    const themeRecord = await prisma.themes.findUnique({ where: { slug: themeName } });
+    if (!themeRecord && themeName !== 'default') {
+      console.warn(`[ThemeResolver] Theme "${themeName}" not found in DB, falling back to "default"`);
+      themeName = 'default';
     }
-  }
-
-  if (!themeExists) {
-    console.warn(`[ThemeResolver] Theme "${themeName}" not found on disk or DB, falling back to "default"`);
-    themeName = 'default';
-  }
-
-  const config = getThemeConfig(themeName);
-  if (!config && themeName !== 'default') {
-    // For virtual themes, we might not have a theme.json, so we provide a minimal default
-    // Or we could store theme config in the settings table.
+  } catch {
+    // DB not ready — fall back to default
+    if (themeName !== 'default') themeName = 'default';
   }
 
   const cacheKey = `${themeName}:${dbName}`;
@@ -345,19 +364,16 @@ export async function getNunjucksEnv(themeName) {
     return envCache.get(cacheKey);
   }
 
-  const searchPaths = getThemeSearchPaths(themeName);
-  
-  // 1. Filesystem Loader
+  const searchPaths = await getThemeSearchPaths(themeName);
+
   const fsLoader = new nunjucks.FileSystemLoader(searchPaths, {
     watch: process.env.NODE_ENV === 'development',
     noCache: process.env.NODE_ENV === 'development'
   });
 
-  // 2. DB Loader (Only for active theme or default)
   const dbLoader = new DbLoader(themeName);
   dbLoaderCache.set(cacheKey, dbLoader);
 
-  // Combined loaders (DB takes precedence)
   const env = new nunjucks.Environment([dbLoader, fsLoader], { autoescape: true });
 
   applyNunjucksCustomizations(env);

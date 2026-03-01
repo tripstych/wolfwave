@@ -38,59 +38,61 @@ export default function Sidebar({ isOpen, onClose }) {
       items: [{ name: _('nav.dashboard', 'Dashboard'), href: '/', icon: LayoutDashboard }]
     },
     {
-      section: _('nav.section.content_modules', 'Content Modules'),
+      section: _('nav.section.site', 'Site'),
       items: [
         { name: _('nav.pages', 'Pages'), href: '/pages', icon: FileText },
         { name: _('nav.posts', 'Posts'), href: '/posts', icon: FileText },
         { name: _('nav.blocks', 'Blocks'), href: '/blocks', icon: Boxes },
         { name: _('nav.widgets', 'Widgets'), href: '/widgets', icon: Puzzle },
-      ]
-    },
-    {
-      section: _('nav.section.content', 'Content'),
-      items: [
         { name: _('nav.media', 'Media'), href: '/media', icon: Image },
-        { name: _('nav.templates', 'Templates'), href: '/templates', icon: Layers },
-        { name: _('nav.styles', 'Styles'), href: '/styles', icon: Palette },
         { name: _('nav.menus', 'Menus'), href: '/menus', icon: List },
         { name: _('nav.groups', 'Groups'), href: '/groups', icon: Tag },
       ]
     },
     {
-      section: _('nav.section.store', 'Store'),
-      items: [
-        ...(hasLicenses ? [{ name: _('nav.my_sites', 'My Sites'), href: '/my-sites', icon: Globe }] : []),
-        { name: _('nav.products', 'Products'), href: '/products', icon: Package },
-        { name: _('nav.orders', 'Orders'), href: '/orders', icon: Briefcase },
-        { name: _('nav.customers', 'Customers'), href: '/customers', icon: Users },
-        { name: _('nav.subscriptions', 'Subscriptions'), href: '/subscriptions', icon: CreditCard },
-        { name: _('nav.coupons', 'Coupons'), href: '/marketing/coupons', icon: Tag },
-        { name: _('nav.classifieds', 'Classifieds'), href: '/classifieds', icon: Megaphone },
-        { name: _('nav.shipstation', 'ShipStation'), href: '/shipstation', icon: Truck }
-      ]
-    },
-    {
-      section: _('nav.section.import', 'Import'),
-      items: [
-        { name: _('nav.manual_import', 'Manual Import'), href: '/import', icon: Download },
-        { name: _('nav.assisted_import', 'Assisted Import'), href: '/assisted-import', icon: Zap },
-        { name: _('nav.lovable_import', 'Lovable Import'), href: '/import-lovable', icon: Heart },
-        { name: _('nav.theme_import', 'Theme Import'), href: '/themes/import', icon: FolderOpen }
-      ]
-    },
-    {
-      section: _('nav.section.settings', 'Settings'),
+      section: _('nav.section.design', 'Design'),
       items: [
         { name: _('nav.themes', 'Themes'), href: '/themes', icon: Palette },
-        { name: _('nav.users', 'Users'), href: '/users', icon: Users },
-        ...(user?.is_global ? [{ name: _('nav.sites', 'Sites'), href: '/tenants', icon: Globe }] : []),
+        { name: _('nav.templates', 'Templates'), href: '/templates', icon: Layers },
+        { name: _('nav.styles', 'Styles'), href: '/styles', icon: Palette },
         { name: _('nav.email_templates', 'Email Templates'), href: '/email-templates', icon: Mail },
-        { name: _('nav.seo', 'SEO'), href: '/seo', icon: Search },
-        { name: _('nav.api_keys', 'API Keys'), href: '/api-keys', icon: Key },
-        { name: _('nav.woocommerce_keys', 'WooCommerce Keys'), href: '/woocommerce-keys', icon: ShoppingCart },
-        { name: _('nav.configuration', 'Configuration'), href: '/settings', icon: Settings }
       ]
-    }
+    },
+    {
+      section: _('nav.section.store', 'Store'),
+      items: [
+        { name: _('nav.orders', 'Orders'), href: '/orders', icon: Briefcase },
+        { name: _('nav.products', 'Products'), href: '/products', icon: Package },
+        { name: _('nav.customers', 'Customers'), href: '/customers', icon: Users },
+        { name: _('nav.subscriptions', 'Subscriptions'), href: '/subscriptions', icon: CreditCard },
+      ]
+    },
+    {
+      section: _('nav.section.marketing', 'Marketing'),
+      items: [
+        { name: _('nav.coupons', 'Coupons'), href: '/marketing/coupons', icon: Tag },
+        { name: _('nav.classifieds', 'Classifieds'), href: '/classifieds', icon: Megaphone },
+        { name: _('nav.seo', 'SEO'), href: '/seo', icon: Search },
+      ]
+    },
+    {
+      section: _('nav.section.integrations', 'Integrations'),
+      items: [
+        { name: _('nav.shipstation', 'ShipStation'), href: '/shipstation', icon: Truck },
+        { name: _('nav.woocommerce_keys', 'WooCommerce Keys'), href: '/woocommerce-keys', icon: ShoppingCart },
+        { name: _('nav.api_keys', 'API Keys'), href: '/api-keys', icon: Key },
+      ]
+    },
+    {
+        section: _('nav.section.system', 'System'),
+        items: [
+          ...(hasLicenses ? [{ name: _('nav.my_sites', 'My Sites'), href: '/my-sites', icon: Globe }] : []),
+          ...(user?.is_global ? [{ name: _('nav.sites', 'Sites'), href: '/tenants', icon: Globe }] : []),
+          { name: _('nav.users', 'Users'), href: '/users', icon: Users },
+          { name: _('nav.configuration', 'Configuration'), href: '/settings', icon: Settings },
+          { name: _('nav.import', 'Import'), href: '/import', icon: Download },
+        ]
+      }
   ];
 
   return (

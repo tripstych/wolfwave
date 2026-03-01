@@ -13,7 +13,7 @@ import { initDb, query } from './db/connection.js';
 import { tenantMiddleware } from './middleware/tenant.js';
 import { closeAllPools } from './lib/poolManager.js';
 import { closePrisma } from './lib/prisma.js';
-import { getNunjucksEnv, getThemesDir } from './services/themeResolver.js';
+import { getNunjucksEnv, getThemesDir, syncFilesystemThemes } from './services/themeResolver.js';
 import { accessLog, errorLog, closeLogs, info, error as logError } from './lib/logger.js';
 import { maybePatchConsole } from './lib/consolePatch.js';
 import woocommerceApiRoutes from './api/woocommerce.js';
@@ -176,6 +176,10 @@ app.use(errorLog);
 // Initialize database and start server
 if (process.env.NODE_ENV !== 'test') {
   initDb().then(async () => {
+    // Sync filesystem themes to DB on startup
+    await syncFilesystemThemes();
+    info('system', 'STARTUP', 'Filesystem themes synced.');
+    
     // Create a default Nunjucks env at startup (for express error pages, etc.)
     const defaultEnv = await getNunjucksEnv('default');
     app.locals.nunjucksEnv = defaultEnv;

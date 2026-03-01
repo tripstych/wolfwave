@@ -63,13 +63,14 @@ router.post('/generate-theme', requireAuth, requireAdmin, async (req, res) => {
     const themeData = await generateThemeFromIndustry(industry, plan);
     const { slug, templates, name, demoContent } = themeData;
 
-    // 2. Flush any previous virtual theme templates (old slugs pile up otherwise)
+    // 2. Flush previous virtual theme (templates + themes record)
     const previousTheme = await prisma.settings.findUnique({ where: { setting_key: 'active_theme' } });
     const prevSlug = previousTheme?.setting_value;
     if (prevSlug && prevSlug !== 'default' && prevSlug !== slug) {
       const deleted = await prisma.templates.deleteMany({
         where: { filename: { startsWith: `${prevSlug}/` } }
       });
+      await prisma.themes.deleteMany({ where: { slug: prevSlug, source: 'virtual' } });
       if (deleted.count) console.log(`[AI-DEBUG] 🗑️ Flushed ${deleted.count} templates from previous theme "${prevSlug}"`);
     }
 
@@ -176,14 +177,40 @@ router.post('/generate-theme', requireAuth, requireAdmin, async (req, res) => {
       console.log(`[AI-DEBUG] 📄 Homepage content saved (content_id: ${contentRecord.id}, page_id: ${pageRecord.id})`);
     }
 
-    // 4. Update the active theme setting
+    // 4. Create/update themes record for this virtual theme
+    await prisma.themes.upsert({
+      where: { slug },
+      update: {
+        name: name || slug,
+        description: themeData.description || '',
+        config: { assets: { css: ['assets/css/style.css'], js: [] }, inherits: 'default' },
+        source: 'virtual',
+        is_active: true,
+        updated_at: new Date()
+      },
+      create: {
+        slug,
+        name: name || slug,
+        description: themeData.description || '',
+        version: '1.0.0',
+        inherits: 'default',
+        source: 'virtual',
+        config: { assets: { css: ['assets/css/style.css'], js: [] }, inherits: 'default' },
+        is_active: true
+      }
+    });
+
+    // Deactivate all other themes
+    await prisma.themes.updateMany({ where: { slug: { not: slug } }, data: { is_active: false } });
+
+    // 5. Update the active theme setting
     await prisma.settings.upsert({
       where: { setting_key: 'active_theme' },
       update: { setting_value: slug },
       create: { setting_key: 'active_theme', setting_value: slug }
     });
 
-    // 5. Clear cache so the new virtual theme is picked up
+    // 6. Clear cache so the new virtual theme is picked up
     const { clearThemeCache } = await import('../services/themeResolver.js');
     clearThemeCache();
 

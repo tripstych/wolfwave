@@ -285,14 +285,18 @@ export async function syncTemplatesToDb(prisma, themeName = 'default') {
     select: { id: true, filename: true, content_type: true }
   });
 
-  // Exclude virtual theme templates (slug-prefixed, e.g. "my-theme/pages/homepage.njk")
-  // which only exist in DB and are managed by the AI theme generator.
-  // Standard filesystem templates start with a known directory like pages/, posts/, blocks/, etc.
-  const knownPrefixes = syncedFilenames.map(f => f.split('/')[0]);
-  const knownDirs = new Set(knownPrefixes);
+  // Get all virtual theme slugs to exclude them from cleanup
+  const virtualThemes = await prisma.themes.findMany({
+    where: { source: 'virtual' },
+    select: { slug: true }
+  });
+  const virtualThemeSlugs = new Set(virtualThemes.map(t => t.slug));
+
   const staleTemplates = allDbTemplates.filter(t => {
-    const topDir = t.filename.split('/')[0];
-    return knownDirs.has(topDir);
+    if (!t.filename) return false;
+    const templateSlug = t.filename.split('/')[0];
+    // If the template's prefix matches a virtual theme slug, it's not stale.
+    return !virtualThemeSlugs.has(templateSlug);
   });
 
   if (staleTemplates.length > 0) {
