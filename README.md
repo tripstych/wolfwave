@@ -10,7 +10,13 @@ A multi-tenant, "Look & Feel" first CMS designed to import industrial-grade site
 - **Template-Driven Content** - Define content regions using `data-cms-*` attributes
 - **React Admin UI** - Modern, responsive admin interface
 - **Classifieds System** - Built-in classified ads with categories, search, and messaging
-- **E-commerce** - Product management, cart, and checkout functionality
+- **E-commerce** - Complete product catalog, shopping cart, checkout, and order management
+- **Payment Processing** - Stripe and PayPal integration with secure credential storage
+- **WooCommerce Compatibility** - Import and sync with existing WooCommerce stores
+- **ShipStation Integration** - Automated shipping and fulfillment management
+- **Subscription System** - Recurring billing and subscription management
+- **Builder Frontend** - Visual site builder with drag-and-drop interface
+- **Extension System** - Modular architecture for custom functionality
 - **Media Library** - Upload and manage images and documents
 - **AI Integration** - Hybrid extraction (JSX source + Rendered HTML design truth)
 
@@ -20,7 +26,18 @@ A multi-tenant, "Look & Feel" first CMS designed to import industrial-grade site
 - **Database**: PostgreSQL (via Prisma for schema/logic, Raw SQL for tenant performance)
 - **Templating**: Nunjucks (standalone document approach)
 - **Frontend Admin**: React (Vite), TailwindCSS
+- **Builder Frontend**: React (Vite), Drag-and-drop components
 - **Public Site**: Server-rendered Nunjucks templates
+- **Payment Processing**: Stripe Elements, PayPal Buttons
+- **Media Storage**: AWS S3 (configurable)
+- **Email**: MailerSend, Resend
+- **Process Management**: PM2
+- **Testing**: Vitest, Puppeteer
+- **API Documentation**: RESTful JSON APIs
+- **Authentication**: JWT, Express Sessions
+- **File Uploads**: Multer
+- **CSS Processing**: PostCSS
+- **Build Tools**: Vite, npm scripts
 
 ## Quick Start
 
@@ -69,25 +86,39 @@ This starts:
 ```
 wolfwave/
 ├── server/                 # Express backend
-│   ├── api/               # REST API routes (AI, classifieds, products, etc.)
+│   ├── api/               # REST API routes (AI, classifieds, products, orders, payments, etc.)
 │   ├── controllers/       # Page rendering and business logic
 │   ├── db/                # Database connection & Prisma client
+│   ├── extensions/        # Extension system modules
 │   ├── middleware/        # Auth & tenant resolution
 │   ├── lib/               # Renderer, logger, tenant context
-│   └── services/          # AI, Media, Lovable Importer
+│   └── services/          # AI, Media, Lovable Importer, payment processing
 ├── admin/                  # React admin interface
 │   └── src/
 │       ├── components/    # Reusable components
 │       ├── blocks/        # Block editor components
-│       └── classifieds/   # Classifieds management
+│       ├── classifieds/   # Classifieds management
+│       ├── products/      # Product management
+│       └── orders/        # Order management
+├── builder/                # Visual site builder
+│   ├── frontend/          # React-based builder UI
+│   └── server/            # Builder API endpoints
 ├── templates/              # Nunjucks site templates
 │   ├── layouts/           # Base layouts
 │   ├── imported/          # AI-generated tenant templates
 │   ├── classifieds/       # Classifieds templates
+│   ├── products/          # E-commerce templates
+│   ├── shop/              # Cart, checkout, order templates
 │   └── customer/          # Customer portal templates
 ├── prisma/                 # Prisma schema & migrations
 ├── uploads/                # Multi-tenant media storage
-└── public/                 # Static assets
+├── public/                 # Static assets
+│   ├── css/               # Site stylesheets
+│   ├── js/                # E-commerce and site JavaScript
+│   └── images/            # Static images and placeholders
+├── scripts/                # Utility scripts and tools
+├── tests/                  # Test suites
+└── docs/                   # Additional documentation
 ```
 
 ## Defining Content Regions
@@ -160,6 +191,48 @@ Use `data-cms-*` attributes in your Nunjucks templates to define editable conten
 - `POST /api/media/upload` - Upload file
 - `DELETE /api/media/:id` - Delete file
 
+### E-commerce - Products
+- `GET /api/products` - List products
+- `POST /api/products` - Create product
+- `GET /api/products/:id` - Get product
+- `PUT /api/products/:id` - Update product
+- `DELETE /api/products/:id` - Delete product
+- `POST /api/products/:id/inventory` - Update inventory
+
+### E-commerce - Orders
+- `GET /api/orders` - List orders
+- `POST /api/orders` - Create order
+- `GET /api/orders/:id` - Get order
+- `GET /api/orders/number/:orderNumber` - Lookup order by number
+- `PUT /api/orders/:id/status` - Update order status
+- `PUT /api/orders/:id/tracking` - Add tracking number
+
+### E-commerce - Cart
+- `GET /api/cart` - Get cart contents
+- `POST /api/cart/items` - Add item to cart
+- `PUT /api/cart/items/:index` - Update cart item
+- `DELETE /api/cart/items/:index` - Remove cart item
+- `POST /api/cart/clear` - Clear cart
+- `POST /api/cart/totals` - Calculate totals
+
+### E-commerce - Payments
+- `POST /api/payments/stripe/intent` - Create Stripe payment intent
+- `POST /api/payments/stripe/confirm` - Confirm Stripe payment
+- `POST /api/payments/paypal/order` - Create PayPal order
+- `POST /api/payments/paypal/capture` - Capture PayPal payment
+
+### Extensions
+- `GET /api/extensions` - List extensions
+- `GET /api/extensions/:extensionName` - Get extension details
+- `POST /api/extensions/:extensionName/enable` - Enable extension
+- `POST /api/extensions/:extensionName/disable` - Disable extension
+
+### Integrations
+- `POST /api/woocommerce/import` - Import from WooCommerce
+- `POST /api/woocommerce/sync` - Sync with WooCommerce
+- `POST /api/shipstation/ship` - Create shipment
+- `GET /api/shipstation/tracking/:trackingNumber` - Get tracking info
+
 ### SEO
 - `GET /api/seo/redirects` - List redirects
 - `POST /api/seo/redirects` - Create redirect
@@ -190,6 +263,20 @@ In production, the admin UI is served from `/admin` on the Express server.
 | `SESSION_SECRET` | Session secret | - |
 | `OPENAI_API_KEY` | OpenAI API key for AI features | - |
 | `ANTHROPIC_API_KEY` | Anthropic API key (optional) | - |
+| `STRIPE_PUBLIC_KEY` | Stripe public key | - |
+| `STRIPE_SECRET_KEY` | Stripe secret key | - |
+| `PAYPAL_CLIENT_ID` | PayPal client ID | - |
+| `PAYPAL_CLIENT_SECRET` | PayPal client secret | - |
+| `PAYPAL_MODE` | PayPal mode (sandbox/live) | `sandbox` |
+| `WOOCOMMERCE_URL` | WooCommerce store URL | - |
+| `WOOCOMMERCE_KEY` | WooCommerce consumer key | - |
+| `WOOCOMMERCE_SECRET` | WooCommerce consumer secret | - |
+| `SHIPSTATION_API_KEY` | ShipStation API key | - |
+| `SHIPSTATION_API_SECRET` | ShipStation API secret | - |
+| `AWS_ACCESS_KEY_ID` | AWS S3 access key (for media) | - |
+| `AWS_SECRET_ACCESS_KEY` | AWS S3 secret key | - |
+| `AWS_REGION` | AWS S3 region | `us-east-1` |
+| `AWS_S3_BUCKET` | S3 bucket name | - |
 
 ## License
 

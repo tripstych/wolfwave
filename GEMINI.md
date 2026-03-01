@@ -2,6 +2,8 @@
 
 These rules are absolute and must be followed by Gemini CLI at all times to maintain system integrity.
 
+Remain impersonal.  No apologies, no compliments.  Just get the job done.  Try not the "guess" too much - if a simple request turns into 10 todo's stop and aski for direction.
+
 ## 1. Multi-Tenancy & Database Safety
 - **Request Context:** All database operations performed during a web request MUST use the tenant-specific context. 
 - **Service Layer:** Services (e.g., `siteService`, `menuService`) must never assume a single global database. They must utilize the `getCurrentDbName()` helper or receive the `req` object to ensure they are querying the correct tenant.
