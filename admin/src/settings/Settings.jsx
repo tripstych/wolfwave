@@ -44,7 +44,7 @@ export default function Settings() {
     { id: 'email', label: _('settings.tab.email', 'Email'), icon: Mail },
     { id: 'amazon', label: _('settings.tab.amazon', 'Amazon'), icon: ShoppingCart, module: 'Amazon Integration' },
     { id: 'ai', label: _('settings.tab.ai', 'AI Services'), icon: Cpu, module: 'AI Services' },
-    { id: 'shipstation', label: _('settings.tab.shipstation', 'ShipStation'), icon: ShoppingCart, module: 'ShipStation Integration' },
+    { id: 'shipstation', label: _('settings.tab.shipstation', 'ShipStation'), icon: ShoppingCart },
   ];
 
   // Filter tabs based on enabled modules
