@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../lib/api';
 import { toast } from 'sonner';
-import { Search, Check, X, Eye, Filter } from 'lucide-react';
+import { Search, Check, X, Eye, Filter, Settings } from 'lucide-react';
 import { useTranslation } from '../context/TranslationContext';
 
 export default function ClassifiedList() {
@@ -87,6 +87,10 @@ export default function ClassifiedList() {
             {pendingCount > 0 && ` — ${pendingCount} ${_('classifieds.pending_review', 'pending review')}`}
           </p>
         </div>
+        <Link to="/classifieds/settings" className="btn btn-secondary">
+          <Settings className="w-4 h-4 mr-2" />
+          {_('classifieds.settings', 'Settings')}
+        </Link>
       </div>
 
       {/* Filters */}
