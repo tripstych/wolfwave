@@ -107,25 +107,16 @@ router.get('/', requireCustomer, async (req, res) => {
 
 /**
  * GET /limits — check current site limits
+ * Works only in the CURRENT database context
  */
 router.get('/limits', requireCustomer, async (req, res) => {
   const currentDb = getCurrentDbName();
-  const primaryDb = process.env.DB_NAME || 'wolfwave_admin';
+  
+  console.log(`[CUSTOMER_TENANTS_LIMITS] Current DB: ${currentDb}, Customer ID: ${req.customer?.id}, Email: ${req.customer?.email}`);
   
   try {
-    let targetCustomerId = req.customer?.id;
-    let isResellerChild = false;
-
-    // If we are on a tenant site, we check the TENANT OWNER'S limits
-    if (currentDb !== primaryDb) {
-      const tenantInfo = await getTenantInfoByDb(currentDb);
-      if (tenantInfo?.customer_id) {
-        targetCustomerId = tenantInfo.customer_id;
-        isResellerChild = true;
-      }
-    }
-
-    if (!targetCustomerId) {
+    if (!req.customer) {
+      console.log(`[CUSTOMER_TENANTS_LIMITS] No customer found`);
       return res.json({
         used: 0,
         limit: 0,
@@ -135,15 +126,28 @@ router.get('/limits', requireCustomer, async (req, res) => {
       });
     }
 
-    const stats = await getCustomerSubscriptionStats(targetCustomerId);
-    
-    if (!stats) return res.status(404).json({ error: 'License owner not found' });
-
-    res.json({
-      ...stats,
-      is_reseller_pool: isResellerChild
+    // Count tenants in CURRENT database only
+    const currentTenants = await prisma.tenants.count({
+      where: { customer_id: req.customer.id }
     });
+    
+    console.log(`[CUSTOMER_TENANTS_LIMITS] Found ${currentTenants} tenants in current DB ${currentDb}`);
+
+    // For now, return a simple limit check based on current count
+    // TODO: Implement proper subscription limits in current database context
+    const limit = 10; // Default limit per customer per database
+    const canCreate = currentTenants < limit;
+    
+    res.json({
+      used: currentTenants,
+      limit: limit,
+      plan_name: 'Standard Plan',
+      can_create: canCreate,
+      is_reseller_pool: false
+    });
+    
   } catch (err) {
+    console.error('Customer limits error:', err);
     res.status(500).json({ error: err.message });
   }
 });
