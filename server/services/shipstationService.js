@@ -205,8 +205,24 @@ export async function createLabel(labelData) {
   return await request('post', '/v2/labels', labelData);
 }
 
-export async function voidLabel(shipmentId) {
-  return await request('put', `/v2/labels/${shipmentId}/void`);
+export async function createLabelFromRate(rateId, options = {}) {
+  return await request('post', `/v2/labels/rates/${rateId}`, options);
+}
+
+export async function createLabelFromShipment(shipmentId, options = {}) {
+  return await request('post', `/v2/labels/shipment/${shipmentId}`, options);
+}
+
+export async function listLabels(params = {}) {
+  return await request('get', '/v2/labels', params);
+}
+
+export async function getLabel(labelId) {
+  return await request('get', `/v2/labels/${labelId}`);
+}
+
+export async function voidLabel(labelId) {
+  return await request('put', `/v2/labels/${labelId}/void`);
 }
 
 export async function cancelShipment(shipmentId) {
@@ -344,7 +360,8 @@ export default {
   createOrder, getOrder, listOrders, deleteOrder,
   holdOrder, restoreOrder, assignTag, removeTag, markAsShipped,
   // Shipments & Rates
-  listShipments, getShippingRates, createLabel, voidLabel, cancelShipment,
+  listShipments, getShippingRates, createLabel, createLabelFromRate, createLabelFromShipment,
+  listLabels, getLabel, voidLabel, cancelShipment,
   // Carriers
   listCarriers, getCarrier, listCarrierServices, listCarrierPackages,
   // Warehouses

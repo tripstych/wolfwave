@@ -214,10 +214,62 @@ router.post('/rates', requireAuth, requireEditor, async (req, res) => {
   }
 });
 
-// Create a shipping label
+// ─── Labels ─────────────────────────────────────────────────────────
+
+// List labels
+router.get('/labels', requireAuth, requireEditor, async (req, res) => {
+  try {
+    const result = await ss.listLabels(req.query);
+    res.json(result);
+  } catch (error) {
+    res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
+  }
+});
+
+// Get a single label
+router.get('/labels/:labelId', requireAuth, requireEditor, async (req, res) => {
+  try {
+    const result = await ss.getLabel(req.params.labelId);
+    res.json(result);
+  } catch (error) {
+    res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
+  }
+});
+
+// Create a shipping label (full shipment)
 router.post('/labels', requireAuth, requireEditor, async (req, res) => {
   try {
     const result = await ss.createLabel(req.body);
+    res.json(result);
+  } catch (error) {
+    res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
+  }
+});
+
+// Create label from a rate
+router.post('/labels/rates/:rateId', requireAuth, requireEditor, async (req, res) => {
+  try {
+    const result = await ss.createLabelFromRate(req.params.rateId, req.body);
+    res.json(result);
+  } catch (error) {
+    res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
+  }
+});
+
+// Create label from a shipment
+router.post('/labels/shipment/:shipmentId', requireAuth, requireEditor, async (req, res) => {
+  try {
+    const result = await ss.createLabelFromShipment(req.params.shipmentId, req.body);
+    res.json(result);
+  } catch (error) {
+    res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
+  }
+});
+
+// Void a shipping label
+router.put('/labels/:labelId/void', requireAuth, requireEditor, async (req, res) => {
+  try {
+    const result = await ss.voidLabel(req.params.labelId);
     res.json(result);
   } catch (error) {
     res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
@@ -228,16 +280,6 @@ router.post('/labels', requireAuth, requireEditor, async (req, res) => {
 router.get('/shipments/:shipmentId/cancel', requireAuth, requireEditor, async (req, res) => {
   try {
     const result = await ss.cancelShipment(req.params.shipmentId);
-    res.json(result);
-  } catch (error) {
-    res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
-  }
-});
-
-// Void a shipping label
-router.post('/labels/:shipmentId/void', requireAuth, requireEditor, async (req, res) => {
-  try {
-    const result = await ss.voidLabel(parseInt(req.params.shipmentId));
     res.json(result);
   } catch (error) {
     res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });

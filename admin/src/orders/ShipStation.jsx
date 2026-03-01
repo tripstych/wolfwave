@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import api from '../lib/api';
-import { Truck, Warehouse, TestTube, RefreshCw, CheckCircle, XCircle, ChevronDown, ChevronUp, Globe, Tag, Ban, Plus, X } from 'lucide-react';
+import { Truck, Warehouse, TestTube, RefreshCw, CheckCircle, XCircle, ChevronDown, ChevronUp, Globe, Tag, Ban, Plus, X, FileText, Download } from 'lucide-react';
 
 const tabs = [
   { id: 'shipments', label: 'Shipments', icon: Truck },
+  { id: 'labels', label: 'Labels', icon: FileText },
   { id: 'carriers', label: 'Carriers', icon: Globe },
   { id: 'warehouses', label: 'Warehouses', icon: Warehouse },
   { id: 'settings', label: 'Settings', icon: TestTube },
@@ -95,6 +96,7 @@ export default function ShipStation() {
       ) : (
         <>
           {activeTab === 'shipments' && <ShipmentsTab />}
+          {activeTab === 'labels' && <LabelsTab />}
           {activeTab === 'carriers' && <CarriersTab />}
           {activeTab === 'warehouses' && <WarehousesTab />}
           {activeTab === 'settings' && <SettingsTab />}
@@ -379,6 +381,425 @@ function ShipmentsTab() {
           )}
         </tbody>
       </table>
+      </div>
+    </div>
+  );
+}
+
+// ─── Labels Tab ─────────────────────────────────────────────────────
+
+const EMPTY_ADDRESS = {
+  name: '', company_name: '', phone: '',
+  address_line1: '', address_line2: '',
+  city_locality: '', state_province: '', postal_code: '', country_code: 'US',
+  address_residential_indicator: 'unknown'
+};
+
+const EMPTY_PACKAGE = {
+  weight: { value: '', unit: 'ounce' },
+  dimensions: { length: '', width: '', height: '', unit: 'inch' }
+};
+
+function LabelsTab() {
+  const [labels, setLabels] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [voiding, setVoiding] = useState(null);
+  const [carriers, setCarriers] = useState([]);
+  const [carrierServices, setCarrierServices] = useState([]);
+  const [warehouses, setWarehouses] = useState([]);
+  const [createdLabel, setCreatedLabel] = useState(null);
+
+  const [form, setForm] = useState({
+    carrier_id: '',
+    service_code: '',
+    ship_date: new Date().toISOString().split('T')[0],
+    ship_to: { ...EMPTY_ADDRESS },
+    ship_from: { ...EMPTY_ADDRESS },
+    packages: [{ ...EMPTY_PACKAGE, weight: { ...EMPTY_PACKAGE.weight }, dimensions: { ...EMPTY_PACKAGE.dimensions } }]
+  });
+
+  useEffect(() => {
+    loadLabels();
+    loadCarriers();
+    loadWarehouses();
+  }, []);
+
+  const loadLabels = async () => {
+    setLoading(true);
+    try {
+      const data = await api.get('/shipstation/labels?page_size=50');
+      const list = Array.isArray(data) ? data : (data?.labels || []);
+      setLabels(list);
+    } catch (err) {
+      console.error('Failed to load labels:', err);
+      setLabels([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadCarriers = async () => {
+    try {
+      const data = await api.get('/shipstation/carriers');
+      setCarriers(Array.isArray(data) ? data : (data?.carriers || []));
+    } catch (err) { console.error('Failed to load carriers:', err); }
+  };
+
+  const loadWarehouses = async () => {
+    try {
+      const data = await api.get('/shipstation/warehouses');
+      const list = Array.isArray(data) ? data : [];
+      setWarehouses(list);
+      // Pre-fill ship_from with default warehouse
+      const defaultWh = list.find(w => w.isDefault) || list[0];
+      if (defaultWh?.originAddress) {
+        const a = defaultWh.originAddress;
+        setForm(f => ({
+          ...f,
+          ship_from: {
+            name: a.name || defaultWh.warehouseName || '',
+            company_name: a.company || '',
+            phone: a.phone || '',
+            address_line1: a.street1 || '',
+            address_line2: a.street2 || '',
+            city_locality: a.city || '',
+            state_province: a.state || '',
+            postal_code: a.postalCode || '',
+            country_code: a.country || 'US',
+            address_residential_indicator: 'no'
+          }
+        }));
+      }
+    } catch (err) { console.error('Failed to load warehouses:', err); }
+  };
+
+  const handleCarrierChange = async (carrierId) => {
+    setForm(f => ({ ...f, carrier_id: carrierId, service_code: '' }));
+    setCarrierServices([]);
+    if (!carrierId) return;
+    // Find carrier code from carrier_id
+    const carrier = carriers.find(c => c.carrier_id === carrierId);
+    if (carrier?.carrier_code) {
+      try {
+        const data = await api.get(`/shipstation/carriers/${carrier.carrier_code}/services`);
+        setCarrierServices(Array.isArray(data) ? data : (data?.services || []));
+      } catch (err) { console.error('Failed to load services:', err); }
+    }
+  };
+
+  const updateAddress = (which, field, value) => {
+    setForm(f => ({ ...f, [which]: { ...f[which], [field]: value } }));
+  };
+
+  const updatePackage = (field, value) => {
+    setForm(f => {
+      const pkg = { ...f.packages[0] };
+      if (field === 'weight_value') pkg.weight = { ...pkg.weight, value };
+      else if (field === 'weight_unit') pkg.weight = { ...pkg.weight, unit: value };
+      else if (['length', 'width', 'height'].includes(field)) pkg.dimensions = { ...pkg.dimensions, [field]: value };
+      else if (field === 'dim_unit') pkg.dimensions = { ...pkg.dimensions, unit: value };
+      return { ...f, packages: [pkg] };
+    });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setCreating(true);
+    setCreatedLabel(null);
+    try {
+      const payload = {
+        shipment: {
+          carrier_id: form.carrier_id,
+          service_code: form.service_code,
+          ship_date: form.ship_date,
+          ship_to: { ...form.ship_to },
+          ship_from: { ...form.ship_from },
+          packages: form.packages.map(pkg => ({
+            weight: { value: parseFloat(pkg.weight.value) || 0, unit: pkg.weight.unit },
+            dimensions: {
+              length: parseFloat(pkg.dimensions.length) || 0,
+              width: parseFloat(pkg.dimensions.width) || 0,
+              height: parseFloat(pkg.dimensions.height) || 0,
+              unit: pkg.dimensions.unit
+            }
+          }))
+        }
+      };
+      const result = await api.post('/shipstation/labels', payload);
+      setCreatedLabel(result);
+      loadLabels();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to create label');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleVoid = async (labelId) => {
+    if (!confirm('Void this label? This cannot be undone.')) return;
+    setVoiding(labelId);
+    try {
+      await api.put(`/shipstation/labels/${labelId}/void`);
+      loadLabels();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to void label');
+    } finally {
+      setVoiding(null);
+    }
+  };
+
+  const AddressFields = ({ which, label }) => (
+    <div>
+      <h4 className="text-sm font-medium text-gray-700 mb-2">{label}</h4>
+      <div className="grid grid-cols-2 gap-2">
+        <input placeholder="Name" value={form[which].name} onChange={e => updateAddress(which, 'name', e.target.value)}
+          className="px-2.5 py-1.5 text-sm border border-gray-300 rounded-lg" />
+        <input placeholder="Company" value={form[which].company_name} onChange={e => updateAddress(which, 'company_name', e.target.value)}
+          className="px-2.5 py-1.5 text-sm border border-gray-300 rounded-lg" />
+        <input placeholder="Phone" value={form[which].phone} onChange={e => updateAddress(which, 'phone', e.target.value)}
+          className="col-span-2 px-2.5 py-1.5 text-sm border border-gray-300 rounded-lg" />
+        <input placeholder="Address Line 1" value={form[which].address_line1} onChange={e => updateAddress(which, 'address_line1', e.target.value)}
+          className="col-span-2 px-2.5 py-1.5 text-sm border border-gray-300 rounded-lg" />
+        <input placeholder="Address Line 2" value={form[which].address_line2} onChange={e => updateAddress(which, 'address_line2', e.target.value)}
+          className="col-span-2 px-2.5 py-1.5 text-sm border border-gray-300 rounded-lg" />
+        <input placeholder="City" value={form[which].city_locality} onChange={e => updateAddress(which, 'city_locality', e.target.value)}
+          className="px-2.5 py-1.5 text-sm border border-gray-300 rounded-lg" />
+        <input placeholder="State" value={form[which].state_province} onChange={e => updateAddress(which, 'state_province', e.target.value)}
+          className="px-2.5 py-1.5 text-sm border border-gray-300 rounded-lg" />
+        <input placeholder="Postal Code" value={form[which].postal_code} onChange={e => updateAddress(which, 'postal_code', e.target.value)}
+          className="px-2.5 py-1.5 text-sm border border-gray-300 rounded-lg" />
+        <input placeholder="Country" value={form[which].country_code} onChange={e => updateAddress(which, 'country_code', e.target.value)}
+          className="px-2.5 py-1.5 text-sm border border-gray-300 rounded-lg" />
+        <select value={form[which].address_residential_indicator} onChange={e => updateAddress(which, 'address_residential_indicator', e.target.value)}
+          className="col-span-2 px-2.5 py-1.5 text-sm border border-gray-300 rounded-lg">
+          <option value="unknown">Residential?</option>
+          <option value="yes">Yes - Residential</option>
+          <option value="no">No - Commercial</option>
+        </select>
+      </div>
+    </div>
+  );
+
+  const statusColors = {
+    completed: 'bg-green-100 text-green-800',
+    processing: 'bg-yellow-100 text-yellow-800',
+    voided: 'bg-red-100 text-red-800',
+    error: 'bg-red-100 text-red-800',
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <button onClick={() => { setShowForm(!showForm); setCreatedLabel(null); }}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+          <Plus className="w-3.5 h-3.5" />
+          Create Label
+        </button>
+        <button onClick={loadLabels} disabled={loading}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50">
+          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+          {loading ? 'Loading...' : 'Refresh'}
+        </button>
+      </div>
+
+      {/* Created label success */}
+      {createdLabel && (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+          <div className="flex items-start justify-between">
+            <div>
+              <h4 className="text-sm font-medium text-green-800">Label Created Successfully</h4>
+              <div className="text-xs text-green-700 mt-1 space-y-0.5">
+                <p>Label ID: {createdLabel.label_id}</p>
+                <p>Tracking: {createdLabel.tracking_number || 'N/A'}</p>
+                <p>Cost: ${createdLabel.shipment_cost?.amount?.toFixed(2) || '0.00'} {createdLabel.shipment_cost?.currency?.toUpperCase()}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {createdLabel.label_download?.pdf && (
+                <a href={createdLabel.label_download.pdf} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 px-2.5 py-1 text-xs bg-green-700 text-white rounded-lg hover:bg-green-800">
+                  <Download className="w-3 h-3" /> PDF
+                </a>
+              )}
+              {createdLabel.label_download?.png && (
+                <a href={createdLabel.label_download.png} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 px-2.5 py-1 text-xs border border-green-600 text-green-700 rounded-lg hover:bg-green-100">
+                  <Download className="w-3 h-3" /> PNG
+                </a>
+              )}
+              <button onClick={() => setCreatedLabel(null)} className="text-green-600 hover:text-green-800">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Label Form */}
+      {showForm && (
+        <form onSubmit={handleSubmit} className="bg-white border border-gray-200 rounded-lg p-5 space-y-5">
+          <h3 className="text-sm font-semibold text-gray-800">New Shipping Label</h3>
+
+          {/* Carrier & Service */}
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Carrier</label>
+              <select value={form.carrier_id} onChange={e => handleCarrierChange(e.target.value)} required
+                className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-lg">
+                <option value="">Select carrier...</option>
+                {carriers.map(c => (
+                  <option key={c.carrier_id} value={c.carrier_id}>{c.friendly_name || c.name || c.carrier_code}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Service</label>
+              <select value={form.service_code} onChange={e => setForm(f => ({ ...f, service_code: e.target.value }))} required
+                className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-lg">
+                <option value="">Select service...</option>
+                {carrierServices.map(s => (
+                  <option key={s.serviceCode || s.service_code} value={s.serviceCode || s.service_code}>
+                    {s.name || s.serviceCode || s.service_code}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Ship Date</label>
+              <input type="date" value={form.ship_date} onChange={e => setForm(f => ({ ...f, ship_date: e.target.value }))} required
+                className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-lg" />
+            </div>
+          </div>
+
+          {/* Addresses */}
+          <div className="grid grid-cols-2 gap-5">
+            <AddressFields which="ship_from" label="Ship From" />
+            <AddressFields which="ship_to" label="Ship To" />
+          </div>
+
+          {/* Package */}
+          <div>
+            <h4 className="text-sm font-medium text-gray-700 mb-2">Package</h4>
+            <div className="grid grid-cols-5 gap-2">
+              <div>
+                <label className="block text-xs text-gray-500 mb-0.5">Weight</label>
+                <input type="number" step="0.01" min="0" placeholder="0" value={form.packages[0].weight.value}
+                  onChange={e => updatePackage('weight_value', e.target.value)} required
+                  className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-lg" />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-0.5">Unit</label>
+                <select value={form.packages[0].weight.unit} onChange={e => updatePackage('weight_unit', e.target.value)}
+                  className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-lg">
+                  <option value="ounce">oz</option>
+                  <option value="pound">lb</option>
+                  <option value="gram">g</option>
+                  <option value="kilogram">kg</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-0.5">L (in)</label>
+                <input type="number" step="0.1" min="0" placeholder="0" value={form.packages[0].dimensions.length}
+                  onChange={e => updatePackage('length', e.target.value)}
+                  className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-lg" />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-0.5">W (in)</label>
+                <input type="number" step="0.1" min="0" placeholder="0" value={form.packages[0].dimensions.width}
+                  onChange={e => updatePackage('width', e.target.value)}
+                  className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-lg" />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-0.5">H (in)</label>
+                <input type="number" step="0.1" min="0" placeholder="0" value={form.packages[0].dimensions.height}
+                  onChange={e => updatePackage('height', e.target.value)}
+                  className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-lg" />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 pt-2">
+            <button type="submit" disabled={creating}
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+              {creating ? 'Creating...' : 'Purchase Label'}
+            </button>
+            <button type="button" onClick={() => setShowForm(false)}
+              className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">
+              Cancel
+            </button>
+            <p className="text-xs text-amber-600 ml-auto">Creating a label will purchase it from the carrier.</p>
+          </div>
+        </form>
+      )}
+
+      {/* Labels list */}
+      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+        <table className="w-full">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Label</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Carrier / Service</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tracking</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cost</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
+              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase"></th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {labels.map(l => (
+              <tr key={l.label_id} className="hover:bg-gray-50">
+                <td className="px-4 py-3">
+                  <div className="text-sm font-medium">{l.label_id}</div>
+                  {l.shipment_id && <div className="text-xs text-gray-500">{l.shipment_id}</div>}
+                </td>
+                <td className="px-4 py-3">
+                  <div className="text-sm">{l.carrier_code || '-'}</div>
+                  <div className="text-xs text-gray-500">{l.service_code?.replace(/_/g, ' ') || ''}</div>
+                </td>
+                <td className="px-4 py-3 text-sm">
+                  {l.tracking_number ? (
+                    <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">{l.tracking_number}</code>
+                  ) : <span className="text-gray-400">-</span>}
+                </td>
+                <td className="px-4 py-3 text-sm">
+                  {l.shipment_cost ? `$${l.shipment_cost.amount?.toFixed(2)}` : '-'}
+                </td>
+                <td className="px-4 py-3">
+                  <span className={`inline-block px-2 py-0.5 text-xs font-medium rounded-full ${
+                    l.voided ? 'bg-red-100 text-red-800' : (statusColors[l.status] || 'bg-gray-100 text-gray-700')
+                  }`}>
+                    {l.voided ? 'voided' : (l.status || '-')}
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-sm text-gray-600">
+                  {l.created_at ? new Date(l.created_at).toLocaleDateString() : '-'}
+                </td>
+                <td className="px-4 py-3 text-right">
+                  <div className="flex items-center justify-end gap-1">
+                    {l.label_download?.pdf && (
+                      <a href={l.label_download.pdf} target="_blank" rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded" title="Download PDF">
+                        <Download className="w-3 h-3" /> PDF
+                      </a>
+                    )}
+                    {!l.voided && l.status === 'completed' && (
+                      <button onClick={() => handleVoid(l.label_id)} disabled={voiding === l.label_id}
+                        className="inline-flex items-center gap-1 px-2 py-1 text-xs text-red-600 hover:bg-red-50 rounded disabled:opacity-50">
+                        <Ban className="w-3 h-3" /> {voiding === l.label_id ? 'Voiding...' : 'Void'}
+                      </button>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+            {labels.length === 0 && (
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-500">{loading ? 'Loading...' : 'No labels found'}</td></tr>
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   );
