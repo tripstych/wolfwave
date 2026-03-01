@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api, { parseRegions } from '../lib/api';
-import { RefreshCw, Layers, FileText, ChevronRight, CheckCircle, Code, Search, ChevronDown, ChevronUp } from 'lucide-react';
+import { RefreshCw, Layers, FileText, ChevronRight, CheckCircle, Code, Search, ChevronDown, ChevronUp, Maximize2, Minimize2 } from 'lucide-react';
 
 export default function Templates() {
   const [templates, setTemplates] = useState([]);
@@ -87,6 +87,14 @@ export default function Templates() {
       newCollapsed.add(type);
     }
     setCollapsedTypes(newCollapsed);
+  };
+
+  const expandAll = () => {
+    setCollapsedTypes(new Set());
+  };
+
+  const collapseAll = () => {
+    setCollapsedTypes(new Set(sortedTypes));
   };
 
   const handleSync = async () => {
@@ -177,73 +185,102 @@ export default function Templates() {
                 <p>{searchQuery ? 'No templates found matching your search.' : 'No templates found.'}</p>
               </div>
             ) : (
-              <div className="divide-y divide-gray-200">
-                {sortedTypes.map(type => {
-                  const isCollapsed = collapsedTypes.has(type);
-                  const typeTemplates = filteredGroupedTemplates[type];
-                  const templateCount = typeTemplates.length;
-                  
-                  return (
-                    <div key={type}>
+              <>
+                {/* Collapse/Expand All Controls */}
+                {sortedTypes.length > 1 && (
+                  <div className="px-4 py-2 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+                    <span className="text-xs text-gray-500">
+                      {sortedTypes.length} categories
+                    </span>
+                    <div className="flex items-center gap-1">
                       <button
-                        onClick={() => toggleTypeCollapse(type)}
-                        className="w-full bg-gray-50 px-4 py-3 border-y border-gray-200 flex items-center justify-between hover:bg-gray-100 transition-colors"
+                        onClick={expandAll}
+                        className="btn btn-ghost text-xs px-2 py-1 flex items-center gap-1"
+                        title="Expand all categories"
                       >
-                        <div className="flex items-center gap-2">
-                          <h3 className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
-                            {type}
-                          </h3>
-                          <span className="text-xs text-gray-400">({templateCount})</span>
-                        </div>
-                        {isCollapsed ? (
-                          <ChevronDown className="w-4 h-4 text-gray-400" />
-                        ) : (
-                          <ChevronUp className="w-4 h-4 text-gray-400" />
-                        )}
+                        <Maximize2 className="w-3 h-3" />
+                        Expand All
                       </button>
-                      
-                      {!isCollapsed && (
-                        <div className="divide-y divide-gray-100">
-                          {typeTemplates.map((template) => {
-                            const hasRegions = parseRegions(template.regions).length > 0;
-                            const isSystemTemplate = template.filename.startsWith('system/');
-                            
-                            return (
-                              <button
-                                id={`template-select-${template.id}`}
-                                key={template.id}
-                                onClick={() => setSelectedTemplate(template)}
-                                className={`w-full px-4 py-3 text-left flex items-center justify-between hover:bg-gray-50 transition-colors ${
-                                  selectedTemplate?.id === template.id ? 'bg-primary-50 ring-1 ring-inset ring-primary-500 z-10' : ''
-                                }`}
-                              >
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex items-center gap-2">
-                                    <p className={`text-sm font-medium truncate ${selectedTemplate?.id === template.id ? 'text-primary-900' : 'text-gray-900'}`}>
-                                      {template.name}
-                                    </p>
-                                    {isSystemTemplate && (
-                                      <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded font-medium">
-                                        System
-                                      </span>
-                                    )}
-                                  </div>
-                                  <p className="text-xs text-gray-500 truncate font-mono">{template.filename}</p>
-                                </div>
-                                {hasRegions && (
-                                  <div className="flex-shrink-0 ml-2" title="Has editable content regions">
-                                    <div className="w-2 h-2 bg-green-500 rounded-full shadow-sm shadow-green-200" />
-                                  </div>
-                                )}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
+                      <button
+                        onClick={collapseAll}
+                        className="btn btn-ghost text-xs px-2 py-1 flex items-center gap-1"
+                        title="Collapse all categories"
+                      >
+                        <Minimize2 className="w-3 h-3" />
+                        Collapse All
+                      </button>
                     </div>
-                  );
-                })}
-              </div>
+                  </div>
+                )}
+                
+                <div className="divide-y divide-gray-200">
+                  {sortedTypes.map(type => {
+                    const isCollapsed = collapsedTypes.has(type);
+                    const typeTemplates = filteredGroupedTemplates[type];
+                    const templateCount = typeTemplates.length;
+                    
+                    return (
+                      <div key={type}>
+                        <button
+                          onClick={() => toggleTypeCollapse(type)}
+                          className="w-full bg-gray-50 px-4 py-3 border-y border-gray-200 flex items-center justify-between hover:bg-gray-100 transition-colors"
+                        >
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
+                              {type}
+                            </h3>
+                            <span className="text-xs text-gray-400">({templateCount})</span>
+                          </div>
+                          {isCollapsed ? (
+                            <ChevronDown className="w-4 h-4 text-gray-400" />
+                          ) : (
+                            <ChevronUp className="w-4 h-4 text-gray-400" />
+                          )}
+                        </button>
+                        
+                        {!isCollapsed && (
+                          <div className="divide-y divide-gray-100">
+                            {typeTemplates.map((template) => {
+                              const hasRegions = parseRegions(template.regions).length > 0;
+                              const isSystemTemplate = template.filename.startsWith('system/');
+                              
+                              return (
+                                <button
+                                  id={`template-select-${template.id}`}
+                                  key={template.id}
+                                  onClick={() => setSelectedTemplate(template)}
+                                  className={`w-full px-4 py-3 text-left flex items-center justify-between hover:bg-gray-50 transition-colors ${
+                                    selectedTemplate?.id === template.id ? 'bg-primary-50 ring-1 ring-inset ring-primary-500 z-10' : ''
+                                  }`}
+                                >
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex items-center gap-2">
+                                      <p className={`text-sm font-medium truncate ${selectedTemplate?.id === template.id ? 'text-primary-900' : 'text-gray-900'}`}>
+                                        {template.name}
+                                      </p>
+                                      {isSystemTemplate && (
+                                        <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded font-medium">
+                                          System
+                                        </span>
+                                      )}
+                                    </div>
+                                    <p className="text-xs text-gray-500 truncate font-mono">{template.filename}</p>
+                                  </div>
+                                  {hasRegions && (
+                                    <div className="flex-shrink-0 ml-2" title="Has editable content regions">
+                                      <div className="w-2 h-2 bg-green-500 rounded-full shadow-sm shadow-green-200" />
+                                    </div>
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
             )}
           </div>
         </div>
