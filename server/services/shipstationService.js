@@ -328,7 +328,7 @@ export default {
   createOrder, getOrder, listOrders, deleteOrder,
   holdOrder, restoreOrder, assignTag, removeTag, markAsShipped,
   // Shipments & Rates
-  listShipments, getShippingRates, createLabel, voidLabel,
+  listShipments, getShippingRates, createLabel, voidLabel, cancelShipment,
   // Carriers
   listCarriers, getCarrier, listCarrierServices, listCarrierPackages,
   // Warehouses
