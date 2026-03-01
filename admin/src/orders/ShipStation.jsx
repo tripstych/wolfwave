@@ -605,7 +605,7 @@ function LabelsTab() {
     }
   };
 
-  const AddressFields = ({ which, label }) => (
+  const addressFields = (which, label) => (
     <div>
       <h4 className="text-sm font-medium text-gray-700 mb-2">{label}</h4>
       <div className="grid grid-cols-2 gap-2">
@@ -730,8 +730,8 @@ function LabelsTab() {
 
           {/* Addresses */}
           <div className="grid grid-cols-2 gap-5">
-            <AddressFields which="ship_from" label="Ship From" />
-            <AddressFields which="ship_to" label="Ship To" />
+            {addressFields('ship_from', 'Ship From')}
+            {addressFields('ship_to', 'Ship To')}
           </div>
 
           {/* Package */}
