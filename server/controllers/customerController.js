@@ -37,23 +37,41 @@ export const account = async (req, res) => {
       return res.redirect('/customer/login?redirect=/customer/account');
     }
 
-    // Check customer sites access
+    // Check customer sites access using the same logic as the limits API
+    let sitesLimit = 0;
     let hasSitesAccess = false;
     try {
-      const currentDb = process.env.DB_NAME || 'wolfwave_admin';
       const { runWithTenant, getCurrentDbName } = await import('../lib/tenantContext.js');
       const { prisma } = await import('../lib/prisma.js');
       
       await runWithTenant(getCurrentDbName(), async () => {
+        const currentDb = getCurrentDbName();
+        console.log(`[CUSTOMER_ACCOUNT] Checking sites access for customer ${customer.id} in DB ${currentDb}`);
+        
+        // Use the same logic as customer-tenants/limits endpoint
         const currentTenants = await prisma.tenants.count({
           where: { customer_id: customer.id }
         });
         
-        // Simple logic: if limit > 0, has access
-        hasSitesAccess = currentTenants > 0;
+        const hasSubscription = false; // TODO: Implement proper subscription check
+        
+        // Same logic as limits API: if no subscription and no sites, limit = 0
+        if (!hasSubscription && currentTenants === 0) {
+          sitesLimit = 0;
+          hasSitesAccess = false;
+        } else if (currentTenants > 0) {
+          sitesLimit = currentTenants; // legacy access
+          hasSitesAccess = true;
+        } else {
+          sitesLimit = 0;
+          hasSitesAccess = false;
+        }
+        
+        console.log(`[CUSTOMER_ACCOUNT] Customer ${customer.id}: ${currentTenants} tenants, limit: ${sitesLimit}, hasSitesAccess: ${hasSitesAccess}`);
       });
     } catch (err) {
       console.error('Error checking sites access:', err);
+      sitesLimit = 0;
       hasSitesAccess = false;
     }
 
@@ -62,6 +80,12 @@ export const account = async (req, res) => {
       customer: {
         ...customer,
         has_sites_access: hasSitesAccess
+      },
+      debug: {
+        customerId: customer?.id,
+        hasSitesAccess,
+        sitesLimit,
+        customerKeys: Object.keys(customer || {})
       },
       seo: {
         title: 'My Account - ' + (site?.site_name || ''),
