@@ -14,7 +14,8 @@
       <div id="profile-content" class="loading">Loading...</div>
     </div>
 
-    {# My Sites Section #}
+    {# My Sites Section - Only show if customer has sites access #}
+    {% if customer and customer.has_sites_access %}
     <div class="account-section">
       <div class="section-header">
         <h2>My Sites</h2>
@@ -42,6 +43,7 @@
         <div id="create-site-error" class="error-message hidden"></div>
       </div>
     </div>
+    {% endif %}
 
     {# Classifieds & Messaging #}
     <div class="account-section">
@@ -192,25 +194,13 @@
     try {
       const limitsDiv = document.getElementById('site-limits');
       const createContainer = document.getElementById('create-site-container');
-      const sitesSection = document.querySelector('.account-section:has(#site-limits)');
       const response = await fetch('/api/customer-tenants/limits', { credentials: 'include' });
       
       if (!response.ok) return;
       
       const data = await response.json();
-      console.log('[Account] Limits data:', data);
       
-      // If limit is 0, hide the entire My Sites section
-      if (data.limit === 0) {
-        const mySitesSection = sitesSection.closest('.account-section');
-        if (mySitesSection) {
-          mySitesSection.style.display = 'none';
-          console.log('[Account] Hidden My Sites section - limit is 0');
-        }
-        return;
-      }
-      
-      // Show limits and create button if limit > 0
+      // Show limits and create button
       limitsDiv.innerHTML = `${data.used} / ${data.limit} sites used (${data.plan_name})`;
       
       if (data.can_create) {

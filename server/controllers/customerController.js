@@ -37,8 +37,32 @@ export const account = async (req, res) => {
       return res.redirect('/customer/login?redirect=/customer/account');
     }
 
+    // Check customer sites access
+    let hasSitesAccess = false;
+    try {
+      const currentDb = process.env.DB_NAME || 'wolfwave_admin';
+      const { runWithTenant, getCurrentDbName } = await import('../lib/tenantContext.js');
+      const { prisma } = await import('../lib/prisma.js');
+      
+      await runWithTenant(getCurrentDbName(), async () => {
+        const currentTenants = await prisma.tenants.count({
+          where: { customer_id: customer.id }
+        });
+        
+        // Simple logic: if limit > 0, has access
+        hasSitesAccess = currentTenants > 0;
+      });
+    } catch (err) {
+      console.error('Error checking sites access:', err);
+      hasSitesAccess = false;
+    }
+
     themeRender(req, res, 'customer/account.njk', {
       page: { title: 'My Account', slug: '/customer/account' },
+      customer: {
+        ...customer,
+        has_sites_access: hasSitesAccess
+      },
       seo: {
         title: 'My Account - ' + (site?.site_name || ''),
         description: 'Manage your account',
@@ -47,7 +71,7 @@ export const account = async (req, res) => {
     });
   } catch (err) {
     console.error('Account page error:', err);
-    renderError(req, res, 500, { error: err.message });
+    renderError(req, res, 500, 'Internal Server Error');
   }
 };
 
