@@ -484,11 +484,11 @@ router.get('/number/:orderNumber', async (req, res) => {
 
     res.json({
       ...order,
-      billing_address: order.billing_address ? JSON.parse(order.billing_address) : {},
-      shipping_address: order.shipping_address ? JSON.parse(order.shipping_address) : {}
+      billing_address: order.billing_address || {},
+      shipping_address: order.shipping_address || {}
     });
   } catch (err) {
-    console.error('Get order error:', err);
+    console.error('Get order by number error:', err);
     res.status(500).json({ error: 'Failed to get order' });
   }
 });
@@ -519,11 +519,11 @@ router.get('/:id', requireAuth, async (req, res) => {
 
     res.json({
       ...order,
-      billing_address: order.billing_address ? JSON.parse(order.billing_address) : {},
-      shipping_address: order.shipping_address ? JSON.parse(order.shipping_address) : {}
+      billing_address: order.billing_address || {},
+      shipping_address: order.shipping_address || {}
     });
   } catch (err) {
-    console.error('Get order error:', err);
+    console.error('Get order detail error:', err);
     res.status(500).json({ error: 'Failed to get order' });
   }
 });
