@@ -1,0 +1,13 @@
+:root {
+  --color-primary: var(--cms-primary-color, #2563eb);
+  --color-primary-dark: var(--cms-primary-dark-color, #1d4ed8);
+  --color-secondary: var(--cms-secondary-color, #64748b);
+  --color-background: var(--cms-color-background, #ffffff);
+  --color-surface: #f8fafc;
+  --color-text: var(--cms-color-text, #1e293b);
+  --color-text-muted: #64748b;
+  --color-border: #e2e8f0;
+  --font-sans: var(--cms-font-sans, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+  --max-width: var(--cms-max-width, 1200px);
+  --header-height: 72px;
+}
