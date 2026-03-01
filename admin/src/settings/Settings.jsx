@@ -41,7 +41,7 @@ export default function Settings() {
     { id: 'seo', label: _('settings.tab.seo', 'SEO & Analytics'), icon: Search },
     { id: 'storage', label: _('settings.tab.storage', 'Storage'), icon: HardDrive },
     { id: 'payments', label: _('settings.tab.payments', 'Payments'), icon: CreditCard, module: 'Ecommerce' },
-    { id: 'email', label: _('settings.tab.email', 'Email'), icon: Mail, module: 'Email Marketing' },
+    { id: 'email', label: _('settings.tab.email', 'Email'), icon: Mail },
     { id: 'amazon', label: _('settings.tab.amazon', 'Amazon'), icon: ShoppingCart, module: 'Amazon Integration' },
     { id: 'ai', label: _('settings.tab.ai', 'AI Services'), icon: Cpu, module: 'AI Services' },
     { id: 'shipstation', label: _('settings.tab.shipstation', 'ShipStation'), icon: ShoppingCart, module: 'ShipStation Integration' },
