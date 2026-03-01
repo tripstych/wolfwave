@@ -336,8 +336,16 @@ router.get('/admin/all', requireAuth, async (req, res) => {
 
 router.get('/admin/:id', requireAuth, async (req, res) => {
   try {
+    console.log('[CLASSIFIEDS_ADMIN_DETAIL] ID param:', req.params.id);
+    const adId = parseInt(req.params.id);
+    console.log('[CLASSIFIEDS_ADMIN_DETAIL] Parsed ID:', adId);
+    
+    if (!adId || isNaN(adId)) {
+      return res.status(400).json({ error: 'Invalid ad ID' });
+    }
+    
     const ad = await prisma.classified_ads.findUnique({
-      where: { id: parseInt(req.params.id) },
+      where: { id: adId },
       include: {
         category: true,
         customer: { select: { id: true, email: true, first_name: true, last_name: true } },
@@ -346,6 +354,7 @@ router.get('/admin/:id', requireAuth, async (req, res) => {
     if (!ad) return res.status(404).json({ error: 'Ad not found' });
     res.json(ad);
   } catch (err) {
+    console.error('[CLASSIFIEDS_ADMIN_DETAIL] Error:', err);
     res.status(500).json({ error: err.message });
   }
 });
