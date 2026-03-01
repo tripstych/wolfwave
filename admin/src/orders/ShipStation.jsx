@@ -109,15 +109,15 @@ export default function ShipStation() {
 function ShipmentsTab() {
   const [shipments, setShipments] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [dateEnd, setDateEnd] = useState(new Date().toISOString().split('T')[0]);
+  const [dateStart, setDateStart] = useState(new Date(Date.now() - 90 * 86400000).toISOString().split('T')[0]);
 
   useEffect(() => { loadShipments(); }, []);
 
   const loadShipments = async () => {
     setLoading(true);
     try {
-      const end = new Date().toISOString().split('T')[0];
-      const start = new Date(Date.now() - 90 * 86400000).toISOString().split('T')[0];
-      const data = await api.get(`/shipstation/shipments?pageSize=50&sortBy=ShipDate&sortDir=DESC&shipDateStart=${start}&shipDateEnd=${end}`);
+      const data = await api.get(`/shipstation/shipments?pageSize=50&sortBy=ShipDate&sortDir=DESC&shipDateStart=${dateStart}&shipDateEnd=${dateEnd}`);
       setShipments(data);
     } catch (err) {
       console.error('Failed to load shipments:', err);
@@ -126,10 +126,27 @@ function ShipmentsTab() {
     }
   };
 
-  if (loading) return <div className="text-center py-8 text-gray-500">Loading shipments...</div>;
-
   return (
-    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          <label className="text-xs font-medium text-gray-500">From</label>
+          <input type="date" value={dateStart} onChange={e => setDateStart(e.target.value)}
+            className="px-2 py-1.5 text-sm border border-gray-300 rounded-lg" />
+        </div>
+        <div className="flex items-center gap-2">
+          <label className="text-xs font-medium text-gray-500">To</label>
+          <input type="date" value={dateEnd} onChange={e => setDateEnd(e.target.value)}
+            className="px-2 py-1.5 text-sm border border-gray-300 rounded-lg" />
+        </div>
+        <button onClick={loadShipments} disabled={loading}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50">
+          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+          {loading ? 'Loading...' : 'Refresh'}
+        </button>
+      </div>
+
+      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
       <table className="w-full">
         <thead className="bg-gray-50">
           <tr>
@@ -163,6 +180,7 @@ function ShipmentsTab() {
           )}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }
