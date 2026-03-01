@@ -317,6 +317,22 @@ export async function listTags() {
   return await request('get', '/v2/tags');
 }
 
+export async function createTag(name) {
+  return await request('post', '/v2/tags', { name });
+}
+
+export async function deleteTag(name) {
+  return await request('delete', `/v2/tags/${encodeURIComponent(name)}`);
+}
+
+export async function addShipmentTag(shipmentId, tagName) {
+  return await request('post', `/v2/shipments/${shipmentId}/tags/${encodeURIComponent(tagName)}`);
+}
+
+export async function removeShipmentTag(shipmentId, tagName) {
+  return await request('delete', `/v2/shipments/${shipmentId}/tags/${encodeURIComponent(tagName)}`);
+}
+
 // ─── Test Connection ─────────────────────────────────────────────────
 
 export async function testConnection() {
@@ -344,7 +360,7 @@ export default {
   // Webhooks
   listWebhooks, subscribeWebhook, unsubscribeWebhook,
   // Tags
-  listTags,
+  listTags, createTag, deleteTag, addShipmentTag, removeShipmentTag,
   // Utils
   testConnection, transformOrder, mapAddress, mapOrderStatus
 };

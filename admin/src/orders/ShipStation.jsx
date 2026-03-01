@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../lib/api';
-import { Truck, Warehouse, TestTube, RefreshCw, CheckCircle, XCircle, ChevronDown, ChevronUp, Globe, Tag, Ban } from 'lucide-react';
+import { Truck, Warehouse, TestTube, RefreshCw, CheckCircle, XCircle, ChevronDown, ChevronUp, Globe, Tag, Ban, Plus, X } from 'lucide-react';
 
 const tabs = [
   { id: 'shipments', label: 'Shipments', icon: Truck },
@@ -110,6 +110,11 @@ function ShipmentsTab() {
   const [shipments, setShipments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(null);
+  const [allTags, setAllTags] = useState([]);
+  const [newTagName, setNewTagName] = useState('');
+  const [creatingTag, setCreatingTag] = useState(false);
+  const [taggingShipment, setTaggingShipment] = useState(null); // shipment_id currently adding a tag to
+  const [tagAction, setTagAction] = useState(null); // tracks in-flight tag operations
 
   const cancelShipment = async (shipmentId) => {
     if (!confirm('Cancel this shipment?')) return;
@@ -125,13 +130,15 @@ function ShipmentsTab() {
     }
   };
 
-  useEffect(() => { loadShipments(); }, []);
+  useEffect(() => {
+    loadShipments();
+    loadTags();
+  }, []);
 
   const loadShipments = async () => {
     setLoading(true);
     try {
       const data = await api.get('/shipstation/shipments?page_size=50&sort_by=created_at&sort_dir=desc');
-      // v2 API returns { shipments: [...] } or an array directly
       const list = Array.isArray(data) ? data : (data?.shipments || []);
       setShipments(list);
     } catch (err) {
@@ -142,8 +149,109 @@ function ShipmentsTab() {
     }
   };
 
+  const loadTags = async () => {
+    try {
+      const data = await api.get('/shipstation/tags');
+      setAllTags(Array.isArray(data) ? data : (data?.tags || []));
+    } catch (err) {
+      console.error('Failed to load tags:', err);
+    }
+  };
+
+  const handleCreateTag = async (e) => {
+    e.preventDefault();
+    if (!newTagName.trim()) return;
+    setCreatingTag(true);
+    try {
+      await api.post('/shipstation/tags', { name: newTagName.trim() });
+      setNewTagName('');
+      loadTags();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to create tag');
+    } finally {
+      setCreatingTag(false);
+    }
+  };
+
+  const handleDeleteTag = async (name) => {
+    if (!confirm(`Delete tag "${name}"?`)) return;
+    try {
+      await api.delete(`/shipstation/tags/${encodeURIComponent(name)}`);
+      loadTags();
+      loadShipments(); // refresh to update tag displays
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to delete tag');
+    }
+  };
+
+  const handleAddTag = async (shipmentId, tagName) => {
+    setTagAction(`add-${shipmentId}-${tagName}`);
+    try {
+      await api.post(`/shipstation/shipments/${shipmentId}/tags/${encodeURIComponent(tagName)}`);
+      setTaggingShipment(null);
+      loadShipments();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to add tag');
+    } finally {
+      setTagAction(null);
+    }
+  };
+
+  const handleRemoveTag = async (shipmentId, tagName) => {
+    setTagAction(`rm-${shipmentId}-${tagName}`);
+    try {
+      await api.delete(`/shipstation/shipments/${shipmentId}/tags/${encodeURIComponent(tagName)}`);
+      loadShipments();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to remove tag');
+    } finally {
+      setTagAction(null);
+    }
+  };
+
+  const statusColors = {
+    pending: 'bg-yellow-100 text-yellow-800',
+    label_purchased: 'bg-blue-100 text-blue-800',
+    shipped: 'bg-green-100 text-green-800',
+    delivered: 'bg-green-100 text-green-800',
+    cancelled: 'bg-red-100 text-red-800',
+  };
+
   return (
     <div className="space-y-4">
+      {/* Tags management bar */}
+      <div className="bg-white border border-gray-200 rounded-lg px-4 py-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs font-medium text-gray-500 uppercase mr-1">Tags:</span>
+            {allTags.map(tag => (
+              <span key={tag.name || tag.tagId} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                <Tag className="w-3 h-3" />
+                {tag.name}
+                <button onClick={() => handleDeleteTag(tag.name)} className="ml-0.5 hover:text-red-600" title="Delete tag">
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            ))}
+            {allTags.length === 0 && <span className="text-xs text-gray-400">No tags</span>}
+          </div>
+          <form onSubmit={handleCreateTag} className="flex items-center gap-2 ml-4">
+            <input
+              type="text"
+              value={newTagName}
+              onChange={e => setNewTagName(e.target.value)}
+              placeholder="New tag..."
+              className="px-2 py-1 text-xs border border-gray-300 rounded-lg w-32 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+            <button type="submit" disabled={creatingTag || !newTagName.trim()}
+              className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+              <Plus className="w-3 h-3" />
+              Add
+            </button>
+          </form>
+        </div>
+      </div>
+
       <div className="flex items-center gap-3">
         <button onClick={loadShipments} disabled={loading}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50">
@@ -160,6 +268,7 @@ function ShipmentsTab() {
             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ship To</th>
             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Service</th>
             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tags</th>
             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tracking</th>
             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
             <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase"></th>
@@ -167,13 +276,10 @@ function ShipmentsTab() {
         </thead>
         <tbody className="divide-y divide-gray-200">
           {shipments.map(s => {
-            const statusColors = {
-              pending: 'bg-yellow-100 text-yellow-800',
-              label_purchased: 'bg-blue-100 text-blue-800',
-              shipped: 'bg-green-100 text-green-800',
-              delivered: 'bg-green-100 text-green-800',
-              cancelled: 'bg-red-100 text-red-800',
-            };
+            const shipmentTags = s.tags || [];
+            const shipmentTagNames = shipmentTags.map(t => t.name || t);
+            const availableTags = allTags.filter(t => !shipmentTagNames.includes(t.name));
+
             return (
             <tr key={s.shipment_id} className="hover:bg-gray-50">
               <td className="px-4 py-3">
@@ -195,6 +301,54 @@ function ShipmentsTab() {
                 <span className={`inline-block px-2 py-0.5 text-xs font-medium rounded-full ${statusColors[s.shipment_status] || 'bg-gray-100 text-gray-700'}`}>
                   {s.shipment_status?.replace(/_/g, ' ') || '-'}
                 </span>
+              </td>
+              <td className="px-4 py-3">
+                <div className="flex items-center gap-1 flex-wrap">
+                  {shipmentTags.map(tag => {
+                    const name = tag.name || tag;
+                    return (
+                      <span key={name} className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                        {name}
+                        <button
+                          onClick={() => handleRemoveTag(s.shipment_id, name)}
+                          disabled={tagAction === `rm-${s.shipment_id}-${name}`}
+                          className="ml-0.5 hover:text-red-600 disabled:opacity-50"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    );
+                  })}
+                  {taggingShipment === s.shipment_id ? (
+                    <div className="relative">
+                      <div className="absolute top-0 left-0 z-10 bg-white border border-gray-200 rounded-lg shadow-lg p-2 min-w-[140px]">
+                        {availableTags.length > 0 ? availableTags.map(tag => (
+                          <button
+                            key={tag.name}
+                            onClick={() => handleAddTag(s.shipment_id, tag.name)}
+                            disabled={tagAction === `add-${s.shipment_id}-${tag.name}`}
+                            className="block w-full text-left px-2 py-1.5 text-xs hover:bg-gray-100 rounded disabled:opacity-50"
+                          >
+                            <Tag className="w-3 h-3 inline mr-1" />{tag.name}
+                          </button>
+                        )) : (
+                          <p className="text-xs text-gray-400 px-2 py-1">No more tags</p>
+                        )}
+                        <button onClick={() => setTaggingShipment(null)} className="block w-full text-left px-2 py-1.5 text-xs text-gray-500 hover:bg-gray-100 rounded mt-1 border-t border-gray-100">
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setTaggingShipment(s.shipment_id)}
+                      className="inline-flex items-center px-1.5 py-0.5 text-xs text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded"
+                      title="Add tag"
+                    >
+                      <Plus className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
               </td>
               <td className="px-4 py-3 text-sm">
                 {s.tracking_number ? (
@@ -221,7 +375,7 @@ function ShipmentsTab() {
             );
           })}
           {shipments.length === 0 && (
-            <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-500">{loading ? 'Loading...' : 'No shipments found'}</td></tr>
+            <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-500">{loading ? 'Loading...' : 'No shipments found'}</td></tr>
           )}
         </tbody>
       </table>

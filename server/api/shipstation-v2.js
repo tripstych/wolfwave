@@ -411,6 +411,43 @@ router.get('/tags', requireAuth, requireEditor, async (req, res) => {
   }
 });
 
+router.post('/tags', requireAuth, requireEditor, async (req, res) => {
+  try {
+    const result = await ss.createTag(req.body.name);
+    res.json(result);
+  } catch (error) {
+    res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
+  }
+});
+
+router.delete('/tags/:name', requireAuth, requireEditor, async (req, res) => {
+  try {
+    await ss.deleteTag(req.params.name);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
+  }
+});
+
+// Add/remove tags from shipments
+router.post('/shipments/:shipmentId/tags/:tagName', requireAuth, requireEditor, async (req, res) => {
+  try {
+    const result = await ss.addShipmentTag(req.params.shipmentId, req.params.tagName);
+    res.json(result);
+  } catch (error) {
+    res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
+  }
+});
+
+router.delete('/shipments/:shipmentId/tags/:tagName', requireAuth, requireEditor, async (req, res) => {
+  try {
+    await ss.removeShipmentTag(req.params.shipmentId, req.params.tagName);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(error.response?.status || 500).json({ error: error.response?.data?.Message || error.message });
+  }
+});
+
 // ─── Webhooks Management ─────────────────────────────────────────────
 
 router.get('/webhooks', requireAuth, requireEditor, async (req, res) => {
