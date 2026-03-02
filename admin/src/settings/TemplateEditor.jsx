@@ -25,12 +25,15 @@ export default function TemplateEditor() {
       
       const params = new URLSearchParams(location.search);
       const fileParam = params.get('file');
-      if (fileParam && fetchedFiles) {
+      if (fileParam && fetchedFiles && fetchedFiles.length > 0) {
         // Find the file in the tree that matches the filename
         const findFile = (items) => {
+          if (!items || !Array.isArray(items)) return null;
+          
           for (const item of items) {
-            if (item.name === fileParam) return item.path;
-            if (item.children) {
+            if (!item) continue;
+            if (item.name === fileParam) return item.path || item.name;
+            if (item.children && Array.isArray(item.children)) {
               const res = findFile(item.children);
               if (res) return res;
             }
@@ -56,11 +59,21 @@ export default function TemplateEditor() {
       setLoading(true);
       setError(null);
       const response = await api.get('/templates/files');
+      
+      // Validate response structure
+      if (!response || !Array.isArray(response)) {
+        console.warn('Invalid template files response:', response);
+        setFiles([]);
+        return [];
+      }
+      
       setFiles(response);
       return response;
     } catch (err) {
+      console.error('Failed to load template files:', err);
       setError(err.message || 'Failed to load template files');
-      return null;
+      setFiles([]);
+      return [];
     } finally {
       setLoading(false);
     }
