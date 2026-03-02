@@ -205,13 +205,13 @@ export default function TemplateEditor() {
         </div>
 
         {/* Code Editor */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col" style={{ height: '100%' }}>
           {loadingFile ? (
             <div className="flex-1 flex items-center justify-center">
               <Loader2 className="w-8 h-8 animate-spin text-primary-600" />
             </div>
           ) : selectedFile ? (
-            <div className="flex-1">
+            <div className="flex-1" style={{ height: 'calc(100% - 100px)' }}>
               <CodeEditor
                 value={content}
                 onChange={setContent}
