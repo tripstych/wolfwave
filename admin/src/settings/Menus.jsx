@@ -65,6 +65,7 @@ export default function Menus() {
   const loadSystemRoutes = async () => {
     try {
       const routes = await api.get('/settings/system-routes');
+      console.log('System routes loaded:', routes);
       setSystemRoutes(routes || []);
     } catch (err) {
       console.error('Failed to load system routes:', err);
