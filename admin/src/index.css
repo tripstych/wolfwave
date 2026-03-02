@@ -97,6 +97,6 @@
 }
 
 /* Code Editor Height Fix */
-#code-editor {
-  height: calc(100% - 80px) !important;
+#code-editor-container {
+  height: 100%;
 }

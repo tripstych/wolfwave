@@ -29,7 +29,7 @@ export default function CodeEditor({
   readOnly = false
 }) {
   return (
-    <div className="border border-gray-300 rounded-lg overflow-hidden flex flex-col" style={height ? { height } : { height: '100%' }}>
+    <div className="border border-gray-300 rounded-lg overflow-hidden flex flex-col" style={{ height: height || '100%' }}>
        <AceEditor
         mode={mode}
         theme={theme}
