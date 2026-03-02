@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api, { parseRegions } from '../lib/api';
-import { RefreshCw, Layers, FileText, ChevronRight, CheckCircle, Code, Search, ChevronDown, ChevronUp, Maximize2, Minimize2 } from 'lucide-react';
+import { RefreshCw, Layers, FileText, ChevronRight, CheckCircle, Code, Search, ChevronDown, ChevronUp, Maximize2, Minimize2, Loader2, Save } from 'lucide-react';
+import CodeEditor from '../components/CodeEditor';
+import { toast } from 'sonner';
 
 export default function Templates() {
   const [templates, setTemplates] = useState([]);
@@ -13,6 +15,10 @@ export default function Templates() {
   const [syncMessage, setSyncMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [collapsedTypes, setCollapsedTypes] = useState(new Set());
+  const [editorContent, setEditorContent] = useState('');
+  const [originalContent, setOriginalContent] = useState('');
+  const [loadingEditor, setLoadingEditor] = useState(false);
+  const [savingEditor, setSavingEditor] = useState(false);
 
   useEffect(() => {
     loadTemplates();
@@ -79,6 +85,11 @@ export default function Templates() {
     return (idxA !== -1 ? idxA : 99) - (idxB !== -1 ? idxB : 99);
   });
 
+  const handleTemplateSelect = (template) => {
+    setSelectedTemplate(template);
+    loadTemplateContent(template);
+  };
+
   const toggleTypeCollapse = (type) => {
     const newCollapsed = new Set(collapsedTypes);
     if (newCollapsed.has(type)) {
@@ -96,6 +107,42 @@ export default function Templates() {
   const collapseAll = () => {
     setCollapsedTypes(new Set(sortedTypes));
   };
+
+  const loadTemplateContent = async (template) => {
+    try {
+      setLoadingEditor(true);
+      const response = await api.get(`/templates/files/${encodeURIComponent(template.filename)}`);
+      setEditorContent(response.content || '');
+      setOriginalContent(response.content || '');
+    } catch (err) {
+      console.error('Failed to load template content:', err);
+      setEditorContent('');
+      setOriginalContent('');
+    } finally {
+      setLoadingEditor(false);
+    }
+  };
+
+  const saveTemplateContent = async () => {
+    if (!selectedTemplate) return;
+    
+    try {
+      setSavingEditor(true);
+      await api.post(`/templates/files/${encodeURIComponent(selectedTemplate.filename)}`, {
+        content: editorContent
+      });
+      
+      setOriginalContent(editorContent);
+      toast.success('Template saved successfully!');
+    } catch (err) {
+      console.error('Failed to save template:', err);
+      toast.error('Failed to save template');
+    } finally {
+      setSavingEditor(false);
+    }
+  };
+
+  const hasUnsavedChanges = editorContent !== originalContent;
 
   const handleSync = async () => {
     setSyncing(true);
@@ -248,7 +295,7 @@ export default function Templates() {
                                 <button
                                   id={`template-select-${template.id}`}
                                   key={template.id}
-                                  onClick={() => setSelectedTemplate(template)}
+                                  onClick={() => handleTemplateSelect(template)}
                                   className={`w-full px-4 py-3 text-left flex items-center justify-between hover:bg-gray-50 transition-colors ${
                                     selectedTemplate?.id === template.id ? 'bg-primary-50 ring-1 ring-inset ring-primary-500 z-10' : ''
                                   }`}
@@ -307,53 +354,40 @@ export default function Templates() {
               </div>
 
               <div>
-                <h3 className="font-medium text-gray-900 mb-3">Content Regions</h3>
-                {parseRegions(selectedTemplate.regions).length > 0 ? (
-                  <div className="space-y-3">
-                    {parseRegions(selectedTemplate.regions).map((region, index) => (
-                      <div
-                        key={index}
-                        className="p-4 bg-gray-50 rounded-lg border border-gray-200"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-medium text-gray-900">{region.label}</p>
-                            <p className="text-sm text-gray-500">
-                              <code className="bg-gray-200 px-1 rounded">{region.name}</code>
-                              <span className="mx-2">•</span>
-                              <span className="capitalize">{region.type}</span>
-                              {region.required && (
-                                <span className="text-red-500 ml-2">Required</span>
-                              )}
-                            </p>
-                          </div>
-                        </div>
-
-                        {region.type === 'repeater' && region.fields && (
-                          <div className="mt-3 pl-4 border-l-2 border-gray-300">
-                            <p className="text-xs text-gray-500 uppercase tracking-wide mb-2">
-                              Repeater Fields
-                            </p>
-                            <div className="space-y-1">
-                              {region.fields.map((field, fi) => (
-                                <p key={fi} className="text-sm text-gray-600">
-                                  <span className="font-medium">{field.label}</span>
-                                  <span className="text-gray-400"> ({field.type})</span>
-                                </p>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-medium text-gray-900">Template Editor</h3>
+                  {hasUnsavedChanges && (
+                    <span className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded">
+                      Unsaved changes
+                    </span>
+                  )}
+                </div>
+                
+                {loadingEditor ? (
+                  <div className="flex items-center justify-center h-64">
+                    <Loader2 className="w-8 h-8 animate-spin text-primary-600" />
                   </div>
                 ) : (
-                  <p className="text-gray-500 text-sm">
-                    No content regions defined. Add{' '}
-                    <code className="bg-gray-100 px-1 rounded">data-cms-region</code>{' '}
-                    attributes to your template.
-                  </p>
+                  <div className="border border-gray-300 rounded-lg overflow-hidden" style={{ height: '400px' }}>
+                    <CodeEditor
+                      value={editorContent}
+                      onChange={setEditorContent}
+                      mode="nunjucks"
+                      height="100%"
+                    />
+                  </div>
                 )}
+                
+                <div className="mt-3 flex justify-end">
+                  <button
+                    onClick={saveTemplateContent}
+                    disabled={!selectedTemplate || savingEditor || !hasUnsavedChanges}
+                    className="btn btn-primary flex items-center gap-2"
+                  >
+                    <Save className="w-4 h-4" />
+                    {savingEditor ? 'Saving...' : 'Save'}
+                  </button>
+                </div>
               </div>
 
               <div className="pt-4 border-t border-gray-200">
