@@ -1,0 +1,59 @@
+import { query } from '../db/connection.js';
+import { error as logError, info } from '../lib/logger.js';
+
+export async function fixPageTemplates(req) {
+  try {
+    // Find pages without templates or with 404 template
+    const pagesToFix = await query(`
+      SELECT p.id, p.content_id, c.slug, c.title, t.filename as current_template
+      FROM pages p
+      LEFT JOIN content c ON p.content_id = c.id
+      LEFT JOIN templates t ON p.template_id = t.id
+      WHERE p.status = 'published' 
+      AND (p.template_id IS NULL OR t.filename = 'pages/404.njk')
+      ORDER BY c.slug
+    `);
+
+    if (pagesToFix.length === 0) {
+      info(req, 'No pages need template fixes');
+      return { fixed: 0, pages: [] };
+    }
+
+    // Find the default template
+    const defaultTemplate = await query(
+      'SELECT id FROM templates WHERE filename = ?',
+      ['pages/default.njk']
+    );
+
+    if (defaultTemplate.length === 0) {
+      throw new Error('Default template pages/default.njk not found');
+    }
+
+    const templateId = defaultTemplate[0].id;
+    let fixed = 0;
+    const fixedPages = [];
+
+    for (const page of pagesToFix) {
+      await query(
+        'UPDATE pages SET template_id = ? WHERE id = ?',
+        [templateId, page.id]
+      );
+      
+      fixed++;
+      fixedPages.push({
+        id: page.id,
+        slug: page.slug,
+        title: page.title,
+        old_template: page.current_template || 'NULL',
+        new_template: 'pages/default.njk'
+      });
+
+      info(req, `Fixed template for page: ${page.slug} -> pages/default.njk`);
+    }
+
+    return { fixed, pages: fixedPages };
+  } catch (err) {
+    logError(req, err, 'Failed to fix page templates');
+    throw err;
+  }
+}

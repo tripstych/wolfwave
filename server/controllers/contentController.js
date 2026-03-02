@@ -313,13 +313,11 @@ export const renderContent = async (req, res) => {
     }
 
     if (!contentRows[0]) {
-      console.log(`[DEBUG] No content found for slug: ${slug}`);
       return renderError(req, res, 404, { title: 'Page Not Found' });
     }
 
     const contentRow = contentRows[0];
     const contentType = contentRow.module;
-    console.log(`[DEBUG] Found content: id=${contentRow.id}, module=${contentType}, slug=${contentRow.slug}`);
     // Use the actual slug from the DB for canonicals/SEO if we matched via fallback
     const matchedSlug = contentRow.slug;
 
@@ -333,7 +331,6 @@ export const renderContent = async (req, res) => {
         WHERE p.content_id = ? AND p.status = 'published'
       `, [contentRow.id]);
       pageData = pages[0];
-      console.log(`[DEBUG] Pages query result: found=${!!pageData}, template=${pageData?.template_filename}`);
     } else if (contentType === 'products') {
       const products = await query(`
         SELECT pr.*, pr.access_rules, t.filename as template_filename, t.options as template_options, t.id as template_id,
@@ -409,7 +406,6 @@ export const renderContent = async (req, res) => {
     }
 
     if (!pageData) {
-      console.log(`[DEBUG] No page data found for content_id=${contentRow.id}, returning 404`);
       return renderError(req, res, 404, { title: 'Page Not Found' });
     }
 
