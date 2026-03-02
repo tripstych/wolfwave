@@ -107,18 +107,29 @@ const TreeNode = ({ node, level = 0, onSelect, selectedPath }) => {
 };
 
 export default function FileTree({ files, onSelect, selectedPath }) {
+  // Handle both API tree structure and flat file list
   const tree = buildTree(files);
+
+  // Convert to array for rendering
+  const treeArray = Array.isArray(files) && files.length > 0 && files[0].children 
+    ? files 
+    : Object.values(tree);
 
   return (
     <div className="overflow-y-auto h-full py-2">
-      {Object.values(tree)
+      {treeArray
         .sort((a, b) => {
-          if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
-          return a.name.localeCompare(b.name);
+          // Directories/folders first, then files
+          if (a.type !== b.type) {
+            const aIsDir = a.type === 'directory' || a.type === 'folder';
+            const bIsDir = b.type === 'directory' || b.type === 'folder';
+            return aIsDir ? -1 : bIsDir ? 1 : 0;
+          }
+          return (a.label || a.name).localeCompare(b.label || b.name);
         })
         .map(node => (
           <TreeNode 
-            key={node.path} 
+            key={node.path || node.name} 
             node={node} 
             onSelect={onSelect}
             selectedPath={selectedPath}
