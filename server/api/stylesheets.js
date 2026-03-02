@@ -2,13 +2,7 @@ import { Router } from 'express';
 import { requireAuth, requireAdmin } from '../middleware/auth.js';
 import { query } from '../db/connection.js';
 import { error as logError, info } from '../lib/logger.js';
-import fs from 'fs/promises';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const TEMPLATES_DIR = path.join(__dirname, '../../templates');
+import { fixDuplicateStylesheets, syncStylesheetsFromFilesystem } from '../services/stylesheetService.js';
 
 const router = Router();
 
@@ -211,68 +205,35 @@ router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
 });
 
 /**
+ * Fix duplicate stylesheets
+ */
+router.post('/fix-duplicates', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const result = await fixDuplicateStylesheets(req);
+    
+    info(req, `Fixed ${result.fixed} duplicate stylesheets`);
+
+    res.json({
+      success: true,
+      fixed: result.fixed,
+      duplicates: result.duplicates
+    });
+  } catch (err) {
+    logError(req, err, 'Failed to fix duplicate stylesheets');
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
  * Sync stylesheets from filesystem to database
  */
 router.post('/sync-from-filesystem', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { site, user } = res.locals;
-    const cssDir = path.join(TEMPLATES_DIR, 'css');
+    
+    const result = await syncStylesheetsFromFilesystem(req, site, user);
 
-    // Check if directory exists
-    try {
-      await fs.access(cssDir);
-    } catch {
-      return res.status(404).json({ error: 'CSS directory not found: templates/css' });
-    }
-
-    const files = await fs.readdir(cssDir);
-    const cssFiles = files.filter(f => f.endsWith('.css'));
-
-    let synced = 0;
-    let errors = [];
-
-    for (const filename of cssFiles) {
-      try {
-        const filePath = path.join(cssDir, filename);
-        const content = await fs.readFile(filePath, 'utf8');
-        const sourceFile = `templates/css/${filename}`;
-
-        // Upsert stylesheet
-        await query(
-          `INSERT INTO stylesheets 
-           (site_id, filename, content, description, type, source_file, created_by, updated_by, last_synced_at)
-           VALUES (?, ?, ?, ?, 'template', ?, ?, ?, NOW())
-           ON DUPLICATE KEY UPDATE 
-           content = VALUES(content),
-           source_file = VALUES(source_file),
-           updated_by = VALUES(updated_by),
-           last_synced_at = NOW()`,
-          [
-            site?.id || null,
-            filename,
-            content,
-            `Synced from ${sourceFile}`,
-            sourceFile,
-            user?.id || null,
-            user?.id || null
-          ]
-        );
-
-        synced++;
-      } catch (err) {
-        errors.push({ filename, error: err.message });
-        logError(req, err, `Failed to sync ${filename}`);
-      }
-    }
-
-    info(req, `Synced ${synced} stylesheets from filesystem`);
-
-    res.json({
-      success: true,
-      synced,
-      total: cssFiles.length,
-      errors: errors.length > 0 ? errors : undefined
-    });
+    res.json(result);
   } catch (err) {
     logError(req, err, 'Failed to sync stylesheets');
     res.status(500).json({ error: err.message });
