@@ -25,11 +25,11 @@ export default function CodeEditor({
   onChange, 
   mode = "javascript", 
   theme = "monokai", 
-  height = "400px",
+  height = null,
   readOnly = false
 }) {
   return (
-    <div className="border border-gray-300 rounded-lg overflow-hidden flex flex-col" style={{ height: height }}>
+    <div className="border border-gray-300 rounded-lg overflow-hidden flex flex-col" style={height ? { height } : {}}>
        <AceEditor
         mode={mode}
         theme={theme}
