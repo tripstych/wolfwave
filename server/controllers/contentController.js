@@ -409,6 +409,7 @@ export const renderContent = async (req, res) => {
     }
 
     if (!pageData) {
+      console.log(`[DEBUG] No page data found for content_id=${contentRow.id}, returning 404`);
       return renderError(req, res, 404, { title: 'Page Not Found' });
     }
 
