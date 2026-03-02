@@ -47,7 +47,8 @@ router.get('/modules', requireAuth, async (req, res) => {
  * Exposes internal routes for menu management and sitemaps.
  */
 router.get('/system-routes', requireAuth, (req, res) => {
-  res.json(SYSTEM_ROUTES);
+  const menuRoutes = SYSTEM_ROUTES.filter(route => route.showInMenu !== false);
+  res.json(menuRoutes);
 });
 
 /**
