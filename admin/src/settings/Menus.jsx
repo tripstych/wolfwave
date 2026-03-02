@@ -246,31 +246,40 @@ export default function Menus() {
 
           {isEditing ? (
             <div className="flex-1 space-y-3">
-              <div className="flex flex-wrap gap-4">
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="radio"
-                    checked={!editingItem.page_id && !systemRoutes.find(r => r.url === editingItem.url)}
-                    onChange={() => setEditingItem({ ...editingItem, page_id: null })}
-                  />
+              <div className="flex border-b border-gray-200">
+                <button
+                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                    !editingItem.page_id && !systemRoutes.find(r => r.url === editingItem.url)
+                      ? 'border-indigo-500 text-indigo-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                  onClick={() => setEditingItem({ ...editingItem, page_id: null, url: '' })}
+                >
+                  <LinkIcon className="w-4 h-4 inline mr-2" />
                   Custom URL
-                </label>
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="radio"
-                    checked={!!editingItem.page_id}
-                    onChange={() => setEditingItem({ ...editingItem, url: null, page_id: editingItem.page_id || pages[0]?.id || null })}
-                  />
+                </button>
+                <button
+                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                    !!editingItem.page_id
+                      ? 'border-indigo-500 text-indigo-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                  onClick={() => setEditingItem({ ...editingItem, url: null, page_id: editingItem.page_id || pages[0]?.id || null })}
+                >
+                  <FileText className="w-4 h-4 inline mr-2" />
                   Page
-                </label>
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="radio"
-                    checked={!editingItem.page_id && !!systemRoutes.find(r => r.url === editingItem.url)}
-                    onChange={() => setEditingItem({ ...editingItem, page_id: null, url: systemRoutes[0]?.url })}
-                  />
+                </button>
+                <button
+                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                    !editingItem.page_id && !!systemRoutes.find(r => r.url === editingItem.url)
+                      ? 'border-indigo-500 text-indigo-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                  onClick={() => setEditingItem({ ...editingItem, page_id: null, url: systemRoutes[0]?.url })}
+                >
+                  <Shield className="w-4 h-4 inline mr-2" />
                   System
-                </label>
+                </button>
               </div>
 
               <div className="flex gap-2">
@@ -302,7 +311,7 @@ export default function Menus() {
                     onChange={(e) => setEditingItem({ ...editingItem, url: e.target.value })}
                     className="input flex-1"
                   >
-                    {systemRoutes.map(route => (
+                    {systemRoutes.filter(route => !route.url.startsWith('/pages/')).map(route => (
                       <option key={route.url} value={route.url}>{route.title}</option>
                     ))}
                   </select>
@@ -692,31 +701,40 @@ export default function Menus() {
                       Adding child item to: <strong>{selectedMenu.items?.find(i => i.id === addingChildTo)?.title}</strong>
                     </div>
                   )}
-                  <div className="flex flex-wrap gap-4">
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="radio"
-                        checked={newItem.linkType === 'custom'}
-                        onChange={() => setNewItem({ ...newItem, linkType: 'custom', page_id: null })}
-                      />
+                  <div className="flex border-b border-gray-200">
+                    <button
+                      className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                        newItem.linkType === 'custom'
+                          ? 'border-indigo-500 text-indigo-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700'
+                      }`}
+                      onClick={() => setNewItem({ ...newItem, linkType: 'custom', page_id: null })}
+                    >
+                      <LinkIcon className="w-4 h-4 inline mr-2" />
                       Custom URL
-                    </label>
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="radio"
-                        checked={newItem.linkType === 'page'}
-                        onChange={() => setNewItem({ ...newItem, linkType: 'page', url: '' })}
-                      />
+                    </button>
+                    <button
+                      className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                        newItem.linkType === 'page'
+                          ? 'border-indigo-500 text-indigo-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700'
+                      }`}
+                      onClick={() => setNewItem({ ...newItem, linkType: 'page', url: '' })}
+                    >
+                      <FileText className="w-4 h-4 inline mr-2" />
                       Page
-                    </label>
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="radio"
-                        checked={newItem.linkType === 'system'}
-                        onChange={() => setNewItem({ ...newItem, linkType: 'system', page_id: null, url: systemRoutes[0]?.url })}
-                      />
+                    </button>
+                    <button
+                      className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                        newItem.linkType === 'system'
+                          ? 'border-indigo-500 text-indigo-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700'
+                      }`}
+                      onClick={() => setNewItem({ ...newItem, linkType: 'system', page_id: null, url: systemRoutes[0]?.url })}
+                    >
+                      <Shield className="w-4 h-4 inline mr-2" />
                       System
-                    </label>
+                    </button>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -777,7 +795,7 @@ export default function Menus() {
                           }}
                           className="input"
                         >
-                          {systemRoutes.map(route => (
+                          {systemRoutes.filter(route => !route.url.startsWith('/pages/')).map(route => (
                             <option key={route.url} value={route.url}>{route.title}</option>
                           ))}
                         </select>
