@@ -410,8 +410,10 @@ export const renderContent = async (req, res) => {
     }
 
     if (!pageData.template_filename) {
-      console.error('No template assigned to content:', { contentType, contentId: contentRow.id });
-      return renderError(req, res, 500);
+      return renderError(req, res, 500, { 
+        title: 'Template Not Assigned',
+        message: `No template has been selected for this page. Please assign a template in the admin panel.`
+      });
     }
 
     // Parse content JSON
