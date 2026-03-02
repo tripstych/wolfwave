@@ -145,9 +145,9 @@ export default function TemplateEditor() {
   }
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-[calc(100vh-4rem)] flex flex-col">
       {/* Header */}
-      <div className="border-b border-gray-200 bg-white px-6 py-4">
+      <div className="border-b border-gray-200 bg-white px-6 py-4 flex-shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
@@ -188,13 +188,13 @@ export default function TemplateEditor() {
 
       {/* Error */}
       {error && (
-        <div className="bg-red-50 border-b border-red-200 px-6 py-3">
+        <div className="bg-red-50 border-b border-red-200 px-6 py-3 flex-shrink-0">
           <p className="text-sm text-red-600">{error}</p>
         </div>
       )}
 
       {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden min-h-0">
         {/* File Tree */}
         <div className="w-64 border-r border-gray-200 bg-gray-50 overflow-y-auto">
           <FileTree
