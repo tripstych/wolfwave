@@ -216,7 +216,6 @@ export default function TemplateEditor() {
                 value={content}
                 onChange={setContent}
                 mode="nunjucks"
-                height="100%"
               />
             </div>
           ) : (
