@@ -40,16 +40,28 @@ const buildTree = (files) => {
 
 const TreeNode = ({ node, level = 0, onSelect, selectedPath }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const hasChildren = Object.keys(node.children).length > 0;
-  const isSelected = node.path === selectedPath;
+  
+  // Handle both API structure and internal structure
+  const hasChildren = node.children && (
+    (typeof node.children === 'object' && Object.keys(node.children).length > 0) ||
+    (Array.isArray(node.children) && node.children.length > 0)
+  );
+  
+  const isSelected = node.path === selectedPath || node.name === selectedPath;
 
   const handleClick = () => {
-    if (node.type === 'folder') {
+    if (node.type === 'directory' || node.type === 'folder') {
       setIsOpen(!isOpen);
     } else {
-      onSelect(node.path);
+      // Use path if available, otherwise use name
+      onSelect(node.path || node.name);
     }
   };
+
+  // Convert children object to array if needed
+  const childrenArray = node.children ? (
+    Array.isArray(node.children) ? node.children : Object.values(node.children)
+  ) : [];
 
   return (
     <div>
@@ -59,25 +71,29 @@ const TreeNode = ({ node, level = 0, onSelect, selectedPath }) => {
         onClick={handleClick}
       >
         <span className="mr-1 text-gray-400">
-          {node.type === 'folder' ? (
+          {node.type === 'directory' || node.type === 'folder' ? (
             isOpen ? <FolderOpen className="w-4 h-4" /> : <Folder className="w-4 h-4" />
           ) : (
             <FileCode className="w-4 h-4" />
           )}
         </span>
-        <span className="text-sm truncate">{node.name}</span>
+        <span className="text-sm truncate">{node.label || node.name}</span>
       </div>
       {isOpen && hasChildren && (
         <div>
-          {Object.values(node.children)
+          {childrenArray
             .sort((a, b) => {
-              // Folders first, then files
-              if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
-              return a.name.localeCompare(b.name);
+              // Directories/folders first, then files
+              if (a.type !== b.type) {
+                const aIsDir = a.type === 'directory' || a.type === 'folder';
+                const bIsDir = b.type === 'directory' || b.type === 'folder';
+                return aIsDir ? -1 : bIsDir ? 1 : 0;
+              }
+              return (a.label || a.name).localeCompare(b.label || b.name);
             })
             .map(child => (
               <TreeNode 
-                key={child.path} 
+                key={child.path || child.name} 
                 node={child} 
                 level={level + 1} 
                 onSelect={onSelect}
