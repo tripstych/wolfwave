@@ -145,7 +145,7 @@ export default function TemplateEditor() {
   }
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex flex-col">
+    <div className="h-[calc(100vh-5rem)] flex flex-col">
       {/* Header */}
       <div className="border-b border-gray-200 bg-white px-6 py-4 flex-shrink-0">
         <div className="flex items-center justify-between">
