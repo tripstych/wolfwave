@@ -2,9 +2,23 @@ import React, { useState } from 'react';
 import { ChevronRight, ChevronDown, FileCode, Folder, FolderOpen } from 'lucide-react';
 
 const buildTree = (files) => {
+  // If files is already a tree structure, return it as-is
+  if (!files || !Array.isArray(files)) return {};
+  
+  // Check if this is already a tree structure (has children)
+  if (files.length > 0 && files[0].children) {
+    return files.reduce((acc, item) => {
+      acc[item.name] = item;
+      return acc;
+    }, {});
+  }
+
+  // Otherwise, build tree from flat file list
   const root = {};
 
   files.forEach(file => {
+    if (!file || !file.path) return; // Skip invalid entries
+    
     const parts = file.path.split('/');
     let current = root;
     
