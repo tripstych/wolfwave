@@ -297,7 +297,7 @@ export default function Templates() {
                   <p className="text-gray-500 mt-1">{selectedTemplate.filename}</p>
                 </div>
                 <Link
-                  to={`/themes/default/editor?file=${selectedTemplate.filename}`}
+                  to={`/templates/editor?file=${selectedTemplate.filename}&t=${Date.now()}`}
                   id="admin-templates-edit-code-link"
                   className="btn btn-secondary"
                 >

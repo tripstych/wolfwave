@@ -319,4 +319,108 @@ router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
+/**
+ * List all templates as a file tree for the code editor
+ */
+router.get('/files', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const templates = await prisma.templates.findMany({
+      select: { id: true, filename: true, name: true, content_type: true },
+      orderBy: { filename: 'asc' }
+    });
+
+    // Build tree structure from flat filenames
+    const root = [];
+    for (const tpl of templates) {
+      const parts = tpl.filename.split('/');
+      let current = root;
+
+      for (let i = 0; i < parts.length; i++) {
+        const part = parts[i];
+        const isFile = i === parts.length - 1;
+
+        if (isFile) {
+          current.push({
+            name: tpl.filename,
+            label: part,
+            type: 'file',
+            path: tpl.filename,
+            id: tpl.id
+          });
+        } else {
+          let dir = current.find(n => n.label === part && n.type === 'directory');
+          if (!dir) {
+            dir = { name: part, label: part, type: 'directory', children: [] };
+            current.push(dir);
+          }
+          current = dir.children;
+        }
+      }
+    }
+
+    res.json(root);
+  } catch (err) {
+    console.error('List template files error:', err);
+    res.status(500).json({ error: 'Failed to list template files' });
+  }
+});
+
+/**
+ * Get template content by filename (for code editor)
+ */
+router.get('/files/:filename(*)', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const filename = req.params.filename;
+    const template = await prisma.templates.findFirst({
+      where: { filename }
+    });
+
+    if (!template) {
+      return res.status(404).json({ error: 'Template not found' });
+    }
+
+    res.json({
+      filename: template.filename,
+      content: template.content || '',
+      name: template.name,
+      id: template.id
+    });
+  } catch (err) {
+    console.error('Get template file error:', err);
+    res.status(500).json({ error: 'Failed to get template file' });
+  }
+});
+
+/**
+ * Save template content by filename (from code editor)
+ */
+router.post('/files/:filename(*)', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const filename = req.params.filename;
+    const { content } = req.body;
+
+    const template = await prisma.templates.findFirst({
+      where: { filename }
+    });
+
+    if (!template) {
+      return res.status(404).json({ error: 'Template not found' });
+    }
+
+    await prisma.templates.update({
+      where: { id: template.id },
+      data: { content }
+    });
+
+    // Clear theme cache so changes take effect immediately
+    const { clearThemeCache } = await import('../services/themeResolver.js');
+    clearThemeCache();
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Save template file error:', err);
+    res.status(500).json({ error: 'Failed to save template file' });
+  }
+});
+
 export default router;

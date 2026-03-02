@@ -12,6 +12,7 @@ const PageEditor = lazy(() => import('./pages/PageEditor'));
 const Posts = lazy(() => import('./pages/Posts'));
 const PostEditor = lazy(() => import('./pages/PostEditor'));
 const Templates = lazy(() => import('./settings/Templates'));
+const TemplateEditor = lazy(() => import('./settings/TemplateEditor'));
 const Media = lazy(() => import('./settings/Media'));
 const Menus = lazy(() => import('./settings/Menus'));
 const Blocks = lazy(() => import('./blocks/Blocks'));
@@ -40,7 +41,6 @@ const Sites = lazy(() => import('./tenants/Sites'));
 const MySites = lazy(() => import('./tenants/MySites'));
 const Themes = lazy(() => import('./settings/Themes'));
 const WpThemeImport = lazy(() => import('./settings/WpThemeImport'));
-const ThemeEditor = lazy(() => import('./settings/ThemeEditor'));
 const StyleEditor = lazy(() => import('./settings/StyleEditor'));
 const EmailTemplates = lazy(() => import('./settings/EmailTemplates'));
 const ApiKeys = lazy(() => import('./settings/ApiKeys'));
@@ -153,9 +153,10 @@ function App() {
                 <Route path="/marketing/coupons/:id" element={<Suspense fallback={<LoadingSpinner />}><CouponEditor /></Suspense>} />
                 <Route path="/sites" element={<Suspense fallback={<LoadingSpinner />}><Sites /></Suspense>} />
                 <Route path="/my-sites" element={<Suspense fallback={<LoadingSpinner />}><MySites /></Suspense>} />
+                <Route path="/templates" element={<Suspense fallback={<LoadingSpinner />}><Templates /></Suspense>} />
+                <Route path="/templates/editor" element={<Suspense fallback={<LoadingSpinner />}><TemplateEditor /></Suspense>} />
                 <Route path="/themes" element={<Suspense fallback={<LoadingSpinner />}><Themes /></Suspense>} />
                 <Route path="/themes/import" element={<Suspense fallback={<LoadingSpinner />}><WpThemeImport /></Suspense>} />
-                <Route path="/themes/:themeName/editor" element={<Suspense fallback={<LoadingSpinner />}><ThemeEditor /></Suspense>} />
                 <Route path="/styles" element={<Suspense fallback={<LoadingSpinner />}><StyleEditor /></Suspense>} />
                 <Route path="/email-templates" element={<Suspense fallback={<LoadingSpinner />}><EmailTemplates /></Suspense>} />
                 <Route path="/api-keys" element={<Suspense fallback={<LoadingSpinner />}><ApiKeys /></Suspense>} />
