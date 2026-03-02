@@ -235,20 +235,22 @@ export default function StyleEditor() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Style Editor</h1>
-          <p className="text-sm text-gray-500">Configure global typography, colors and custom CSS for your site.</p>
+      <div className="sticky top-[64px] z-20 bg-gray-50/95 backdrop-blur-sm -mx-6 px-6 py-4 border-b border-gray-200 mb-2">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Style Editor</h1>
+            <p className="text-xs text-gray-500">Configure global typography, colors and custom CSS for your site.</p>
+          </div>
+          <button 
+            id="style-editor-save"
+            onClick={handleSave} 
+            disabled={saving}
+            className="btn btn-primary shadow-sm"
+          >
+            {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+            Save {activeTab === 'css' ? 'CSS' : 'Styles'}
+          </button>
         </div>
-        <button 
-          id="style-editor-save"
-          onClick={handleSave} 
-          disabled={saving}
-          className="btn btn-primary"
-        >
-          {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-          Save {activeTab === 'css' ? 'CSS' : 'Styles'}
-        </button>
       </div>
 
       {/* Tabs */}
