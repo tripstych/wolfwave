@@ -98,5 +98,5 @@
 
 /* Code Editor Height Fix */
 #code-editor {
-  height: calc(100% - 16px) !important;
+  height: calc(100% - 80px) !important;
 }
