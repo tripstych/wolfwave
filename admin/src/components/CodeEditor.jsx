@@ -46,7 +46,6 @@ export default function CodeEditor({
           useWorker: true,
         }}
         width="100%"
-        height="100%"
         fontSize={14}
         showPrintMargin={false}
         showGutter={true}
